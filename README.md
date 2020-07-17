@@ -22,3 +22,13 @@ SendDeals,
 ProcessDeals,
 ProcessResponses.
 
+5. Each DKG step will be performed in a uniform way. For example, to send a PublicKey message, the client will have to:
+    * Form a request to the airgapped machine to generate a pair of PK, SK and return the PK;
+    * Feed the request into the airgapped machine (scan the QR-code);
+    * Get the airgapped machine response and scan it back;
+    * Sign the message containing the DKG public key with client's communication key;
+    * Send the message to the storage;
+    * Read other participants' messages from the storage and form further requests to the airgapped machine using those repsonses.
+
+6. During DKG, some of the messages have to be sent peer-to-peer (privately), and we don't want them to be broadcasted. Those messages will be sent to the public storage anyway, but will be encrypted using communication keys.
+
