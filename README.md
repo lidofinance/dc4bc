@@ -42,8 +42,50 @@ The expected DKG workflow goes as follows:
 
 ### The Storage
 
+The Storage will be a gRPC server written in Go and should implement the following interface:
+ * Method1()
+ * Method2()
+ 
+The following libraries will be used for the required functionality:
+1. Lib1
+2. Lib2
+3. Lib3
+
 ### The Client
+
+The Client will be a gRPC client written in Go, and should implement the following interface:
+ * Method1()
+ * Method2()
+ 
+The following libraries will be used for the required functionality:
+1. Lib1
+2. Lib2
+3. Lib3
+
 
 ### The Airgapped Machine
 
+The Airgapped Machine will be written in Go and should implement the following interface:
+ * Method1()
+ * Method2()
+ 
+The following libraries will be used for the required functionality:
+1. Lib1
+2. Lib2
+3. Lib3
+
 ### Roadmap
+
+1. The components as described above will be first mocked, implementing the specified interfaces.
+2. The Storage will be implemented, using a suitable key-value database and an interface wrapping the DB operations.
+3. The Client will be implemented, sending mocked messages to the storage and reading responses from it.
+4. The DKG library for the Arcade project will be adopted for our needs (mostly refactoring, interface simplification and more unit tests).
+5. The Airgapped Machine will be implemented in 4 steps:
+    * The DKG part will be implemented using Arcade's refactored codebase;
+    * This intermediate implementation will be used as a library by the Client to simplify testing;
+    * A Docker infrastructure will be implemented to automatically test the DKG on a local machine;
+    * The collective signing part will be implemented for the Airgapped Machine as a library call, with tests using the Docker infrastructure;
+    * The QR-code communication protocol will be implemented for the Airgapped Machine;
+    * The Airgapped Machine code will be removed from the client.
+    
+
