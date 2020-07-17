@@ -1,3 +1,5 @@
+### Overview
+
 Participants start with a pair of communication keys and aim to collectively produce a threshold BLS key pair. The three main components of the process are:
 
 1. The storage for all public messages sent by participants, potentially a safe and unsophisticated key-value database (or any other DB that can be used alike, e.g. MongoDB). Messages sent to the storage are signed by communication keys.
@@ -6,7 +8,9 @@ Participants start with a pair of communication keys and aim to collectively pro
 
 3. An airgapped machine for each of the participants that will handle all the threshold cryptography-related operations, i.e., the DKG messages and partial signatures. Сlients and their airgapped machines will communicate through QR codes: if the client, say, will need to form a justification for the DKG phase, she will generate a QR code that will be scanned by the airgapped machine that encodes the request for justification.
 
-The expected workflow goes as follows:
+### DKG
+
+The expected DKG workflow goes as follows:
 
 1. For the participants to be able to collectively distribute profits, a threshold signature is required. We propose that the participants use a threshold BLS signature and a %source% DKG protocol to obtain that signature.
 
@@ -16,9 +20,72 @@ The expected workflow goes as follows:
 
 4. Based on the messages from step 3, the parties decide on the parameters of DKG (i.e., the number of participants). Although the DKG protocol that we are going to use allows for a certain amount of the participants to misbehave, we want any missing or corrupt message to abort the DKG. This means that we can simplify the DKG to have only 4 steps:
 
-SendPublicKeys,
-SendCommits,
-SendDeals,
-ProcessDeals,
-ProcessResponses.
+    * SendPublicKeys,
+    * SendCommits,
+    * SendDeals,
+    * ProcessDeals,
+    * ProcessResponses.
+
+5. Each DKG step will be performed in a uniform way. For example, to send a PublicKey message, the client will have to:
+    * Form a request to the airgapped machine to generate a pair of PK, SK and return the PK;
+    * Feed the request into the airgapped machine (scan the QR-code);
+    * Get the airgapped machine response and scan it back;
+    * Sign the message containing the DKG public key with client's communication key;
+    * Send the message to the storage;
+    * Read other participants' messages from the storage and form further requests to the airgapped machine using those repsonses.
+
+6. During DKG, some of the messages have to be sent peer-to-peer (privately), and we don't want them to be broadcasted. Those messages will be sent to the public storage anyway, but will be encrypted using communication keys.
+
+7. After the participants successfully finish DKG, their shares of BLS private key are stored safely on the airgapped machine.
+
+8. When the participants decide to distribute profits, they get their partial signature from the airgapped machine and send it to the storage; after the required number of partial signatures is supplied, the collective signarute can be recovered.
+
+### The Storage
+
+The Storage will be a gRPC server written in Go and should implement the following interface:
+ * Method1()
+ * Method2()
+ 
+The following libraries will be used for the required functionality:
+1. Lib1
+2. Lib2
+3. Lib3
+
+### The Client
+
+The Client will be a gRPC client written in Go, and should implement the following interface:
+ * Method1()
+ * Method2()
+ 
+The following libraries will be used for the required functionality:
+1. Lib1
+2. Lib2
+3. Lib3
+
+
+### The Airgapped Machine
+
+The Airgapped Machine will be written in Go and should implement the following interface:
+ * Method1()
+ * Method2()
+ 
+The following libraries will be used for the required functionality:
+1. Lib1
+2. Lib2
+3. Lib3
+
+### Roadmap
+
+1. The components as described above will be first mocked, implementing the specified interfaces.
+2. The Storage will be implemented, using a suitable key-value database and an interface wrapping the DB operations.
+3. The Client will be implemented, sending mocked messages to the storage and reading responses from it.
+4. The DKG library for the Arcade project will be adopted for our needs (mostly refactoring, interface simplification and more unit tests).
+5. The Airgapped Machine will be implemented in 4 steps:
+    * The DKG part will be implemented using Arcade's refactored codebase;
+    * This intermediate implementation will be used as a library by the Client to simplify testing;
+    * A Docker infrastructure will be implemented to automatically test the DKG on a local machine;
+    * The collective signing part will be implemented for the Airgapped Machine as a library call, with tests using the Docker infrastructure;
+    * The QR-code communication protocol will be implemented for the Airgapped Machine;
+    * The Airgapped Machine code will be removed from the client.
+    
 
