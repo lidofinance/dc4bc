@@ -39,7 +39,7 @@ There is a secure comminication channel between a hot node and a cold node betwe
 ## DKG Process
 
 1. Using a Conference Call, participants establish: the set of participants, public keys for authentfication and encryption, the nature and connection parameters of a bulletin board, step timeouts, threshold number.
-2. Any participant broadcast a DKG Startup Message, that contains the set of participants, and public keys for authentfication and encryption. Hash of that message later is used as a unique id of a DKG (used in messages to differentiate between multiple parallel DKGs if needed).
+2. Any participant broadc   ast a DKG Startup Message, that contains the set of participants, and public keys for authentfication and encryption. Hash of that message later is used as a unique id of a DKG (used in messages to differentiate between multiple parallel DKGs if needed).
 3. All participants broadcast their agreement to participate in this particular DKG within the agreed upon step timeout.
 4. When all participants agree, every participant asks a cold node to publish a commit:
    1. message_hash = h2c_message(<start DKG with DKG_hash xxx, number of participants X, threshold Y>)
@@ -65,4 +65,7 @@ If at any point something goes wrong (timeout reached, the deal is invalid, publ
 4. When enough (>= threshold) participants broadcasted a partial signature, threshold signature is reconstructed.
 5. Someone broadcasts a partial signature.
 
-If not enough participants signal their willingness to sign within a timeout or signal their rejection to sign, 
+If not enough participants signal their willingness to sign within a timeout or signal their rejection to sign, signature process is aborted.
+
+
+We think that business logic in the hot node should be organized as a set of simple state machines that change state only by external trigger, such as CLI command, message from cold node, or a new message on Bulletin Board. That way it can be easily tested and audited.
