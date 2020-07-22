@@ -2,6 +2,7 @@ package qr
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/makiuchi-d/gozxing"
@@ -18,8 +19,16 @@ func ReadQRFromCamera() (string, error) {
 	}
 	window := gocv.NewWindow("Hello")
 
-	defer webcam.Close()
-	defer window.Close()
+	defer func() {
+		if err := webcam.Close(); err != nil {
+			log.Fatalf("failed to close camera: %v", err)
+		}
+	}()
+	defer func() {
+		if err := window.Close(); err != nil {
+			log.Fatalf("failed to close camera window: %v", err)
+		}
+	}()
 
 	img := gocv.NewMat()
 	tk := time.NewTimer(timeToScan)
