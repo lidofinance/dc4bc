@@ -5,6 +5,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"os"
 
 	"github.com/mattn/go-gtk/glib"
 	"github.com/mattn/go-gtk/gtk"
@@ -18,6 +19,10 @@ import (
 const tmpImageFile = "/tmp/qr.png"
 
 func ShowQR(data string) error {
+	defer func() {
+		_ = os.Remove(tmpImageFile)
+	}()
+
 	err := encoder.WriteFile(data, encoder.Medium, 512, tmpImageFile)
 	if err != nil {
 		return fmt.Errorf("failed to encode the data: %w", err)
