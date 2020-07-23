@@ -3,6 +3,8 @@ package dkg
 import (
 	"errors"
 	"fmt"
+	"sync"
+
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
 	"go.dedis.ch/kyber/v3/share"
@@ -11,9 +13,10 @@ import (
 )
 
 type DKG struct {
+	sync.Mutex
 	instance      *dkg.DistKeyGenerator
 	deals         map[string]*dkg.Deal
-	commits       map[string]kyber.Point
+	commits       map[string][]kyber.Point
 	pubkeys       PKStore
 	pubKey        kyber.Point
 	secKey        kyber.Scalar
@@ -31,7 +34,7 @@ func Init() *DKG {
 	d.pubKey = d.suite.Point().Mul(d.secKey, nil)
 
 	d.deals = make(map[string]*dkg.Deal)
-	d.commits = make(map[string]kyber.Point)
+	d.commits = make(map[string][]kyber.Point)
 
 	return &d
 }
@@ -41,6 +44,9 @@ func (d *DKG) GetPubKey() kyber.Point {
 }
 
 func (d *DKG) StorePubKey(participant string, pk kyber.Point) bool {
+	d.Lock()
+	defer d.Unlock()
+
 	return d.pubkeys.Add(&PK2Participant{
 		Participant: participant,
 		PK:          pk,
@@ -59,8 +65,11 @@ func (d *DKG) GetCommits() []kyber.Point {
 	return d.instance.GetDealer().Commits()
 }
 
-func (d *DKG) StoreCommit(participant string, commit kyber.Point) {
-	d.commits[participant] = commit
+func (d *DKG) StoreCommits(participant string, commits []kyber.Point) {
+	d.Lock()
+	defer d.Unlock()
+
+	d.commits[participant] = commits
 }
 
 func (d *DKG) GetDeals() (map[int]*dkg.Deal, error) {
@@ -111,7 +120,8 @@ func (d *DKG) processDealCommits(verifier *vss.Verifier, deal *dkg.Deal) (bool, 
 		return false, err
 	}
 
-	commitsData, ok := d.commits.indexToData[int(deal.Index)]
+	//commitsData, ok := d.commits.indexToData[int(deal.Index)]
+	commitsData, ok := d.commits[""]
 	if !ok {
 		return false, err
 	}
@@ -148,5 +158,7 @@ func (d *DKG) Reconstruct() error {
 	}
 
 	masterPubKey := share.NewPubPoly(d.suite, nil, distKeyShare.Commitments())
-	//.....
+	fmt.Println(masterPubKey)
+
+	return nil
 }
