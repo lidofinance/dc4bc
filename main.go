@@ -88,6 +88,7 @@ func main() {
 		wg.Done()
 	})
 
+	// Participants broadcast their responses.
 	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
 		responses, err := participant.ProcessDeals()
 		if err != nil {
@@ -97,6 +98,7 @@ func main() {
 		wg.Done()
 	})
 
+	// Participants process their responses.
 	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
 		if err := participant.ProcessResponses(); err != nil {
 			log.Fatalf("failed to ProcessResponses for participant %s: %v", participantID, err)
