@@ -3,6 +3,7 @@ package dkg
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 
 	"go.dedis.ch/kyber/v3"
@@ -17,11 +18,12 @@ type DKG struct {
 	instance      *dkg.DistKeyGenerator
 	deals         map[string]*dkg.Deal
 	commits       map[string][]kyber.Point
+	responses     *messageStore
 	pubkeys       PKStore
 	pubKey        kyber.Point
 	secKey        kyber.Scalar
 	suite         *bn256.Suite
-	participantID int
+	ParticipantID int
 }
 
 func Init() *DKG {
@@ -35,6 +37,7 @@ func Init() *DKG {
 
 	d.deals = make(map[string]*dkg.Deal)
 	d.commits = make(map[string][]kyber.Point)
+	d.responses = newMessageStore(9)
 
 	return &d
 }
@@ -54,6 +57,8 @@ func (d *DKG) StorePubKey(participant string, pk kyber.Point) bool {
 }
 
 func (d *DKG) InitDKGInstance(t int) (err error) {
+	sort.Sort(d.pubkeys)
+
 	d.instance, err = dkg.NewDistKeyGenerator(d.suite, d.secKey, d.pubkeys.GetPKs(), t)
 	if err != nil {
 		return err
@@ -78,24 +83,28 @@ func (d *DKG) GetDeals() (map[int]*dkg.Deal, error) {
 		return nil, err
 	}
 	for _, deal := range deals {
-		d.participantID = int(deal.Index) // Same for each deal.
+		d.ParticipantID = int(deal.Index) // Same for each deal.
 		break
 	}
 	return deals, nil
 }
 
 func (d *DKG) StoreDeal(participant string, deal *dkg.Deal) {
+	d.Lock()
+	defer d.Unlock()
+
 	d.deals[participant] = deal
 }
 
-func (d *DKG) processDeals() error {
+func (d *DKG) ProcessDeals() ([]*dkg.Response, error) {
+	responses := make([]*dkg.Response, 0)
 	for _, deal := range d.deals {
-		if deal.Index == uint32(d.participantID) {
+		if deal.Index == uint32(d.ParticipantID) {
 			continue
 		}
 		resp, err := d.instance.ProcessDeal(deal)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// Commits verification.
@@ -103,14 +112,46 @@ func (d *DKG) processDeals() error {
 		verifier := allVerifiers[deal.Index]
 		commitsOK, err := d.processDealCommits(verifier, deal)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		// If something goes wrong, party complains.
 		if !resp.Response.Status || !commitsOK {
-			return fmt.Errorf("failed to process deals")
+			return nil, fmt.Errorf("failed to process deals")
+		}
+		responses = append(responses, resp)
+	}
+	return responses, nil
+}
+
+func (d *DKG) StoreResponses(participant string, responses []*dkg.Response) {
+	d.Lock()
+	defer d.Unlock()
+
+	for _, resp := range responses {
+		d.responses.add(participant, int(resp.Response.Index), resp)
+	}
+}
+
+func (d *DKG) ProcessResponses() error {
+	for _, peerResponses := range d.responses.indexToData {
+		for _, response := range peerResponses {
+			resp := response.(*dkg.Response)
+			if int(resp.Response.Index) == d.ParticipantID {
+				continue
+			}
+
+			_, err := d.instance.ProcessResponse(resp)
+			if err != nil {
+				return fmt.Errorf("failed to ProcessResponse: %w", err)
+			}
 		}
 	}
+
+	if !d.instance.Certified() {
+		return fmt.Errorf("praticipant %v is not certified", d.ParticipantID)
+	}
+
 	return nil
 }
 
@@ -120,8 +161,9 @@ func (d *DKG) processDealCommits(verifier *vss.Verifier, deal *dkg.Deal) (bool, 
 		return false, err
 	}
 
-	//commitsData, ok := d.commits.indexToData[int(deal.Index)]
-	commitsData, ok := d.commits[""]
+	participant := fmt.Sprintf("participant_%d", deal.Index)
+	commitsData, ok := d.commits[participant]
+
 	if !ok {
 		return false, err
 	}

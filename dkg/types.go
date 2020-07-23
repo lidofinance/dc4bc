@@ -32,3 +32,40 @@ func (s PKStore) GetPKs() []kyber.Point {
 	}
 	return out
 }
+
+type messageStore struct {
+	// Common number of messages of the same type from peers
+	messagesCount int
+
+	// Max number of messages of the same type from one peer per round
+	maxMessagesFromPeer int
+
+	// Map which stores messages. Key is a peer's address, value is data
+	addrToData map[string][]interface{}
+
+	// Map which stores messages (same as addrToData). Key is a peer's index, value is data.
+	indexToData map[int][]interface{}
+}
+
+func newMessageStore(n int) *messageStore {
+	return &messageStore{
+		maxMessagesFromPeer: n,
+		addrToData:          make(map[string][]interface{}),
+		indexToData:         make(map[int][]interface{}),
+	}
+}
+
+func (ms *messageStore) add(addr string, index int, val interface{}) {
+	data := ms.addrToData[addr]
+	if len(data) == ms.maxMessagesFromPeer {
+		return
+	}
+	data = append(data, val)
+	ms.addrToData[addr] = data
+
+	data = ms.indexToData[index]
+	data = append(data, val)
+	ms.indexToData[index] = data
+
+	ms.messagesCount++
+}

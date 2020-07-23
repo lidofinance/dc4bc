@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
 	_ "image/jpeg"
 	"log"
 	"sync"
@@ -36,6 +37,18 @@ func (t *Transport) BroadcastCommits(participant string, commits []kyber.Point) 
 	}
 }
 
+func (t *Transport) BroadcastDeals(participant string, deals map[int]*dkg.Deal) {
+	for index, deal := range deals {
+		t.nodes[index].StoreDeal(participant, deal)
+	}
+}
+
+func (t *Transport) BroadcastResponses(participant string, responses []*dkg.Response) {
+	for _, node := range t.nodes {
+		node.StoreResponses(participant, responses)
+	}
+}
+
 func main() {
 	var threshold = 3
 	var transport = &Transport{}
@@ -65,9 +78,35 @@ func main() {
 		wg.Done()
 	})
 
+	// Participants broadcast their deal.
+	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
+		deals, err := participant.GetDeals()
+		if err != nil {
+			log.Fatalf("failed to getDeals for participant %s: %v", participantID, err)
+		}
+		transport.BroadcastDeals(participantID, deals)
+		wg.Done()
+	})
+
+	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
+		responses, err := participant.ProcessDeals()
+		if err != nil {
+			log.Fatalf("failed to ProcessDeals for participant %s: %v", participantID, err)
+		}
+		transport.BroadcastResponses(participantID, responses)
+		wg.Done()
+	})
+
+	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
+		if err := participant.ProcessResponses(); err != nil {
+			log.Fatalf("failed to ProcessResponses for participant %s: %v", participantID, err)
+		}
+		wg.Done()
+	})
+
 	for idx, node := range transport.nodes {
 		if err := node.Reconstruct(); err != nil {
-			fmt.Println("Node", idx, "is not ready")
+			fmt.Println("Node", idx, "is not ready:", err)
 		} else {
 			fmt.Println("Node", idx, "is ready")
 		}
@@ -78,7 +117,8 @@ func runStep(transport *Transport, cb func(participantID string, participant *dk
 	var wg = &sync.WaitGroup{}
 	for idx, node := range transport.nodes {
 		wg.Add(1)
-		go cb(fmt.Sprintf("participant_%d", idx), node, wg)
+		n := node
+		go cb(fmt.Sprintf("participant_%d", idx), n, wg)
 	}
 	wg.Wait()
 }
