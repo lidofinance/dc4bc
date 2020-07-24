@@ -161,7 +161,8 @@ func (d *DKG) processDealCommits(verifier *vss.Verifier, deal *dkg.Deal) (bool, 
 		return false, err
 	}
 
-	participant := fmt.Sprintf("participant_%d", deal.Index)
+	participant := d.pubkeys.GetParticipantByIndex(int(deal.Index))
+
 	commitsData, ok := d.commits[participant]
 
 	if !ok {
@@ -200,7 +201,7 @@ func (d *DKG) Reconstruct() error {
 	}
 
 	masterPubKey := share.NewPubPoly(d.suite, nil, distKeyShare.Commitments())
-	fmt.Println(masterPubKey)
+	fmt.Println(d.ParticipantID, masterPubKey)
 
 	return nil
 }

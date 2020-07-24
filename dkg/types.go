@@ -33,6 +33,13 @@ func (s PKStore) GetPKs() []kyber.Point {
 	return out
 }
 
+func (s PKStore) GetParticipantByIndex(index int) string {
+	if index < 0 || index > len(s) {
+		return ""
+	}
+	return s[index].Participant
+}
+
 type messageStore struct {
 	// Common number of messages of the same type from peers
 	messagesCount int
