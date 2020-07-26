@@ -23,6 +23,15 @@ type Transport struct {
 	nodes []*dkglib.DKG
 }
 
+func (t *Transport) getNodeByParticipantID(id int) *dkglib.DKG {
+	for _, node := range t.nodes {
+		if node.ParticipantID == id {
+			return node
+		}
+	}
+	return nil
+}
+
 func (t *Transport) BroadcastPK(participant string, pk kyber.Point) {
 	for idx, node := range t.nodes {
 		if ok := node.StorePubKey(participant, pk); !ok {
@@ -39,7 +48,12 @@ func (t *Transport) BroadcastCommits(participant string, commits []kyber.Point) 
 
 func (t *Transport) BroadcastDeals(participant string, deals map[int]*dkg.Deal) {
 	for index, deal := range deals {
-		t.nodes[index].StoreDeal(participant, deal)
+		dstNode := t.getNodeByParticipantID(index)
+		if dstNode == nil {
+			fmt.Printf("Node with index #%d not found\n", index)
+			continue
+		}
+		dstNode.StoreDeal(participant, deal)
 	}
 }
 

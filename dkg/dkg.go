@@ -3,6 +3,7 @@ package dkg
 import (
 	"errors"
 	"fmt"
+	"math"
 	"sort"
 	"sync"
 
@@ -37,7 +38,6 @@ func Init() *DKG {
 
 	d.deals = make(map[string]*dkg.Deal)
 	d.commits = make(map[string][]kyber.Point)
-	d.responses = newMessageStore(9)
 
 	return &d
 }
@@ -56,10 +56,33 @@ func (d *DKG) StorePubKey(participant string, pk kyber.Point) bool {
 	})
 }
 
+func (d *DKG) calcParticipantID() int {
+	for idx, p := range d.pubkeys {
+		if p.PK.Equal(d.pubKey) {
+			return idx
+		}
+	}
+	return -1
+}
+
 func (d *DKG) InitDKGInstance(t int) (err error) {
 	sort.Sort(d.pubkeys)
 
-	d.instance, err = dkg.NewDistKeyGenerator(d.suite, d.secKey, d.pubkeys.GetPKs(), t)
+	publicKeys := d.pubkeys.GetPKs()
+
+	participantsCount := len(publicKeys)
+
+	participantID := d.calcParticipantID()
+
+	if participantID < 0 {
+		return fmt.Errorf("failed to determine participant index")
+	}
+
+	d.ParticipantID = participantID
+
+	d.responses = newMessageStore(int(math.Pow(float64(participantsCount)-1, 2)))
+
+	d.instance, err = dkg.NewDistKeyGenerator(d.suite, d.secKey, publicKeys, t)
 	if err != nil {
 		return err
 	}
@@ -81,10 +104,6 @@ func (d *DKG) GetDeals() (map[int]*dkg.Deal, error) {
 	deals, err := d.instance.Deals()
 	if err != nil {
 		return nil, err
-	}
-	for _, deal := range deals {
-		d.ParticipantID = int(deal.Index) // Same for each deal.
-		break
 	}
 	return deals, nil
 }
