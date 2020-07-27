@@ -1,3 +1,84 @@
+# dc4bc: distributed custody for the beacon chain
+
+The goal of ths project is to make a simple, secure framework to generate and use threshold signatures for infrequent financial transactions over Ethereum 2.0 Beacon Chain (BLS on BLS12-381 curve). dc4bc only deals with key generation and the signature process with all the user-side logic offloaded to applications using dc4bc as a service or an API.
+
+For a better key management, we presume that, when used in production, private encryption keys and threshold siganture related secrets reside in an airgapped machine or an HSM. For a better auditablity and testability, network protocol logic is implemented as a set of finite state machines that change state deterministically in response to a a stream of outside events. 
+
+The main and, for now, only network communication primitive we use is a shared bulletin board in form of an authetnicated append-only log. Different implementations of that log could be a shared file (for local development or testing), a trusted network service (e.g. Amazon S3 bucket), a federated blockchain between protocol participants or a public blockchain. 
+
+
+## Moving parts
+
+### Participants 
+N participants, having a hot (connected to the network) node and a cold (airgapped) node. Participants all have two pair of keys: auth keys and encryption keys. PubAuthKey_i, PrivAuthKey_i, PubEncKey_i, PrivEncKey_i respectively Participant_i. Each participant also have a secret seed used to generate DKG messages.
+
+Auth keys are stored on the hot node, encryption keys and a seed are stored on a cold node.
+
+### Conference call
+
+It's presumed participants can use a separate secure communication channel (let's call it Conference Call) to establish initial parameters: the set of participants, their identities and public authentification keys, the nature and connection parameters of a bulletin board and so on.
+
+
+### Bulletin Board
+
+The core communication/storage primitive for dc4bc is a bulletin board - a simple authenticated append-only log that can be accesed by all the participants and allows posting authentificated messages and polling for posted messages. We need BB to have two functions:
+- post(message, signature)
+- getMessages(offset = 0)
+  - returns a list of all messages posted after the first <offset> one
+
+This allows us to establish communication primitives:
+
+- broadcast(message) by Participant_i:
+    post(message, signature(message, PrivAuthKey_i))
+- private_message(message, Participant_j):
+    encrypted_message = { "to" : Participant_j, "message": encrypt(message, PubEncKey_j)}
+    broadcast(encrypted_message)
+
+Bulletin board can be constructed using a trusted centralized service a-la github/amazon, using public blockchain, or using a consensus between participants to establish a private blockchain. Anyway, it should be abstracted away in the client and signer both and easily switchable.
+
+Bulletin board is only available on a hot node.
+
+### Secure Channel
+
+There is a secure comminication channel between a hot node and a cold node between each participant. We expect it to be a dead simple QR-code based asynchronous messaging protocol, but it can be something more complicated eventually, e.g. USB connection to the HSM. It's got two primitive functions:
+- h2c_message(message) - send a message from hot node to cold node, returns message hash
+- await_c2h_reply(hash(message)) - wait for reply from cold node
+
+
+## DKG Process
+
+1. Using a Conference Call, participants establish: the set of participants, public keys for authentfication and encryption, the nature and connection parameters of a bulletin board, step timeouts, threshold number.
+2. Any participant broadcasts a DKG Startup Message, that contains the set of participants, and public keys for authentfication and encryption. Hash of that message later is used as a unique id of a DKG (used in messages to differentiate between multiple parallel DKGs if needed).
+3. All participants broadcast their agreement to participate in this particular DKG within the agreed upon step timeout.
+4. When all participants agree, every participant asks a cold node to publish a commit:
+   1. message_hash = h2c_message(<start DKG with DKG_hash xxx, number of participants X, threshold Y>)
+   2. broadcast(await_c2h_reply(message_hash))
+5. When all participants publish a commit, every participant:
+   1. h2c_message(<all commits>)
+   2. message_hash = h2c_message(<send deals>)
+   3. deals = await_c2h_reply(message_hash)
+   4. for participant in participants:
+      1. direct_message(participant, deal[participant])
+6. When a pariticipant has recieved all the deals:
+   1. They reconstruct the public key from the deals and broadcast it
+7. If everyone broadcasts the same reconstructed public key, DKG completed successfully
+
+If at any point something goes wrong (timeout reached, the deal is invalid, public key is not recinstucted equally, some of participants complain using a Conference Call) the DKG is aborted.
+
+## Signature process
+1. Any paricipant broadcast a message to sign upon.
+2. All other participants signal their willingness to sign by broadcasting agreemen to sign that message.
+3. When enough (>= threshold) participants broadcasted an agreement, every participant:
+   1. message_hash = h2c_message(<send a partial signature for message "message" for threshold public key "key">)
+   2. broadcast(await_c2h_reply(message_hash))
+4. When enough (>= threshold) participants broadcasted a partial signature, threshold signature is reconstructed.
+5. Someone broadcasts a partial signature.
+
+If not enough participants signal their willingness to sign within a timeout or signal their rejection to sign, signature process is aborted.
+
+We organize logic in the hot node as a set of simple state machines that change state only by external trigger, such as CLI command, message from cold node, or a new message on Bulletin Board. That way it can be easily tested and audited.
+
+
 ### Overview
 
 Participants start with a pair of communication keys and aim to collectively produce a threshold BLS key pair. The three main components of the process are:
@@ -40,52 +121,16 @@ The expected DKG workflow goes as follows:
 
 8. When the participants decide to distribute profits, they get their partial signature from the airgapped machine and send it to the storage; after the required number of partial signatures is supplied, the collective signarute can be recovered.
 
-### The Storage
 
-The Storage will be a gRPC server written in Go and should implement the following interface:
- * Method1()
- * Method2()
- 
-The following libraries will be used for the required functionality:
-1. Lib1
-2. Lib2
-3. Lib3
+## Roadmap
 
-### The Client
-
-The Client will be a gRPC client written in Go, and should implement the following interface:
- * Method1()
- * Method2()
- 
-The following libraries will be used for the required functionality:
-1. Lib1
-2. Lib2
-3. Lib3
-
-
-### The Airgapped Machine
-
-The Airgapped Machine will be written in Go and should implement the following interface:
- * Method1()
- * Method2()
- 
-The following libraries will be used for the required functionality:
-1. Lib1
-2. Lib2
-3. Lib3
-
-### Roadmap
-
-1. The components as described above will be first mocked, implementing the specified interfaces.
-2. The Storage will be implemented, using a suitable key-value database and an interface wrapping the DB operations.
-3. The Client will be implemented, sending mocked messages to the storage and reading responses from it.
-4. The DKG library for the Arcade project will be adopted for our needs (mostly refactoring, interface simplification and more unit tests).
-5. The Airgapped Machine will be implemented in 4 steps:
-    * The DKG part will be implemented using Arcade's refactored codebase;
-    * This intermediate implementation will be used as a library by the Client to simplify testing;
-    * A Docker infrastructure will be implemented to automatically test the DKG on a local machine;
-    * The collective signing part will be implemented for the Airgapped Machine as a library call, with tests using the Docker infrastructure;
-    * The QR-code communication protocol will be implemented for the Airgapped Machine;
-    * The Airgapped Machine code will be removed from the client.
-    
+1. DKG prototype using a kyber lib for cryptography and modified dkglib from Arcade project for DKG, and a local file for append log.
+2. Unit test harness and overall architecture documentation 
+3. Threshold signature FSM along with tests and docs
+4. Integration test harness, happy path scenario, CI pipeline
+5. Network-based append log
+6. Airgapped machine communication via QR codes
+7. Integration with the production DKG library
+8. E2E test harness with full eth1->beacon chain scenario
+9. Final clean-up and documanetation 
 

@@ -68,4 +68,4 @@ If at any point something goes wrong (timeout reached, the deal is invalid, publ
 If not enough participants signal their willingness to sign within a timeout or signal their rejection to sign, signature process is aborted.
 
 
-We think that business logic in the hot node should be organized as a set of simple state machines that change state only by external trigger, such as CLI command, message from cold node, or a new message on Bulletin Board. That way it can be easily tested and audited.
+We organize logic in the hot node as a set of simple state machines that change state only by external trigger, such as CLI command, message from cold node, or a new message on Bulletin Board. That way it can be easily tested and audited.
