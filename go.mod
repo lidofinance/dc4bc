@@ -3,6 +3,7 @@ module p2p.org/dc4bc
 go 1.13
 
 require (
+	github.com/looplab/fsm v0.1.0
 	github.com/makiuchi-d/gozxing v0.0.0-20190830103442-eaff64b1ceb7
 	github.com/mattn/go-gtk v0.0.0-20191030024613-af2e013261f5
 	github.com/mattn/go-pointer v0.0.0-20190911064623-a0a44394634f // indirect
