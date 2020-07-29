@@ -16,9 +16,14 @@ const (
 )
 
 type State interface {
-	SetOffset(int64) error
-	GetOffset() (int, error)
+	SaveOffset(uint64) error
+	LoadOffset() (uint64, error)
+
+	SaveFSM(interface{}) error
+	LoadFSM() (interface{}, error)
+
 	PutOperation(operation *Operation) error
+	DeleteOperation(operationID string) error
 	GetOperations() (map[string]*Operation, error)
 	GetOperationByID(operationID string) (*Operation, error)
 }
@@ -39,9 +44,9 @@ func NewLevelDBState(stateDbPath string) (State, error) {
 	}, nil
 }
 
-func (s *LevelDBState) SetOffset(offset int64) error {
+func (s *LevelDBState) SaveOffset(offset uint64) error {
 	bz := make([]byte, 8)
-	binary.LittleEndian.PutUint64(bz, uint64(offset))
+	binary.LittleEndian.PutUint64(bz, offset)
 
 	if err := s.stateDb.Put([]byte(offsetKey), bz, nil); err != nil {
 		return fmt.Errorf("failed to set offset: %w", err)
@@ -50,14 +55,24 @@ func (s *LevelDBState) SetOffset(offset int64) error {
 	return nil
 }
 
-func (s *LevelDBState) GetOffset() (int64, error) {
+func (s *LevelDBState) LoadOffset() (uint64, error) {
 	bz, err := s.stateDb.Get([]byte(offsetKey), nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read offset: %w", err)
 	}
 
-	offset := int64(binary.LittleEndian.Uint64(bz))
+	offset := binary.LittleEndian.Uint64(bz)
 	return offset, nil
+}
+
+// TODO: implement.
+func (s *LevelDBState) SaveFSM(interface{}) error {
+	return nil
+}
+
+// TODO: implement.
+func (s *LevelDBState) LoadFSM() (interface{}, error) {
+	return nil, nil
 }
 
 func (s *LevelDBState) PutOperation(operation *Operation) error {
@@ -74,6 +89,29 @@ func (s *LevelDBState) PutOperation(operation *Operation) error {
 	}
 
 	operations[operation.ID] = operation
+	operationsJSON, err := json.Marshal(operations)
+	if err != nil {
+		return fmt.Errorf("failed to marshal operations: %w", err)
+	}
+
+	if err := s.stateDb.Put([]byte(operationsKey), operationsJSON, nil); err != nil {
+		return fmt.Errorf("failed to put operations: %w", err)
+	}
+
+	return nil
+}
+
+func (s *LevelDBState) DeleteOperation(operationID string) error {
+	s.Lock()
+	defer s.Unlock()
+
+	operations, err := s.getOperations()
+	if err != nil {
+		return fmt.Errorf("failed to getOperations: %w", err)
+	}
+
+	delete(operations, operationID)
+
 	operationsJSON, err := json.Marshal(operations)
 	if err != nil {
 		return fmt.Errorf("failed to marshal operations: %w", err)

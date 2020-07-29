@@ -12,10 +12,10 @@ import (
 
 const timeToScan = time.Second * 5
 
-func ReadQRFromCamera() (string, error) {
+func ReadQRFromCamera() ([]byte, error) {
 	webcam, err := gocv.OpenVideoCapture(0)
 	if err != nil {
-		return "", fmt.Errorf("failed to OpenVideoCapture: %w", err)
+		return nil, fmt.Errorf("failed to OpenVideoCapture: %w", err)
 	}
 	window := gocv.NewWindow("Hello")
 
@@ -50,19 +50,19 @@ loop:
 
 	imgObject, err := img.ToImage()
 	if err != nil {
-		return "", fmt.Errorf("failed to get image object: %w", err)
+		return nil, fmt.Errorf("failed to get image object: %w", err)
 	}
 
 	bmp, err := gozxing.NewBinaryBitmapFromImage(imgObject)
 	if err != nil {
-		return "", fmt.Errorf("failed to get NewBinaryBitmapFromImage: %w", err)
+		return nil, fmt.Errorf("failed to get NewBinaryBitmapFromImage: %w", err)
 	}
 
 	qrReader := qrcode.NewQRCodeReader()
 	result, err := qrReader.Decode(bmp, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to decode the QR-code contents: %w", err)
+		return nil, fmt.Errorf("failed to decode the QR-code contents: %w", err)
 	}
 
-	return result.String(), err
+	return result.GetRawBytes(), err
 }
