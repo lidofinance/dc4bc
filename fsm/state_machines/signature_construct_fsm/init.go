@@ -25,7 +25,7 @@ func New() fsm_pool.IStateMachine {
 	machine.FSM = fsm.MustNewFSM(
 		fsmName,
 		stateConstructorEntryPoint,
-		[]fsm.EventDesc{
+		[]fsm.Event{
 			// {Name: "", SrcState: []string{""}, DstState: ""},
 
 			// Init

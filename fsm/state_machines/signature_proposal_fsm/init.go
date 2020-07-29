@@ -36,7 +36,7 @@ func New() fsm_pool.IStateMachine {
 	machine.FSM = fsm.MustNewFSM(
 		fsmName,
 		fsm.StateGlobalIdle,
-		[]fsm.EventDesc{
+		[]fsm.Event{
 			// {Name: "", SrcState: []string{""}, DstState: ""},
 
 			// Init

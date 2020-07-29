@@ -2,6 +2,8 @@ package fsm
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -63,7 +65,7 @@ type trEvent struct {
 	isInternal bool
 }
 
-type EventDesc struct {
+type Event struct {
 	Name string
 
 	SrcState []string
@@ -80,15 +82,16 @@ type Callback func(event string, args ...interface{}) (interface{}, error)
 type Callbacks map[string]Callback
 
 // TODO: Exports
-func MustNewFSM(name, initial string, events []EventDesc, callbacks map[string]Callback) *FSM {
-	// Add validation, chains building
+func MustNewFSM(machineName, initialState string, events []Event, callbacks map[string]Callback) *FSM {
+	machineName = strings.TrimSpace(machineName)
+	initialState = strings.TrimSpace(initialState)
 
-	if name == "" {
-		panic("name cannot be empty")
+	if machineName == "" {
+		panic("machine name cannot be empty")
 	}
 
-	if initial == "" {
-		panic("initialState state cannot be empty")
+	if initialState == "" {
+		panic("initial state state cannot be empty")
 	}
 
 	// to remove
@@ -97,9 +100,9 @@ func MustNewFSM(name, initial string, events []EventDesc, callbacks map[string]C
 	}
 
 	f := &FSM{
-		name:         name,
-		currentState: initial,
-		initialState: initial,
+		name:         machineName,
+		currentState: initialState,
+		initialState: initialState,
 		transitions:  make(map[trKey]*trEvent),
 		finStates:    make(map[string]bool),
 		callbacks:    make(map[string]Callback),
@@ -113,14 +116,11 @@ func MustNewFSM(name, initial string, events []EventDesc, callbacks map[string]C
 
 	// Validate events
 	for _, event := range events {
+		event.Name = strings.TrimSpace(event.Name)
+		event.DstState = strings.TrimSpace(event.DstState)
 
 		if event.Name == "" {
 			panic("cannot init empty event")
-		}
-
-		// TODO: Check transition when all events added
-		if len(event.SrcState) == 0 {
-			panic("event must have min one source available state")
 		}
 
 		if event.DstState == "" {
@@ -128,13 +128,21 @@ func MustNewFSM(name, initial string, events []EventDesc, callbacks map[string]C
 		}
 
 		if _, ok := allEvents[event.Name]; ok {
-			panic("duplicate event")
+			panic(fmt.Sprintf("duplicate event \"%s\"", event.Name))
 		}
 
 		allEvents[event.Name] = true
 		allStates[event.DstState] = true
 
+		trimmedSourcesCounter := 0
+
 		for _, sourceState := range event.SrcState {
+			sourceState := strings.TrimSpace(sourceState)
+
+			if sourceState == "" {
+				continue
+			}
+
 			tKey := trKey{
 				sourceState,
 				event.Name,
@@ -151,7 +159,7 @@ func MustNewFSM(name, initial string, events []EventDesc, callbacks map[string]C
 			f.transitions[tKey] = &trEvent{event.DstState, event.IsInternal}
 
 			// For using provider, event must use with IsGlobal = true
-			if sourceState == initial {
+			if sourceState == initialState {
 				if f.initialEvent != "" {
 					panic("machine entry event already exist")
 				}
@@ -159,6 +167,11 @@ func MustNewFSM(name, initial string, events []EventDesc, callbacks map[string]C
 			}
 
 			allSources[sourceState] = true
+			trimmedSourcesCounter++
+		}
+
+		if trimmedSourcesCounter == 0 {
+			panic("event must have minimum one source available state")
 		}
 	}
 
@@ -169,7 +182,7 @@ func MustNewFSM(name, initial string, events []EventDesc, callbacks map[string]C
 	// Validate callbacks
 	for event, callback := range callbacks {
 		if event == "" {
-			panic("callback name cannot be empty")
+			panic("callback machineName cannot be empty")
 		}
 
 		if _, ok := allEvents[event]; !ok {
@@ -275,18 +288,30 @@ func (f *FSM) EntryEvent() (event string) {
 }
 
 func (f *FSM) EventsList() (events []string) {
+	var eventsMap = map[string]bool{}
 	if len(f.transitions) > 0 {
 		for trKey, trEvent := range f.transitions {
 			if !trEvent.isInternal {
-				events = append(events, trKey.event)
+				eventsMap[trKey.event] = true
+				if _, exists := eventsMap[trKey.event]; !exists {
+
+					events = append(events, trKey.event)
+				}
 			}
 		}
 	}
+
+	if len(eventsMap) > 0 {
+		for event := range eventsMap {
+			events = append(events, event)
+		}
+	}
+
 	return
 }
 
-func (f *FSM) StatesList() (states []string) {
-	allStates := map[string]bool{}
+func (f *FSM) StatesSourcesList() (states []string) {
+	var allStates = map[string]bool{}
 	if len(f.transitions) > 0 {
 		for trKey, _ := range f.transitions {
 			allStates[trKey.source] = true
