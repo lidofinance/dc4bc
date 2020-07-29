@@ -16,7 +16,11 @@ type FileStorage struct {
 	reader *bufio.Reader
 }
 
-func InitFileStorage(filename string) (*FileStorage, error) {
+const (
+	EOL = '\n'
+)
+
+func InitFileStorage(filename string) (Storage, error) {
 	var (
 		fs  FileStorage
 		err error
@@ -36,7 +40,7 @@ func (fs *FileStorage) Post(m Message) error {
 	if err != nil {
 		return err
 	}
-	data = append(data, '\n')
+	data = append(data, EOL)
 	_, err = fs.file.Write(data)
 	return err
 }
@@ -55,7 +59,7 @@ func (fs *FileStorage) GetMessages(offset int) ([]Message, error) {
 		return nil, err
 	}
 	for {
-		row, err = fs.reader.ReadBytes('\n')
+		row, err = fs.reader.ReadBytes(EOL)
 		if err != nil {
 			break
 		}
