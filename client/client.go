@@ -13,17 +13,30 @@ import (
 	"p2p.org/dc4bc/qr"
 )
 
-const pollingPeriod = time.Second
+const (
+	pollingPeriod = time.Second
+	qrCodesDir    = "/tmp"
+)
 
 type Client struct {
-	fsm        interface{}
-	state      State
-	storage    storage.Storage
-	qrCodesDir string
+	ctx     context.Context
+	fsm     interface{}
+	state   State
+	storage storage.Storage
 }
 
-func NewClient() (*Client, error) {
-	return &Client{}, nil
+func NewClient(
+	ctx context.Context,
+	fsm interface{},
+	state State,
+	storage storage.Storage,
+) (*Client, error) {
+	return &Client{
+		ctx:     ctx,
+		fsm:     fsm,
+		state:   state,
+		storage: storage,
+	}, nil
 }
 
 func (c *Client) PostMessage(message storage.Message) error {
@@ -34,7 +47,7 @@ func (c *Client) PostMessage(message storage.Message) error {
 	return nil
 }
 
-func (c *Client) Poll(ctx context.Context) {
+func (c *Client) Poll() {
 	tk := time.NewTicker(pollingPeriod)
 	for {
 		select {
@@ -70,7 +83,7 @@ func (c *Client) Poll(ctx context.Context) {
 					panic(err)
 				}
 			}
-		case <-ctx.Done():
+		case <-c.ctx.Done():
 			return
 		}
 	}
@@ -94,7 +107,7 @@ func (c *Client) GetOperationQRPath(operationID string) (string, error) {
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	operationQRPath := filepath.Join(c.qrCodesDir, operationID)
+	operationQRPath := filepath.Join(qrCodesDir, operationID)
 	if err := qr.WriteQR(operationQRPath, operationJSON); err != nil {
 		return "", fmt.Errorf("failed to WriteQR: %w", err)
 	}
