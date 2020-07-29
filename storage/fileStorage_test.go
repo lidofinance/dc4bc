@@ -30,10 +30,11 @@ func TestFileStorage_GetMessages(t *testing.T) {
 			Data:      randomBytes(10),
 			Signature: randomBytes(10),
 		}
-		msgs = append(msgs, msg)
-		if err = fs.Post(msg); err != nil {
+		msg, err = fs.Send(msg)
+		if err != nil {
 			t.Error(err)
 		}
+		msgs = append(msgs, msg)
 	}
 	offsetMsgs, err := fs.GetMessages(offset)
 	if err != nil {
