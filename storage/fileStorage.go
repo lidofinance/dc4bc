@@ -106,7 +106,7 @@ func (fs *FileStorage) GetMessages(offset int) ([]Message, error) {
 		}
 
 		if err = json.Unmarshal(row, &data); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to unmarshal a message %s: %v", string(row), err)
 		}
 		msgs = append(msgs, data)
 	}
