@@ -16,7 +16,7 @@ func randomBytes(n int) []byte {
 	return b
 }
 
-func TestFull(t *testing.T) {
+func TestFileStorage_GetMessages(t *testing.T) {
 	N := 10
 	offset := 5
 	fs, err := InitFileStorage("test")
