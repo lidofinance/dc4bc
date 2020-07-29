@@ -215,11 +215,11 @@ func TestFSM_StatesList(t *testing.T) {
 	log.Println(testingFSM.StatesSourcesList())
 	statesList := []string{
 		FSM1StateInit,
-		FSM1StateStage2,
+		FSM1StateStage1,
 		FSM1StateStage2,
 	}
 
 	if !compareArrays(testingFSM.StatesSourcesList(), statesList) {
-		t.Error("expected stages", statesList)
+		t.Error("expected states", statesList)
 	}
 }
