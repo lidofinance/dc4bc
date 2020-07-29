@@ -16,11 +16,9 @@ type FileStorage struct {
 	lockFile *fslock.Lock
 
 	dataFile *os.File
-	reader   *bufio.Reader
 }
 
 const (
-	EOL             = '\n'
 	defaultLockFile = "/tmp/dc4bc_storage_lock"
 )
 
@@ -51,7 +49,6 @@ func InitFileStorage(filename string, lockFilename ...string) (Storage, error) {
 	if fs.dataFile, err = os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644); err != nil {
 		return nil, fmt.Errorf("failed to open a data file: %v", err)
 	}
-	fs.reader = bufio.NewReader(fs.dataFile)
 	return &fs, nil
 }
 
@@ -94,24 +91,21 @@ func (fs *FileStorage) GetMessages(offset int) ([]Message, error) {
 	if _, err = fs.dataFile.Seek(0, 0); err != nil {
 		return nil, fmt.Errorf("failed to seek a offset to the start of a data file: %v", err)
 	}
-	for {
-		row, err = fs.reader.ReadBytes(EOL)
-		if err != nil {
-			break
-		}
-
+	scanner := bufio.NewScanner(fs.dataFile)
+	for scanner.Scan() {
 		if offset > 0 {
 			offset--
 			continue
 		}
 
+		row = scanner.Bytes()
 		if err = json.Unmarshal(row, &data); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal a message %s: %v", string(row), err)
 		}
 		msgs = append(msgs, data)
 	}
-	if err != io.EOF {
-		return nil, fmt.Errorf("error while reading data file: %v", err)
+	if scanner.Err() != nil {
+		return nil, fmt.Errorf("failed to read a data file: %v", err)
 	}
 	return msgs, nil
 }
