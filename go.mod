@@ -8,6 +8,7 @@ require (
 	github.com/mattn/go-pointer v0.0.0-20190911064623-a0a44394634f // indirect
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/stretchr/testify v1.6.1 // indirect
+	github.com/syndtr/goleveldb v1.0.0
 	go.dedis.ch/kyber/v3 v3.0.9
 	gocv.io/x/gocv v0.23.0
 	golang.org/x/image v0.0.0-20200618115811-c13761719519
