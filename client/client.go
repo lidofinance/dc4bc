@@ -119,7 +119,7 @@ func (c *Client) GetOperationQRPath(operationID string) (string, error) {
 
 // ReadProcessedOperation reads the processed operation from camera, checks that
 // the processed operation has its unprocessed counterpart in our state,
-// posts a Message to the storageMocks and deletes the operation from our state.
+// posts a Message to the storage and deletes the operation from our state.
 func (c *Client) ReadProcessedOperation() error {
 	bz, err := c.qrProcessor.ReadQRFromCamera()
 	if err != nil {

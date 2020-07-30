@@ -34,7 +34,7 @@ func countLines(r io.Reader) uint64 {
 	return count
 }
 
-// InitFileStorage inits append-only file storageMocks
+// InitFileStorage inits append-only file storage
 // It takes two arguments: filename - path to a data file, lockFilename (optional) - path to a lock file
 func InitFileStorage(filename string, lockFilename ...string) (Storage, error) {
 	var (
