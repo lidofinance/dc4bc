@@ -39,9 +39,30 @@ func NewLevelDBState(stateDbPath string) (State, error) {
 		return nil, fmt.Errorf("failed to open stateDB: %w", err)
 	}
 
-	return &LevelDBState{
+	state := &LevelDBState{
 		stateDb: db,
-	}, nil
+	}
+
+	if err := state.initKey(operationsKey, map[string]*Operation{}); err != nil {
+		return nil, fmt.Errorf("failed to init %s storage: %w", operationsKey, err)
+	}
+
+	return state, nil
+}
+
+func (s *LevelDBState) initKey(key string, data interface{}) error {
+	if _, err := s.stateDb.Get([]byte(key), nil); err != nil {
+		operationsBz, err := json.Marshal(data)
+		if err != nil {
+			return fmt.Errorf("failed to marshal storage structure: %w", err)
+		}
+		err = s.stateDb.Put([]byte(key), operationsBz, nil)
+		if err != nil {
+			return fmt.Errorf("failed to init state: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *LevelDBState) SaveOffset(offset uint64) error {

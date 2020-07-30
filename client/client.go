@@ -14,14 +14,15 @@ import (
 
 const (
 	pollingPeriod = time.Second
-	qrCodesDir    = "/tmp"
+	QrCodesDir    = "/tmp"
 )
 
 type Client struct {
-	ctx     context.Context
-	fsm     interface{}
-	state   State
-	storage storage.Storage
+	ctx         context.Context
+	fsm         interface{}
+	state       State
+	storage     storage.Storage
+	qrProcessor qr.Processor
 }
 
 func NewClient(
@@ -29,12 +30,14 @@ func NewClient(
 	fsm interface{},
 	state State,
 	storage storage.Storage,
+	qrProcessor qr.Processor,
 ) (*Client, error) {
 	return &Client{
-		ctx:     ctx,
-		fsm:     fsm,
-		state:   state,
-		storage: storage,
+		ctx:         ctx,
+		fsm:         fsm,
+		state:       state,
+		storage:     storage,
+		qrProcessor: qrProcessor,
 	}, nil
 }
 
@@ -88,7 +91,7 @@ func (c *Client) Poll() {
 	}
 }
 
-func (c *Client) GetOperationsList() (map[string]*Operation, error) {
+func (c *Client) GetOperations() (map[string]*Operation, error) {
 	return c.state.GetOperations()
 }
 
@@ -106,8 +109,8 @@ func (c *Client) GetOperationQRPath(operationID string) (string, error) {
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	operationQRPath := filepath.Join(qrCodesDir, operationID)
-	if err := qr.WriteQR(operationQRPath, operationJSON); err != nil {
+	operationQRPath := filepath.Join(QrCodesDir, operationID)
+	if err := c.qrProcessor.WriteQR(operationQRPath, operationJSON); err != nil {
 		return "", fmt.Errorf("failed to WriteQR: %w", err)
 	}
 
@@ -118,7 +121,7 @@ func (c *Client) GetOperationQRPath(operationID string) (string, error) {
 // the processed operation has its unprocessed counterpart in our state,
 // posts a Message to the storageMocks and deletes the operation from our state.
 func (c *Client) ReadProcessedOperation() error {
-	bz, err := qr.ReadQRFromCamera()
+	bz, err := c.qrProcessor.ReadQRFromCamera()
 	if err != nil {
 		return fmt.Errorf("failed to ReadQRFromCamera: %s", err)
 	}

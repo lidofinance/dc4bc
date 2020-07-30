@@ -5,6 +5,8 @@ import (
 	"log"
 	"time"
 
+	encoder "github.com/skip2/go-qrcode"
+
 	"github.com/makiuchi-d/gozxing"
 	"github.com/makiuchi-d/gozxing/qrcode"
 	"gocv.io/x/gocv"
@@ -12,7 +14,18 @@ import (
 
 const timeToScan = time.Second * 5
 
-func ReadQRFromCamera() ([]byte, error) {
+type Processor interface {
+	ReadQRFromCamera() ([]byte, error)
+	WriteQR(path string, data []byte) error
+}
+
+type CameraProcessor struct{}
+
+func NewCameraProcessor() *CameraProcessor {
+	return &CameraProcessor{}
+}
+
+func (p *CameraProcessor) ReadQRFromCamera() ([]byte, error) {
 	webcam, err := gocv.OpenVideoCapture(0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to OpenVideoCapture: %w", err)
@@ -65,4 +78,13 @@ loop:
 	}
 
 	return result.GetRawBytes(), err
+}
+
+func (p *CameraProcessor) WriteQR(path string, data []byte) error {
+	err := encoder.WriteFile(string(data), encoder.Medium, 512, path)
+	if err != nil {
+		return fmt.Errorf("failed to encode the data: %w", err)
+	}
+
+	return nil
 }
