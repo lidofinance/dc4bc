@@ -32,19 +32,19 @@ func (m *MockProcessor) EXPECT() *MockProcessorMockRecorder {
 	return m.recorder
 }
 
-// ReadQRFromCamera mocks base method
-func (m *MockProcessor) ReadQRFromCamera() ([]byte, error) {
+// ReadQR mocks base method
+func (m *MockProcessor) ReadQR() ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadQRFromCamera")
+	ret := m.ctrl.Call(m, "ReadQR")
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ReadQRFromCamera indicates an expected call of ReadQRFromCamera
-func (mr *MockProcessorMockRecorder) ReadQRFromCamera() *gomock.Call {
+// ReadQR indicates an expected call of ReadQR
+func (mr *MockProcessorMockRecorder) ReadQR() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadQRFromCamera", reflect.TypeOf((*MockProcessor)(nil).ReadQRFromCamera))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadQR", reflect.TypeOf((*MockProcessor)(nil).ReadQR))
 }
 
 // WriteQR mocks base method

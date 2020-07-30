@@ -123,7 +123,7 @@ func TestClient_ReadProcessedOperation(t *testing.T) {
 	processedOperationBz, err := json.Marshal(processedOperation)
 	req.NoError(err)
 
-	qrProcessor.EXPECT().ReadQRFromCamera().Return(processedOperationBz, nil).Times(1)
+	qrProcessor.EXPECT().ReadQR().Return(processedOperationBz, nil).Times(1)
 	state.EXPECT().GetOperationByID(processedOperation.ID).Times(1).Return(operation, nil)
 	state.EXPECT().DeleteOperation(processedOperation.ID).Times(1)
 	storage.EXPECT().Send(gomock.Any()).Times(1)

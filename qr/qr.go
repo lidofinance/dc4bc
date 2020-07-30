@@ -15,7 +15,7 @@ import (
 const timeToScan = time.Second * 5
 
 type Processor interface {
-	ReadQRFromCamera() ([]byte, error)
+	ReadQR() ([]byte, error)
 	WriteQR(path string, data []byte) error
 }
 
@@ -25,7 +25,7 @@ func NewCameraProcessor() *CameraProcessor {
 	return &CameraProcessor{}
 }
 
-func (p *CameraProcessor) ReadQRFromCamera() ([]byte, error) {
+func (p *CameraProcessor) ReadQR() ([]byte, error) {
 	webcam, err := gocv.OpenVideoCapture(0)
 	if err != nil {
 		return nil, fmt.Errorf("failed to OpenVideoCapture: %w", err)

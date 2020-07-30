@@ -121,9 +121,9 @@ func (c *Client) GetOperationQRPath(operationID string) (string, error) {
 // the processed operation has its unprocessed counterpart in our state,
 // posts a Message to the storage and deletes the operation from our state.
 func (c *Client) ReadProcessedOperation() error {
-	bz, err := c.qrProcessor.ReadQRFromCamera()
+	bz, err := c.qrProcessor.ReadQR()
 	if err != nil {
-		return fmt.Errorf("failed to ReadQRFromCamera: %s", err)
+		return fmt.Errorf("failed to ReadQR: %s", err)
 	}
 
 	var operation Operation

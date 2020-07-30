@@ -163,7 +163,7 @@ func runStep(transport *Transport, cb func(participantID string, participant *dk
 //		log.Println("Please center the photo of the QR-code in front" +
 //			"of your web-camera...")
 //
-//		scannedData, err = qr.ReadQRFromCamera()
+//		scannedData, err = qr.ReadQR()
 //		if err == nil {
 //			break
 //		}
