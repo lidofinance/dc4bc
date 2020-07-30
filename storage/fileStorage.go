@@ -4,10 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
-	"github.com/juju/fslock"
 	"io"
 	"os"
+
+	"github.com/google/uuid"
+	"github.com/juju/fslock"
 )
 
 var _ Storage = (*FileStorage)(nil)
@@ -81,7 +82,7 @@ func (fs *FileStorage) Send(m Message) (Message, error) {
 }
 
 // GetMessages returns a slice of messages from append-only data file with given offset
-func (fs *FileStorage) GetMessages(offset int) ([]Message, error) {
+func (fs *FileStorage) GetMessages(offset uint64) ([]Message, error) {
 	var (
 		msgs []Message
 		err  error

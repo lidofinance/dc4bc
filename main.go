@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
 	_ "image/jpeg"
 	"log"
 	"sync"
 
+	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+
 	"go.dedis.ch/kyber/v3"
 
-	dkglib "p2p.org/dc4bc/dkg"
+	dkglib "github.com/p2p-org/dc4bc/dkg"
 
 	_ "image/gif"
 	_ "image/png"
@@ -162,7 +163,7 @@ func runStep(transport *Transport, cb func(participantID string, participant *dk
 //		log.Println("Please center the photo of the QR-code in front" +
 //			"of your web-camera...")
 //
-//		scannedData, err = qr.ReadQRFromCamera()
+//		scannedData, err = qr.ReadQR()
 //		if err == nil {
 //			break
 //		}
