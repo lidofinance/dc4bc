@@ -23,7 +23,7 @@ const (
 	StateGlobalDone = "__done"
 )
 
-// FSMResponse returns result for processing with client events
+// FSMResponse returns result for processing with clientMocks events
 type FSMResponse struct {
 	// Returns machine execution result state
 	State string

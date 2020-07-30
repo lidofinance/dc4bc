@@ -9,6 +9,6 @@ type Message struct {
 
 type Storage interface {
 	Send(message Message) (Message, error)
-	GetMessages(offset int) ([]Message, error)
+	GetMessages(offset uint64) ([]Message, error)
 	Close() error
 }

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"math/rand"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -18,12 +19,15 @@ func randomBytes(n int) []byte {
 
 func TestFileStorage_GetMessages(t *testing.T) {
 	N := 10
-	offset := 5
-	fs, err := InitFileStorage("test")
+	var offset uint64 = 5
+	var testFile = "/tmp/dc4bc_test_file_storage"
+	fs, err := InitFileStorage(testFile)
 	if err != nil {
 		t.Error(err)
 	}
 	defer fs.Close()
+	defer os.Remove(testFile)
+
 	msgs := make([]Message, 0, N)
 	for i := 0; i < N; i++ {
 		msg := Message{
@@ -36,10 +40,12 @@ func TestFileStorage_GetMessages(t *testing.T) {
 		}
 		msgs = append(msgs, msg)
 	}
+
 	offsetMsgs, err := fs.GetMessages(offset)
 	if err != nil {
 		t.Error(err)
 	}
+
 	expectedOffsetMsgs := msgs[offset:]
 	if !reflect.DeepEqual(offsetMsgs, expectedOffsetMsgs) {
 		t.Errorf("expected messages: %v, actual messages: %v", expectedOffsetMsgs, offsetMsgs)

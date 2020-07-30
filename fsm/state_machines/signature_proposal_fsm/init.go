@@ -44,13 +44,13 @@ func New() fsm_pool.IStateMachine {
 
 			// Validate by participants
 			{Name: eventConfirmProposal, SrcState: []string{stateAwaitProposalConfirmation}, DstState: stateAwaitProposalConfirmation},
-			// Is decline event should auto change state to default, or it process will initiated by client (external emit)?
+			// Is decline event should auto change state to default, or it process will initiated by clientMocks (external emit)?
 			// Now set for external emitting.
 			{Name: eventDeclineProposal, SrcState: []string{stateAwaitProposalConfirmation}, DstState: stateValidationCanceledByParticipant},
 
 			{Name: eventValidateProposal, SrcState: []string{stateAwaitProposalConfirmation}, DstState: stateAwaitProposalConfirmation},
 
-			// eventProposalValidate internal or from client?
+			// eventProposalValidate internal or from clientMocks?
 			// yay
 			// Exit point
 			{Name: eventSetProposalValidated, SrcState: []string{stateAwaitProposalConfirmation}, DstState: "process_sig", IsInternal: true},

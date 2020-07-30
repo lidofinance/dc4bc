@@ -8,9 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"p2p.org/dc4bc/storage"
-
-	"p2p.org/dc4bc/qr"
+	"github.com/p2p-org/dc4bc/qr"
+	"github.com/p2p-org/dc4bc/storage"
 )
 
 const (
@@ -39,8 +38,8 @@ func NewClient(
 	}, nil
 }
 
-func (c *Client) PostMessage(message storage.Message) error {
-	if err := c.storage.Post(message); err != nil {
+func (c *Client) SendMessage(message storage.Message) error {
+	if _, err := c.storage.Send(message); err != nil {
 		return fmt.Errorf("failed to post message: %w", err)
 	}
 
@@ -117,7 +116,7 @@ func (c *Client) GetOperationQRPath(operationID string) (string, error) {
 
 // ReadProcessedOperation reads the processed operation from camera, checks that
 // the processed operation has its unprocessed counterpart in our state,
-// posts a Message to the storage and deletes the operation from our state.
+// posts a Message to the storageMocks and deletes the operation from our state.
 func (c *Client) ReadProcessedOperation() error {
 	bz, err := qr.ReadQRFromCamera()
 	if err != nil {
@@ -139,7 +138,7 @@ func (c *Client) ReadProcessedOperation() error {
 	}
 
 	var message storage.Message
-	if err := c.storage.Post(message); err != nil {
+	if _, err := c.storage.Send(message); err != nil {
 		return fmt.Errorf("failed to post message: %w", err)
 	}
 
