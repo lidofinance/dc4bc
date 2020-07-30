@@ -2,9 +2,9 @@ package signature_proposal_fsm
 
 import (
 	"errors"
-	"github.com/p2p-org/dc4bc/fsm/state_machines/internal"
-	"github.com/p2p-org/dc4bc/fsm/types/requests"
-	"github.com/p2p-org/dc4bc/fsm/types/responses"
+	"github.com/depool/dc4bc/fsm/state_machines/internal"
+	"github.com/depool/dc4bc/fsm/types/requests"
+	"github.com/depool/dc4bc/fsm/types/responses"
 	"log"
 )
 

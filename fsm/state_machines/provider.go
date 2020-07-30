@@ -3,11 +3,11 @@ package state_machines
 import (
 	"encoding/json"
 	"errors"
-	"github.com/p2p-org/dc4bc/fsm/fsm"
-	"github.com/p2p-org/dc4bc/fsm/fsm_pool"
-	"github.com/p2p-org/dc4bc/fsm/state_machines/internal"
-	"github.com/p2p-org/dc4bc/fsm/state_machines/signature_construct_fsm"
-	"github.com/p2p-org/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/depool/dc4bc/fsm/fsm"
+	"github.com/depool/dc4bc/fsm/fsm_pool"
+	"github.com/depool/dc4bc/fsm/state_machines/internal"
+	"github.com/depool/dc4bc/fsm/state_machines/signature_construct_fsm"
+	"github.com/depool/dc4bc/fsm/state_machines/signature_proposal_fsm"
 )
 
 // Is machine state scope dump will be locked?

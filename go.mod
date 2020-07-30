@@ -1,4 +1,4 @@
-module github.com/p2p-org/dc4bc
+module github.com/depool/dc4bc
 
 go 1.13
 

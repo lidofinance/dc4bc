@@ -2,6 +2,7 @@ package qr
 
 import (
 	"fmt"
+	"image"
 	"log"
 	"time"
 
@@ -87,4 +88,14 @@ func (p *CameraProcessor) WriteQR(path string, data []byte) error {
 	}
 
 	return nil
+}
+
+func ReadQRFromImg(img image.Image) (*gozxing.Result, error) {
+	bmp, err := gozxing.NewBinaryBitmapFromImage(img)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get NewBinaryBitmapFromImage: %w", err)
+	}
+
+	qrReader := qrcode.NewQRCodeReader()
+	return qrReader.Decode(bmp, nil)
 }

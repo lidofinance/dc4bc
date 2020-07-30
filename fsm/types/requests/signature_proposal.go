@@ -2,7 +2,7 @@ package requests
 
 import (
 	"errors"
-	"github.com/p2p-org/dc4bc/fsm/config"
+	"github.com/depool/dc4bc/fsm/config"
 )
 
 // Requests
