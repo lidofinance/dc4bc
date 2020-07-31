@@ -3,7 +3,9 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/depool/dc4bc/qr"
 	"github.com/depool/dc4bc/storage"
+	"image"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -28,6 +30,9 @@ func (c *Client) StartHTTPServer(listenAddr string) error {
 	http.HandleFunc("/getOperations", c.getOperationsHandler)
 	http.HandleFunc("/getOperationQRPath", c.getOperationQRPathHandler)
 	http.HandleFunc("/readProcessedOperationFromCamera", c.readProcessedOperationFromCameraHandler)
+
+	http.HandleFunc("/readProcessedOperation", c.readProcessedOperationFromBodyHandler)
+	http.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
 	return http.ListenAndServe(listenAddr, nil)
 }
 
@@ -93,6 +98,30 @@ func (c *Client) getOperationQRPathHandler(w http.ResponseWriter, r *http.Reques
 	successResponse(w, []byte(qrPath))
 }
 
+func (c *Client) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	operationID := r.URL.Query().Get("operationID")
+
+	operationJSON, err := c.getOperationJSON(operationID)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operation in JSON: %v", err))
+		return
+	}
+
+	encodedData, err := qr.EncodeQR(operationJSON)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to encode operation: %v", err))
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(encodedData)))
+	successResponse(w, encodedData)
+}
+
 func (c *Client) readProcessedOperationFromCameraHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
@@ -101,9 +130,49 @@ func (c *Client) readProcessedOperationFromCameraHandler(w http.ResponseWriter, 
 
 	if err := c.ReadProcessedOperation(); err != nil {
 		errorResponse(w, http.StatusInternalServerError,
-			fmt.Sprintf("failed to read processed operation from camera path: %v", err))
+			fmt.Sprintf("failed to handle processed operation from camera path: %v", err))
 		return
 	}
 
 	successResponse(w, []byte("ok"))
+}
+
+func (c *Client) readProcessedOperationFromBodyHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to parse multipat form: %v", err))
+		return
+	}
+
+	file, _, err := r.FormFile("qr")
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to retrieve a file: %v", err))
+		return
+	}
+	defer file.Close()
+	img, _, err := image.Decode(file)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to decode an image: %v", err))
+		return
+	}
+
+	qrData, err := qr.ReadDataFromQR(img)
+	if err != nil {
+		return
+	}
+
+	var operation Operation
+	if err = json.Unmarshal(qrData, &operation); err != nil {
+		errorResponse(w, http.StatusInternalServerError,
+			fmt.Sprintf("failed to unmarshal processed operation: %v", err))
+		return
+	}
+	if err := c.handleProcessedOperation(operation); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to handle an operation: %v", err))
+		return
+	}
 }
