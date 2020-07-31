@@ -3,27 +3,27 @@ package state_machines
 import (
 	"encoding/json"
 	"errors"
-	"github.com/p2p-org/dc4bc/fsm/fsm"
-	"github.com/p2p-org/dc4bc/fsm/fsm_pool"
-	"github.com/p2p-org/dc4bc/fsm/state_machines/internal"
-	"github.com/p2p-org/dc4bc/fsm/state_machines/signature_construct_fsm"
-	"github.com/p2p-org/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/depools/dc4bc/fsm/fsm_pool"
+	"github.com/depools/dc4bc/fsm/state_machines/internal"
+	"github.com/depools/dc4bc/fsm/state_machines/signature_construct_fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 )
 
 // Is machine state scope dump will be locked?
 type FSMDump struct {
 	Id      string
-	State   string
+	State   fsm.State
 	Payload internal.MachineStatePayload
 }
 
 type FSMInstance struct {
-	machine fsm_pool.IStateMachine
+	machine fsm_pool.MachineProvider
 	dump    *FSMDump
 }
 
 var (
-	fsmPoolProvider *fsm_pool.FSMPoolProvider
+	fsmPoolProvider *fsm_pool.FSMPool
 )
 
 func init() {
@@ -52,7 +52,7 @@ func New(data []byte) (*FSMInstance, error) {
 	return i, err
 }
 
-func (i *FSMInstance) Do(event string, args ...interface{}) (*fsm.FSMResponse, []byte, error) {
+func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (*fsm.Response, []byte, error) {
 	// Provide payload as first argument ever
 	result, err := i.machine.Do(event, append([]interface{}{i.dump.Payload}, args...)...)
 

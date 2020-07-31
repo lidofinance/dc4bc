@@ -3,8 +3,8 @@ package signature_proposal_fsm
 import (
 	"crypto/sha256"
 	"encoding/base64"
-	"github.com/p2p-org/dc4bc/fsm/state_machines/internal"
-	"github.com/p2p-org/dc4bc/fsm/types/responses"
+	"github.com/depools/dc4bc/fsm/state_machines/internal"
+	"github.com/depools/dc4bc/fsm/types/responses"
 	"math/rand"
 )
 

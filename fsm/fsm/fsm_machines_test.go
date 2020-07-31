@@ -1,7 +1,6 @@
 package fsm
 
 import (
-	"log"
 	"testing"
 )
 
@@ -11,8 +10,8 @@ func init() {
 	testingFSM = MustNewFSM(
 		FSM1Name,
 		FSM1StateInit,
-		testingEvents,
-		testingCallbacks,
+		testing1Events,
+		testing1Callbacks,
 	)
 }
 
@@ -29,12 +28,38 @@ func compareRecoverStr(t *testing.T, r interface{}, assertion string) {
 	}
 }
 
-func compareArrays(src, dst []string) bool {
+func compareStatesArr(src, dst []State) bool {
 	if len(src) != len(dst) {
 		return false
 	}
 	// create a map of string -> int
-	diff := make(map[string]int, len(src))
+	diff := make(map[State]int, len(src))
+	for _, _x := range src {
+		// 0 value for int is 0, so just increment a counter for the string
+		diff[_x]++
+	}
+	for _, _y := range dst {
+		// If the string _y is not in diff bail out early
+		if _, ok := diff[_y]; !ok {
+			return false
+		}
+		diff[_y] -= 1
+		if diff[_y] == 0 {
+			delete(diff, _y)
+		}
+	}
+	if len(diff) == 0 {
+		return true
+	}
+	return false
+}
+
+func compareEventsArr(src, dst []Event) bool {
+	if len(src) != len(dst) {
+		return false
+	}
+	// create a map of string -> int
+	diff := make(map[Event]int, len(src))
 	for _, _x := range src {
 		// 0 value for int is 0, so just increment a counter for the string
 		diff[_x]++
@@ -62,7 +87,7 @@ func TestMustNewFSM_Empty_Name_Panic(t *testing.T) {
 	testingFSM = MustNewFSM(
 		"",
 		"init_state",
-		[]Event{},
+		[]EventDesc{},
 		nil,
 	)
 
@@ -77,7 +102,7 @@ func TestMustNewFSM_Empty_Initial_State_Panic(t *testing.T) {
 	testingFSM = MustNewFSM(
 		"fsm",
 		"",
-		[]Event{},
+		[]EventDesc{},
 		nil,
 	)
 
@@ -92,7 +117,7 @@ func TestMustNewFSM_Empty_Events_Panic(t *testing.T) {
 	testingFSM = MustNewFSM(
 		"fsm",
 		"init_state",
-		[]Event{},
+		[]EventDesc{},
 		nil,
 	)
 
@@ -107,8 +132,8 @@ func TestMustNewFSM_Event_Empty_Name_Panic(t *testing.T) {
 	testingFSM = MustNewFSM(
 		"fsm",
 		"init_state",
-		[]Event{
-			{Name: "", SrcState: []string{"init_state"}, DstState: StateGlobalDone},
+		[]EventDesc{
+			{Name: "", SrcState: []State{"init_state"}, DstState: StateGlobalDone},
 		},
 		nil,
 	)
@@ -124,8 +149,8 @@ func TestMustNewFSM_Event_Empty_Source_Panic(t *testing.T) {
 	testingFSM = MustNewFSM(
 		"fsm",
 		"init_state",
-		[]Event{
-			{Name: "event", SrcState: []string{}, DstState: StateGlobalDone},
+		[]EventDesc{
+			{Name: "event", SrcState: []State{}, DstState: StateGlobalDone},
 		},
 		nil,
 	)
@@ -141,8 +166,8 @@ func TestMustNewFSM_States_Min_Panic(t *testing.T) {
 	testingFSM = MustNewFSM(
 		"fsm",
 		"init_state",
-		[]Event{
-			{Name: "event", SrcState: []string{"init_state"}, DstState: StateGlobalDone},
+		[]EventDesc{
+			{Name: "event", SrcState: []State{"init_state"}, DstState: StateGlobalDone},
 		},
 		nil,
 	)
@@ -158,9 +183,9 @@ func TestMustNewFSM_State_Entry_Conflict_Panic(t *testing.T) {
 	testingFSM = MustNewFSM(
 		"fsm",
 		"init_state",
-		[]Event{
-			{Name: "event1", SrcState: []string{"init_state"}, DstState: "state"},
-			{Name: "event2", SrcState: []string{"init_state"}, DstState: "state"},
+		[]EventDesc{
+			{Name: "event1", SrcState: []State{"init_state"}, DstState: "state"},
+			{Name: "event2", SrcState: []State{"init_state"}, DstState: "state"},
 		},
 		nil,
 	)
@@ -176,9 +201,9 @@ func TestMustNewFSM_State_Final_Not_Found_Panic(t *testing.T) {
 	testingFSM = MustNewFSM(
 		"fsm",
 		"init_state",
-		[]Event{
-			{Name: "event1", SrcState: []string{"init_state"}, DstState: "state2"},
-			{Name: "event2", SrcState: []string{"state2"}, DstState: "init_state"},
+		[]EventDesc{
+			{Name: "event1", SrcState: []State{"init_state"}, DstState: "state2"},
+			{Name: "event2", SrcState: []State{"state2"}, DstState: "init_state"},
 		},
 		nil,
 	)
@@ -199,27 +224,26 @@ func TestFSM_EntryEvent(t *testing.T) {
 }
 
 func TestFSM_EventsList(t *testing.T) {
-	eventsList := []string{
+	eventsList := []Event{
 		EventFSM1Init,
 		EventFSM1Cancel,
 		EventFSM1Process,
 	}
 
-	if !compareArrays(testingFSM.EventsList(), eventsList) {
+	if !compareEventsArr(testingFSM.EventsList(), eventsList) {
 		t.Error("expected public events", eventsList)
 	}
 
 }
 
 func TestFSM_StatesList(t *testing.T) {
-	log.Println(testingFSM.StatesSourcesList())
-	statesList := []string{
+	statesList := []State{
 		FSM1StateInit,
 		FSM1StateStage1,
 		FSM1StateStage2,
 	}
 
-	if !compareArrays(testingFSM.StatesSourcesList(), statesList) {
+	if !compareStatesArr(testingFSM.StatesSourcesList(), statesList) {
 		t.Error("expected states", statesList)
 	}
 }
