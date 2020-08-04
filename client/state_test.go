@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/depool/dc4bc/client"
+	"github.com/depools/dc4bc/client"
 	"github.com/stretchr/testify/require"
 )
 

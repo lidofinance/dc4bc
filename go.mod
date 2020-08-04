@@ -1,4 +1,4 @@
-module github.com/depool/dc4bc
+module github.com/depools/dc4bc
 
 go 1.13
 

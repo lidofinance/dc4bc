@@ -1,8 +1,8 @@
 package signature_proposal_fsm
 
 import (
-	"github.com/depool/dc4bc/fsm/fsm"
-	"github.com/depool/dc4bc/fsm/fsm_pool"
+	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/depools/dc4bc/fsm/fsm_pool"
 )
 
 const (

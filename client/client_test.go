@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/depool/dc4bc/mocks/qrMocks"
+	"github.com/depools/dc4bc/mocks/qrMocks"
 
-	"github.com/depool/dc4bc/client"
+	"github.com/depools/dc4bc/client"
 
-	"github.com/depool/dc4bc/mocks/clientMocks"
-	"github.com/depool/dc4bc/mocks/storageMocks"
+	"github.com/depools/dc4bc/mocks/clientMocks"
+	"github.com/depools/dc4bc/mocks/storageMocks"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 )

@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/depool/dc4bc/qr"
-	"github.com/depool/dc4bc/storage"
+	"github.com/depools/dc4bc/qr"
+	"github.com/depools/dc4bc/storage"
 )
 
 const (

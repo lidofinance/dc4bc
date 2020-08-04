@@ -10,7 +10,7 @@ import (
 
 	"go.dedis.ch/kyber/v3"
 
-	dkglib "github.com/depool/dc4bc/dkg"
+	dkglib "github.com/depools/dc4bc/dkg"
 
 	_ "image/gif"
 	_ "image/png"

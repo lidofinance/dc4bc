@@ -2,7 +2,8 @@ package fsm_pool
 
 import (
 	"errors"
-	"github.com/depool/dc4bc/fsm/fsm"
+
+	"github.com/depools/dc4bc/fsm/fsm"
 )
 
 type IStateMachine interface {

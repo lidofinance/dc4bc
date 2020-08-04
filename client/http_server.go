@@ -3,12 +3,13 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/depool/dc4bc/qr"
-	"github.com/depool/dc4bc/storage"
 	"image"
 	"io/ioutil"
 	"log"
 	"net/http"
+
+	"github.com/depools/dc4bc/qr"
+	"github.com/depools/dc4bc/storage"
 )
 
 func errorResponse(w http.ResponseWriter, statusCode int, err string) {

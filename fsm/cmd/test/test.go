@@ -1,9 +1,10 @@
 package main
 
 import (
-	"github.com/depool/dc4bc/fsm/state_machines"
-	"github.com/depool/dc4bc/fsm/types/requests"
 	"log"
+
+	"github.com/depools/dc4bc/fsm/state_machines"
+	"github.com/depools/dc4bc/fsm/types/requests"
 )
 
 func main() {
