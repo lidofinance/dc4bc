@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/p2p-org/dc4bc/fsm/state_machines"
-	"github.com/p2p-org/dc4bc/fsm/types/requests"
+	"github.com/depools/dc4bc/fsm/state_machines"
+	"github.com/depools/dc4bc/fsm/types/requests"
 	"log"
 )
 

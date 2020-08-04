@@ -19,33 +19,45 @@ import (
 
 // Temporary global finish state for deprecating operations
 const (
-	StateGlobalIdle = "__idle"
-	StateGlobalDone = "__done"
+	StateGlobalIdle = State("__idle")
+	StateGlobalDone = State("__done")
 )
 
-// FSMResponse returns result for processing with clientMocks events
-type FSMResponse struct {
+type State string
+
+func (s *State) String() string {
+	return string(*s)
+}
+
+type Event string
+
+func (e *Event) String() string {
+	return string(*e)
+}
+
+// Response returns result for processing with clientMocks events
+type Response struct {
 	// Returns machine execution result state
-	State string
+	State State
 	// Must be cast, according to mapper event_name->response_type
 	Data interface{}
 }
 
 type FSM struct {
 	name         string
-	initialState string
-	currentState string
+	initialState State
+	currentState State
 
 	// May be mapping must require pair source + event?
 	transitions map[trKey]*trEvent
 
 	callbacks Callbacks
 
-	initialEvent string
+	initialEvent Event
 
 	// Finish states, for switch machine or fin,
 	// These states cannot be linked as SrcState in this machine
-	finStates map[string]bool
+	finStates map[State]bool
 
 	// stateMu guards access to the currentState state.
 	stateMu sync.RWMutex
@@ -55,36 +67,36 @@ type FSM struct {
 
 // Transition key source + dst
 type trKey struct {
-	source string
-	event  string
+	source State
+	event  Event
 }
 
 // Transition lightweight event description
 type trEvent struct {
-	dstState   string
+	dstState   State
 	isInternal bool
 }
 
-type Event struct {
-	Name string
+type EventDesc struct {
+	Name Event
 
-	SrcState []string
+	SrcState []State
 
 	// Dst state changes after callback
-	DstState string
+	DstState State
 
 	// Internal events, cannot be emitted from external call
 	IsInternal bool
 }
 
-type Callback func(event string, args ...interface{}) (interface{}, error)
+type Callback func(event Event, args ...interface{}) (interface{}, error)
 
-type Callbacks map[string]Callback
+type Callbacks map[Event]Callback
 
 // TODO: Exports
-func MustNewFSM(machineName, initialState string, events []Event, callbacks map[string]Callback) *FSM {
+func MustNewFSM(machineName string, initialState State, events []EventDesc, callbacks Callbacks) *FSM {
 	machineName = strings.TrimSpace(machineName)
-	initialState = strings.TrimSpace(initialState)
+	initialState = State(strings.TrimSpace(initialState.String()))
 
 	if machineName == "" {
 		panic("machine name cannot be empty")
@@ -104,20 +116,20 @@ func MustNewFSM(machineName, initialState string, events []Event, callbacks map[
 		currentState: initialState,
 		initialState: initialState,
 		transitions:  make(map[trKey]*trEvent),
-		finStates:    make(map[string]bool),
-		callbacks:    make(map[string]Callback),
+		finStates:    make(map[State]bool),
+		callbacks:    make(map[Event]Callback),
 	}
 
-	allEvents := make(map[string]bool)
+	allEvents := make(map[Event]bool)
 
 	// Required for find finStates
-	allSources := make(map[string]bool)
-	allStates := make(map[string]bool)
+	allSources := make(map[State]bool)
+	allStates := make(map[State]bool)
 
 	// Validate events
 	for _, event := range events {
-		event.Name = strings.TrimSpace(event.Name)
-		event.DstState = strings.TrimSpace(event.DstState)
+		event.Name = Event(strings.TrimSpace(event.Name.String()))
+		event.DstState = State(strings.TrimSpace(event.DstState.String()))
 
 		if event.Name == "" {
 			panic("cannot init empty event")
@@ -137,7 +149,7 @@ func MustNewFSM(machineName, initialState string, events []Event, callbacks map[
 		trimmedSourcesCounter := 0
 
 		for _, sourceState := range event.SrcState {
-			sourceState := strings.TrimSpace(sourceState)
+			sourceState := State(strings.TrimSpace(sourceState.String()))
 
 			if sourceState == "" {
 				continue
@@ -209,7 +221,7 @@ func MustNewFSM(machineName, initialState string, events []Event, callbacks map[
 	return f
 }
 
-func (f *FSM) Do(event string, args ...interface{}) (resp *FSMResponse, err error) {
+func (f *FSM) Do(event Event, args ...interface{}) (resp *Response, err error) {
 	f.eventMu.Lock()
 	defer f.eventMu.Unlock()
 
@@ -221,7 +233,7 @@ func (f *FSM) Do(event string, args ...interface{}) (resp *FSMResponse, err erro
 		return nil, errors.New("event is internal")
 	}
 
-	resp = &FSMResponse{
+	resp = &Response{
 		State: f.State(),
 	}
 
@@ -238,7 +250,7 @@ func (f *FSM) Do(event string, args ...interface{}) (resp *FSMResponse, err erro
 }
 
 // State returns the currentState state of the FSM.
-func (f *FSM) State() string {
+func (f *FSM) State() State {
 	f.stateMu.RLock()
 	defer f.stateMu.RUnlock()
 	return f.currentState
@@ -246,7 +258,7 @@ func (f *FSM) State() string {
 
 // setState allows the user to move to the given state from currentState state.
 // The call does not trigger any callbacks, if defined.
-func (f *FSM) setState(event string) error {
+func (f *FSM) setState(event Event) error {
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 
@@ -264,12 +276,12 @@ func (f *FSM) Name() string {
 	return f.name
 }
 
-func (f *FSM) InitialState() string {
+func (f *FSM) InitialState() State {
 	return f.initialState
 }
 
 // Check entry event for available emitting as global entry event
-func (f *FSM) GlobalInitialEvent() (event string) {
+func (f *FSM) GlobalInitialEvent() (event Event) {
 	if initialEvent, exists := f.transitions[trKey{StateGlobalIdle, f.initialEvent}]; exists {
 		if !initialEvent.isInternal {
 			event = f.initialEvent
@@ -278,7 +290,7 @@ func (f *FSM) GlobalInitialEvent() (event string) {
 	return
 }
 
-func (f *FSM) EntryEvent() (event string) {
+func (f *FSM) EntryEvent() (event Event) {
 	if entryEvent, exists := f.transitions[trKey{f.initialState, f.initialEvent}]; exists {
 		if !entryEvent.isInternal {
 			event = f.initialEvent
@@ -287,8 +299,8 @@ func (f *FSM) EntryEvent() (event string) {
 	return
 }
 
-func (f *FSM) EventsList() (events []string) {
-	var eventsMap = map[string]bool{}
+func (f *FSM) EventsList() (events []Event) {
+	var eventsMap = map[Event]bool{}
 	if len(f.transitions) > 0 {
 		for trKey, trEvent := range f.transitions {
 			if !trEvent.isInternal {
@@ -310,8 +322,8 @@ func (f *FSM) EventsList() (events []string) {
 	return
 }
 
-func (f *FSM) StatesSourcesList() (states []string) {
-	var allStates = map[string]bool{}
+func (f *FSM) StatesSourcesList() (states []State) {
+	var allStates = map[State]bool{}
 	if len(f.transitions) > 0 {
 		for trKey, _ := range f.transitions {
 			allStates[trKey.source] = true
@@ -327,7 +339,7 @@ func (f *FSM) StatesSourcesList() (states []string) {
 	return
 }
 
-func (f *FSM) IsFinState(state string) bool {
+func (f *FSM) IsFinState(state State) bool {
 	_, exists := f.finStates[state]
 	return exists
 }
