@@ -19,18 +19,18 @@ type SignatureConstructFSM struct {
 	*fsm.FSM
 }
 
-func New() fsm_pool.IStateMachine {
+func New() fsm_pool.MachineProvider {
 	machine := &SignatureConstructFSM{}
 
 	machine.FSM = fsm.MustNewFSM(
 		fsmName,
 		stateConstructorEntryPoint,
-		[]fsm.Event{
+		[]fsm.EventDesc{
 			// {Name: "", SrcState: []string{""}, DstState: ""},
 
 			// Init
-			{Name: eventInitSignatureConstructor, SrcState: []string{stateConstructorEntryPoint}, DstState: awaitConstructor},
-			{Name: eventInitSignatureFinishTmp, SrcState: []string{awaitConstructor}, DstState: "dkg_proposal_fsm"},
+			{Name: eventInitSignatureConstructor, SrcState: []fsm.State{stateConstructorEntryPoint}, DstState: awaitConstructor},
+			{Name: eventInitSignatureFinishTmp, SrcState: []fsm.State{awaitConstructor}, DstState: "dkg_proposal_fsm"},
 		},
 		fsm.Callbacks{},
 	)

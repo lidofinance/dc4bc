@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 
+	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
@@ -11,7 +12,7 @@ import (
 
 // init -> awaitingConfirmations
 // args: payload, signing id, participants list
-func (s *SignatureProposalFSM) actionInitProposal(event string, args ...interface{}) (response interface{}, err error) {
+func (s *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...interface{}) (response interface{}, err error) {
 	var payload internal.MachineStatePayload
 	// Init proposal
 	log.Println("I'm actionInitProposal")
@@ -83,17 +84,17 @@ func (s *SignatureProposalFSM) actionInitProposal(event string, args ...interfac
 }
 
 //
-func (s *SignatureProposalFSM) actionConfirmProposalByParticipant(event string, args ...interface{}) (response interface{}, err error) {
+func (s *SignatureProposalFSM) actionConfirmProposalByParticipant(event fsm.Event, args ...interface{}) (response interface{}, err error) {
 	log.Println("I'm actionConfirmProposalByParticipant")
 	return
 }
 
-func (s *SignatureProposalFSM) actionDeclineProposalByParticipant(event string, args ...interface{}) (response interface{}, err error) {
+func (s *SignatureProposalFSM) actionDeclineProposalByParticipant(event fsm.Event, args ...interface{}) (response interface{}, err error) {
 	log.Println("I'm  actionDeclineProposalByParticipant")
 	return
 }
 
-func (s *SignatureProposalFSM) actionValidateProposal(event string, args ...interface{}) (response interface{}, err error) {
+func (s *SignatureProposalFSM) actionValidateProposal(event fsm.Event, args ...interface{}) (response interface{}, err error) {
 	log.Println("I'm  actionValidateProposal")
 	return
 }

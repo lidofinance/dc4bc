@@ -6,50 +6,52 @@ import (
 	"github.com/depools/dc4bc/fsm/fsm"
 )
 
-type IStateMachine interface {
+type MachineProvider interface {
 	// Returns machine state from scope dump
 	// For nil argument returns fsm with process initiation
-	// Get() IStateMachine
+	// Get() MachineProvider
 
 	Name() string
 
-	InitialState() string
+	InitialState() fsm.State
 
 	// Process event
-	Do(event string, args ...interface{}) (*fsm.FSMResponse, error)
+	Do(event fsm.Event, args ...interface{}) (*fsm.Response, error)
 
-	GlobalInitialEvent() string
+	GlobalInitialEvent() fsm.Event
 
-	EventsList() []string
+	EventsList() []fsm.Event
 
-	StatesSourcesList() []string
+	StatesSourcesList() []fsm.State
 
-	IsFinState(state string) bool
+	IsFinState(state fsm.State) bool
 }
 
-type FSMMapper map[string]IStateMachine
+type FSMMapper map[string]MachineProvider
 
-type FSMRouteMapper map[string]string
+type FSMEventsMapper map[fsm.Event]string
 
-type FSMPoolProvider struct {
-	fsmInitialEvent string
+type FSMStatesMapper map[fsm.State]string
+
+type FSMPool struct {
+	fsmInitialEvent fsm.Event
 	// Pool mapper by names
 	mapper FSMMapper
-	events FSMRouteMapper
-	states FSMRouteMapper
+	events FSMEventsMapper
+	states FSMStatesMapper
 }
 
-func Init(machines ...IStateMachine) *FSMPoolProvider {
+func Init(machines ...MachineProvider) *FSMPool {
 	if len(machines) == 0 {
 		panic("cannot initialize empty pool")
 	}
-	p := &FSMPoolProvider{
+	p := &FSMPool{
 		mapper: make(FSMMapper),
-		events: make(FSMRouteMapper),
-		states: make(FSMRouteMapper),
+		events: make(FSMEventsMapper),
+		states: make(FSMStatesMapper),
 	}
 
-	allInitStatesMap := make(map[string]string)
+	allInitStatesMap := make(map[fsm.State]string)
 
 	// Fill up mapper
 	for _, machine := range machines {
@@ -99,7 +101,7 @@ func Init(machines ...IStateMachine) *FSMPoolProvider {
 			if machine.IsFinState(state) {
 				// If state is initial for another machine,
 				if initMachineName, exists := allInitStatesMap[state]; exists {
-					p.states[allInitStatesMap[state]] = initMachineName
+					p.states[state] = initMachineName
 					continue
 				}
 			}
@@ -117,7 +119,7 @@ func Init(machines ...IStateMachine) *FSMPoolProvider {
 	return p
 }
 
-func (p *FSMPoolProvider) EntryPointMachine() (IStateMachine, error) {
+func (p *FSMPool) EntryPointMachine() (MachineProvider, error) {
 	// StateGlobalIdle
 	// TODO: Short code
 	entryStateMachineName := p.events[p.fsmInitialEvent]
@@ -130,7 +132,7 @@ func (p *FSMPoolProvider) EntryPointMachine() (IStateMachine, error) {
 	return machine, nil
 }
 
-func (p *FSMPoolProvider) MachineByEvent(event string) (IStateMachine, error) {
+func (p *FSMPool) MachineByEvent(event fsm.Event) (MachineProvider, error) {
 	eventMachineName := p.events[event]
 	machine, exists := p.mapper[eventMachineName]
 
@@ -140,7 +142,7 @@ func (p *FSMPoolProvider) MachineByEvent(event string) (IStateMachine, error) {
 	return machine, nil
 }
 
-func (p *FSMPoolProvider) MachineByState(state string) (IStateMachine, error) {
+func (p *FSMPool) MachineByState(state fsm.State) (MachineProvider, error) {
 	eventMachineName := p.states[state]
 	machine, exists := p.mapper[eventMachineName]
 
