@@ -5,9 +5,10 @@
 package storageMocks
 
 import (
+	reflect "reflect"
+
 	storage "github.com/depools/dc4bc/storage"
 	gomock "github.com/golang/mock/gomock"
-	reflect "reflect"
 )
 
 // MockStorage is a mock of Storage interface

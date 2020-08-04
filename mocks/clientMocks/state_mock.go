@@ -5,9 +5,10 @@
 package clientMocks
 
 import (
+	reflect "reflect"
+
 	client "github.com/depools/dc4bc/client"
 	gomock "github.com/golang/mock/gomock"
-	reflect "reflect"
 )
 
 // MockState is a mock of State interface

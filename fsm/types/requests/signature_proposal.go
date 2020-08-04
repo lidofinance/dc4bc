@@ -2,6 +2,7 @@ package requests
 
 import (
 	"errors"
+
 	"github.com/depools/dc4bc/fsm/config"
 )
 

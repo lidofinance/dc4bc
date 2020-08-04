@@ -3,9 +3,10 @@ package signature_proposal_fsm
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	"math/rand"
+
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/responses"
-	"math/rand"
 )
 
 // Request and response mutators

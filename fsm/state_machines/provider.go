@@ -3,6 +3,7 @@ package state_machines
 import (
 	"encoding/json"
 	"errors"
+
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/fsm_pool"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"

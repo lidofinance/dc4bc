@@ -95,18 +95,26 @@ func (c *Client) GetOperations() (map[string]*Operation, error) {
 	return c.state.GetOperations()
 }
 
-// GetOperationQRPath returns a path to the image with the QR generated
-// for the specified operation. It is supposed that the user will open
-// this file herself.
-func (c *Client) GetOperationQRPath(operationID string) (string, error) {
+func (c *Client) getOperationJSON(operationID string) ([]byte, error) {
 	operation, err := c.state.GetOperationByID(operationID)
 	if err != nil {
-		return "", fmt.Errorf("failed to get operation: %w", err)
+		return nil, fmt.Errorf("failed to get operation: %w", err)
 	}
 
 	operationJSON, err := json.Marshal(operation)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal operation: %w", err)
+		return nil, fmt.Errorf("failed to marshal operation: %w", err)
+	}
+	return operationJSON, nil
+}
+
+// GetOperationQRPath returns a path to the image with the QR generated
+// for the specified operation. It is supposed that the user will open
+// this file herself.
+func (c *Client) GetOperationQRPath(operationID string) (string, error) {
+	operationJSON, err := c.getOperationJSON(operationID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get operation in JSON: %w", err)
 	}
 
 	operationQRPath := filepath.Join(QrCodesDir, operationID)
@@ -131,6 +139,10 @@ func (c *Client) ReadProcessedOperation() error {
 		return fmt.Errorf("failed to unmarshal processed operation")
 	}
 
+	return c.handleProcessedOperation(operation)
+}
+
+func (c *Client) handleProcessedOperation(operation Operation) error {
 	storedOperation, err := c.state.GetOperationByID(operation.ID)
 	if err != nil {
 		return fmt.Errorf("failed to find matching operation: %w", err)

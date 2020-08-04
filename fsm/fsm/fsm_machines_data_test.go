@@ -8,6 +8,7 @@ const (
 	FSM1Name = "fsm1"
 	// Init process from global idle state
 	FSM1StateInit = StateGlobalIdle
+	FSM2StateInit = StateGlobalIdle
 	// Set up data
 	FSM1StateStage1 = State("state_fsm1_stage1")
 	// Process data

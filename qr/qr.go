@@ -2,6 +2,7 @@ package qr
 
 import (
 	"fmt"
+	"image"
 	"log"
 	"time"
 
@@ -66,18 +67,7 @@ loop:
 		return nil, fmt.Errorf("failed to get image object: %w", err)
 	}
 
-	bmp, err := gozxing.NewBinaryBitmapFromImage(imgObject)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get NewBinaryBitmapFromImage: %w", err)
-	}
-
-	qrReader := qrcode.NewQRCodeReader()
-	result, err := qrReader.Decode(bmp, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decode the QR-code contents: %w", err)
-	}
-
-	return result.GetRawBytes(), err
+	return ReadDataFromQR(imgObject)
 }
 
 func (p *CameraProcessor) WriteQR(path string, data []byte) error {
@@ -87,4 +77,22 @@ func (p *CameraProcessor) WriteQR(path string, data []byte) error {
 	}
 
 	return nil
+}
+
+func ReadDataFromQR(img image.Image) ([]byte, error) {
+	bmp, err := gozxing.NewBinaryBitmapFromImage(img)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get NewBinaryBitmapFromImage: %w", err)
+	}
+
+	qrReader := qrcode.NewQRCodeReader()
+	result, err := qrReader.Decode(bmp, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode the QR-code contents: %w", err)
+	}
+	return result.GetRawBytes(), nil
+}
+
+func EncodeQR(data []byte) ([]byte, error) {
+	return encoder.Encode(string(data), encoder.Medium, 512)
 }

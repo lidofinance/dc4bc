@@ -2,11 +2,12 @@ package signature_proposal_fsm
 
 import (
 	"errors"
+	"log"
+
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
-	"log"
 )
 
 // init -> awaitingConfirmations
