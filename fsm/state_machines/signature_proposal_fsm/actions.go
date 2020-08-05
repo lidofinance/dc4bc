@@ -72,13 +72,27 @@ func (s *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 		}
 	}
 
-	/*s.state = &fsm_pool.FSMachine{
-		Id:    signingId,
-		State: stateAwaitProposalConfirmation,
+	// Make response
+
+	responseData := make(responses.ProposalParticipantInvitationsResponse, 0)
+
+	for participantId, proposal := range payload.ProposalPayload {
+		encryptedInvitationSecret, err := encryptWithPubKey(proposal.PublicKey, proposal.InvitationSecret)
+		if err != nil {
+			return nil, errors.New("cannot encryptWithPubKey")
+		}
+		responseEntry := &responses.ProposalParticipantInvitationEntryResponse{
+			Title:               proposal.Title,
+			PubKeyFingerprint:   participantId,
+			EncryptedInvitation: encryptedInvitationSecret,
+		}
+		responseData = append(responseData, responseEntry)
 	}
-	s.state.Payload.ProposalPayload = &privateParticipantsList*/
+
+	// Change state
+
 	return internal.MachineCombinedResponse{
-		Response: responses.ProposalParticipantInvitationsResponse{},
+		Response: responseData,
 		Payload:  &payload,
 	}, nil
 }

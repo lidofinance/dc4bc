@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/depools/dc4bc/fsm/types/responses"
 	"log"
 
 	"github.com/depools/dc4bc/fsm/state_machines"
@@ -28,8 +30,44 @@ func main() {
 			},
 		},
 	)
-	log.Println("Response", resp)
 	log.Println("Err", err)
 	log.Println("Dump", string(dump))
 
+	processResponse(resp)
+
+}
+
+func processResponse(resp *fsm.Response) {
+	switch resp.State {
+	// Await proposals
+	case fsm.State("validate_proposal"):
+		data, ok := resp.Data.(responses.ProposalParticipantInvitationsResponse)
+		if !ok {
+			log.Printf("undefined response type for state \"%s\"\n", resp.State)
+			return
+		}
+		sendInvitations(data)
+
+	case fsm.State("validation_canceled_by_participant"):
+		updateDashboardWithCanceled("Participant")
+	case fsm.State("validation_canceled_by_timeout"):
+		updateDashboardWithCanceled("Timeout")
+	default:
+		log.Printf("undefined response type for state \"%s\"\n", resp.State)
+	}
+}
+
+func sendInvitations(invitations responses.ProposalParticipantInvitationsResponse) {
+	for _, invitation := range invitations {
+		log.Printf(
+			"Dear %s, please encrypt value \"%s\" with your key, fingerprint: %s\n",
+			invitation.Title,
+			invitation.EncryptedInvitation,
+			invitation.PubKeyFingerprint,
+		)
+	}
+}
+
+func updateDashboardWithCanceled(msg string) {
+	log.Printf("Breaking news! Proposal canceled with reason: %s\n", msg)
 }

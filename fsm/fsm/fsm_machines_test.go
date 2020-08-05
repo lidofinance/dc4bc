@@ -4,14 +4,68 @@ import (
 	"testing"
 )
 
-var testingFSM *FSM
+const (
+	testName = "fsm_test"
+	// Init process from global idle state
+	stateInit = StateGlobalIdle
+	// Set up data
+	stateStage1 = State("state_stage1")
+	// Process data
+	stateStage2 = State("state_stage2")
+	// Cancelled with internal event
+	stateCanceledByInternal = State("state_canceled")
+	// Cancelled with external event
+	stateCanceled2 = State("state_canceled2")
+	// Out endpoint to switch
+	stateOutToFSM2 = State("state_out_to_fsm2")
+
+	// Events
+	eventInit    = Event("event_init")
+	eventCancel  = Event("event_cancel")
+	eventProcess = Event("event_process")
+
+	// Internal events
+	eventInternal         = Event("event_internal")
+	eventCancelByInternal = Event("event_internal_cancel")
+	eventInternalOut2     = Event("event_internal_out")
+)
+
+var (
+	testingFSM *FSM
+
+	testingEvents = []EventDesc{
+		// Init
+		{Name: eventInit, SrcState: []State{stateInit}, DstState: stateStage1},
+		{Name: eventInternal, SrcState: []State{stateStage1}, DstState: stateStage2, IsInternal: true},
+
+		// Cancellation events
+		{Name: eventCancelByInternal, SrcState: []State{stateStage2}, DstState: stateCanceledByInternal, IsInternal: true},
+		{Name: eventCancel, SrcState: []State{stateStage2}, DstState: stateCanceled2},
+
+		// Out
+		{Name: eventProcess, SrcState: []State{stateStage2}, DstState: stateOutToFSM2},
+		{Name: eventInternalOut2, SrcState: []State{stateStage2}, DstState: stateOutToFSM2, IsInternal: true},
+	}
+
+	testingCallbacks = Callbacks{
+		eventInit: func(event Event, args ...interface{}) (interface{}, error) {
+			return nil, nil
+		},
+		eventInternalOut2: func(event Event, args ...interface{}) (interface{}, error) {
+			return nil, nil
+		},
+		eventProcess: func(event Event, args ...interface{}) (interface{}, error) {
+			return nil, nil
+		},
+	}
+)
 
 func init() {
 	testingFSM = MustNewFSM(
-		FSM1Name,
-		FSM1StateInit,
-		testing1Events,
-		testing1Callbacks,
+		testName,
+		stateInit,
+		testingEvents,
+		testingCallbacks,
 	)
 }
 
@@ -212,22 +266,22 @@ func TestMustNewFSM_State_Final_Not_Found_Panic(t *testing.T) {
 }
 
 func TestFSM_Name(t *testing.T) {
-	if testingFSM.Name() != FSM1Name {
-		t.Errorf("expected machine name \"%s\"", FSM1Name)
+	if testingFSM.Name() != testName {
+		t.Errorf("expected machine name \"%s\"", testName)
 	}
 }
 
 func TestFSM_EntryEvent(t *testing.T) {
-	if testingFSM.InitialState() != FSM1StateInit {
-		t.Errorf("expected initial state \"%s\"", FSM1StateInit)
+	if testingFSM.InitialState() != stateInit {
+		t.Errorf("expected initial state \"%s\"", stateInit)
 	}
 }
 
 func TestFSM_EventsList(t *testing.T) {
 	eventsList := []Event{
-		EventFSM1Init,
-		EventFSM1Cancel,
-		EventFSM1Process,
+		eventInit,
+		eventCancel,
+		eventProcess,
 	}
 
 	if !compareEventsArr(testingFSM.EventsList(), eventsList) {
@@ -238,9 +292,9 @@ func TestFSM_EventsList(t *testing.T) {
 
 func TestFSM_StatesList(t *testing.T) {
 	statesList := []State{
-		FSM1StateInit,
-		FSM1StateStage1,
-		FSM1StateStage2,
+		stateInit,
+		stateStage1,
+		stateStage2,
 	}
 
 	if !compareStatesArr(testingFSM.StatesSourcesList(), statesList) {
