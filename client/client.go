@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	fsm "github.com/depools/dc4bc/fsm/fsm"
 	"log"
 	"path/filepath"
 	"time"
 
+	fsmStateMachines "github.com/depools/dc4bc/fsm/state_machines"
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
 )
@@ -19,7 +21,7 @@ const (
 
 type Client struct {
 	ctx         context.Context
-	fsm         interface{}
+	fsm         *fsmStateMachines.FSMInstance
 	state       State
 	storage     storage.Storage
 	qrProcessor qr.Processor
@@ -27,7 +29,7 @@ type Client struct {
 
 func NewClient(
 	ctx context.Context,
-	fsm interface{},
+	fsm *fsmStateMachines.FSMInstance,
 	state State,
 	storage storage.Storage,
 	qrProcessor qr.Processor,
@@ -67,8 +69,23 @@ func (c *Client) Poll() {
 			for _, message := range messages {
 				log.Println("Message:", message)
 
-				// Feed the message to the FSM, get a possibly empty operation.
-				var operation *Operation
+				fsmReq, err := FSMRequestFromBytes(message.Data)
+				if err != nil {
+					panic(err)
+				}
+
+				resp, _, err := c.fsm.Do(fsmReq.Event, fsmReq.Args...)
+				if err != nil {
+					panic(err)
+				}
+
+				if err = c.processFSMResponse(resp); err != nil {
+					panic(err)
+				}
+
+				operation := &Operation{
+					//Payload:   fsmResponse.Data
+				}
 
 				// I.e., if FSM returned an Operation for us.
 				if operation != nil {
@@ -89,6 +106,17 @@ func (c *Client) Poll() {
 			return
 		}
 	}
+}
+
+func (c *Client) processFSMResponse(resp *fsm.Response) error {
+	switch resp.State {
+	case "smtth":
+		// Do smth
+	case "another_state":
+		//Do another thing
+		//.....
+	}
+	return nil
 }
 
 func (c *Client) GetOperations() (map[string]*Operation, error) {
@@ -152,7 +180,11 @@ func (c *Client) handleProcessedOperation(operation Operation) error {
 		return fmt.Errorf("processed operation does not match stored operation: %w", err)
 	}
 
-	var message storage.Message
+	message := storage.Message{
+		Data:      operation.Result, // Or we should transform the result to a required format??
+		Signature: nil,              // TODO
+	}
+
 	if _, err := c.storage.Send(message); err != nil {
 		return fmt.Errorf("failed to post message: %w", err)
 	}
