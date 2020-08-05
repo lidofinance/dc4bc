@@ -57,3 +57,7 @@ func generateRandomString(s int) (string, error) {
 	b, err := generateRandomBytes(s)
 	return base64.URLEncoding.EncodeToString(b), err
 }
+
+func encryptWithPubKey(key []byte, value string) (string, error) {
+	return value, nil
+}

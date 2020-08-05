@@ -246,6 +246,9 @@ func (f *FSM) Do(event Event, args ...interface{}) (resp *Response, err error) {
 	}
 
 	err = f.setState(event)
+	if err == nil {
+		resp.State = f.currentState
+	}
 	return
 }
 
