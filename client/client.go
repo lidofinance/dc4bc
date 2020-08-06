@@ -74,17 +74,18 @@ func (c *Client) Poll() {
 					panic(err)
 				}
 
-				resp, _, err := c.fsm.Do(fsmReq.Event, fsmReq.Args...)
+				resp, fsmDump, err := c.fsm.Do(fsmReq.Event, fsmReq.Args...)
 				if err != nil {
 					panic(err)
 				}
 
-				if err = c.processFSMResponse(resp); err != nil {
-					panic(err)
-				}
+				var operation *Operation
 
-				operation := &Operation{
-					//Payload:   fsmResponse.Data
+				if resp.IsOpRequired {
+					operation = &Operation{
+						Type:    OperationType(resp.State),
+						Payload: resp.Data, // TODO:marshall
+					}
 				}
 
 				// I.e., if FSM returned an Operation for us.
@@ -98,7 +99,7 @@ func (c *Client) Poll() {
 					panic(err)
 				}
 
-				if err := c.state.SaveFSM(c.fsm); err != nil {
+				if err := c.state.SaveFSM(fsmDump); err != nil {
 					panic(err)
 				}
 			}
@@ -106,17 +107,6 @@ func (c *Client) Poll() {
 			return
 		}
 	}
-}
-
-func (c *Client) processFSMResponse(resp *fsm.Response) error {
-	switch resp.State {
-	case "smtth":
-		// Do smth
-	case "another_state":
-		//Do another thing
-		//.....
-	}
-	return nil
 }
 
 func (c *Client) GetOperations() (map[string]*Operation, error) {
