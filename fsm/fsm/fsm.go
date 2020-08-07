@@ -73,8 +73,10 @@ type trKey struct {
 
 // Transition lightweight event description
 type trEvent struct {
+	event      Event
 	dstState   State
 	isInternal bool
+	isDstInit  bool
 }
 
 type EventDesc struct {
@@ -87,6 +89,9 @@ type EventDesc struct {
 
 	// Internal events, cannot be emitted from external call
 	IsInternal bool
+
+	// Set dst state before execute action
+	IsDstInit bool
 }
 
 type Callback func(event Event, args ...interface{}) (interface{}, error)
@@ -168,7 +173,12 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 				panic("duplicate dst for pair `source + event`")
 			}
 
-			f.transitions[tKey] = &trEvent{event.DstState, event.IsInternal}
+			f.transitions[tKey] = &trEvent{
+				tKey.event,
+				event.DstState,
+				event.IsInternal,
+				event.IsDstInit,
+			}
 
 			// For using provider, event must use with IsGlobal = true
 			if sourceState == initialState {
@@ -221,34 +231,58 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 	return f
 }
 
-func (f *FSM) Do(event Event, args ...interface{}) (resp *Response, err error) {
-	f.eventMu.Lock()
-	defer f.eventMu.Unlock()
-
+func (f *FSM) DoInternal(event Event, args ...interface{}) (resp *Response, err error) {
 	trEvent, ok := f.transitions[trKey{f.currentState, event}]
 	if !ok {
-		return nil, errors.New("cannot execute event for this state")
+		return nil, errors.New(fmt.Sprintf("cannot execute event \"%s\" for state \"%s\"", event, f.currentState))
+	}
+
+	return f.do(trEvent, args...)
+}
+
+func (f *FSM) Do(event Event, args ...interface{}) (resp *Response, err error) {
+	trEvent, ok := f.transitions[trKey{f.currentState, event}]
+	if !ok {
+		return nil, errors.New(fmt.Sprintf("cannot execute event \"%s\" for state \"%s\"", event, f.currentState))
 	}
 	if trEvent.isInternal {
 		return nil, errors.New("event is internal")
+	}
+
+	return f.do(trEvent, args...)
+}
+func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err error) {
+	// f.eventMu.Lock()
+	// defer f.eventMu.Unlock()
+
+	if trEvent.isDstInit {
+		err = f.SetState(trEvent.event)
+		if err != nil {
+			resp = &Response{
+				State: f.State(),
+			}
+			return resp, err
+		}
 	}
 
 	resp = &Response{
 		State: f.State(),
 	}
 
-	if callback, ok := f.callbacks[event]; ok {
-		resp.Data, err = callback(event, args...)
+	if callback, ok := f.callbacks[trEvent.event]; ok {
+		resp.Data, err = callback(trEvent.event, args...)
 		// Do not try change state on error
 		if err != nil {
 			return resp, err
 		}
 	}
 
-	err = f.setState(event)
-	if err == nil {
-		resp.State = f.currentState
+	if !trEvent.isDstInit {
+		err = f.SetState(trEvent.event)
 	}
+
+	resp.State = f.State()
+
 	return
 }
 
@@ -259,9 +293,9 @@ func (f *FSM) State() State {
 	return f.currentState
 }
 
-// setState allows the user to move to the given state from currentState state.
+// SetState allows the user to move to the given state from currentState state.
 // The call does not trigger any callbacks, if defined.
-func (f *FSM) setState(event Event) error {
+func (f *FSM) SetState(event Event) error {
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 

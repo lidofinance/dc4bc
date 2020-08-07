@@ -3,11 +3,11 @@ package state_machines
 import (
 	"encoding/json"
 	"errors"
+	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/fsm_pool"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_construct_fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 )
 
@@ -30,7 +30,7 @@ var (
 func init() {
 	fsmPoolProvider = fsm_pool.Init(
 		signature_proposal_fsm.New(),
-		signature_construct_fsm.New(),
+		dkg_proposal_fsm.New(),
 	)
 }
 

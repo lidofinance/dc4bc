@@ -1,8 +1,8 @@
 package internal
 
 type MachineStatePayload struct {
-	ProposalPayload ProposalConfirmationPrivateQuorum
-	SigningPayload  map[string]interface{}
+	ConfirmationProposalPayload ConfirmationProposalPrivateQuorum
+	DKGProposalPayload          DKGProposalPrivateQuorum
 }
 
 // Using combine response for modify data with chain

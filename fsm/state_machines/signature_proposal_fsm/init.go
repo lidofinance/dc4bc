@@ -9,21 +9,23 @@ const (
 	fsmName      = "signature_proposal_fsm"
 	signingIdLen = 32
 
-	stateAwaitProposalConfirmation = fsm.State("validate_proposal") // waiting participants
+	StateAwaitParticipantsConfirmations = fsm.State("state_validation_await_participants_confirmations") // waiting participants
 
-	stateValidationCanceledByParticipant = fsm.State("validation_canceled_by_participant")
-	stateValidationCanceledByTimeout     = fsm.State("validation_canceled_by_timeout")
+	StateValidationCanceledByParticipant = fsm.State("state_validation_canceled_by_participant")
+	StateValidationCanceledByTimeout     = fsm.State("state_validation_canceled_by_timeout")
 
-	stateProposed = "proposed"
+	StateValidationCompleted = fsm.State("state_validation_completed")
 
-	eventInitProposal         = fsm.Event("proposal_init")
-	eventConfirmProposal      = fsm.Event("proposal_confirm_by_participant")
-	eventDeclineProposal      = fsm.Event("proposal_decline_by_participant")
-	eventValidateProposal     = fsm.Event("proposal_validate")
-	eventSetProposalValidated = fsm.Event("proposal_set_validated")
+	EventInitProposal         = fsm.Event("event_proposal_init")
+	EventConfirmProposal      = fsm.Event("event_proposal_confirm_by_participant")
+	EventDeclineProposal      = fsm.Event("event_proposal_decline_by_participant")
+	EventValidateProposal     = fsm.Event("event_proposal_validate")
+	EventSetProposalValidated = fsm.Event("event_proposal_set_validated")
 
 	eventSetValidationCanceledByTimeout = fsm.Event("proposal_canceled_timeout")
-	eventSwitchProposedToSigning        = fsm.Event("switch_state_to_signing")
+
+	// Switch to next fsm
+
 )
 
 type SignatureProposalFSM struct {
@@ -40,28 +42,28 @@ func New() fsm_pool.MachineProvider {
 			// {Name: "", SrcState: []string{""}, DstState: ""},
 
 			// Init
-			{Name: eventInitProposal, SrcState: []fsm.State{fsm.StateGlobalIdle}, DstState: stateAwaitProposalConfirmation},
+			{Name: EventInitProposal, SrcState: []fsm.State{fsm.StateGlobalIdle}, DstState: StateAwaitParticipantsConfirmations},
 
 			// Validate by participants
-			{Name: eventConfirmProposal, SrcState: []fsm.State{stateAwaitProposalConfirmation}, DstState: stateAwaitProposalConfirmation},
+			{Name: EventConfirmProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations},
 			// Is decline event should auto change state to default, or it process will initiated by client (external emit)?
 			// Now set for external emitting.
-			{Name: eventDeclineProposal, SrcState: []fsm.State{stateAwaitProposalConfirmation}, DstState: stateValidationCanceledByParticipant},
+			{Name: EventDeclineProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateValidationCanceledByParticipant},
 
-			{Name: eventValidateProposal, SrcState: []fsm.State{stateAwaitProposalConfirmation}, DstState: stateAwaitProposalConfirmation},
+			{Name: EventValidateProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations},
 
 			// eventProposalValidate internal or from client?
 			// yay
 			// Exit point
-			{Name: eventSetProposalValidated, SrcState: []fsm.State{stateAwaitProposalConfirmation}, DstState: "process_sig", IsInternal: true},
+			{Name: EventSetProposalValidated, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: fsm.State("state_dkg_pub_keys_sending_required"), IsInternal: true},
 			// nan
-			{Name: eventSetValidationCanceledByTimeout, SrcState: []fsm.State{stateAwaitProposalConfirmation}, DstState: stateValidationCanceledByTimeout, IsInternal: true},
+			{Name: eventSetValidationCanceledByTimeout, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateValidationCanceledByTimeout, IsInternal: true},
 		},
 		fsm.Callbacks{
-			eventInitProposal:     machine.actionInitProposal,
-			eventConfirmProposal:  machine.actionConfirmProposalByParticipant,
-			eventDeclineProposal:  machine.actionDeclineProposalByParticipant,
-			eventValidateProposal: machine.actionValidateProposal,
+			EventInitProposal:     machine.actionInitProposal,
+			EventConfirmProposal:  machine.actionConfirmProposalByParticipant,
+			EventDeclineProposal:  machine.actionDeclineProposalByParticipant,
+			EventValidateProposal: machine.actionValidateProposal,
 		},
 	)
 	return machine
