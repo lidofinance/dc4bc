@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	dkgFSM "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"go.dedis.ch/kyber/v3"
 	"log"
 	"path/filepath"
@@ -87,14 +88,22 @@ func (c *Client) Poll() {
 
 				var operation *Operation
 
-				if resp.IsOpRequired {
+				switch resp.State {
+				// if the new state is waiting for RPC to airgapped machine
+				case dkgFSM.StateDkgPubKeysSendingRequired, dkgFSM.StateDkgCommitsSendingRequired,
+					dkgFSM.StateDkgDealsSendingRequired:
+					bz, err := json.Marshal(resp.Data)
+					if err != nil {
+						panic(err)
+					}
 					operation = &Operation{
 						Type:    OperationType(resp.State),
-						Payload: resp.Data, // TODO:marshall
+						Payload: bz,
 					}
+				default:
+					panic("not good state") // what should we do exactly?
 				}
 
-				// I.e., if FSM returned an Operation for us.
 				if operation != nil {
 					if err := c.state.PutOperation(operation); err != nil {
 						panic(err)
