@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	fsm "github.com/depools/dc4bc/fsm/fsm"
+	"go.dedis.ch/kyber/v3"
 	"log"
 	"path/filepath"
 	"time"
@@ -12,6 +12,8 @@ import (
 	fsmStateMachines "github.com/depools/dc4bc/fsm/state_machines"
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
+	sign "go.dedis.ch/kyber/v3/sign/schnorr"
+	"go.dedis.ch/kyber/v3/util/key"
 )
 
 const (
@@ -25,6 +27,10 @@ type Client struct {
 	state       State
 	storage     storage.Storage
 	qrProcessor qr.Processor
+
+	// these just a template
+	suite       key.Suite
+	authKeyPair *key.Pair
 }
 
 func NewClient(
@@ -170,9 +176,13 @@ func (c *Client) handleProcessedOperation(operation Operation) error {
 		return fmt.Errorf("processed operation does not match stored operation: %w", err)
 	}
 
+	sig, err := c.signMessage(operation.Result)
+	if err != nil {
+		return fmt.Errorf("failed to sign a message: %w", err)
+	}
 	message := storage.Message{
-		Data:      operation.Result, // Or we should transform the result to a required format??
-		Signature: nil,              // TODO
+		Data:      operation.Result,
+		Signature: sig,
 	}
 
 	if _, err := c.storage.Send(message); err != nil {
@@ -183,5 +193,24 @@ func (c *Client) handleProcessedOperation(operation Operation) error {
 		return fmt.Errorf("failed to DeleteOperation: %w", err)
 	}
 
+	return nil
+}
+
+// it's just a template
+func (c *Client) signMessage(msg []byte) ([]byte, error) {
+	s, err := sign.Sign(c.suite, c.authKeyPair.Private, msg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign a message: %w", err)
+	}
+	return s, nil
+}
+
+// it's just a template
+func (c *Client) verifyMessage(participant string, msg, signature []byte) error {
+	return sign.Verify(c.suite, c.getPublicKeyOfParticipant(participant), msg, signature)
+}
+
+// func should return public key of participant for checking his message signature
+func (c *Client) getPublicKeyOfParticipant(participant string) kyber.Point {
 	return nil
 }
