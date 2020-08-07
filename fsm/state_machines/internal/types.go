@@ -4,8 +4,9 @@ import "time"
 
 type ProposalParticipantPrivate struct {
 	// Public title for address, such as name, nickname, organization
-	Title     string
-	PublicKey []byte
+	ParticipantId int
+	Title         string
+	PublicKey     []byte
 	// For validation user confirmation: sign(InvitationSecret, PublicKey) => user
 	InvitationSecret string
 	ConfirmedAt      *time.Time
@@ -14,4 +15,14 @@ type ProposalParticipantPrivate struct {
 // Unique alias for map iteration - Public Key Fingerprint
 // Excludes array merge and rotate operations
 
-type ProposalConfirmationPrivateQuorum map[string]ProposalParticipantPrivate
+type ConfirmationProposalPrivateQuorum map[string]ProposalParticipantPrivate
+
+type ProposalDKGParticipantPrivate struct {
+	Title     string
+	PublicKey []byte
+	Commit    []byte
+	Deal      []byte
+	UpdatedAt *time.Time
+}
+
+type DKGProposalPrivateQuorum map[int]ProposalParticipantPrivate

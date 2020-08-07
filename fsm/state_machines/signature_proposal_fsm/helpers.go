@@ -11,10 +11,10 @@ import (
 
 // Request and response mutators
 
-func ProposalParticipantsQuorumToResponse(list *internal.ProposalConfirmationPrivateQuorum) responses.ProposalParticipantInvitationsResponse {
-	var response responses.ProposalParticipantInvitationsResponse
+func ProposalParticipantsQuorumToResponse(list *internal.ConfirmationProposalPrivateQuorum) responses.SignatureProposalParticipantInvitationsResponse {
+	var response responses.SignatureProposalParticipantInvitationsResponse
 	for quorumId, parcipant := range *list {
-		response = append(response, &responses.ProposalParticipantInvitationEntryResponse{
+		response = append(response, &responses.SignatureProposalParticipantInvitationEntry{
 			Title:             parcipant.Title,
 			PubKeyFingerprint: quorumId,
 			// TODO: Add encryption

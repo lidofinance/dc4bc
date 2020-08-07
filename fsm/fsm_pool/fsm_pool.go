@@ -2,6 +2,7 @@ package fsm_pool
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/depools/dc4bc/fsm/fsm"
 )
@@ -14,6 +15,8 @@ type MachineProvider interface {
 	Name() string
 
 	InitialState() fsm.State
+
+	State() fsm.State
 
 	// Process event
 	Do(event fsm.Event, args ...interface{}) (*fsm.Response, error)
@@ -75,7 +78,7 @@ func Init(machines ...MachineProvider) *FSMPool {
 		machineEvents := machine.EventsList()
 		for _, event := range machineEvents {
 			if _, exists := p.events[event]; exists {
-				panic("duplicate public event")
+				panic(fmt.Sprintf("duplicate public event \"%s\"", event))
 			}
 			p.events[event] = machineName
 		}
@@ -106,7 +109,7 @@ func Init(machines ...MachineProvider) *FSMPool {
 				}
 			}
 			if name, exists := p.states[state]; exists && name != machineName {
-				panic("duplicate state for machines")
+				panic(fmt.Sprintf("duplicate state for machines \"%s\"", state))
 			}
 
 			p.states[state] = machineName
@@ -120,8 +123,6 @@ func Init(machines ...MachineProvider) *FSMPool {
 }
 
 func (p *FSMPool) EntryPointMachine() (MachineProvider, error) {
-	// StateGlobalIdle
-	// TODO: Short code
 	entryStateMachineName := p.events[p.fsmInitialEvent]
 
 	machine, exists := p.mapper[entryStateMachineName]
@@ -142,6 +143,7 @@ func (p *FSMPool) MachineByEvent(event fsm.Event) (MachineProvider, error) {
 	return machine, nil
 }
 
+// Out states now is not returns machine
 func (p *FSMPool) MachineByState(state fsm.State) (MachineProvider, error) {
 	eventMachineName := p.states[state]
 	machine, exists := p.mapper[eventMachineName]
