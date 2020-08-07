@@ -45,7 +45,7 @@ func (s *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 		return
 	}
 
-	request, ok := args[2].(requests.ProposalParticipantsListRequest)
+	request, ok := args[2].(requests.SignatureProposalParticipantsListRequest)
 
 	if !ok {
 		err = errors.New("cannot cast participants list")
@@ -56,15 +56,16 @@ func (s *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 		return
 	}
 
-	payload.ProposalPayload = make(internal.ProposalConfirmationPrivateQuorum)
+	payload.ConfirmationProposalPayload = make(internal.ConfirmationProposalPrivateQuorum)
 
-	for _, participant := range request {
+	for participantIntId, participant := range request {
 		participantId := createFingerprint(&participant.PublicKey)
 		secret, err := generateRandomString(32)
 		if err != nil {
 			return nil, errors.New("cannot generateRandomString")
 		}
-		payload.ProposalPayload[participantId] = internal.ProposalParticipantPrivate{
+		payload.ConfirmationProposalPayload[participantId] = internal.ProposalParticipantPrivate{
+			ParticipantId:    participantIntId,
 			Title:            participant.Title,
 			PublicKey:        participant.PublicKey,
 			InvitationSecret: secret,
@@ -74,16 +75,16 @@ func (s *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 
 	// Make response
 
-	responseData := make(responses.ProposalParticipantInvitationsResponse, 0)
+	responseData := make(responses.SignatureProposalParticipantInvitationsResponse, 0)
 
-	for participantId, proposal := range payload.ProposalPayload {
+	for pubKeyFingerprint, proposal := range payload.ConfirmationProposalPayload {
 		encryptedInvitationSecret, err := encryptWithPubKey(proposal.PublicKey, proposal.InvitationSecret)
 		if err != nil {
 			return nil, errors.New("cannot encryptWithPubKey")
 		}
-		responseEntry := &responses.ProposalParticipantInvitationEntryResponse{
+		responseEntry := &responses.SignatureProposalParticipantInvitationEntry{
 			Title:               proposal.Title,
-			PubKeyFingerprint:   participantId,
+			PubKeyFingerprint:   pubKeyFingerprint,
 			EncryptedInvitation: encryptedInvitationSecret,
 		}
 		responseData = append(responseData, responseEntry)

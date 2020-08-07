@@ -13,9 +13,9 @@ func main() {
 	fsmMachine, err := state_machines.New([]byte{})
 	log.Println(fsmMachine, err)
 	resp, dump, err := fsmMachine.Do(
-		"proposal_init",
+		"event_proposal_init",
 		"d8a928b2043db77e340b523547bf16cb4aa483f0645fe0a290ed1f20aab76257",
-		requests.ProposalParticipantsListRequest{
+		requests.SignatureProposalParticipantsListRequest{
 			{
 				"John Doe",
 				[]byte("pubkey123123"),
@@ -41,7 +41,7 @@ func processResponse(resp *fsm.Response) {
 	switch resp.State {
 	// Await proposals
 	case fsm.State("validate_proposal"):
-		data, ok := resp.Data.(responses.ProposalParticipantInvitationsResponse)
+		data, ok := resp.Data.(responses.SignatureProposalParticipantInvitationsResponse)
 		if !ok {
 			log.Printf("undefined response type for state \"%s\"\n", resp.State)
 			return
@@ -57,7 +57,7 @@ func processResponse(resp *fsm.Response) {
 	}
 }
 
-func sendInvitations(invitations responses.ProposalParticipantInvitationsResponse) {
+func sendInvitations(invitations responses.SignatureProposalParticipantInvitationsResponse) {
 	for _, invitation := range invitations {
 		log.Printf(
 			"Dear %s, please encrypt value \"%s\" with your key, fingerprint: %s\n",
