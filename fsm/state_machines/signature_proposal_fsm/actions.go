@@ -12,40 +12,16 @@ import (
 
 // init -> awaitingConfirmations
 // args: payload, signing id, participants list
-func (s *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...interface{}) (response interface{}, err error) {
-	var payload internal.MachineStatePayload
-	// Init proposal
-	log.Println("I'm actionInitProposal")
+func (m *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+	m.payloadMu.Lock()
+	defer m.payloadMu.Unlock()
 
-	if len(args) < 3 {
-		err = errors.New("payload and signing id required and participants list required")
+	if len(args) != 1 {
+		err = errors.New("participants list required")
 		return
 	}
 
-	if len(args) > 3 {
-		err = errors.New("too many arguments")
-		return
-	}
-
-	payload, ok := args[0].(internal.MachineStatePayload)
-
-	if !ok {
-		err = errors.New("cannot cast payload")
-		return
-	}
-
-	signingId, ok := args[1].(string)
-	if !ok {
-		err = errors.New("cannot cast signing id, awaiting string value")
-		return
-	}
-
-	if len(signingId) < signingIdLen {
-		err = errors.New("signing id to short ")
-		return
-	}
-
-	request, ok := args[2].(requests.SignatureProposalParticipantsListRequest)
+	request, ok := args[0].(requests.SignatureProposalParticipantsListRequest)
 
 	if !ok {
 		err = errors.New("cannot cast participants list")
@@ -56,7 +32,7 @@ func (s *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 		return
 	}
 
-	payload.ConfirmationProposalPayload = make(internal.ConfirmationProposalPrivateQuorum)
+	m.payload.ConfirmationProposalPayload = make(internal.SignatureProposalQuorum)
 
 	for participantIntId, participant := range request {
 		participantId := createFingerprint(&participant.PublicKey)
@@ -64,12 +40,12 @@ func (s *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 		if err != nil {
 			return nil, errors.New("cannot generateRandomString")
 		}
-		payload.ConfirmationProposalPayload[participantId] = internal.ProposalParticipantPrivate{
+		m.payload.ConfirmationProposalPayload[participantId] = internal.SignatureProposalParticipant{
 			ParticipantId:    participantIntId,
 			Title:            participant.Title,
 			PublicKey:        participant.PublicKey,
 			InvitationSecret: secret,
-			ConfirmedAt:      nil,
+			UpdatedAt:        nil,
 		}
 	}
 
@@ -77,7 +53,7 @@ func (s *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 
 	responseData := make(responses.SignatureProposalParticipantInvitationsResponse, 0)
 
-	for pubKeyFingerprint, proposal := range payload.ConfirmationProposalPayload {
+	for pubKeyFingerprint, proposal := range m.payload.ConfirmationProposalPayload {
 		encryptedInvitationSecret, err := encryptWithPubKey(proposal.PublicKey, proposal.InvitationSecret)
 		if err != nil {
 			return nil, errors.New("cannot encryptWithPubKey")
@@ -92,24 +68,21 @@ func (s *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 
 	// Change state
 
-	return internal.MachineCombinedResponse{
-		Response: responseData,
-		Payload:  &payload,
-	}, nil
+	return responseData, nil
 }
 
 //
-func (s *SignatureProposalFSM) actionConfirmProposalByParticipant(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *SignatureProposalFSM) actionConfirmProposalByParticipant(event fsm.Event, args ...interface{}) (response interface{}, err error) {
 	log.Println("I'm actionConfirmProposalByParticipant")
 	return
 }
 
-func (s *SignatureProposalFSM) actionDeclineProposalByParticipant(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *SignatureProposalFSM) actionDeclineProposalByParticipant(event fsm.Event, args ...interface{}) (response interface{}, err error) {
 	log.Println("I'm  actionDeclineProposalByParticipant")
 	return
 }
 
-func (s *SignatureProposalFSM) actionValidateProposal(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *SignatureProposalFSM) actionValidateProposal(event fsm.Event, args ...interface{}) (response interface{}, err error) {
 	log.Println("I'm  actionValidateProposal")
 	return
 }
