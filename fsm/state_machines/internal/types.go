@@ -33,10 +33,16 @@ type SignatureProposalParticipantStatus uint8
 const (
 	PubKeyConAwaitConfirmation DKGProposalParticipantStatus = iota
 	PubKeyConfirmed
+	PubKeyConfirmationError
 	CommitAwaitConfirmation
 	CommitConfirmed
+	CommitConfirmationError
 	DealAwaitConfirmation
 	DealConfirmed
+	DealConfirmationError
+	ResponseAwaitConfirmation
+	ResponseConfirmed
+	ResponseConfirmationError
 )
 
 type DKGProposal struct {
@@ -50,6 +56,7 @@ type DKGProposalParticipant struct {
 	PublicKey []byte
 	Commit    []byte
 	Deal      []byte
+	Response  []byte
 	Status    DKGProposalParticipantStatus
 	UpdatedAt *time.Time
 }
@@ -57,3 +64,34 @@ type DKGProposalParticipant struct {
 type DKGProposalQuorum map[int]DKGProposalParticipant
 
 type DKGProposalParticipantStatus uint8
+
+func (s DKGProposalParticipantStatus) String() string {
+	var str = "undefined"
+	switch s {
+	case PubKeyConAwaitConfirmation:
+		str = "PubKeyConAwaitConfirmation"
+	case PubKeyConfirmed:
+		str = "PubKeyConfirmed"
+	case PubKeyConfirmationError:
+		str = "PubKeyConfirmationError"
+	case CommitAwaitConfirmation:
+		str = "CommitAwaitConfirmation"
+	case CommitConfirmed:
+		str = "CommitConfirmed"
+	case CommitConfirmationError:
+		str = "CommitConfirmationError"
+	case DealAwaitConfirmation:
+		str = "DealAwaitConfirmation"
+	case DealConfirmed:
+		str = "DealConfirmed"
+	case DealConfirmationError:
+		str = "DealConfirmationError"
+	case ResponseAwaitConfirmation:
+		str = "ResponseAwaitConfirmation"
+	case ResponseConfirmed:
+		str = "ResponseConfirmed"
+	case ResponseConfirmationError:
+		str = "ResponseConfirmationError"
+	}
+	return str
+}

@@ -1,6 +1,6 @@
 package responses
 
-// Responses
+// Response
 
 const (
 	ProposalConfirmationStatusIdle = iota

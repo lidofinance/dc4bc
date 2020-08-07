@@ -35,6 +35,7 @@ func init() {
 	)
 }
 
+// Create new fsm with unique id
 // Transaction id required for unique identify dump
 func Create(tid string) (*FSMInstance, error) {
 	var err error
@@ -51,6 +52,7 @@ func Create(tid string) (*FSMInstance, error) {
 	return i, err
 }
 
+// Get fsm from dump
 func FromDump(data []byte) (*FSMInstance, error) {
 	var err error
 
