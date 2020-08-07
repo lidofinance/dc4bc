@@ -2,7 +2,8 @@ package signature_proposal_fsm
 
 import (
 	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/fsm_pool"
+	"github.com/depools/dc4bc/fsm/state_machines/internal"
+	"sync"
 )
 
 const (
@@ -30,9 +31,11 @@ const (
 
 type SignatureProposalFSM struct {
 	*fsm.FSM
+	payload   *internal.DumpedMachineStatePayload
+	payloadMu sync.RWMutex
 }
 
-func New() fsm_pool.MachineProvider {
+func New() internal.DumpedMachineProvider {
 	machine := &SignatureProposalFSM{}
 
 	machine.FSM = fsm.MustNewFSM(
@@ -67,4 +70,11 @@ func New() fsm_pool.MachineProvider {
 		},
 	)
 	return machine
+}
+
+func (m *SignatureProposalFSM) SetUpPayload(payload *internal.DumpedMachineStatePayload) {
+	m.payloadMu.Lock()
+	defer m.payloadMu.Unlock()
+
+	m.payload = payload
 }

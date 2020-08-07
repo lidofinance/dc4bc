@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"strings"
 
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/fsm_pool"
@@ -13,13 +14,13 @@ import (
 
 // Is machine state scope dump will be locked?
 type FSMDump struct {
-	Id      string
-	State   fsm.State
-	Payload internal.MachineStatePayload
+	TransactionId string
+	State         fsm.State
+	Payload       *internal.DumpedMachineStatePayload
 }
 
 type FSMInstance struct {
-	machine fsm_pool.MachineProvider
+	machine internal.DumpedMachineProvider
 	dump    *FSMDump
 }
 
@@ -34,58 +35,76 @@ func init() {
 	)
 }
 
-func New(data []byte) (*FSMInstance, error) {
+// Transaction id required for unique identify dump
+func Create(tid string) (*FSMInstance, error) {
 	var err error
 	i := &FSMInstance{}
-	if len(data) == 0 {
-		i.InitDump()
-		i.machine, err = fsmPoolProvider.EntryPointMachine()
-		return i, err // Create machine
+	err = i.InitDump(tid)
+
+	if err != nil {
+		return nil, err
 	}
 
+	machine, err := fsmPoolProvider.EntryPointMachine()
+	i.machine = machine.(internal.DumpedMachineProvider)
+	i.machine.SetUpPayload(i.dump.Payload)
+	return i, err
+}
+
+func FromDump(data []byte) (*FSMInstance, error) {
+	var err error
+
+	i := &FSMInstance{}
 	err = i.dump.Unmarshal(data)
 
 	if err != nil {
 		return nil, errors.New("cannot read machine dump")
 	}
 
-	i.machine, err = fsmPoolProvider.MachineByState(i.dump.State)
+	machine, err := fsmPoolProvider.MachineByState(i.dump.State)
+	i.machine = machine.(internal.DumpedMachineProvider)
+	i.machine.SetUpPayload(i.dump.Payload)
 	return i, err
 }
 
-func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (*fsm.Response, []byte, error) {
-	// Provide payload as first argument ever
-	result, err := i.machine.Do(event, append([]interface{}{i.dump.Payload}, args...)...)
+func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, err error) {
+	var dumpErr error
+
+	result, err = i.machine.Do(event, args...)
 
 	// On route errors result will be nil
 	if result != nil {
-
-		// Proxying combined response, separate payload and data
-		if result.Data != nil {
-			if r, ok := result.Data.(internal.MachineCombinedResponse); ok {
-				i.dump.Payload = *r.Payload
-				result.Data = r.Response
-			} else {
-				return nil, []byte{}, errors.New("cannot cast callback response")
-			}
-		}
-
 		i.dump.State = result.State
-	}
-	dump, dumpErr := i.dump.Marshal()
-	if dumpErr != nil {
-		return result, []byte{}, err
+
+		dump, dumpErr = i.dump.Marshal()
+		if dumpErr != nil {
+			return result, []byte{}, err
+		}
 	}
 
 	return result, dump, err
 }
 
-func (i *FSMInstance) InitDump() {
-	if i.dump == nil {
-		i.dump = &FSMDump{
-			State: fsm.StateGlobalIdle,
-		}
+func (i *FSMInstance) InitDump(tid string) error {
+	if i.dump != nil {
+		return errors.New("dump already initialized")
 	}
+
+	tid = strings.TrimSpace(tid)
+
+	if tid == "" {
+		return errors.New("empty transaction id")
+	}
+
+	i.dump = &FSMDump{
+		State: fsm.StateGlobalIdle,
+		Payload: &internal.DumpedMachineStatePayload{
+			TransactionId:               tid,
+			ConfirmationProposalPayload: nil,
+			DKGProposalPayload:          nil,
+		},
+	}
+	return nil
 }
 
 // TODO: Add encryption
