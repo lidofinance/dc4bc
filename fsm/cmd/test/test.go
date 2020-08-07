@@ -10,11 +10,10 @@ import (
 )
 
 func main() {
-	fsmMachine, err := state_machines.New([]byte{})
+	fsmMachine, err := state_machines.Create("d8a928b2043db77e340b523547bf16cb4aa483f0645fe0a290ed1f20aab76257")
 	log.Println(fsmMachine, err)
 	resp, dump, err := fsmMachine.Do(
 		"event_proposal_init",
-		"d8a928b2043db77e340b523547bf16cb4aa483f0645fe0a290ed1f20aab76257",
 		requests.SignatureProposalParticipantsListRequest{
 			{
 				"John Doe",
@@ -40,7 +39,7 @@ func main() {
 func processResponse(resp *fsm.Response) {
 	switch resp.State {
 	// Await proposals
-	case fsm.State("validate_proposal"):
+	case fsm.State("state_validation_await_participants_confirmations"):
 		data, ok := resp.Data.(responses.SignatureProposalParticipantInvitationsResponse)
 		if !ok {
 			log.Printf("undefined response type for state \"%s\"\n", resp.State)

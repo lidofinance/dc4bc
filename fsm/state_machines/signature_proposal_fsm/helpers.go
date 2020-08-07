@@ -11,7 +11,7 @@ import (
 
 // Request and response mutators
 
-func ProposalParticipantsQuorumToResponse(list *internal.ConfirmationProposalPrivateQuorum) responses.SignatureProposalParticipantInvitationsResponse {
+func ProposalParticipantsQuorumToResponse(list *internal.SignatureProposalQuorum) responses.SignatureProposalParticipantInvitationsResponse {
 	var response responses.SignatureProposalParticipantInvitationsResponse
 	for quorumId, parcipant := range *list {
 		response = append(response, &responses.SignatureProposalParticipantInvitationEntry{
