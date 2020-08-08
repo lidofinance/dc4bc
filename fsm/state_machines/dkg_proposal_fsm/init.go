@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	fsmName = "dkg_proposal_fsm"
+	FsmName = "dkg_proposal_fsm"
 
 	StateDkgInitial = signature_proposal_fsm.StateValidationCompleted
 
@@ -82,7 +82,7 @@ func New() internal.DumpedMachineProvider {
 	machine := &DKGProposalFSM{}
 
 	machine.FSM = fsm.MustNewFSM(
-		fsmName,
+		FsmName,
 		StateDkgInitial,
 		[]fsm.EventDesc{
 

@@ -34,19 +34,26 @@ func (m *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 
 	m.payload.ConfirmationProposalPayload = make(internal.SignatureProposalQuorum)
 
-	for participantIntId, participant := range request {
+	for index, participant := range request.Participants {
 		participantId := createFingerprint(&participant.PublicKey)
 		secret, err := generateRandomString(32)
 		if err != nil {
 			return nil, errors.New("cannot generateRandomString")
 		}
 		m.payload.ConfirmationProposalPayload[participantId] = internal.SignatureProposalParticipant{
-			ParticipantId:    participantIntId,
+			ParticipantId:    index,
 			Title:            participant.Title,
 			PublicKey:        participant.PublicKey,
 			InvitationSecret: secret,
-			UpdatedAt:        nil,
+			Status:           internal.SignatureAwaitConfirmation,
+			UpdatedAt:        request.CreatedAt,
 		}
+	}
+
+	// Checking fo quorum length
+	if len(m.payload.ConfirmationProposalPayload) != len(request.Participants) {
+		err = errors.New("error with creating {SignatureProposalQuorum}")
+		return
 	}
 
 	// Make response
@@ -59,6 +66,7 @@ func (m *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 			return nil, errors.New("cannot encryptWithPubKey")
 		}
 		responseEntry := &responses.SignatureProposalParticipantInvitationEntry{
+			ParticipantId:       proposal.ParticipantId,
 			Title:               proposal.Title,
 			PubKeyFingerprint:   pubKeyFingerprint,
 			EncryptedInvitation: encryptedInvitationSecret,
@@ -72,13 +80,8 @@ func (m *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 }
 
 //
-func (m *SignatureProposalFSM) actionConfirmProposalByParticipant(event fsm.Event, args ...interface{}) (response interface{}, err error) {
-	log.Println("I'm actionConfirmProposalByParticipant")
-	return
-}
-
-func (m *SignatureProposalFSM) actionDeclineProposalByParticipant(event fsm.Event, args ...interface{}) (response interface{}, err error) {
-	log.Println("I'm  actionDeclineProposalByParticipant")
+func (m *SignatureProposalFSM) actionProposalResponseByParticipant(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+	// SignatureProposalParticipantRequest
 	return
 }
 

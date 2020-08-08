@@ -36,11 +36,11 @@ func init() {
 }
 
 // Create new fsm with unique id
-// Transaction id required for unique identify dump
-func Create(tid string) (*FSMInstance, error) {
+// transactionId required for unique identify dump
+func Create(transactionId string) (*FSMInstance, error) {
 	var err error
 	i := &FSMInstance{}
-	err = i.InitDump(tid)
+	err = i.InitDump(transactionId)
 
 	if err != nil {
 		return nil, err
@@ -56,9 +56,16 @@ func Create(tid string) (*FSMInstance, error) {
 func FromDump(data []byte) (*FSMInstance, error) {
 	var err error
 
-	i := &FSMInstance{}
+	if len(data) < 2 {
+		return nil, errors.New("machine dump is empty")
+	}
+
+	i := &FSMInstance{
+		dump: &FSMDump{},
+	}
 	err = i.dump.Unmarshal(data)
 
+	// TODO: Add logger
 	if err != nil {
 		return nil, errors.New("cannot read machine dump")
 	}
@@ -87,21 +94,21 @@ func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Resp
 	return result, dump, err
 }
 
-func (i *FSMInstance) InitDump(tid string) error {
+func (i *FSMInstance) InitDump(transactionId string) error {
 	if i.dump != nil {
 		return errors.New("dump already initialized")
 	}
 
-	tid = strings.TrimSpace(tid)
+	transactionId = strings.TrimSpace(transactionId)
 
-	if tid == "" {
+	if transactionId == "" {
 		return errors.New("empty transaction id")
 	}
 
 	i.dump = &FSMDump{
 		State: fsm.StateGlobalIdle,
 		Payload: &internal.DumpedMachineStatePayload{
-			TransactionId:               tid,
+			TransactionId:               transactionId,
 			ConfirmationProposalPayload: nil,
 			DKGProposalPayload:          nil,
 		},
@@ -116,5 +123,9 @@ func (d *FSMDump) Marshal() ([]byte, error) {
 
 // TODO: Add decryption
 func (d *FSMDump) Unmarshal(data []byte) error {
+	if d == nil {
+		return errors.New("dump struct is not initialized")
+	}
+
 	return json.Unmarshal(data, d)
 }

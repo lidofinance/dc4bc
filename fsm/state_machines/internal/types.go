@@ -31,7 +31,11 @@ type SignatureProposalQuorum map[string]SignatureProposalParticipant
 type SignatureProposalParticipantStatus uint8
 
 const (
-	PubKeyConAwaitConfirmation DKGProposalParticipantStatus = iota
+	SignatureConfirmationAwaitConfirmation DKGProposalParticipantStatus = iota
+	SignatureConfirmationConfirmed
+	SignatureConfirmationDeclined
+	SignatureConfirmationError
+	PubKeyConAwaitConfirmation
 	PubKeyConfirmed
 	PubKeyConfirmationError
 	CommitAwaitConfirmation
@@ -68,6 +72,14 @@ type DKGProposalParticipantStatus uint8
 func (s DKGProposalParticipantStatus) String() string {
 	var str = "undefined"
 	switch s {
+	case SignatureConfirmationAwaitConfirmation:
+		str = "SignatureConfirmationAwaitConfirmation"
+	case SignatureConfirmationConfirmed:
+		str = "SignatureConfirmationConfirmed"
+	case SignatureConfirmationDeclined:
+		str = "SignatureConfirmationDeclined"
+	case SignatureConfirmationError:
+		str = "SignatureConfirmationError"
 	case PubKeyConAwaitConfirmation:
 		str = "PubKeyConAwaitConfirmation"
 	case PubKeyConfirmed:

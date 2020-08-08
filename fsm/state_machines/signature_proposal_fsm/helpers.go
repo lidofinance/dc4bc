@@ -1,7 +1,7 @@
 package signature_proposal_fsm
 
 import (
-	"crypto/sha256"
+	"crypto/sha1"
 	"encoding/base64"
 	"math/rand"
 
@@ -27,7 +27,7 @@ func ProposalParticipantsQuorumToResponse(list *internal.SignatureProposalQuorum
 // Common functions
 
 func createFingerprint(data *[]byte) string {
-	hash := sha256.Sum256(*data)
+	hash := sha1.Sum(*data)
 	return base64.StdEncoding.EncodeToString(hash[:])
 }
 

@@ -7,23 +7,25 @@ import (
 )
 
 const (
-	fsmName      = "signature_proposal_fsm"
+	FsmName      = "signature_proposal_fsm"
 	signingIdLen = 32
 
-	StateAwaitParticipantsConfirmations = fsm.State("state_validation_await_participants_confirmations") // waiting participants
+	StateParticipantsConfirmationsInit = fsm.StateGlobalIdle
 
-	StateValidationCanceledByParticipant = fsm.State("state_validation_canceled_by_participant")
-	StateValidationCanceledByTimeout     = fsm.State("state_validation_canceled_by_timeout")
+	StateAwaitParticipantsConfirmations = fsm.State("state_sig_proposal_await_participants_confirmations") // waiting participants
 
-	StateValidationCompleted = fsm.State("state_validation_completed")
+	StateValidationCanceledByParticipant = fsm.State("state_sig_proposal_canceled_by_participant")
+	StateValidationCanceledByTimeout     = fsm.State("state_sig_proposal_canceled_by_timeout")
 
-	EventInitProposal         = fsm.Event("event_proposal_init")
-	EventConfirmProposal      = fsm.Event("event_proposal_confirm_by_participant")
-	EventDeclineProposal      = fsm.Event("event_proposal_decline_by_participant")
-	EventValidateProposal     = fsm.Event("event_proposal_validate")
-	EventSetProposalValidated = fsm.Event("event_proposal_set_validated")
+	StateValidationCompleted = fsm.State("state_sig_proposal_completed")
 
-	eventSetValidationCanceledByTimeout = fsm.Event("proposal_canceled_timeout")
+	EventInitProposal         = fsm.Event("event_sig_proposal_init")
+	EventConfirmProposal      = fsm.Event("event_sig_proposal_confirm_by_participant")
+	EventDeclineProposal      = fsm.Event("event_sig_proposal_decline_by_participant")
+	EventValidateProposal     = fsm.Event("event_sig_proposal_validate")
+	EventSetProposalValidated = fsm.Event("event_sig_proposal_set_validated")
+
+	eventSetValidationCanceledByTimeout = fsm.Event("event_sig_proposal_canceled_timeout")
 
 	// Switch to next fsm
 
@@ -39,13 +41,13 @@ func New() internal.DumpedMachineProvider {
 	machine := &SignatureProposalFSM{}
 
 	machine.FSM = fsm.MustNewFSM(
-		fsmName,
+		FsmName,
 		fsm.StateGlobalIdle,
 		[]fsm.EventDesc{
 			// {Name: "", SrcState: []string{""}, DstState: ""},
 
 			// Init
-			{Name: EventInitProposal, SrcState: []fsm.State{fsm.StateGlobalIdle}, DstState: StateAwaitParticipantsConfirmations},
+			{Name: EventInitProposal, SrcState: []fsm.State{StateParticipantsConfirmationsInit}, DstState: StateAwaitParticipantsConfirmations},
 
 			// Validate by participants
 			{Name: EventConfirmProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations},
@@ -64,8 +66,8 @@ func New() internal.DumpedMachineProvider {
 		},
 		fsm.Callbacks{
 			EventInitProposal:     machine.actionInitProposal,
-			EventConfirmProposal:  machine.actionConfirmProposalByParticipant,
-			EventDeclineProposal:  machine.actionDeclineProposalByParticipant,
+			EventConfirmProposal:  machine.actionProposalResponseByParticipant,
+			EventDeclineProposal:  machine.actionProposalResponseByParticipant,
 			EventValidateProposal: machine.actionValidateProposal,
 		},
 	)
