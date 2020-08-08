@@ -19,11 +19,11 @@ const (
 
 	StateValidationCompleted = fsm.State("state_sig_proposal_completed")
 
-	EventInitProposal         = fsm.Event("event_sig_proposal_init")
-	EventConfirmProposal      = fsm.Event("event_sig_proposal_confirm_by_participant")
-	EventDeclineProposal      = fsm.Event("event_sig_proposal_decline_by_participant")
-	EventValidateProposal     = fsm.Event("event_sig_proposal_validate")
-	EventSetProposalValidated = fsm.Event("event_sig_proposal_set_validated")
+	EventInitProposal                 = fsm.Event("event_sig_proposal_init")
+	EventConfirmProposal              = fsm.Event("event_sig_proposal_confirm_by_participant")
+	EventDeclineProposal              = fsm.Event("event_sig_proposal_decline_by_participant")
+	eventValidateProposalInternal     = fsm.Event("event_sig_proposal_validate")
+	eventSetProposalValidatedInternal = fsm.Event("event_sig_proposal_set_validated")
 
 	eventSetValidationCanceledByTimeout = fsm.Event("event_sig_proposal_canceled_timeout")
 
@@ -55,20 +55,20 @@ func New() internal.DumpedMachineProvider {
 			// Now set for external emitting.
 			{Name: EventDeclineProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateValidationCanceledByParticipant},
 
-			{Name: EventValidateProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations},
+			{Name: eventValidateProposalInternal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations, IsInternal: true},
 
 			// eventProposalValidate internal or from client?
 			// yay
 			// Exit point
-			{Name: EventSetProposalValidated, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: fsm.State("state_dkg_pub_keys_sending_required"), IsInternal: true},
+			{Name: eventSetProposalValidatedInternal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: fsm.State("state_dkg_pub_keys_sending_required"), IsInternal: true},
 			// nan
 			{Name: eventSetValidationCanceledByTimeout, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateValidationCanceledByTimeout, IsInternal: true},
 		},
 		fsm.Callbacks{
-			EventInitProposal:     machine.actionInitProposal,
-			EventConfirmProposal:  machine.actionProposalResponseByParticipant,
-			EventDeclineProposal:  machine.actionProposalResponseByParticipant,
-			EventValidateProposal: machine.actionValidateProposal,
+			EventInitProposal:             machine.actionInitProposal,
+			EventConfirmProposal:          machine.actionProposalResponseByParticipant,
+			EventDeclineProposal:          machine.actionProposalResponseByParticipant,
+			eventValidateProposalInternal: machine.actionValidateProposal,
 		},
 	)
 	return machine

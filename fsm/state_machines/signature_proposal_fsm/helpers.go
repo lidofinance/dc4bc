@@ -1,10 +1,10 @@
 package signature_proposal_fsm
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/sha1"
 	"encoding/base64"
-	"math/rand"
-
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/responses"
 )
@@ -58,6 +58,13 @@ func generateRandomString(s int) (string, error) {
 	return base64.URLEncoding.EncodeToString(b), err
 }
 
-func encryptWithPubKey(key []byte, value string) (string, error) {
-	return value, nil
+func encryptWithPubKey(pubKey *rsa.PublicKey, value string) (string, error) {
+	r := rand.Reader
+	encryptedData, err := rsa.EncryptPKCS1v15(r, pubKey, []byte(value))
+
+	if err != nil {
+		return "", err
+	}
+
+	return string(encryptedData), nil
 }

@@ -35,6 +35,10 @@ func (e *Event) String() string {
 	return string(*e)
 }
 
+func (e *Event) IsEmpty() bool {
+	return e.String() == ""
+}
+
 // Response returns result for processing with clientMocks events
 type Response struct {
 	// Returns machine execution result state
@@ -73,10 +77,10 @@ type trKey struct {
 
 // Transition lightweight event description
 type trEvent struct {
-	event      Event
-	dstState   State
-	isInternal bool
-	isDstInit  bool
+	event         Event
+	dstState      State
+	isInternal    bool
+	isStateBefore bool
 }
 
 type EventDesc struct {
@@ -94,7 +98,7 @@ type EventDesc struct {
 	IsDstInit bool
 }
 
-type Callback func(event Event, args ...interface{}) (interface{}, error)
+type Callback func(event Event, args ...interface{}) (Event, interface{}, error)
 
 type Callbacks map[Event]Callback
 
@@ -252,10 +256,11 @@ func (f *FSM) Do(event Event, args ...interface{}) (resp *Response, err error) {
 	return f.do(trEvent, args...)
 }
 func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err error) {
+	var outEvent Event
 	// f.eventMu.Lock()
 	// defer f.eventMu.Unlock()
 
-	if trEvent.isDstInit {
+	if trEvent.isStateBefore {
 		err = f.SetState(trEvent.event)
 		if err != nil {
 			resp = &Response{
@@ -270,15 +275,20 @@ func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err err
 	}
 
 	if callback, ok := f.callbacks[trEvent.event]; ok {
-		resp.Data, err = callback(trEvent.event, args...)
+		outEvent, resp.Data, err = callback(trEvent.event, args...)
 		// Do not try change state on error
 		if err != nil {
 			return resp, err
 		}
 	}
 
-	if !trEvent.isDstInit {
-		err = f.SetState(trEvent.event)
+	if !trEvent.isStateBefore {
+		if outEvent.IsEmpty() || trEvent.event == outEvent {
+			err = f.SetState(trEvent.event)
+		} else {
+			err = f.SetState(outEvent)
+		}
+
 	}
 
 	resp.State = f.State()

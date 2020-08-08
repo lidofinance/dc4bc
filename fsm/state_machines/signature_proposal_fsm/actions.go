@@ -1,9 +1,8 @@
 package signature_proposal_fsm
 
 import (
+	"crypto/x509"
 	"errors"
-	"log"
-
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/requests"
@@ -12,19 +11,19 @@ import (
 
 // init -> awaitingConfirmations
 // args: payload, signing id, participants list
-func (m *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *SignatureProposalFSM) actionInitProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
 	if len(args) != 1 {
-		err = errors.New("participants list required")
+		err = errors.New("{arg0} required {SignatureProposalParticipantsListRequest}")
 		return
 	}
 
 	request, ok := args[0].(requests.SignatureProposalParticipantsListRequest)
 
 	if !ok {
-		err = errors.New("cannot cast participants list")
+		err = errors.New("cannot cast {arg0} to type {SignatureProposalParticipantsListRequest}")
 		return
 	}
 
@@ -35,15 +34,22 @@ func (m *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 	m.payload.ConfirmationProposalPayload = make(internal.SignatureProposalQuorum)
 
 	for index, participant := range request.Participants {
-		participantId := createFingerprint(&participant.PublicKey)
+		participantId := createFingerprint(&participant.PubKey)
 		secret, err := generateRandomString(32)
 		if err != nil {
-			return nil, errors.New("cannot generateRandomString")
+			return inEvent, nil, errors.New("cannot generate source for {InvitationSecret}")
 		}
+
+		parsedPubKey, err := x509.ParsePKCS1PublicKey(participant.PubKey)
+
+		if err != nil {
+			return inEvent, nil, errors.New("cannot parse {PubKey}")
+		}
+
 		m.payload.ConfirmationProposalPayload[participantId] = internal.SignatureProposalParticipant{
 			ParticipantId:    index,
 			Title:            participant.Title,
-			PublicKey:        participant.PublicKey,
+			PublicKey:        parsedPubKey,
 			InvitationSecret: secret,
 			Status:           internal.SignatureAwaitConfirmation,
 			UpdatedAt:        request.CreatedAt,
@@ -63,7 +69,7 @@ func (m *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 	for pubKeyFingerprint, proposal := range m.payload.ConfirmationProposalPayload {
 		encryptedInvitationSecret, err := encryptWithPubKey(proposal.PublicKey, proposal.InvitationSecret)
 		if err != nil {
-			return nil, errors.New("cannot encryptWithPubKey")
+			return inEvent, nil, errors.New("cannot encryptWithPubKey")
 		}
 		responseEntry := &responses.SignatureProposalParticipantInvitationEntry{
 			ParticipantId:       proposal.ParticipantId,
@@ -75,17 +81,66 @@ func (m *SignatureProposalFSM) actionInitProposal(event fsm.Event, args ...inter
 	}
 
 	// Change state
-
-	return responseData, nil
+	return inEvent, responseData, nil
 }
 
-//
-func (m *SignatureProposalFSM) actionProposalResponseByParticipant(event fsm.Event, args ...interface{}) (response interface{}, err error) {
-	// SignatureProposalParticipantRequest
+// TODO: Add timeout checking
+func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+	// m.payloadMu.Lock()
+	// defer m.payloadMu.Unlock()
+
+	if len(args) != 1 {
+		err = errors.New("{arg0} required {SignatureProposalParticipantRequest}")
+		return
+	}
+
+	request, ok := args[0].(requests.SignatureProposalParticipantRequest)
+
+	if !ok {
+		err = errors.New("cannot cast {arg0} to type {SignatureProposalParticipantRequest}")
+		return
+	}
+
+	if err = request.Validate(); err != nil {
+		return
+	}
+
+	signatureProposalParticipant, ok := m.payload.ConfirmationProposalPayload[request.PubKeyFingerprint]
+
+	if !ok {
+		err = errors.New("{PubKeyFingerprint} not exist in quorum")
+		return
+	}
+
+	if signatureProposalParticipant.InvitationSecret != request.DecryptedInvitation {
+		err = errors.New("{InvitationSecret} not match {DecryptedInvitation}")
+		return
+	}
+
+	signatureProposalParticipant.Status = internal.SignatureConfirmed
+	signatureProposalParticipant.UpdatedAt = request.CreatedAt
+
+	m.payload.ConfirmationProposalPayload[request.PubKeyFingerprint] = signatureProposalParticipant
+
+	outEvent, response, err = m.actionValidateProposal(eventValidateProposalInternal)
+
 	return
 }
 
-func (m *SignatureProposalFSM) actionValidateProposal(event fsm.Event, args ...interface{}) (response interface{}, err error) {
-	log.Println("I'm  actionValidateProposal")
+func (m *SignatureProposalFSM) actionValidateProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+	// m.payloadMu.Lock()
+	// defer m.payloadMu.Unlock()
+
+	unconfirmedParticipants := len(m.payload.ConfirmationProposalPayload)
+	for _, participant := range m.payload.ConfirmationProposalPayload {
+		if participant.Status == internal.SignatureConfirmed {
+			unconfirmedParticipants--
+		}
+	}
+
+	if unconfirmedParticipants > 0 {
+		return
+	}
+	outEvent = eventSetProposalValidatedInternal
 	return
 }

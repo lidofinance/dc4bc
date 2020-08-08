@@ -13,8 +13,8 @@ type SignatureProposalParticipantsListRequest struct {
 
 type SignatureProposalParticipantsEntry struct {
 	// Public title for address, such as name, nickname, organization
-	Title     string
-	PublicKey []byte
+	Title  string
+	PubKey []byte
 }
 
 // States: "__idle"
@@ -23,6 +23,6 @@ type SignatureProposalParticipantsEntry struct {
 type SignatureProposalParticipantRequest struct {
 	// Key for link invitations to participants
 	PubKeyFingerprint   string
-	EncryptedInvitation string
+	DecryptedInvitation string
 	CreatedAt           *time.Time
 }

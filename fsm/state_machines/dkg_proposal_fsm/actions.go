@@ -10,11 +10,11 @@ import (
 
 // Pub keys
 
-func (m *DKGProposalFSM) actionPubKeyPrepareConfirmations(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *DKGProposalFSM) actionPubKeyPrepareConfirmations(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	return
 }
 
-func (m *DKGProposalFSM) actionPubKeyConfirmationReceived(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *DKGProposalFSM) actionPubKeyConfirmationReceived(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
@@ -41,7 +41,7 @@ func (m *DKGProposalFSM) actionPubKeyConfirmationReceived(event fsm.Event, args 
 		return
 	}
 
-	dkgProposalParticipant.PublicKey = request.PubKey
+	copy(dkgProposalParticipant.PublicKey, request.PubKey)
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
 	dkgProposalParticipant.Status = internal.PubKeyConfirmed
 
@@ -52,7 +52,7 @@ func (m *DKGProposalFSM) actionPubKeyConfirmationReceived(event fsm.Event, args 
 
 // Commits
 
-func (m *DKGProposalFSM) actionCommitConfirmationReceived(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *DKGProposalFSM) actionCommitConfirmationReceived(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
@@ -79,7 +79,7 @@ func (m *DKGProposalFSM) actionCommitConfirmationReceived(event fsm.Event, args 
 		return
 	}
 
-	dkgProposalParticipant.Commit = request.Commit
+	copy(dkgProposalParticipant.Commit, request.Commit)
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
 	dkgProposalParticipant.Status = internal.CommitConfirmed
 
@@ -90,7 +90,7 @@ func (m *DKGProposalFSM) actionCommitConfirmationReceived(event fsm.Event, args 
 
 // Deals
 
-func (m *DKGProposalFSM) actionDealConfirmationReceived(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *DKGProposalFSM) actionDealConfirmationReceived(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
@@ -117,7 +117,7 @@ func (m *DKGProposalFSM) actionDealConfirmationReceived(event fsm.Event, args ..
 		return
 	}
 
-	dkgProposalParticipant.Deal = request.Deal
+	copy(dkgProposalParticipant.Deal, request.Deal)
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
 	dkgProposalParticipant.Status = internal.DealConfirmed
 
@@ -128,7 +128,7 @@ func (m *DKGProposalFSM) actionDealConfirmationReceived(event fsm.Event, args ..
 
 // Responses
 
-func (m *DKGProposalFSM) actionResponseConfirmationReceived(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *DKGProposalFSM) actionResponseConfirmationReceived(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
@@ -155,7 +155,7 @@ func (m *DKGProposalFSM) actionResponseConfirmationReceived(event fsm.Event, arg
 		return
 	}
 
-	dkgProposalParticipant.Response = request.Response
+	copy(dkgProposalParticipant.Response, request.Response)
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
 	dkgProposalParticipant.Status = internal.ResponseConfirmed
 
@@ -165,7 +165,7 @@ func (m *DKGProposalFSM) actionResponseConfirmationReceived(event fsm.Event, arg
 }
 
 // Errors
-func (m *DKGProposalFSM) actionConfirmationError(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
@@ -193,7 +193,7 @@ func (m *DKGProposalFSM) actionConfirmationError(event fsm.Event, args ...interf
 	}
 
 	// TODO: Move to methods
-	switch event {
+	switch inEvent {
 	case EventDKGPubKeyConfirmationError:
 		switch dkgProposalParticipant.Status {
 		case internal.PubKeyConAwaitConfirmation:
@@ -255,7 +255,7 @@ func (m *DKGProposalFSM) actionConfirmationError(event fsm.Event, args ...interf
 			))
 		}
 	default:
-		err = errors.New(fmt.Sprintf("{%s} event cannot be used for action {actionConfirmationError}", event))
+		err = errors.New(fmt.Sprintf("{%s} event cannot be used for action {actionConfirmationError}", inEvent))
 	}
 
 	if err != nil {
@@ -265,6 +265,8 @@ func (m *DKGProposalFSM) actionConfirmationError(event fsm.Event, args ...interf
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
 
 	m.payload.DKGProposalPayload[request.ParticipantId] = dkgProposalParticipant
+
+	// TODO: Add outEvent
 
 	return
 }

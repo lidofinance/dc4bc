@@ -1,6 +1,9 @@
 package internal
 
-import "time"
+import (
+	"crypto/rsa"
+	"time"
+)
 
 const (
 	SignatureAwaitConfirmation SignatureProposalParticipantStatus = iota
@@ -17,7 +20,7 @@ type SignatureProposalParticipant struct {
 	// Public title for address, such as name, nickname, organization
 	ParticipantId int
 	Title         string
-	PublicKey     []byte
+	PublicKey     *rsa.PublicKey
 	// For validation user confirmation: sign(InvitationSecret, PublicKey) => user
 	InvitationSecret string
 	Status           SignatureProposalParticipantStatus

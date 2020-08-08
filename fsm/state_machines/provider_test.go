@@ -1,6 +1,12 @@
 package state_machines
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/sha1"
+	"crypto/x509"
+	"encoding/base64"
+	"fmt"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
@@ -13,31 +19,66 @@ const (
 	testTransactionId = "d8a928b2043db77e340b523547bf16cb4aa483f0645fe0a290ed1f20aab76257"
 )
 
+type testExternalParticipants struct {
+	Title   string
+	PrivKey *rsa.PrivateKey
+	PubKey  *rsa.PublicKey
+}
+
 var (
-	tm                          = time.Now()
+	tm = time.Now()
+
+	testParticipants = map[string]*testExternalParticipants{}
+
 	testParticipantsListRequest = requests.SignatureProposalParticipantsListRequest{
-		Participants: []*requests.SignatureProposalParticipantsEntry{
-			{
-				"User 1",
-				[]byte("pubkey123123"),
-			},
-			{
-				"User 2",
-				[]byte("pubkey456456"),
-			},
-			{
-				"User 3",
-				[]byte("pubkey789789"),
-			},
-		},
-		CreatedAt: &tm,
+		Participants: []*requests.SignatureProposalParticipantsEntry{},
+		CreatedAt:    &tm,
 	}
 )
+
+func init() {
+
+	r := rand.Reader
+
+	for i := 0; i < 3; i++ {
+		key, err := rsa.GenerateKey(r, 2048)
+
+		if err != nil {
+			log.Fatal("Cannot generate key for user:", err)
+			return
+		}
+
+		key.Precompute()
+
+		marshaledPubKey := x509.MarshalPKCS1PublicKey(&key.PublicKey)
+		hash := sha1.Sum(marshaledPubKey)
+
+		fingerprint := base64.StdEncoding.EncodeToString(hash[:])
+
+		participant := &testExternalParticipants{
+			Title:   fmt.Sprintf("User %d", i),
+			PrivKey: key,
+			PubKey:  &key.PublicKey,
+		}
+		testParticipants[fingerprint] = participant
+	}
+
+	participantsForRequest := make([]*requests.SignatureProposalParticipantsEntry, 0)
+
+	for _, participant := range testParticipants {
+
+		participantsForRequest = append(participantsForRequest, &requests.SignatureProposalParticipantsEntry{
+			Title:  participant.Title,
+			PubKey: x509.MarshalPKCS1PublicKey(participant.PubKey),
+		})
+	}
+	testParticipantsListRequest.Participants = participantsForRequest
+}
 
 func TestCreate_Positive(t *testing.T) {
 	testFSMInstance, err := Create(testTransactionId)
 	if err != nil {
-		t.Fatalf("expected nil error")
+		t.Fatalf("expected nil error, got {%s}", err)
 	}
 
 	if testFSMInstance == nil {
@@ -73,7 +114,7 @@ func Test_Workflow(t *testing.T) {
 	fsmResponse, dump, err := testFSMInstance.Do(spf.EventInitProposal, testParticipantsListRequest)
 
 	if err != nil {
-		t.Fatalf("expected nil error")
+		t.Fatalf("expected nil error, got {%s}", err)
 	}
 
 	if len(dump) == 0 {
@@ -110,7 +151,7 @@ func Test_Workflow(t *testing.T) {
 		}
 
 		if participant.EncryptedInvitation == "" {
-			t.Fatalf("expected not empty {EncryptedInvitation}")
+			t.Fatalf("expected not empty {DecryptedInvitation}")
 		}
 
 		if participant.PubKeyFingerprint == "" {
@@ -122,22 +163,34 @@ func Test_Workflow(t *testing.T) {
 
 	tm = tm.Add(10 * time.Second)
 
-	testFSMInstance, err = FromDump(dump)
-
-	if err != nil {
-		t.Fatalf("expected nil error, got {%s}", err)
-	}
-
-	if testFSMInstance == nil {
-		t.Fatalf("expected {*FSMInstance}")
-	}
-
 	for _, participant := range participantsMap {
-		response, _, err := testFSMInstance.Do(spf.EventConfirmProposal, requests.SignatureProposalParticipantRequest{
+
+		testFSMInstance, err = FromDump(dump)
+
+		if err != nil {
+			t.Fatalf("expected nil error, got {%s}", err)
+		}
+
+		if testFSMInstance == nil {
+			t.Fatalf("expected {*FSMInstance}")
+		}
+
+		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
+			t.Fatalf("not found external user data for response fingerprint")
+		}
+
+		r := rand.Reader
+		encrypted, err := rsa.DecryptPKCS1v15(r, testParticipants[participant.PubKeyFingerprint].PrivKey, []byte(participant.EncryptedInvitation))
+
+		if err != nil {
+			t.Fatalf("cannot encrypt {DecryptedInvitation} with private key")
+		}
+
+		fsmResponse, dump, err = testFSMInstance.Do(spf.EventConfirmProposal, requests.SignatureProposalParticipantRequest{
 			PubKeyFingerprint:   participant.PubKeyFingerprint,
-			EncryptedInvitation: "lll",
+			DecryptedInvitation: string(encrypted),
 			CreatedAt:           &tm,
 		})
-		log.Println(response, err)
+		log.Println(fsmResponse.State, err)
 	}
 }
