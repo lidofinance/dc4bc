@@ -13,7 +13,9 @@ import (
 	"gocv.io/x/gocv"
 )
 
-const timeToScan = time.Second * 5
+const (
+	timeToScan = time.Second * 5
+)
 
 type Processor interface {
 	ReadQR() ([]byte, error)

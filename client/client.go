@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/depools/dc4bc/qr"
@@ -18,6 +19,7 @@ const (
 )
 
 type Client struct {
+	sync.Mutex
 	ctx         context.Context
 	fsm         interface{}
 	state       State
@@ -86,6 +88,7 @@ func (c *Client) Poll() {
 				}
 			}
 		case <-c.ctx.Done():
+			log.Println("Context closed, stop polling...")
 			return
 		}
 	}

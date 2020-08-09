@@ -21,7 +21,7 @@ func TestFileStorage_GetMessages(t *testing.T) {
 	N := 10
 	var offset uint64 = 5
 	var testFile = "/tmp/dc4bc_test_file_storage"
-	fs, err := InitFileStorage(testFile)
+	fs, err := NewFileStorage(testFile)
 	if err != nil {
 		t.Error(err)
 	}
