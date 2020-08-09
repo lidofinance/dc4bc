@@ -3,14 +3,13 @@ package dkg_proposal_fsm
 import (
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"sync"
 )
 
 const (
 	FsmName = "dkg_proposal_fsm"
 
-	StateDkgInitial = signature_proposal_fsm.StateValidationCompleted
+	StateDkgInitial = StateDkgPubKeysAwaitConfirmations
 
 	StateDkgPubKeysAwaitConfirmations = fsm.State("state_dkg_pub_keys_await_confirmations")
 	// Cancelled
@@ -43,7 +42,7 @@ const (
 	StateDkgResponsesAwaitConfirmed = fsm.State("state_dkg_responses_await_confirmed")
 
 	// Events
-	EventDKGPubKeysSendingRequiredInternal = fsm.Event("event_dkg_pub_key_sending_required_internal")
+	eventDKGPubKeysSendingRequiredAuto = fsm.Event("event_dkg_pub_key_sending_required_internal")
 
 	EventDKGPubKeyConfirmationReceived                 = fsm.Event("event_dkg_pub_key_confirm_received")
 	EventDKGPubKeyConfirmationError                    = fsm.Event("event_dkg_pub_key_confirm_canceled_by_error")
@@ -88,7 +87,7 @@ func New() internal.DumpedMachineProvider {
 
 			// Init
 			// Switch to pub keys required
-			{Name: EventDKGPubKeysSendingRequiredInternal, SrcState: []fsm.State{StateDkgInitial}, DstState: StateDkgPubKeysAwaitConfirmations, IsInternal: true},
+			// 	{Name: eventDKGPubKeysSendingRequiredAuto, SrcState: []fsm.State{StateDkgInitial}, DstState: StateDkgPubKeysAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunAfter},
 
 			// Pub keys sending
 			{Name: EventDKGPubKeyConfirmationReceived, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitConfirmations},

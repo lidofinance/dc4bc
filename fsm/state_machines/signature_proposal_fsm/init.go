@@ -2,6 +2,7 @@ package signature_proposal_fsm
 
 import (
 	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"sync"
 )
@@ -17,6 +18,7 @@ const (
 	StateValidationCanceledByParticipant = fsm.State("state_sig_proposal_canceled_by_participant")
 	StateValidationCanceledByTimeout     = fsm.State("state_sig_proposal_canceled_by_timeout")
 
+	// Out state
 	StateValidationCompleted = fsm.State("state_sig_proposal_completed")
 
 	EventInitProposal                 = fsm.Event("event_sig_proposal_init")
@@ -60,7 +62,7 @@ func New() internal.DumpedMachineProvider {
 			// eventProposalValidate internal or from client?
 			// yay
 			// Exit point
-			{Name: eventSetProposalValidatedInternal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: fsm.State("state_dkg_pub_keys_sending_required"), IsInternal: true},
+			{Name: eventSetProposalValidatedInternal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: dkg_proposal_fsm.StateDkgPubKeysAwaitConfirmations, IsInternal: true},
 			// nan
 			{Name: eventSetValidationCanceledByTimeout, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateValidationCanceledByTimeout, IsInternal: true},
 		},

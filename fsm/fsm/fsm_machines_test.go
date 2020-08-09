@@ -48,14 +48,14 @@ var (
 	}
 
 	testingCallbacks = Callbacks{
-		eventInit: func(event Event, args ...interface{}) (interface{}, error) {
-			return nil, nil
+		eventInit: func(event Event, args ...interface{}) (Event, interface{}, error) {
+			return event, nil, nil
 		},
-		eventInternalOut2: func(event Event, args ...interface{}) (interface{}, error) {
-			return nil, nil
+		eventInternalOut2: func(event Event, args ...interface{}) (Event, interface{}, error) {
+			return event, nil, nil
 		},
-		eventProcess: func(event Event, args ...interface{}) (interface{}, error) {
-			return nil, nil
+		eventProcess: func(event Event, args ...interface{}) (Event, interface{}, error) {
+			return event, nil, nil
 		},
 	}
 )
