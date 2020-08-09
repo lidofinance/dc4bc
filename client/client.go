@@ -90,8 +90,8 @@ func (c *Client) Poll() {
 
 				switch resp.State {
 				// if the new state is waiting for RPC to airgapped machine
-				case dkgFSM.StateDkgPubKeysSendingRequired, dkgFSM.StateDkgCommitsSendingRequired,
-					dkgFSM.StateDkgDealsSendingRequired:
+				case dkgFSM.StateDkgPubKeysAwaitConfirmations, dkgFSM.StateDkgCommitsAwaitConfirmations,
+					dkgFSM.StateDkgDealsAwaitConfirmations, dkgFSM.StateDkgResponsesAwaitConfirmations:
 					bz, err := json.Marshal(resp.Data)
 					if err != nil {
 						panic(err)
