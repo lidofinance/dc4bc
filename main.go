@@ -1,16 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	_ "image/jpeg"
 	"log"
 	"sync"
 
-	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+	"github.com/depools/dc4bc/qr"
+	"github.com/depools/dc4bc/storage"
 
-	"go.dedis.ch/kyber/v3"
-
-	dkglib "github.com/depools/dc4bc/dkg"
+	"github.com/depools/dc4bc/client"
 
 	_ "image/gif"
 	_ "image/png"
@@ -21,160 +21,122 @@ import (
 )
 
 type Transport struct {
-	nodes []*dkglib.DKG
-}
-
-func (t *Transport) getNodeByParticipantID(id int) *dkglib.DKG {
-	for _, node := range t.nodes {
-		if node.ParticipantID == id {
-			return node
-		}
-	}
-	return nil
-}
-
-func (t *Transport) BroadcastPK(participant string, pk kyber.Point) {
-	for idx, node := range t.nodes {
-		if ok := node.StorePubKey(participant, pk); !ok {
-			log.Fatalf("Failed to store PK for participant %d", idx)
-		}
-	}
-}
-
-func (t *Transport) BroadcastCommits(participant string, commits []kyber.Point) {
-	for _, node := range t.nodes {
-		node.StoreCommits(participant, commits)
-	}
-}
-
-func (t *Transport) BroadcastDeals(participant string, deals map[int]*dkg.Deal) {
-	for index, deal := range deals {
-		dstNode := t.getNodeByParticipantID(index)
-		if dstNode == nil {
-			fmt.Printf("Node with index #%d not found\n", index)
-			continue
-		}
-		dstNode.StoreDeal(participant, deal)
-	}
-}
-
-func (t *Transport) BroadcastResponses(participant string, responses []*dkg.Response) {
-	for _, node := range t.nodes {
-		node.StoreResponses(participant, responses)
-	}
+	nodes []*client.Client
 }
 
 func main() {
-	var threshold = 3
 	var transport = &Transport{}
 	var numNodes = 4
-	for i := 0; i < numNodes; i++ {
-		transport.nodes = append(transport.nodes, dkglib.Init())
-	}
-
-	// Participants broadcast PKs.
-	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
-		transport.BroadcastPK(participantID, participant.GetPubKey())
-		wg.Done()
-	})
-
-	// Participants init their DKGInstances.
-	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
-		if err := participant.InitDKGInstance(threshold); err != nil {
-			log.Fatalf("Failed to InitDKGInstance: %v", err)
-		}
-		wg.Done()
-	})
-
-	// Participants broadcast their Commits.
-	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
-		commits := participant.GetCommits()
-		transport.BroadcastCommits(participantID, commits)
-		wg.Done()
-	})
-
-	// Participants broadcast their deal.
-	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
-		deals, err := participant.GetDeals()
+	for nodeID := 0; nodeID < numNodes; nodeID++ {
+		var ctx = context.Background()
+		var state, err = client.NewLevelDBState(fmt.Sprintf("/tmp/dc4bc_node_%d_state", nodeID))
 		if err != nil {
-			log.Fatalf("failed to getDeals for participant %s: %v", participantID, err)
+			log.Fatalf("node %d failed to init state: %v\n", nodeID, err)
 		}
-		transport.BroadcastDeals(participantID, deals)
-		wg.Done()
-	})
 
-	// Participants broadcast their responses.
-	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
-		responses, err := participant.ProcessDeals()
+		stg, err := storage.NewFileStorage("/tmp/dc4bc_storage")
 		if err != nil {
-			log.Fatalf("failed to ProcessDeals for participant %s: %v", participantID, err)
+			log.Fatalf("node %d failed to init storage: %v\n", nodeID, err)
 		}
-		transport.BroadcastResponses(participantID, responses)
-		wg.Done()
-	})
 
-	// Participants process their responses.
-	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
-		if err := participant.ProcessResponses(); err != nil {
-			log.Fatalf("failed to ProcessResponses for participant %s: %v", participantID, err)
+		clt, err := client.NewClient(
+			ctx,
+			nil,
+			state,
+			stg,
+			qr.NewCameraProcessor(),
+		)
+		if err != nil {
+			log.Fatalf("node %d failed to init client: %v\n", nodeID, err)
 		}
-		wg.Done()
-	})
-
-	for idx, node := range transport.nodes {
-		if err := node.Reconstruct(); err != nil {
-			fmt.Println("Node", idx, "is not ready:", err)
-		} else {
-			fmt.Println("Node", idx, "is ready")
-		}
+		transport.nodes = append(transport.nodes, clt)
 	}
-}
 
-func runStep(transport *Transport, cb func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup)) {
-	var wg = &sync.WaitGroup{}
-	for idx, node := range transport.nodes {
-		wg.Add(1)
-		n := node
-		go cb(fmt.Sprintf("participant_%d", idx), n, wg)
+	for nodeID, node := range transport.nodes {
+		go func(nodeID int, node *client.Client) {
+			if err := node.StartHTTPServer(fmt.Sprintf("localhost:808%d", nodeID)); err != nil {
+				log.Fatalf("client %d http server failed: %v\n", nodeID, err)
+			}
+		}(nodeID, node)
+
+		go func(nodeID int, node *client.Client) {
+			if err := node.Poll(); err != nil {
+				log.Fatalf("client %d poller failed: %v\n", nodeID, err)
+			}
+		}(nodeID, node)
+
+		log.Printf("client %d started...\n", nodeID)
 	}
+
+	var wg = sync.WaitGroup{}
+	wg.Add(1)
 	wg.Wait()
 }
 
-//func runQRTest() {
-//	clearTerminal()
-//	var data = "Hello, world!"
+//	// Participants broadcast PKs.
+//	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
+//		transport.BroadcastPK(participantID, participant.GetPubKey())
+//		wg.Done()
+//	})
 //
-//	log.Println("A QR code will be shown on your screen.")
-//	log.Println("Please take a photo of the QR code with your smartphone.")
-//	log.Println("When you close the image, you will have 5 seconds to" +
-//		"scan the QR code with your laptop's camera.")
-//	err := qr.ShowQR(data)
-//	if err != nil {
-//		log.Fatalf("Failed to show QR code: %v", err)
-//	}
+//	// Participants init their DKGInstances.
+//	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
+//		if err := participant.InitDKGInstance(threshold); err != nil {
+//			log.Fatalf("Failed to InitDKGInstance: %v", err)
+//		}
+//		wg.Done()
+//	})
 //
-//	var scannedData string
-//	for {
-//		clearTerminal()
+//	// Participants broadcast their Commits.
+//	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
+//		commits := participant.GetCommits()
+//		transport.BroadcastCommits(participantID, commits)
+//		wg.Done()
+//	})
+//
+//	// Participants broadcast their deal.
+//	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
+//		deals, err := participant.GetDeals()
 //		if err != nil {
-//			log.Printf("Failed to scan QR code: %v\n", err)
+//			log.Fatalf("failed to getDeals for participant %s: %v", participantID, err)
 //		}
+//		transport.BroadcastDeals(participantID, deals)
+//		wg.Done()
+//	})
 //
-//		log.Println("Please center the photo of the QR-code in front" +
-//			"of your web-camera...")
+//	// Participants broadcast their responses.
+//	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
+//		responses, err := participant.ProcessDeals()
+//		if err != nil {
+//			log.Fatalf("failed to ProcessDeals for participant %s: %v", participantID, err)
+//		}
+//		transport.BroadcastResponses(participantID, responses)
+//		wg.Done()
+//	})
 //
-//		scannedData, err = qr.ReadQR()
-//		if err == nil {
-//			break
+//	// Participants process their responses.
+//	runStep(transport, func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup) {
+//		if err := participant.ProcessResponses(); err != nil {
+//			log.Fatalf("failed to ProcessResponses for participant %s: %v", participantID, err)
+//		}
+//		wg.Done()
+//	})
+//
+//	for idx, node := range transport.nodes {
+//		if err := node.Reconstruct(); err != nil {
+//			fmt.Println("Node", idx, "is not ready:", err)
+//		} else {
+//			fmt.Println("Node", idx, "is ready")
 //		}
 //	}
-//
-//	clearTerminal()
-//	log.Printf("QR code successfully scanned; the data is: %s\n", scannedData)
 //}
 //
-//func clearTerminal() {
-//	c := exec.Command("clear")
-//	c.Stdout = os.Stdout
-//	_ = c.Run()
+//func runStep(transport *Transport, cb func(participantID string, participant *dkglib.DKG, wg *sync.WaitGroup)) {
+//	var wg = &sync.WaitGroup{}
+//	for idx, node := range transport.nodes {
+//		wg.Add(1)
+//		n := node
+//		go cb(fmt.Sprintf("participant_%d", idx), n, wg)
+//	}
+//	wg.Wait()
 //}
