@@ -1,6 +1,9 @@
 package internal
 
-import "time"
+import (
+	"crypto/rsa"
+	"time"
+)
 
 const (
 	SignatureAwaitConfirmation SignatureProposalParticipantStatus = iota
@@ -17,7 +20,7 @@ type SignatureProposalParticipant struct {
 	// Public title for address, such as name, nickname, organization
 	ParticipantId int
 	Title         string
-	PublicKey     []byte
+	PublicKey     *rsa.PublicKey
 	// For validation user confirmation: sign(InvitationSecret, PublicKey) => user
 	InvitationSecret string
 	Status           SignatureProposalParticipantStatus
@@ -31,12 +34,22 @@ type SignatureProposalQuorum map[string]SignatureProposalParticipant
 type SignatureProposalParticipantStatus uint8
 
 const (
-	PubKeyConAwaitConfirmation DKGProposalParticipantStatus = iota
+	SignatureConfirmationAwaitConfirmation DKGProposalParticipantStatus = iota
+	SignatureConfirmationConfirmed
+	SignatureConfirmationDeclined
+	SignatureConfirmationError
+	PubKeyConAwaitConfirmation
 	PubKeyConfirmed
+	PubKeyConfirmationError
 	CommitAwaitConfirmation
 	CommitConfirmed
+	CommitConfirmationError
 	DealAwaitConfirmation
 	DealConfirmed
+	DealConfirmationError
+	ResponseAwaitConfirmation
+	ResponseConfirmed
+	ResponseConfirmationError
 )
 
 type DKGProposal struct {
@@ -50,6 +63,7 @@ type DKGProposalParticipant struct {
 	PublicKey []byte
 	Commit    []byte
 	Deal      []byte
+	Response  []byte
 	Status    DKGProposalParticipantStatus
 	UpdatedAt *time.Time
 }
@@ -57,3 +71,42 @@ type DKGProposalParticipant struct {
 type DKGProposalQuorum map[int]DKGProposalParticipant
 
 type DKGProposalParticipantStatus uint8
+
+func (s DKGProposalParticipantStatus) String() string {
+	var str = "undefined"
+	switch s {
+	case SignatureConfirmationAwaitConfirmation:
+		str = "SignatureConfirmationAwaitConfirmation"
+	case SignatureConfirmationConfirmed:
+		str = "SignatureConfirmationConfirmed"
+	case SignatureConfirmationDeclined:
+		str = "SignatureConfirmationDeclined"
+	case SignatureConfirmationError:
+		str = "SignatureConfirmationError"
+	case PubKeyConAwaitConfirmation:
+		str = "PubKeyConAwaitConfirmation"
+	case PubKeyConfirmed:
+		str = "PubKeyConfirmed"
+	case PubKeyConfirmationError:
+		str = "PubKeyConfirmationError"
+	case CommitAwaitConfirmation:
+		str = "CommitAwaitConfirmation"
+	case CommitConfirmed:
+		str = "CommitConfirmed"
+	case CommitConfirmationError:
+		str = "CommitConfirmationError"
+	case DealAwaitConfirmation:
+		str = "DealAwaitConfirmation"
+	case DealConfirmed:
+		str = "DealConfirmed"
+	case DealConfirmationError:
+		str = "DealConfirmationError"
+	case ResponseAwaitConfirmation:
+		str = "ResponseAwaitConfirmation"
+	case ResponseConfirmed:
+		str = "ResponseConfirmed"
+	case ResponseConfirmationError:
+		str = "ResponseConfirmationError"
+	}
+	return str
+}

@@ -2,34 +2,44 @@ package main
 
 import (
 	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/responses"
 	"log"
+	"time"
 
 	"github.com/depools/dc4bc/fsm/state_machines"
 	"github.com/depools/dc4bc/fsm/types/requests"
 )
 
 func main() {
+	tm := time.Now()
 	fsmMachine, err := state_machines.Create("d8a928b2043db77e340b523547bf16cb4aa483f0645fe0a290ed1f20aab76257")
 	log.Println(fsmMachine, err)
 	resp, dump, err := fsmMachine.Do(
-		"event_proposal_init",
+		signature_proposal_fsm.EventInitProposal,
 		requests.SignatureProposalParticipantsListRequest{
-			{
-				"John Doe",
-				[]byte("pubkey123123"),
+			Participants: []*requests.SignatureProposalParticipantsEntry{
+				{
+					"John Doe",
+					[]byte("pubkey123123"),
+				},
+				{
+					"Crypto Billy",
+					[]byte("pubkey456456"),
+				},
+				{
+					"Matt",
+					[]byte("pubkey789789"),
+				},
 			},
-			{
-				"Crypto Billy",
-				[]byte("pubkey456456"),
-			},
-			{
-				"Matt",
-				[]byte("pubkey789789"),
-			},
+			CreatedAt: &tm,
 		},
 	)
-	log.Println("Err", err)
+	if err != nil {
+		log.Println("Err", err)
+		return
+	}
+
 	log.Println("Dump", string(dump))
 
 	processResponse(resp)
