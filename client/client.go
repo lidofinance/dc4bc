@@ -210,11 +210,11 @@ func (c *Client) handleProcessedOperation(operation Operation) error {
 
 // it's just a template
 func (c *Client) signMessage(msg []byte) ([]byte, error) {
-	s, err := sign.Sign(c.suite, c.authKeyPair.Private, msg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign a message: %w", err)
-	}
-	return s, nil
+	//s, err := sign.Sign(c.suite, c.authKeyPair.Private, msg)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to sign a message: %w", err)
+	//}
+	return nil, nil
 }
 
 // it's just a template

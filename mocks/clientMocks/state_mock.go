@@ -64,7 +64,7 @@ func (mr *MockStateMockRecorder) LoadOffset() *gomock.Call {
 }
 
 // SaveFSM mocks base method
-func (m *MockState) SaveFSM(arg0 interface{}) error {
+func (m *MockState) SaveFSM(arg0 []byte) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveFSM", arg0)
 	ret0, _ := ret[0].(error)
@@ -72,16 +72,16 @@ func (m *MockState) SaveFSM(arg0 interface{}) error {
 }
 
 // SaveFSM indicates an expected call of SaveFSM
-func (mr *MockStateMockRecorder) SaveFSM(arg0 interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) SaveFSM(arg0 []byte) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveFSM", reflect.TypeOf((*MockState)(nil).SaveFSM), arg0)
 }
 
 // LoadFSM mocks base method
-func (m *MockState) LoadFSM() (interface{}, error) {
+func (m *MockState) LoadFSM() ([]byte, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LoadFSM")
-	ret0, _ := ret[0].(interface{})
+	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
