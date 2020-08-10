@@ -96,14 +96,14 @@ func (c *Client) Poll() error {
 					dkgFSM.StateDkgDealsAwaitConfirmations, dkgFSM.StateDkgResponsesAwaitConfirmations:
 					bz, err := json.Marshal(resp.Data)
 					if err != nil {
-						panic(err)
+						return fmt.Errorf("failed to marshal FSM response: %w", err)
 					}
 					operation = &Operation{
 						Type:    OperationType(resp.State),
 						Payload: bz,
 					}
 				default:
-					return fmt.Errorf("not good state: %w", err) // what should we do exactly?
+					log.Printf("State %s does not require an operation", resp.State)
 				}
 
 				if operation != nil {
