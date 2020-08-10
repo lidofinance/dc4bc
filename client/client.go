@@ -8,6 +8,7 @@ import (
 	"go.dedis.ch/kyber/v3"
 	"log"
 	"path/filepath"
+	"sync"
 	"time"
 
 	fsmStateMachines "github.com/depools/dc4bc/fsm/state_machines"
@@ -23,6 +24,7 @@ const (
 )
 
 type Client struct {
+	sync.Mutex
 	ctx         context.Context
 	fsm         *fsmStateMachines.FSMInstance
 	state       State
@@ -58,7 +60,7 @@ func (c *Client) SendMessage(message storage.Message) error {
 	return nil
 }
 
-func (c *Client) Poll() {
+func (c *Client) Poll() error {
 	tk := time.NewTicker(pollingPeriod)
 	for {
 		select {
@@ -70,7 +72,7 @@ func (c *Client) Poll() {
 
 			messages, err := c.storage.GetMessages(offset)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to GetMessages: %w", err)
 			}
 
 			for _, message := range messages {
@@ -78,12 +80,12 @@ func (c *Client) Poll() {
 
 				fsmReq, err := FSMRequestFromBytes(message.Data)
 				if err != nil {
-					panic(err)
+					return fmt.Errorf("failed to get FSMRequest from message data: %w", err)
 				}
 
 				resp, fsmDump, err := c.fsm.Do(fsmReq.Event, fsmReq.Args...)
 				if err != nil {
-					panic(err)
+					return fmt.Errorf("failed to Do operation in FSM: %w", err)
 				}
 
 				var operation *Operation
@@ -101,25 +103,26 @@ func (c *Client) Poll() {
 						Payload: bz,
 					}
 				default:
-					panic("not good state") // what should we do exactly?
+					return fmt.Errorf("not good state: %w", err) // what should we do exactly?
 				}
 
 				if operation != nil {
 					if err := c.state.PutOperation(operation); err != nil {
-						panic(err)
+						return fmt.Errorf("failed to PutOperation: %w", err)
 					}
 				}
 
 				if err := c.state.SaveOffset(message.Offset); err != nil {
-					panic(err)
+					return fmt.Errorf("failed to SaveOffset: %w", err)
 				}
 
 				if err := c.state.SaveFSM(fsmDump); err != nil {
-					panic(err)
+					return fmt.Errorf("failed to SaveFSM: %w", err)
 				}
 			}
 		case <-c.ctx.Done():
-			return
+			log.Println("Context closed, stop polling...")
+			return nil
 		}
 	}
 }

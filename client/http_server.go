@@ -27,14 +27,16 @@ func successResponse(w http.ResponseWriter, response []byte) {
 }
 
 func (c *Client) StartHTTPServer(listenAddr string) error {
-	http.HandleFunc("/sendMessage", c.sendMessageHandler)
-	http.HandleFunc("/getOperations", c.getOperationsHandler)
-	http.HandleFunc("/getOperationQRPath", c.getOperationQRPathHandler)
-	http.HandleFunc("/readProcessedOperationFromCamera", c.readProcessedOperationFromCameraHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/sendMessage", c.sendMessageHandler)
+	mux.HandleFunc("/getOperations", c.getOperationsHandler)
+	mux.HandleFunc("/getOperationQRPath", c.getOperationQRPathHandler)
+	mux.HandleFunc("/readProcessedOperationFromCamera", c.readProcessedOperationFromCameraHandler)
 
-	http.HandleFunc("/readProcessedOperation", c.readProcessedOperationFromBodyHandler)
-	http.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
-	return http.ListenAndServe(listenAddr, nil)
+	mux.HandleFunc("/readProcessedOperation", c.readProcessedOperationFromBodyHandler)
+	mux.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
+
+	return http.ListenAndServe(listenAddr, mux)
 }
 
 func (c *Client) sendMessageHandler(w http.ResponseWriter, r *http.Request) {
