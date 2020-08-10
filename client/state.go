@@ -43,14 +43,22 @@ func NewLevelDBState(stateDbPath string) (State, error) {
 		stateDb: db,
 	}
 
-	if err := state.initKey(operationsKey, map[string]*Operation{}); err != nil {
+	// Init state key for operations JSON.
+	if err := state.initJsonKey(operationsKey, map[string]*Operation{}); err != nil {
 		return nil, fmt.Errorf("failed to init %s storage: %w", operationsKey, err)
+	}
+
+	// Init state key for offset bytes.
+	bz := make([]byte, 8)
+	binary.LittleEndian.PutUint64(bz, 0)
+	if err := db.Put([]byte(offsetKey), bz, nil); err != nil {
+		return nil, fmt.Errorf("failed to init %s storage: %w", offsetKey, err)
 	}
 
 	return state, nil
 }
 
-func (s *LevelDBState) initKey(key string, data interface{}) error {
+func (s *LevelDBState) initJsonKey(key string, data interface{}) error {
 	if _, err := s.stateDb.Get([]byte(key), nil); err != nil {
 		operationsBz, err := json.Marshal(data)
 		if err != nil {
