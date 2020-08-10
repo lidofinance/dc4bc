@@ -3,7 +3,6 @@ package fsm_pool
 import (
 	"errors"
 	"fmt"
-
 	"github.com/depools/dc4bc/fsm/fsm"
 )
 
@@ -23,6 +22,8 @@ type MachineProvider interface {
 
 	GlobalInitialEvent() fsm.Event
 
+	EntryEvent() fsm.Event
+
 	EventsList() []fsm.Event
 
 	StatesSourcesList() []fsm.State
@@ -39,9 +40,10 @@ type FSMStatesMapper map[fsm.State]string
 type FSMPool struct {
 	fsmInitialEvent fsm.Event
 	// Pool mapper by names
-	mapper FSMMapper
-	events FSMEventsMapper
-	states FSMStatesMapper
+	mapper      FSMMapper
+	events      FSMEventsMapper
+	states      FSMStatesMapper
+	entryEvents map[fsm.State]fsm.Event
 }
 
 func Init(machines ...MachineProvider) *FSMPool {
@@ -49,9 +51,10 @@ func Init(machines ...MachineProvider) *FSMPool {
 		panic("cannot initialize empty pool")
 	}
 	p := &FSMPool{
-		mapper: make(FSMMapper),
-		events: make(FSMEventsMapper),
-		states: make(FSMStatesMapper),
+		mapper:      make(FSMMapper),
+		events:      make(FSMEventsMapper),
+		states:      make(FSMStatesMapper),
+		entryEvents: make(map[fsm.State]fsm.Event),
 	}
 
 	allInitStatesMap := make(map[fsm.State]string)
@@ -84,12 +87,16 @@ func Init(machines ...MachineProvider) *FSMPool {
 		}
 
 		// Setup entry event for machines pool if available
-		if initialEvent := machine.GlobalInitialEvent(); initialEvent != "" {
+		if initialEvent := machine.GlobalInitialEvent(); !initialEvent.IsEmpty() {
 			if p.fsmInitialEvent != "" {
 				panic("duplicate entry event initialization")
 			}
 
 			p.fsmInitialEvent = initialEvent
+		}
+
+		if machineEntryEvent := machine.EntryEvent(); !machineEntryEvent.IsEmpty() {
+			p.entryEvents[machine.InitialState()] = machineEntryEvent
 		}
 
 		p.mapper[machineName] = machine
@@ -153,3 +160,17 @@ func (p *FSMPool) MachineByState(state fsm.State) (MachineProvider, error) {
 	}
 	return machine, nil
 }
+
+/*func (p *FSMPool) Do(machine MachineProvider, event fsm.Event, args ...interface{}) (resp *fsm.Response, err error) {
+	panic("llslsl")
+	resp, err = machine.Do(event, args...)
+	if err != nil {
+		return resp, err
+	}
+
+	if machine.IsFinState(resp.State) {
+		log.Println("Final!!!!")
+	}
+	return
+}
+*/

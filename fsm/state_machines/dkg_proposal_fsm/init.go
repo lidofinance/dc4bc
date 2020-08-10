@@ -3,46 +3,47 @@ package dkg_proposal_fsm
 import (
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"sync"
 )
 
 const (
-	fsmName = "dkg_proposal_fsm"
+	FsmName = "dkg_proposal_fsm"
 
-	StateDkgInitial = signature_proposal_fsm.StateValidationCompleted
-	// Sending dkg pub keys
-	StateDkgPubKeysSendingRequired = fsm.State("state_dkg_pub_keys_sending_required")
+	StateDkgInitial = StateDkgPubKeysAwaitConfirmations
 
-	StateDkgPubKeysSendingAwaitConfirmations = fsm.State("state_dkg_pub_keys_sending_await_confirmations")
+	StateDkgPubKeysAwaitConfirmations = fsm.State("state_dkg_pub_keys_await_confirmations")
 	// Cancelled
-	StateDkgPubKeysSendingCancelled          = fsm.State("state_dkg_pub_keys_sending_cancelled")
-	StateDkgPubKeysSendingCancelledByTimeout = fsm.State("state_dkg_pub_keys_sending_cancelled_by_timeout")
+	StateDkgPubKeysAwaitCancelled          = fsm.State("state_dkg_pub_keys_await_cancelled")
+	StateDkgPubKeysAwaitCancelledByTimeout = fsm.State("state_dkg_pub_keys_await_cancelled_by_timeout")
 	// Confirmed
-	StateDkgPubKeysSendingConfirmed = fsm.State("state_dkg_pub_keys_sending_confirmed")
+	StateDkgPubKeysAwaitConfirmed = fsm.State("state_dkg_pub_keys_await_confirmed")
 
 	// Sending dkg commits
-	StateDkgCommitsSendingRequired           = fsm.State("state_dkg_commits_sending_required")
-	StateDkgCommitsSendingAwaitConfirmations = fsm.State("state_dkg_commits_sending_await_confirmations")
+	StateDkgCommitsAwaitConfirmations = fsm.State("state_dkg_commits_sending_await_confirmations")
 	// Cancelled
-	StateDkgCommitsSendingCancelled          = fsm.State("state_dkg_commits_sending_cancelled")
-	StateDkgCommitsSendingCancelledByTimeout = fsm.State("state_dkg_commits_sending_cancelled_by_timeout")
+	StateDkgCommitsAwaitCancelled          = fsm.State("state_dkg_commits_await_cancelled")
+	StateDkgCommitsAwaitCancelledByTimeout = fsm.State("state_dkg_commits_await_cancelled_by_timeout")
 	// Confirmed
-	StateDkgCommitsSendingConfirmed = fsm.State("state_dkg_commits_sending_confirmed")
+	StateDkgCommitsAwaitConfirmed = fsm.State("state_dkg_commits_await_confirmed")
 
 	// Sending dkg deals
-	StateDkgDealsSendingRequired           = fsm.State("state_dkg_deals_sending_required")
-	StateDkgDealsSendingAwaitConfirmations = fsm.State("state_dkg_deals_sending_await_confirmations")
+	StateDkgDealsAwaitConfirmations = fsm.State("state_dkg_deals_await_confirmations")
 	// Cancelled
-	StateDkgDealsSendingCancelled          = fsm.State("state_dkg_deals_sending_cancelled")
-	StateDkgDealsSendingCancelledByTimeout = fsm.State("state_dkg_deals_sending_cancelled_by_timeout")
+	StateDkgDealsAwaitCancelled          = fsm.State("state_dkg_deals_await_cancelled")
+	StateDkgDealsAwaitCancelledByTimeout = fsm.State("state_dkg_deals_sending_cancelled_by_timeout")
 	// Confirmed
-	StateDkgDealsSendingConfirmed = fsm.State("state_dkg_deals_sending_confirmed")
+	StateDkgDealsAwaitConfirmed = fsm.State("state_dkg_deals_await_confirmed")
+
+	StateDkgResponsesAwaitConfirmations = fsm.State("state_dkg_responses_await_confirmations")
+	// Cancelled
+	StateDkgResponsesAwaitCancelled          = fsm.State("state_dkg_responses_await_cancelled")
+	StateDkgResponsesAwaitCancelledByTimeout = fsm.State("state_dkg_responses_sending_cancelled_by_timeout")
+	// Confirmed
+	StateDkgResponsesAwaitConfirmed = fsm.State("state_dkg_responses_await_confirmed")
 
 	// Events
-	EventDKGPubKeysSendingRequiredInternal = fsm.Event("event_dkg_pub_key_sending_required_internal")
+	eventDKGPubKeysSendingRequiredAuto = fsm.Event("event_dkg_pub_key_sending_required_internal")
 
-	EventDKGPubKeysSent                                = fsm.Event("event_dkg_pub_keys_sent")
 	EventDKGPubKeyConfirmationReceived                 = fsm.Event("event_dkg_pub_key_confirm_received")
 	EventDKGPubKeyConfirmationError                    = fsm.Event("event_dkg_pub_key_confirm_canceled_by_error")
 	EventDKGPubKeysConfirmationCancelByTimeoutInternal = fsm.Event("event_dkg_pub_keys_confirm_canceled_by_timeout_internal")
@@ -50,7 +51,6 @@ const (
 
 	EventDKGCommitsSendingRequiredInternal = fsm.Event("event_dkg_commits_sending_required_internal")
 
-	EventDKGCommitsSent                                = fsm.Event("event_dkg_commits_sent")
 	EventDKGCommitConfirmationReceived                 = fsm.Event("event_dkg_commit_confirm_received")
 	EventDKGCommitConfirmationError                    = fsm.Event("event_dkg_commit_confirm_canceled_by_error")
 	EventDKGCommitsConfirmationCancelByTimeoutInternal = fsm.Event("event_dkg_commits_confirm_canceled_by_timeout_internal")
@@ -58,10 +58,15 @@ const (
 
 	EventDKGDealsSendingRequiredInternal = fsm.Event("event_dkg_deals_sending_required_internal")
 
-	EventDKGDealsSent                                = fsm.Event("event_dkg_deals_sent")
 	EventDKGDealConfirmationReceived                 = fsm.Event("event_dkg_deal_confirm_received")
 	EventDKGDealConfirmationError                    = fsm.Event("event_dkg_deal_confirm_canceled_by_error")
 	EventDKGDealsConfirmationCancelByTimeoutInternal = fsm.Event("event_dkg_deals_confirm_canceled_by_timeout_internal")
+
+	EventDKGResponsesSendingRequiredInternal = fsm.Event("event_dkg_responses_sending_required_internal")
+
+	EventDKGResponseConfirmationReceived                = fsm.Event("event_dkg_response_confirm_received")
+	EventDKGResponseConfirmationError                   = fsm.Event("event_dkg_response_confirm_canceled_by_error")
+	EventDKGResponseConfirmationCancelByTimeoutInternal = fsm.Event("event_dkg_response_confirm_canceled_by_timeout_internal")
 
 	EventDKGMasterKeyRequiredInternal = fsm.Event("event_dkg_master_key_required_internal")
 )
@@ -76,60 +81,66 @@ func New() internal.DumpedMachineProvider {
 	machine := &DKGProposalFSM{}
 
 	machine.FSM = fsm.MustNewFSM(
-		fsmName,
+		FsmName,
 		StateDkgInitial,
 		[]fsm.EventDesc{
 
 			// Init
 			// Switch to pub keys required
-			{Name: EventDKGPubKeysSendingRequiredInternal, SrcState: []fsm.State{StateDkgInitial}, DstState: StateDkgPubKeysSendingRequired, IsInternal: true},
+			// 	{Name: eventDKGPubKeysSendingRequiredAuto, SrcState: []fsm.State{StateDkgInitial}, DstState: StateDkgPubKeysAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunAfter},
 
 			// Pub keys sending
-			{Name: EventDKGPubKeysSent, SrcState: []fsm.State{StateDkgPubKeysSendingRequired}, DstState: StateDkgPubKeysSendingAwaitConfirmations},
-			{Name: EventDKGPubKeyConfirmationReceived, SrcState: []fsm.State{StateDkgPubKeysSendingAwaitConfirmations}, DstState: StateDkgPubKeysSendingAwaitConfirmations},
+			{Name: EventDKGPubKeyConfirmationReceived, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitConfirmations},
 			// Cancelled
-			{Name: EventDKGPubKeyConfirmationError, SrcState: []fsm.State{StateDkgPubKeysSendingAwaitConfirmations}, DstState: StateDkgPubKeysSendingCancelled},
-			{Name: EventDKGPubKeysConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgPubKeysSendingAwaitConfirmations}, DstState: StateDkgPubKeysSendingCancelledByTimeout, IsInternal: true},
+			{Name: EventDKGPubKeyConfirmationError, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitCancelled},
+			{Name: EventDKGPubKeysConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitCancelledByTimeout, IsInternal: true},
 			// Confirmed
-			{Name: EventDKGPubKeysConfirmedInternal, SrcState: []fsm.State{StateDkgPubKeysSendingAwaitConfirmations}, DstState: StateDkgPubKeysSendingConfirmed, IsInternal: true},
+			{Name: EventDKGPubKeysConfirmedInternal, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitConfirmed, IsInternal: true},
 
 			// Switch to commits required
-			{Name: EventDKGCommitsSendingRequiredInternal, SrcState: []fsm.State{StateDkgPubKeysSendingConfirmed}, DstState: StateDkgCommitsSendingRequired, IsInternal: true},
+			{Name: EventDKGCommitsSendingRequiredInternal, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmed}, DstState: StateDkgCommitsAwaitConfirmations, IsInternal: true},
 
 			// Commits
-			{Name: EventDKGCommitsSent, SrcState: []fsm.State{StateDkgCommitsSendingRequired}, DstState: StateDkgCommitsSendingAwaitConfirmations},
-			{Name: EventDKGCommitConfirmationReceived, SrcState: []fsm.State{StateDkgCommitsSendingAwaitConfirmations}, DstState: StateDkgCommitsSendingAwaitConfirmations},
+			{Name: EventDKGCommitConfirmationReceived, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitConfirmations},
 			// Cancelled
-			{Name: EventDKGCommitConfirmationError, SrcState: []fsm.State{StateDkgCommitsSendingAwaitConfirmations}, DstState: StateDkgCommitsSendingCancelled},
-			{Name: EventDKGCommitsConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgCommitsSendingAwaitConfirmations}, DstState: StateDkgCommitsSendingCancelledByTimeout, IsInternal: true},
+			{Name: EventDKGCommitConfirmationError, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitCancelled},
+			{Name: EventDKGCommitsConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitCancelledByTimeout, IsInternal: true},
 			// Confirmed
-			{Name: EventDKGCommitsConfirmedInternal, SrcState: []fsm.State{StateDkgCommitsSendingAwaitConfirmations}, DstState: StateDkgCommitsSendingConfirmed, IsInternal: true},
+			{Name: EventDKGCommitsConfirmedInternal, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitConfirmed, IsInternal: true},
 
 			// Switch to deals required
-			{Name: EventDKGDealsSendingRequiredInternal, SrcState: []fsm.State{StateDkgDealsSendingConfirmed}, DstState: StateDkgDealsSendingRequired, IsInternal: true},
+			{Name: EventDKGDealsSendingRequiredInternal, SrcState: []fsm.State{StateDkgDealsAwaitConfirmed}, DstState: StateDkgDealsAwaitConfirmations, IsInternal: true},
 
 			// Deals
-			{Name: EventDKGDealsSent, SrcState: []fsm.State{StateDkgDealsSendingRequired}, DstState: StateDkgDealsSendingAwaitConfirmations},
-			{Name: EventDKGDealConfirmationReceived, SrcState: []fsm.State{StateDkgDealsSendingAwaitConfirmations}, DstState: StateDkgDealsSendingAwaitConfirmations},
+			{Name: EventDKGDealConfirmationReceived, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitConfirmations},
 			// Cancelled
-			{Name: EventDKGDealConfirmationError, SrcState: []fsm.State{StateDkgCommitsSendingAwaitConfirmations}, DstState: StateDkgDealsSendingCancelled},
-			{Name: EventDKGDealsConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgCommitsSendingAwaitConfirmations}, DstState: StateDkgDealsSendingCancelledByTimeout, IsInternal: true},
+			{Name: EventDKGDealConfirmationError, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgDealsAwaitCancelled},
+			{Name: EventDKGDealsConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgDealsAwaitCancelledByTimeout, IsInternal: true},
+
+			// Switch to responses required
+			{Name: EventDKGResponsesSendingRequiredInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmed}, DstState: StateDkgResponsesAwaitConfirmations, IsInternal: true},
+
+			// Deals
+			{Name: EventDKGResponseConfirmationReceived, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitConfirmations},
+			// Cancelled
+			{Name: EventDKGResponseConfirmationError, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitCancelled},
+			{Name: EventDKGResponseConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitCancelledByTimeout, IsInternal: true},
 
 			// Done
-			{Name: EventDKGMasterKeyRequiredInternal, SrcState: []fsm.State{StateDkgCommitsSendingAwaitConfirmations}, DstState: fsm.StateGlobalDone, IsInternal: true},
+			{Name: EventDKGMasterKeyRequiredInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: fsm.StateGlobalDone, IsInternal: true},
 		},
 		fsm.Callbacks{
-			EventDKGPubKeysSent:                machine.actionDKGPubKeysSent,
-			EventDKGPubKeyConfirmationReceived: machine.actionDKGPubKeyConfirmationReceived,
-			EventDKGPubKeyConfirmationError:    machine.actionDKGPubKeyConfirmationError,
+			EventDKGPubKeyConfirmationReceived: machine.actionPubKeyConfirmationReceived,
+			EventDKGPubKeyConfirmationError:    machine.actionConfirmationError,
 
-			EventDKGCommitsSent:                machine.actionDKGCommitsSent,
-			EventDKGCommitConfirmationReceived: machine.actionDKGCommitConfirmationReceived,
-			EventDKGCommitConfirmationError:    machine.actionDKGCommitConfirmationError,
+			EventDKGCommitConfirmationReceived: machine.actionCommitConfirmationReceived,
+			EventDKGCommitConfirmationError:    machine.actionConfirmationError,
 
-			EventDKGDealsSent:                machine.actionDKGDealsSent,
-			EventDKGDealConfirmationReceived: machine.actionDKGDealConfirmationReceived,
-			EventDKGDealConfirmationError:    machine.actionDKGDealConfirmationError,
+			EventDKGDealConfirmationReceived: machine.actionDealConfirmationReceived,
+			EventDKGDealConfirmationError:    machine.actionConfirmationError,
+
+			EventDKGResponseConfirmationReceived: machine.actionResponseConfirmationReceived,
+			EventDKGResponseConfirmationError:    machine.actionConfirmationError,
 		},
 	)
 	return machine
