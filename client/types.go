@@ -13,11 +13,13 @@ const (
 )
 
 type Operation struct {
-	ID        string // UUID4
-	Type      OperationType
-	Payload   []byte
-	Result    []byte
-	CreatedAt time.Time
+	ID            string // UUID4
+	Type          OperationType
+	Payload       []byte
+	Result        []byte
+	CreatedAt     time.Time
+	DKGIdentifier string
+	To            string
 }
 
 func (o *Operation) Check(o2 *Operation) error {

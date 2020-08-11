@@ -16,25 +16,30 @@ import (
 )
 
 type AirgappedMachine struct {
-	dkgInstance *dkg.DKG // should be a map or something to distinguish different rounds
-	qrProcessor qr.Processor
+	dkgInstances map[string]*dkg.DKG // should be a map or something to distinguish different rounds
+	qrProcessor  qr.Processor
 }
 
 func NewAirgappedMachine() *AirgappedMachine {
 	machine := &AirgappedMachine{
-		dkgInstance: dkg.Init(),
-		qrProcessor: qr.NewCameraProcessor(),
+		dkgInstances: make(map[string]*dkg.DKG),
+		qrProcessor:  qr.NewCameraProcessor(),
 	}
 	return machine
 }
 
 func (am *AirgappedMachine) handleStateDkgPubKeysAwaitConfirmations(o *client.Operation) error {
-	pubKeyBz, err := am.dkgInstance.GetPubKey().MarshalBinary()
+	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
+	if !ok {
+		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
+	}
+
+	pubKeyBz, err := dkgInstance.GetPubKey().MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal pubkey: %w", err)
 	}
 	req := requests.DKGProposalPubKeyConfirmationRequest{
-		ParticipantId: am.dkgInstance.ParticipantID,
+		ParticipantId: dkgInstance.ParticipantID,
 		PubKey:        pubKeyBz,
 		CreatedAt:     nil,
 	}
@@ -51,6 +56,12 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 		payload responses.DKGProposalPubKeyParticipantResponse
 		err     error
 	)
+
+	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
+	if !ok {
+		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
+	}
+
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
@@ -60,20 +71,22 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 		if err = pubKey.UnmarshalBinary(entry.PubKey); err != nil {
 			return fmt.Errorf("failed to unmarshal pubkey: %w", err)
 		}
-		am.dkgInstance.StorePubKey(entry.Title, pubKey)
+		dkgInstance.StorePubKey(entry.Title, pubKey)
 	}
 
-	if err = am.dkgInstance.InitDKGInstance(3); err != nil { // TODO: threshold
+	if err = dkgInstance.InitDKGInstance(3); err != nil { // TODO: threshold
 		return fmt.Errorf("failed to init dkg instance: %w", err)
 	}
 
-	commits, err := json.Marshal(am.dkgInstance.GetCommits())
+	commits, err := json.Marshal(dkgInstance.GetCommits())
 	if err != nil {
 		return fmt.Errorf("failed to marshal commits: %w", err)
 	}
 
+	am.dkgInstances[o.DKGIdentifier] = dkgInstance
+
 	req := requests.DKGProposalCommitConfirmationRequest{
-		ParticipantId: am.dkgInstance.ParticipantID,
+		ParticipantId: dkgInstance.ParticipantID,
 		Commit:        commits,
 	}
 	reqBz, err := json.Marshal(req)
@@ -89,6 +102,12 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Oper
 		payload responses.DKGProposalCommitParticipantResponse
 		err     error
 	)
+
+	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
+	if !ok {
+		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
+	}
+
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
@@ -98,13 +117,15 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Oper
 		if err = json.Unmarshal(entry.Commit, &commits); err != nil {
 			return fmt.Errorf("failed to unmarshal commits: %w", err)
 		}
-		am.dkgInstance.StoreCommits(entry.Title, commits)
+		dkgInstance.StoreCommits(entry.Title, commits)
 	}
 
-	deals, err := am.dkgInstance.GetDeals()
+	deals, err := dkgInstance.GetDeals()
 	if err != nil {
 		return fmt.Errorf("failed to get deals: %w", err)
 	}
+
+	am.dkgInstances[o.DKGIdentifier] = dkgInstance
 
 	// Here we should create N=len(deals) private (encrypted) messages to participants but i don't know how to it yet
 	//-------------------------------------------------------
@@ -114,7 +135,7 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Oper
 	}
 
 	req := requests.DKGProposalDealConfirmationRequest{
-		ParticipantId: am.dkgInstance.ParticipantID,
+		ParticipantId: dkgInstance.ParticipantID,
 		Deal:          dealsBz,
 	}
 	//-------------------------------------------------------
@@ -132,6 +153,12 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 		payload responses.DKGProposalDealParticipantResponse
 		err     error
 	)
+
+	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
+	if !ok {
+		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
+	}
+
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
@@ -142,14 +169,16 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 			return fmt.Errorf("failed to unmarshal commits: %w", err)
 		}
 		for _, deal := range deals {
-			am.dkgInstance.StoreDeal(entry.Title, &deal)
+			dkgInstance.StoreDeal(entry.Title, &deal)
 		}
 	}
 
-	processedResponses, err := am.dkgInstance.ProcessDeals()
+	processedResponses, err := dkgInstance.ProcessDeals()
 	if err != nil {
 		return fmt.Errorf("failed to process deals: %w", err)
 	}
+
+	am.dkgInstances[o.DKGIdentifier] = dkgInstance
 
 	responsesBz, err := json.Marshal(processedResponses)
 	if err != nil {
@@ -157,7 +186,7 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 	}
 
 	req := requests.DKGProposalResponseConfirmationRequest{
-		ParticipantId: am.dkgInstance.ParticipantID,
+		ParticipantId: dkgInstance.ParticipantID,
 		Response:      responsesBz,
 	}
 
