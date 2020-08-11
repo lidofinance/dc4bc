@@ -79,6 +79,10 @@ func FromDump(data []byte) (*FSMInstance, error) {
 func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, err error) {
 	var dumpErr error
 
+	if i.machine == nil {
+		return nil, []byte{}, errors.New("machine is not initialized")
+	}
+
 	result, err = i.machine.Do(event, args...)
 
 	// On route errors result will be nil
@@ -106,7 +110,8 @@ func (i *FSMInstance) InitDump(transactionId string) error {
 	}
 
 	i.dump = &FSMDump{
-		State: fsm.StateGlobalIdle,
+		TransactionId: transactionId,
+		State:         fsm.StateGlobalIdle,
 		Payload: &internal.DumpedMachineStatePayload{
 			TransactionId:               transactionId,
 			ConfirmationProposalPayload: nil,
@@ -114,6 +119,20 @@ func (i *FSMInstance) InitDump(transactionId string) error {
 		},
 	}
 	return nil
+}
+
+func (i *FSMInstance) State() (fsm.State, error) {
+	if i.machine == nil {
+		return "", errors.New("machine is not initialized")
+	}
+	return i.machine.State(), nil
+}
+
+func (i *FSMInstance) Id() string {
+	if i.dump != nil {
+		return i.dump.TransactionId
+	}
+	return ""
 }
 
 // TODO: Add encryption
