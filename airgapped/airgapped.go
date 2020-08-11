@@ -237,13 +237,15 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 	}
 
 	for _, entry := range payload {
-		var deals []dkgPedersen.Deal // mock, must be another logic, because of encryption
-		if err = json.Unmarshal(entry.Deal, &deals); err != nil {
-			return fmt.Errorf("failed to unmarshal commits: %w", err)
+		decryptedDealBz, err := am.decryptData(o.DKGIdentifier, entry.Deal)
+		if err != nil {
+			return fmt.Errorf("failed to decrypt deal: %w", err)
 		}
-		for _, deal := range deals {
-			dkgInstance.StoreDeal(entry.Title, &deal)
+		var deal dkgPedersen.Deal
+		if err = json.Unmarshal(decryptedDealBz, &deal); err != nil {
+			return fmt.Errorf("failed to unmarshal deal")
 		}
+		dkgInstance.StoreDeal(entry.Title, &deal)
 	}
 
 	processedResponses, err := dkgInstance.ProcessDeals()
