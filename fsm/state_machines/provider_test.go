@@ -78,20 +78,13 @@ func init() {
 }
 
 func TestCreate_Positive(t *testing.T) {
-	testFSMInstance, err := Create(testTransactionId)
+	testFSMInstance, err := Create()
 	if err != nil {
 		t.Fatalf("expected nil error, got {%s}", err)
 	}
 
 	if testFSMInstance == nil {
 		t.Fatalf("expected {*FSMInstance}")
-	}
-}
-
-func TestCreate_Negative(t *testing.T) {
-	_, err := Create("")
-	if err == nil {
-		t.Fatalf("expected error for empty {transactionId}")
 	}
 }
 
@@ -126,7 +119,9 @@ func compareState(t *testing.T, expected fsm.State, got fsm.State) {
 }
 
 func Test_Workflow(t *testing.T) {
-	testFSMInstance, err := Create(testTransactionId)
+	testFSMInstance, err := Create()
+
+	log.Println(testFSMInstance.Id())
 
 	compareErrNil(t, err)
 
@@ -147,6 +142,10 @@ func Test_Workflow(t *testing.T) {
 	compareFSMResponseNotNil(t, fsmResponse)
 
 	compareState(t, spf.StateAwaitParticipantsConfirmations, fsmResponse.State)
+
+	if testFSMInstance.Id() != testTransactionId {
+		t.Fatalf("expected {testTransactionId}")
+	}
 
 	testParticipantsListResponse, ok := fsmResponse.Data.(responses.SignatureProposalParticipantInvitationsResponse)
 
@@ -227,7 +226,9 @@ func Test_Workflow(t *testing.T) {
 			}
 		}
 
-		log.Println(fsmResponse.State, err)
+		state, err := testFSMInstance.State()
+
+		log.Println(err, state)
 
 	}
 }

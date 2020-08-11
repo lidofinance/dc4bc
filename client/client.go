@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/depools/dc4bc/qr"
@@ -18,6 +19,7 @@ const (
 )
 
 type Client struct {
+	sync.Mutex
 	ctx         context.Context
 	fsm         interface{}
 	state       State
@@ -49,7 +51,7 @@ func (c *Client) SendMessage(message storage.Message) error {
 	return nil
 }
 
-func (c *Client) Poll() {
+func (c *Client) Poll() error {
 	tk := time.NewTicker(pollingPeriod)
 	for {
 		select {
@@ -61,7 +63,7 @@ func (c *Client) Poll() {
 
 			messages, err := c.storage.GetMessages(offset)
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to GetMessages: %w", err)
 			}
 
 			for _, message := range messages {
@@ -73,20 +75,21 @@ func (c *Client) Poll() {
 				// I.e., if FSM returned an Operation for us.
 				if operation != nil {
 					if err := c.state.PutOperation(operation); err != nil {
-						panic(err)
+						return fmt.Errorf("failed to PutOperation: %w", err)
 					}
 				}
 
 				if err := c.state.SaveOffset(message.Offset); err != nil {
-					panic(err)
+					return fmt.Errorf("failed to SaveOffset: %w", err)
 				}
 
 				if err := c.state.SaveFSM(c.fsm); err != nil {
-					panic(err)
+					return fmt.Errorf("failed to SaveFSM: %w", err)
 				}
 			}
 		case <-c.ctx.Done():
-			return
+			log.Println("Context closed, stop polling...")
+			return nil
 		}
 	}
 }
