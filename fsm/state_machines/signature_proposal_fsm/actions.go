@@ -3,10 +3,13 @@ package signature_proposal_fsm
 import (
 	"crypto/x509"
 	"errors"
+	"fmt"
+	"github.com/depools/dc4bc/fsm/config"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
+	"time"
 )
 
 // init -> awaitingConfirmations
@@ -46,12 +49,12 @@ func (m *SignatureProposalFSM) actionInitProposal(inEvent fsm.Event, args ...int
 			return inEvent, nil, errors.New("cannot parse {PubKey}")
 		}
 
-		m.payload.ConfirmationProposalPayload[participantId] = internal.SignatureProposalParticipant{
+		m.payload.ConfirmationProposalPayload[participantId] = &internal.SignatureProposalParticipant{
 			ParticipantId:    index,
 			Title:            participant.Title,
 			PublicKey:        parsedPubKey,
 			InvitationSecret: secret,
-			Status:           internal.SignatureAwaitConfirmation,
+			Status:           internal.SignatureConfirmationAwaitConfirmation,
 			UpdatedAt:        request.CreatedAt,
 		}
 	}
@@ -86,8 +89,8 @@ func (m *SignatureProposalFSM) actionInitProposal(inEvent fsm.Event, args ...int
 
 // TODO: Add timeout checking
 func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
-	// m.payloadMu.Lock()
-	// defer m.payloadMu.Unlock()
+	m.payloadMu.Lock()
+	defer m.payloadMu.Unlock()
 
 	if len(args) != 1 {
 		err = errors.New("{arg0} required {SignatureProposalParticipantRequest}")
@@ -117,30 +120,120 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 		return
 	}
 
-	signatureProposalParticipant.Status = internal.SignatureConfirmed
+	if signatureProposalParticipant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(*request.CreatedAt) {
+		outEvent = eventSetValidationCanceledByTimeout
+		return
+	}
+
+	if signatureProposalParticipant.Status != internal.SignatureConfirmationAwaitConfirmation {
+		err = errors.New(fmt.Sprintf("cannot apply reply participant with {Status} = {\"%s\"}", signatureProposalParticipant.Status))
+		return
+	}
+
+	switch inEvent {
+	case EventConfirmProposal:
+		signatureProposalParticipant.Status = internal.SignatureConfirmationConfirmed
+	case EventDeclineProposal:
+		signatureProposalParticipant.Status = internal.SignatureConfirmationDeclined
+	default:
+		err = errors.New("undefined {Event} for action")
+		return
+	}
+
 	signatureProposalParticipant.UpdatedAt = request.CreatedAt
 
 	m.payload.ConfirmationProposalPayload[request.PubKeyFingerprint] = signatureProposalParticipant
 
-	outEvent, response, err = m.actionValidateProposal(eventValidateProposalInternal)
+	return
+}
+
+func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+	var (
+		isContainsDeclined, isContainsExpired bool
+	)
+
+	m.payloadMu.Lock()
+	defer m.payloadMu.Unlock()
+
+	tm := time.Now()
+
+	unconfirmedParticipants := len(m.payload.ConfirmationProposalPayload)
+	for _, participant := range m.payload.ConfirmationProposalPayload {
+		if participant.Status == internal.SignatureConfirmationAwaitConfirmation {
+			if participant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(tm) {
+				isContainsExpired = true
+			}
+		} else {
+			if participant.Status == internal.SignatureConfirmationConfirmed {
+				unconfirmedParticipants--
+			} else if participant.Status == internal.SignatureConfirmationDeclined {
+				isContainsDeclined = true
+			}
+		}
+	}
+
+	if isContainsDeclined {
+		outEvent = eventSetValidationCanceledByParticipant
+		return
+	}
+
+	if isContainsExpired {
+		outEvent = eventSetValidationCanceledByTimeout
+		return
+	}
+
+	// The are no declined and timed out participants, check for all confirmations
+	if unconfirmedParticipants > 0 {
+		return
+	}
+
+	outEvent = eventSetProposalValidatedInternal
+
+	m.actionSetValidatedSignatureProposal(outEvent)
 
 	return
 }
 
-func (m *SignatureProposalFSM) actionValidateProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+func (m *SignatureProposalFSM) actionSetValidatedSignatureProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	// m.payloadMu.Lock()
 	// defer m.payloadMu.Unlock()
 
-	unconfirmedParticipants := len(m.payload.ConfirmationProposalPayload)
+	// TODO: Run once after validation
+	if m.payload.DKGProposalPayload != nil {
+		return
+	}
+
+	m.payload.DKGProposalPayload = make(internal.DKGProposalQuorum)
+
 	for _, participant := range m.payload.ConfirmationProposalPayload {
-		if participant.Status == internal.SignatureConfirmed {
-			unconfirmedParticipants--
+		m.payload.DKGProposalPayload[participant.ParticipantId] = &internal.DKGProposalParticipant{
+			Title:     participant.Title,
+			Status:    internal.PubKeyAwaitConfirmation,
+			UpdatedAt: participant.UpdatedAt,
 		}
 	}
 
-	if unconfirmedParticipants > 0 {
-		return
-	}
-	outEvent = eventSetProposalValidatedInternal
+	// Remove m.payload.ConfirmationProposalPayload?
+
 	return
+}
+
+func (m *SignatureProposalFSM) actionSignatureProposalCanceledByTimeout(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+	m.payloadMu.Lock()
+	defer m.payloadMu.Unlock()
+
+	responseData := make(responses.SignatureProposalParticipantStatusResponse, 0)
+
+	for pubKeyFingerprint, participant := range m.payload.ConfirmationProposalPayload {
+		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
+			ParticipantId:     participant.ParticipantId,
+			Title:             participant.Title,
+			PubKeyFingerprint: pubKeyFingerprint,
+			Status:            uint8(participant.Status),
+		}
+		responseData = append(responseData, responseEntry)
+	}
+
+	return inEvent, responseData, nil
+
 }

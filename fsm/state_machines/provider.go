@@ -149,6 +149,13 @@ func (i *FSMInstance) Id() string {
 	return ""
 }
 
+func (i *FSMInstance) Dump() ([]byte, error) {
+	if i.dump == nil {
+		return []byte{}, errors.New("dump is not initialized")
+	}
+	return i.dump.Marshal()
+}
+
 // TODO: Add encryption
 func (d *FSMDump) Marshal() ([]byte, error) {
 	return json.Marshal(d)
@@ -157,7 +164,7 @@ func (d *FSMDump) Marshal() ([]byte, error) {
 // TODO: Add decryption
 func (d *FSMDump) Unmarshal(data []byte) error {
 	if d == nil {
-		return errors.New("dump struct is not initialized")
+		return errors.New("dump is not initialized")
 	}
 
 	return json.Unmarshal(data, d)

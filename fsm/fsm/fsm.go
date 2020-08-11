@@ -21,7 +21,9 @@ import (
 const (
 	StateGlobalIdle = State("__idle")
 	StateGlobalDone = State("__done")
+)
 
+const (
 	EventRunDefault EventRunMode = iota
 	EventRunBefore
 	EventRunAfter
@@ -189,16 +191,16 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 				panic("duplicate dst for pair `source + event`")
 			}
 
+			if event.IsAuto && event.AutoRunMode == EventRunDefault {
+				event.AutoRunMode = EventRunAfter
+			}
+
 			trEvent := &trEvent{
 				tKey.event,
 				event.DstState,
 				event.IsInternal,
 				event.IsAuto,
 				event.AutoRunMode,
-			}
-
-			if trEvent.isAuto && trEvent.runMode == EventRunDefault {
-				trEvent.runMode = EventRunAfter
 			}
 
 			f.transitions[tKey] = trEvent
@@ -245,7 +247,7 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 		}
 
 		if _, ok := allEvents[event]; !ok {
-			panic("callback has no event")
+			panic("callback has empty event")
 		}
 
 		f.callbacks[event] = callback
