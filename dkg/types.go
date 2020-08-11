@@ -1,6 +1,7 @@
 package dkg
 
 import (
+	"fmt"
 	"go.dedis.ch/kyber/v3"
 )
 
@@ -31,6 +32,15 @@ func (s PKStore) GetPKs() []kyber.Point {
 		out[idx] = val.PK
 	}
 	return out
+}
+
+func (s PKStore) GetPKByParticipant(p string) (kyber.Point, error) {
+	for _, val := range s {
+		if val.Participant == p {
+			return val.PK, nil
+		}
+	}
+	return nil, fmt.Errorf("participant %s does not exist", p)
 }
 
 func (s PKStore) GetParticipantByIndex(index int) string {

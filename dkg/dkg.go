@@ -46,6 +46,22 @@ func (d *DKG) GetPubKey() kyber.Point {
 	return d.pubKey
 }
 
+func (d *DKG) GetSecKey() kyber.Scalar {
+	return d.secKey
+}
+
+func (d *DKG) GetPubKeyByParticipantID(pid string) (kyber.Point, error) {
+	pk, err := d.pubkeys.GetPKByParticipant(pid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pk for participant %s: %w", pid, err)
+	}
+	return pk, nil
+}
+
+func (d *DKG) GetParticipantByIndex(index int) string {
+	return d.pubkeys.GetParticipantByIndex(index)
+}
+
 func (d *DKG) StorePubKey(participant string, pk kyber.Point) bool {
 	d.Lock()
 	defer d.Unlock()

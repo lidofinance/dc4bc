@@ -7,16 +7,26 @@ import (
 	"github.com/depools/dc4bc/dkg"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
 	"github.com/depools/dc4bc/qr"
 	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/encrypt/ecies"
+	"go.dedis.ch/kyber/v3/group/edwards25519"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
-	dkg2 "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+	dkgPedersen "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+	"sync"
+)
+
+const (
+	resultQRFolder = "result_qr_codes"
 )
 
 type AirgappedMachine struct {
-	dkgInstances map[string]*dkg.DKG // should be a map or something to distinguish different rounds
+	sync.Mutex
+
+	dkgInstances map[string]*dkg.DKG
 	qrProcessor  qr.Processor
 }
 
@@ -26,6 +36,63 @@ func NewAirgappedMachine() *AirgappedMachine {
 		qrProcessor:  qr.NewCameraProcessor(),
 	}
 	return machine
+}
+
+func (am *AirgappedMachine) encryptData(dkgIdentifier, to string, data []byte) ([]byte, error) {
+	suite := edwards25519.NewBlakeSHA256Ed25519()
+	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
+	if !ok {
+		return nil, fmt.Errorf("invalid dkg identifier: %s", dkgIdentifier)
+	}
+
+	pk, err := dkgInstance.GetPubKeyByParticipantID(to)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pk for participant %s: %w", to, err)
+	}
+
+	encryptedData, err := ecies.Encrypt(suite, pk, data, suite.Hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encrypt data: %w", err)
+	}
+	return encryptedData, nil
+}
+
+func (am *AirgappedMachine) decryptData(dkgIdentifier string, data []byte) ([]byte, error) {
+	suite := edwards25519.NewBlakeSHA256Ed25519()
+	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
+	if !ok {
+		return nil, fmt.Errorf("invalid dkg identifier: %s", dkgIdentifier)
+	}
+
+	privateKey := dkgInstance.GetSecKey()
+
+	decryptedData, err := ecies.Decrypt(suite, privateKey, data, suite.Hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt data: %w", err)
+	}
+	return decryptedData, nil
+}
+
+func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.Operation) error {
+	var (
+		payload responses.SignatureProposalParticipantInvitationsResponse
+		err     error
+	)
+
+	if err = json.Unmarshal(o.Payload, &payload); err != nil {
+		return fmt.Errorf("failed to unmarshal payload: %w", err)
+	}
+
+	if _, ok := am.dkgInstances[o.DKGIdentifier]; ok {
+		return fmt.Errorf("dkg instance %s already exists", o.DKGIdentifier)
+	}
+
+	am.dkgInstances[o.DKGIdentifier] = dkg.Init()
+
+	// sMaybe we should do something with Title and ParticipantID
+	// And i think threshold should be here
+
+	return nil
 }
 
 func (am *AirgappedMachine) handleStateDkgPubKeysAwaitConfirmations(o *client.Operation) error {
@@ -97,7 +164,7 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 	return nil
 }
 
-func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Operation) error {
+func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o client.Operation) ([]client.Operation, error) {
 	var (
 		payload responses.DKGProposalCommitParticipantResponse
 		err     error
@@ -105,47 +172,53 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Oper
 
 	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
 	if !ok {
-		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
+		return nil, fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
 	}
 
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
 
 	for _, entry := range payload {
 		var commits []kyber.Point
 		if err = json.Unmarshal(entry.Commit, &commits); err != nil {
-			return fmt.Errorf("failed to unmarshal commits: %w", err)
+			return nil, fmt.Errorf("failed to unmarshal commits: %w", err)
 		}
 		dkgInstance.StoreCommits(entry.Title, commits)
 	}
 
 	deals, err := dkgInstance.GetDeals()
 	if err != nil {
-		return fmt.Errorf("failed to get deals: %w", err)
+		return nil, fmt.Errorf("failed to get deals: %w", err)
 	}
+
+	operations := make([]client.Operation, 0, len(deals))
 
 	am.dkgInstances[o.DKGIdentifier] = dkgInstance
 
-	// Here we should create N=len(deals) private (encrypted) messages to participants but i don't know how to it yet
-	//-------------------------------------------------------
-	dealsBz, err := json.Marshal(deals)
-	if err != nil {
-		return fmt.Errorf("failed to marshal deals")
+	for index, deal := range deals {
+		dealBz, err := json.Marshal(deal)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal dea;: %w", err)
+		}
+		toParticipant := dkgInstance.GetParticipantByIndex(index)
+		encryptedDeal, err := am.encryptData(o.DKGIdentifier, toParticipant, dealBz)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt deal: %w", err)
+		}
+		req := requests.DKGProposalDealConfirmationRequest{
+			ParticipantId: dkgInstance.ParticipantID,
+			Deal:          encryptedDeal,
+		}
+		o.To = toParticipant
+		reqBz, err := json.Marshal(req)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal request: %w", err)
+		}
+		o.Result = reqBz
+		operations = append(operations, o)
 	}
-
-	req := requests.DKGProposalDealConfirmationRequest{
-		ParticipantId: dkgInstance.ParticipantID,
-		Deal:          dealsBz,
-	}
-	//-------------------------------------------------------
-
-	reqBz, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("failed to marshal request: %w", err)
-	}
-	o.Result = reqBz
-	return nil
+	return operations, nil
 }
 
 func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.Operation) error {
@@ -164,7 +237,7 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 	}
 
 	for _, entry := range payload {
-		var deals []dkg2.Deal // mock, must be another logic, because of encryption
+		var deals []dkgPedersen.Deal // mock, must be another logic, because of encryption
 		if err = json.Unmarshal(entry.Deal, &deals); err != nil {
 			return fmt.Errorf("failed to unmarshal commits: %w", err)
 		}
@@ -198,49 +271,64 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 	return nil
 }
 
-func (am *AirgappedMachine) HandleQR() error {
+func (am *AirgappedMachine) HandleQR() ([]string, error) {
 	var (
-		err       error
-		operation client.Operation
-		qrData    []byte
+		err        error
+		operation  client.Operation
+		qrData     []byte
+		operations []client.Operation
 	)
 
+	am.Lock()
+	defer am.Unlock()
+
 	if qrData, err = am.qrProcessor.ReadQR(); err != nil {
-		return fmt.Errorf("failed to read QR: %w", err)
+		return nil, fmt.Errorf("failed to read QR: %w", err)
 	}
 	if err = json.Unmarshal(qrData, &operation); err != nil {
-		return fmt.Errorf("failed to unmarshal operation: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal operation: %w", err)
 	}
+
 	switch fsm.State(operation.Type) {
+	case signature_proposal_fsm.StateAwaitParticipantsConfirmations:
+		////////
 	case dkg_proposal_fsm.StateDkgPubKeysAwaitConfirmations:
 		if err = am.handleStateDkgPubKeysAwaitConfirmations(&operation); err != nil {
-			return err
+			return nil, err
 		}
 	case dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:
 		if err = am.handleStateDkgCommitsAwaitConfirmations(&operation); err != nil {
-			return err
+			return nil, err
 		}
 	case dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:
-		if err = am.handleStateDkgCommitsAwaitConfirmations(&operation); err != nil {
-			return err
+		if operations, err = am.handleStateDkgDealsAwaitConfirmations(operation); err != nil {
+			return nil, err
 		}
 	case dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations:
 		if err = am.handleStateDkgResponsesAwaitConfirmations(&operation); err != nil {
-			return err
+			return nil, err
 		}
 	default:
-		return fmt.Errorf("invalid operation type: %s", operation.Type)
+		return nil, fmt.Errorf("invalid operation type: %s", operation.Type)
 	}
 
-	operationBz, err := json.Marshal(operation)
-	if err != nil {
-		return fmt.Errorf("failed to marshal operation: %w", err)
+	if len(operation.Result) > 0 {
+		operations = append(operations, operation)
 	}
 
-	//TODO: return path
-	if err := am.qrProcessor.WriteQR(fmt.Sprintf("%s.png", operation.ID), operationBz); err != nil {
-		return fmt.Errorf("failed to write QR")
+	qrPath := "%s/%s_%s_%s.png"
+	qrPaths := make([]string, 0, len(operations))
+	for _, o := range operations {
+		operationBz, err := json.Marshal(o)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal operation: %w", err)
+		}
+
+		if err := am.qrProcessor.WriteQR(fmt.Sprintf(qrPath, resultQRFolder, o.Type, o.ID, o.To), operationBz); err != nil {
+			return nil, fmt.Errorf("failed to write QR")
+		}
+		qrPaths = append(qrPaths, qrPath)
 	}
 
-	return nil
+	return qrPaths, nil
 }
