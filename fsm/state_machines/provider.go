@@ -1,6 +1,8 @@
 package state_machines
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -10,6 +12,10 @@ import (
 	"github.com/depools/dc4bc/fsm/fsm_pool"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+)
+
+const (
+	dkgTransactionIdLength = 128
 )
 
 // Is machine state scope dump will be locked?
@@ -37,9 +43,17 @@ func init() {
 
 // Create new fsm with unique id
 // transactionId required for unique identify dump
-func Create(transactionId string) (*FSMInstance, error) {
-	var err error
-	i := &FSMInstance{}
+func Create() (*FSMInstance, error) {
+	var (
+		err error
+		i   = &FSMInstance{}
+	)
+	transactionId, err := generateDkgTransactionId()
+
+	if err != nil {
+		return nil, err
+	}
+
 	err = i.InitDump(transactionId)
 
 	if err != nil {
@@ -147,4 +161,14 @@ func (d *FSMDump) Unmarshal(data []byte) error {
 	}
 
 	return json.Unmarshal(data, d)
+}
+
+func generateDkgTransactionId() (string, error) {
+	b := make([]byte, dkgTransactionIdLength)
+	_, err := rand.Read(b)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.URLEncoding.EncodeToString(b), err
 }
