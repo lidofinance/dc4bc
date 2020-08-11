@@ -293,7 +293,9 @@ func (am *AirgappedMachine) HandleQR() ([]string, error) {
 
 	switch fsm.State(operation.Type) {
 	case signature_proposal_fsm.StateAwaitParticipantsConfirmations:
-		////////
+		if err = am.handleStateAwaitParticipantsConfirmations(&operation); err != nil {
+			return nil, err
+		}
 	case dkg_proposal_fsm.StateDkgPubKeysAwaitConfirmations:
 		if err = am.handleStateDkgPubKeysAwaitConfirmations(&operation); err != nil {
 			return nil, err
