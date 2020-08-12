@@ -5,12 +5,7 @@ import (
 	"time"
 )
 
-const (
-	SignatureAwaitConfirmation SignatureProposalParticipantStatus = iota
-	SignatureConfirmed
-)
-
-type ConfirmationProposal struct {
+type SignatureConfirmation struct {
 	Quorum    SignatureProposalQuorum
 	CreatedAt *time.Time
 	ExpiresAt *time.Time
@@ -23,22 +18,22 @@ type SignatureProposalParticipant struct {
 	PublicKey     *rsa.PublicKey
 	// For validation user confirmation: sign(InvitationSecret, PublicKey) => user
 	InvitationSecret string
-	Status           SignatureProposalParticipantStatus
+	Status           ParticipantStatus
 	UpdatedAt        *time.Time
 }
 
 // Unique alias for map iteration - Public Key Fingerprint
 // Excludes array merge and rotate operations
-type SignatureProposalQuorum map[string]SignatureProposalParticipant
+type SignatureProposalQuorum map[string]*SignatureProposalParticipant
 
-type SignatureProposalParticipantStatus uint8
+type ParticipantStatus uint8
 
 const (
-	SignatureConfirmationAwaitConfirmation DKGProposalParticipantStatus = iota
+	SignatureConfirmationAwaitConfirmation ParticipantStatus = iota
 	SignatureConfirmationConfirmed
 	SignatureConfirmationDeclined
 	SignatureConfirmationError
-	PubKeyConAwaitConfirmation
+	PubKeyAwaitConfirmation
 	PubKeyConfirmed
 	PubKeyConfirmationError
 	CommitAwaitConfirmation
@@ -50,29 +45,34 @@ const (
 	ResponseAwaitConfirmation
 	ResponseConfirmed
 	ResponseConfirmationError
+	MasterKeyAwaitConfirmation
+	MasterKeyConfirmed
+	MasterKeyConfirmationError
 )
 
-type DKGProposal struct {
-	Quorum    map[int]DKGProposalParticipant
+type DKGProposalParticipant struct {
+	Title     string
+	PubKey    []byte
+	Commit    []byte
+	Deal      []byte
+	Response  []byte
+	MasterKey []byte
+	Status    ParticipantStatus
+	Error     error
+	UpdatedAt *time.Time
+}
+
+type DKGProposalQuorum map[int]*DKGProposalParticipant
+
+type DKGConfirmation struct {
+	Quorum    DKGProposalQuorum
 	CreatedAt *time.Time
 	ExpiresAt *time.Time
 }
 
-type DKGProposalParticipant struct {
-	Title     string
-	PublicKey []byte
-	Commit    []byte
-	Deal      []byte
-	Response  []byte
-	Status    DKGProposalParticipantStatus
-	UpdatedAt *time.Time
-}
-
-type DKGProposalQuorum map[int]DKGProposalParticipant
-
 type DKGProposalParticipantStatus uint8
 
-func (s DKGProposalParticipantStatus) String() string {
+func (s ParticipantStatus) String() string {
 	var str = "undefined"
 	switch s {
 	case SignatureConfirmationAwaitConfirmation:
@@ -83,8 +83,8 @@ func (s DKGProposalParticipantStatus) String() string {
 		str = "SignatureConfirmationDeclined"
 	case SignatureConfirmationError:
 		str = "SignatureConfirmationError"
-	case PubKeyConAwaitConfirmation:
-		str = "PubKeyConAwaitConfirmation"
+	case PubKeyAwaitConfirmation:
+		str = "PubKeyAwaitConfirmation"
 	case PubKeyConfirmed:
 		str = "PubKeyConfirmed"
 	case PubKeyConfirmationError:

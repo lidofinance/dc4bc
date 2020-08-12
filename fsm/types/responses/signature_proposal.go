@@ -2,14 +2,8 @@ package responses
 
 // Response
 
-const (
-	ProposalConfirmationStatusIdle = iota
-	ProposalConfirmationStatusAccepted
-	ProposalConfirmationStatusCanceled
-	ProposalConfirmationStatusTimeout
-)
-
-// States: "validate_proposal"
+// Event: "event_sig_proposal_init"
+// States: "__idle"
 
 type SignatureProposalParticipantInvitationsResponse []*SignatureProposalParticipantInvitationEntry
 
@@ -31,5 +25,5 @@ type SignatureProposalParticipantStatusEntry struct {
 	ParticipantId     int
 	Title             string
 	PubKeyFingerprint string
-	Status            int
+	Status            uint8
 }

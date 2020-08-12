@@ -12,9 +12,9 @@ const (
 	stateStage1 = State("state_stage1")
 	// Process data
 	stateStage2 = State("state_stage2")
-	// Cancelled with internal event
+	// Canceled with internal event
 	stateCanceledByInternal = State("state_canceled")
-	// Cancelled with external event
+	// Canceled with external event
 	stateCanceled2 = State("state_canceled2")
 	// Out endpoint to switch
 	stateOutToFSM2 = State("state_out_to_fsm2")
