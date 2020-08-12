@@ -25,6 +25,7 @@ type DKG struct {
 	secKey        kyber.Scalar
 	suite         *bn256.Suite
 	ParticipantID int
+	Threshold     int
 }
 
 func Init() *DKG {
@@ -81,7 +82,7 @@ func (d *DKG) calcParticipantID() int {
 	return -1
 }
 
-func (d *DKG) InitDKGInstance(t int) (err error) {
+func (d *DKG) InitDKGInstance() (err error) {
 	sort.Sort(d.pubkeys)
 
 	publicKeys := d.pubkeys.GetPKs()
@@ -98,7 +99,7 @@ func (d *DKG) InitDKGInstance(t int) (err error) {
 
 	d.responses = newMessageStore(int(math.Pow(float64(participantsCount)-1, 2)))
 
-	d.instance, err = dkg.NewDistKeyGenerator(d.suite, d.secKey, publicKeys, t)
+	d.instance, err = dkg.NewDistKeyGenerator(d.suite, d.secKey, publicKeys, d.Threshold)
 	if err != nil {
 		return err
 	}

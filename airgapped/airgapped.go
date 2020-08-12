@@ -87,10 +87,10 @@ func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.
 		return fmt.Errorf("dkg instance %s already exists", o.DKGIdentifier)
 	}
 
-	am.dkgInstances[o.DKGIdentifier] = dkg.Init()
+	dkgInstance := dkg.Init()
+	dkgInstance.Threshold = len(payload)
 
-	// sMaybe we should do something with Title and ParticipantID
-	// And i think threshold should be here
+	am.dkgInstances[o.DKGIdentifier] = dkg.Init()
 
 	return nil
 }
@@ -141,7 +141,7 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 		dkgInstance.StorePubKey(entry.Title, pubKey)
 	}
 
-	if err = dkgInstance.InitDKGInstance(3); err != nil { // TODO: threshold
+	if err = dkgInstance.InitDKGInstance(); err != nil {
 		return fmt.Errorf("failed to init dkg instance: %w", err)
 	}
 
@@ -272,6 +272,8 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 	o.Result = reqBz
 	return nil
 }
+
+// TODO @oopcode: reconstruct key and sign handlers
 
 func (am *AirgappedMachine) HandleQR() ([]string, error) {
 	var (
