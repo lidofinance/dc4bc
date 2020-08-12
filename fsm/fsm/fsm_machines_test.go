@@ -12,9 +12,9 @@ const (
 	stateStage1 = State("state_stage1")
 	// Process data
 	stateStage2 = State("state_stage2")
-	// Cancelled with internal event
+	// Canceled with internal event
 	stateCanceledByInternal = State("state_canceled")
-	// Cancelled with external event
+	// Canceled with external event
 	stateCanceled2 = State("state_canceled2")
 	// Out endpoint to switch
 	stateOutToFSM2 = State("state_out_to_fsm2")
@@ -48,14 +48,14 @@ var (
 	}
 
 	testingCallbacks = Callbacks{
-		eventInit: func(event Event, args ...interface{}) (interface{}, error) {
-			return nil, nil
+		eventInit: func(event Event, args ...interface{}) (Event, interface{}, error) {
+			return event, nil, nil
 		},
-		eventInternalOut2: func(event Event, args ...interface{}) (interface{}, error) {
-			return nil, nil
+		eventInternalOut2: func(event Event, args ...interface{}) (Event, interface{}, error) {
+			return event, nil, nil
 		},
-		eventProcess: func(event Event, args ...interface{}) (interface{}, error) {
-			return nil, nil
+		eventProcess: func(event Event, args ...interface{}) (Event, interface{}, error) {
+			return event, nil, nil
 		},
 	}
 )

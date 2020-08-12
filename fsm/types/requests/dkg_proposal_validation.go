@@ -11,8 +11,8 @@ func (r *DKGProposalPubKeyConfirmationRequest) Validate() error {
 		return errors.New("{PubKey} cannot zero length")
 	}
 
-	if r.CreatedAt == nil {
-		return errors.New("{CreatedAt} cannot be a nil")
+	if r.CreatedAt.IsZero() {
+		return errors.New("{CreatedAt} is not set")
 	}
 
 	return nil
@@ -27,8 +27,8 @@ func (r *DKGProposalCommitConfirmationRequest) Validate() error {
 		return errors.New("{Commit} cannot zero length")
 	}
 
-	if r.CreatedAt == nil {
-		return errors.New("{CreatedAt} cannot be a nil")
+	if r.CreatedAt.IsZero() {
+		return errors.New("{CreatedAt} is not set")
 	}
 
 	return nil
@@ -43,8 +43,8 @@ func (r *DKGProposalDealConfirmationRequest) Validate() error {
 		return errors.New("{Deal} cannot zero length")
 	}
 
-	if r.CreatedAt == nil {
-		return errors.New("{CreatedAt} cannot be a nil")
+	if r.CreatedAt.IsZero() {
+		return errors.New("{CreatedAt} is not set")
 	}
 
 	return nil
@@ -59,8 +59,24 @@ func (r *DKGProposalResponseConfirmationRequest) Validate() error {
 		return errors.New("{Response} cannot zero length")
 	}
 
-	if r.CreatedAt == nil {
-		return errors.New("{CreatedAt} cannot be a nil")
+	if r.CreatedAt.IsZero() {
+		return errors.New("{CreatedAt} is not set")
+	}
+
+	return nil
+}
+
+func (r *DKGProposalMasterKeyConfirmationRequest) Validate() error {
+	if r.ParticipantId < 0 {
+		return errors.New("{ParticipantId} cannot be a negative number")
+	}
+
+	if len(r.MasterKey) == 0 {
+		return errors.New("{MasterKey} cannot zero length")
+	}
+
+	if r.CreatedAt.IsZero() {
+		return errors.New("{CreatedAt} is not set")
 	}
 
 	return nil
@@ -71,8 +87,12 @@ func (r *DKGProposalConfirmationErrorRequest) Validate() error {
 		return errors.New("{ParticipantId} cannot be a negative number")
 	}
 
-	if r.CreatedAt == nil {
-		return errors.New("{CreatedAt} cannot be a nil")
+	if r.Error == nil {
+		return errors.New("{Error} cannot be a nil")
+	}
+
+	if r.CreatedAt.IsZero() {
+		return errors.New("{CreatedAt} is not set")
 	}
 
 	return nil

@@ -7,6 +7,8 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"github.com/depools/dc4bc/fsm/fsm"
+	dpf "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
@@ -34,6 +36,8 @@ var (
 		Participants: []*requests.SignatureProposalParticipantsEntry{},
 		CreatedAt:    &tm,
 	}
+
+	testFSMDump []byte
 )
 
 func init() {
@@ -76,7 +80,7 @@ func init() {
 }
 
 func TestCreate_Positive(t *testing.T) {
-	testFSMInstance, err := Create(testTransactionId)
+	testFSMInstance, err := Create()
 	if err != nil {
 		t.Fatalf("expected nil error, got {%s}", err)
 	}
@@ -86,48 +90,80 @@ func TestCreate_Positive(t *testing.T) {
 	}
 }
 
-func TestCreate_Negative(t *testing.T) {
-	_, err := Create("")
-	if err == nil {
-		t.Fatalf("expected error for empty {transactionId}")
+func compareErrNil(t *testing.T, got error) {
+	if got != nil {
+		t.Fatalf("expected nil error, got {%s}", got)
 	}
 }
 
-func Test_Workflow(t *testing.T) {
-	testFSMInstance, err := Create(testTransactionId)
-	if err != nil {
-		t.Fatalf("expected nil error, got {%s}", err)
-	}
-
-	if testFSMInstance == nil {
+func compareFSMInstanceNotNil(t *testing.T, got *FSMInstance) {
+	if got == nil {
 		t.Fatalf("expected {*FSMInstance}")
+	}
+}
+
+func compareDumpNotZero(t *testing.T, got []byte) {
+	if len(got) == 0 {
+		t.Fatalf("expected non zero dump, when executed without error")
+	}
+}
+
+func compareFSMResponseNotNil(t *testing.T, got *fsm.Response) {
+	if got == nil {
+		t.Fatalf("expected {*fsm.FSMResponse} got nil")
+	}
+}
+
+func compareState(t *testing.T, expected fsm.State, got fsm.State) {
+	if got != expected {
+		t.Fatalf("expected state {%s} got {%s}", expected, got)
+	}
+}
+
+// Test Workflow
+
+func Test_SignatureProposal_Init(t *testing.T) {
+	testFSMInstance, err := Create()
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	transactionId := testFSMInstance.Id()
+
+	if transactionId == "" {
+		t.Fatalf("expected {transactionId for dump}")
 	}
 
 	if testFSMInstance.machine.Name() != spf.FsmName {
 		t.Fatalf("expected machine name {%s}", spf.FsmName)
 	}
 
-	if testFSMInstance.machine.State() != spf.StateParticipantsConfirmationsInit {
-		t.Fatalf("expected inital state {%s}", spf.StateParticipantsConfirmationsInit)
-	}
+	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance.machine.State())
+
+	testFSMDump, err = testFSMInstance.Dump()
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, testFSMDump)
+}
+
+func Test_SignatureProposal_Positive(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump)
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
 
 	fsmResponse, dump, err := testFSMInstance.Do(spf.EventInitProposal, testParticipantsListRequest)
 
-	if err != nil {
-		t.Fatalf("expected nil error, got {%s}", err)
-	}
+	compareErrNil(t, err)
 
-	if len(dump) == 0 {
-		t.Fatalf("expected non zero dump, when executed without error")
-	}
+	compareDumpNotZero(t, dump)
 
-	if fsmResponse == nil {
-		t.Fatalf("expected {*fsm.FSMResponse}")
-	}
+	compareFSMResponseNotNil(t, fsmResponse)
 
-	if fsmResponse.State != spf.StateAwaitParticipantsConfirmations {
-		t.Fatalf("expected state {%s}", spf.StateAwaitParticipantsConfirmations)
-	}
+	compareState(t, spf.StateAwaitParticipantsConfirmations, fsmResponse.State)
 
 	testParticipantsListResponse, ok := fsmResponse.Data.(responses.SignatureProposalParticipantInvitationsResponse)
 
@@ -161,19 +197,19 @@ func Test_Workflow(t *testing.T) {
 		participantsMap[participant.ParticipantId] = participant
 	}
 
-	tm = tm.Add(10 * time.Second)
+	tm = tm.Add(10 * time.Hour)
+
+	participantsCount := len(participantsMap)
+
+	participantCounter := participantsCount
 
 	for _, participant := range participantsMap {
-
+		participantCounter--
 		testFSMInstance, err = FromDump(dump)
 
-		if err != nil {
-			t.Fatalf("expected nil error, got {%s}", err)
-		}
+		compareErrNil(t, err)
 
-		if testFSMInstance == nil {
-			t.Fatalf("expected {*FSMInstance}")
-		}
+		compareFSMInstanceNotNil(t, testFSMInstance)
 
 		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
 			t.Fatalf("not found external user data for response fingerprint")
@@ -191,6 +227,202 @@ func Test_Workflow(t *testing.T) {
 			DecryptedInvitation: string(encrypted),
 			CreatedAt:           &tm,
 		})
-		log.Println(fsmResponse.State, err)
+
+		compareErrNil(t, err)
+
+		compareDumpNotZero(t, dump)
+
+		compareFSMResponseNotNil(t, fsmResponse)
+
+		if participantCounter > 0 {
+			compareState(t, spf.StateAwaitParticipantsConfirmations, fsmResponse.State)
+		} else {
+			compareState(t, dpf.StateDkgInitial, fsmResponse.State)
+		}
+
 	}
+
+	// PubKeys
+
+	for _, participant := range participantsMap {
+		participantCounter--
+		testFSMInstance, err = FromDump(dump)
+
+		compareErrNil(t, err)
+
+		compareFSMInstanceNotNil(t, testFSMInstance)
+
+		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
+			t.Fatalf("not found external user data for response fingerprint")
+		}
+
+		pubKeyMock := make([]byte, 128)
+		_, err := rand.Read(pubKeyMock)
+		if err != nil {
+			compareErrNil(t, err)
+		}
+
+		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGPubKeyConfirmationReceived, requests.DKGProposalPubKeyConfirmationRequest{
+			ParticipantId: participant.ParticipantId,
+			PubKey:        pubKeyMock,
+			CreatedAt:     tm,
+		})
+
+		compareErrNil(t, err)
+
+		compareDumpNotZero(t, dump)
+
+		compareFSMResponseNotNil(t, fsmResponse)
+
+	}
+
+	compareState(t, dpf.StateDkgCommitsAwaitConfirmations, fsmResponse.State)
+
+	// Commits
+
+	for _, participant := range participantsMap {
+		participantCounter--
+		testFSMInstance, err = FromDump(dump)
+
+		compareErrNil(t, err)
+
+		compareFSMInstanceNotNil(t, testFSMInstance)
+
+		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
+			t.Fatalf("not found external user data for response fingerprint")
+		}
+
+		commitMock := make([]byte, 128)
+		_, err := rand.Read(commitMock)
+		if err != nil {
+			compareErrNil(t, err)
+		}
+
+		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGCommitConfirmationReceived, requests.DKGProposalCommitConfirmationRequest{
+			ParticipantId: participant.ParticipantId,
+			Commit:        commitMock,
+			CreatedAt:     tm,
+		})
+
+		compareErrNil(t, err)
+
+		compareDumpNotZero(t, dump)
+
+		compareFSMResponseNotNil(t, fsmResponse)
+
+	}
+
+	compareState(t, dpf.StateDkgDealsAwaitConfirmations, fsmResponse.State)
+
+	// Deals
+
+	for _, participant := range participantsMap {
+		participantCounter--
+		testFSMInstance, err = FromDump(dump)
+
+		compareErrNil(t, err)
+
+		compareFSMInstanceNotNil(t, testFSMInstance)
+
+		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
+			t.Fatalf("not found external user data for response fingerprint")
+		}
+
+		dealMock := make([]byte, 128)
+		_, err := rand.Read(dealMock)
+		if err != nil {
+			compareErrNil(t, err)
+		}
+
+		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGDealConfirmationReceived, requests.DKGProposalDealConfirmationRequest{
+			ParticipantId: participant.ParticipantId,
+			Deal:          dealMock,
+			CreatedAt:     tm,
+		})
+
+		compareErrNil(t, err)
+
+		compareDumpNotZero(t, dump)
+
+		compareFSMResponseNotNil(t, fsmResponse)
+
+	}
+
+	compareState(t, dpf.StateDkgResponsesAwaitConfirmations, fsmResponse.State)
+
+	// Responses
+
+	for _, participant := range participantsMap {
+		participantCounter--
+		testFSMInstance, err = FromDump(dump)
+
+		compareErrNil(t, err)
+
+		compareFSMInstanceNotNil(t, testFSMInstance)
+
+		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
+			t.Fatalf("not found external user data for response fingerprint")
+		}
+
+		responseMock := make([]byte, 128)
+		_, err := rand.Read(responseMock)
+		if err != nil {
+			compareErrNil(t, err)
+		}
+
+		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGResponseConfirmationReceived, requests.DKGProposalResponseConfirmationRequest{
+			ParticipantId: participant.ParticipantId,
+			Response:      responseMock,
+			CreatedAt:     tm,
+		})
+
+		compareErrNil(t, err)
+
+		compareDumpNotZero(t, dump)
+
+		compareFSMResponseNotNil(t, fsmResponse)
+
+	}
+
+	compareState(t, dpf.StateDkgMasterKeyAwaitConfirmations, fsmResponse.State)
+
+	// Master keys
+
+	masterKeyMock := make([]byte, 128)
+	_, err = rand.Read(masterKeyMock)
+	if err != nil {
+		compareErrNil(t, err)
+	}
+
+	for _, participant := range participantsMap {
+		participantCounter--
+		testFSMInstance, err = FromDump(dump)
+
+		compareErrNil(t, err)
+
+		compareFSMInstanceNotNil(t, testFSMInstance)
+
+		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
+			t.Fatalf("not found external user data for response fingerprint")
+		}
+
+		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGMasterKeyConfirmationReceived, requests.DKGProposalMasterKeyConfirmationRequest{
+			ParticipantId: participant.ParticipantId,
+			MasterKey:     masterKeyMock,
+			CreatedAt:     tm,
+		})
+
+		compareErrNil(t, err)
+
+		compareDumpNotZero(t, dump)
+
+		compareFSMResponseNotNil(t, fsmResponse)
+
+	}
+
+	compareState(t, fsm.StateGlobalDone, fsmResponse.State)
+}
+
+func Test_DKGProposal_Positive(t *testing.T) {
+
 }

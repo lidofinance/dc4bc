@@ -23,9 +23,9 @@ const (
 	fsm1StateStage1 = fsm.State("state_fsm1_stage1")
 	// Process data
 	fsm1StateStage2 = fsm.State("state_fsm1_stage2")
-	// Cancelled with internal event
+	// Canceled with internal event
 	fsm1StateCanceledByInternal = fsm.State("state_fsm1_canceled")
-	// Cancelled with external event
+	// Canceled with external event
 	fsm1StateCanceled2 = fsm.State("state_fsm1_canceled2")
 	// Out endpoint to switch
 	fsm1StateOutToFSM2 = fsm.State("state_fsm1_out_to_fsm2")
@@ -44,7 +44,7 @@ const (
 var (
 	testing1Events = []fsm.EventDesc{
 		// Init
-		{Name: eventFSM1Init, SrcState: []fsm.State{fsm1StateInit}, DstState: fsm1StateStage1, IsDstInit: true},
+		{Name: eventFSM1Init, SrcState: []fsm.State{fsm1StateInit}, DstState: fsm1StateStage1, IsAuto: true, AutoRunMode: fsm.EventRunAfter},
 		{Name: eventFSM1Internal, SrcState: []fsm.State{fsm1StateStage1}, DstState: fsm1StateStage2, IsInternal: true},
 
 		// Cancellation events
@@ -73,21 +73,24 @@ func NewFSM1() MachineProvider {
 	return machine
 }
 
-func (m *testMachineFSM1) actionFSM1SetUpData(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *testMachineFSM1) actionFSM1SetUpData(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.data = testVal1
-	return m.DoInternal(eventFSM1Internal)
+	outEvent = eventFSM1Internal
+	return
 }
 
-func (m *testMachineFSM1) actionFSM1ProcessData(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *testMachineFSM1) actionFSM1ProcessData(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	if len(args) == 1 {
 		if val, ok := args[0].(int); ok {
 			m.data -= val
 		}
 	}
-	return m.data, nil
+
+	response = m.data
+	return
 }
 
-func (m *testMachineFSM1) actionFSM1EmitOut2(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *testMachineFSM1) actionFSM1EmitOut2(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	return
 }
 
@@ -105,7 +108,7 @@ const (
 	// Process data
 	fsm2StateStage1 = fsm.State("state_fsm2_stage1")
 	fsm2StateStage2 = fsm.State("state_fsm2_stage2")
-	// Cancelled with internal event
+	// Canceled with internal event
 	fsm2StateCanceledByInternal = fsm.State("state_fsm2_canceled")
 	// Out endpoint to switch
 	fsm2StateOutToFSM3 = fsm.State("state_fsm2_out_to_fsm3")

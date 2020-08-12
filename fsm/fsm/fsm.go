@@ -23,6 +23,12 @@ const (
 	StateGlobalDone = State("__done")
 )
 
+const (
+	EventRunDefault EventRunMode = iota
+	EventRunBefore
+	EventRunAfter
+)
+
 type State string
 
 func (s *State) String() string {
@@ -39,6 +45,8 @@ func (e *Event) IsEmpty() bool {
 	return e.String() == ""
 }
 
+type EventRunMode uint8
+
 // Response returns result for processing with clientMocks events
 type Response struct {
 	// Returns machine execution result state
@@ -54,6 +62,8 @@ type FSM struct {
 
 	// May be mapping must require pair source + event?
 	transitions map[trKey]*trEvent
+
+	autoTransitions map[State]*trEvent
 
 	callbacks Callbacks
 
@@ -77,10 +87,11 @@ type trKey struct {
 
 // Transition lightweight event description
 type trEvent struct {
-	event         Event
-	dstState      State
-	isInternal    bool
-	isStateBefore bool
+	event      Event
+	dstState   State
+	isInternal bool
+	isAuto     bool
+	runMode    EventRunMode
 }
 
 type EventDesc struct {
@@ -94,8 +105,10 @@ type EventDesc struct {
 	// Internal events, cannot be emitted from external call
 	IsInternal bool
 
-	// Set dst state before execute action
-	IsDstInit bool
+	// Event must run without manual call
+	IsAuto bool
+
+	AutoRunMode EventRunMode
 }
 
 type Callback func(event Event, args ...interface{}) (Event, interface{}, error)
@@ -121,12 +134,13 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 	}
 
 	f := &FSM{
-		name:         machineName,
-		currentState: initialState,
-		initialState: initialState,
-		transitions:  make(map[trKey]*trEvent),
-		finStates:    make(map[State]bool),
-		callbacks:    make(map[Event]Callback),
+		name:            machineName,
+		currentState:    initialState,
+		initialState:    initialState,
+		transitions:     make(map[trKey]*trEvent),
+		autoTransitions: make(map[State]*trEvent),
+		finStates:       make(map[State]bool),
+		callbacks:       make(map[Event]Callback),
 	}
 
 	allEvents := make(map[Event]bool)
@@ -177,19 +191,40 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 				panic("duplicate dst for pair `source + event`")
 			}
 
-			f.transitions[tKey] = &trEvent{
+			if event.IsAuto && event.AutoRunMode == EventRunDefault {
+				event.AutoRunMode = EventRunAfter
+			}
+
+			trEvent := &trEvent{
 				tKey.event,
 				event.DstState,
 				event.IsInternal,
-				event.IsDstInit,
+				event.IsAuto,
+				event.AutoRunMode,
 			}
+
+			f.transitions[tKey] = trEvent
 
 			// For using provider, event must use with IsGlobal = true
 			if sourceState == initialState {
-				if f.initialEvent != "" {
-					panic("machine entry event already exist")
+				if f.initialEvent == "" {
+					f.initialEvent = event.Name
 				}
-				f.initialEvent = event.Name
+			}
+
+			if event.IsAuto {
+				if event.AutoRunMode != EventRunBefore && event.AutoRunMode != EventRunAfter {
+					panic("{AutoRunMode} not set for auto event")
+				}
+
+				if _, ok := f.autoTransitions[sourceState]; ok {
+					panic(fmt.Sprintf(
+						"auto event \"%s\" already exists for state \"%s\"",
+						event.Name,
+						sourceState,
+					))
+				}
+				f.autoTransitions[sourceState] = trEvent
 			}
 
 			allSources[sourceState] = true
@@ -212,7 +247,7 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 		}
 
 		if _, ok := allEvents[event]; !ok {
-			panic("callback has no event")
+			panic("callback has empty event")
 		}
 
 		f.callbacks[event] = callback
@@ -260,14 +295,28 @@ func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err err
 	// f.eventMu.Lock()
 	// defer f.eventMu.Unlock()
 
-	if trEvent.isStateBefore {
-		err = f.SetState(trEvent.event)
-		if err != nil {
-			resp = &Response{
-				State: f.State(),
-			}
-			return resp, err
+	// Process auto event
+	if autoEvent, ok := f.autoTransitions[f.State()]; ok {
+		autoEventResp := &Response{
+			State: f.State(),
 		}
+		if autoEvent.runMode == EventRunBefore {
+			if callback, ok := f.callbacks[autoEvent.event]; ok {
+				outEvent, autoEventResp.Data, err = callback(autoEvent.event, args...)
+				if err != nil {
+					return autoEventResp, err
+				}
+			}
+			if outEvent.IsEmpty() || autoEvent.event == outEvent {
+				err = f.SetState(autoEvent.event)
+			} else {
+				err = f.SetState(outEvent)
+			}
+			if err != nil {
+				return autoEventResp, err
+			}
+		}
+		outEvent = ""
 	}
 
 	resp = &Response{
@@ -282,13 +331,35 @@ func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err err
 		}
 	}
 
-	if !trEvent.isStateBefore {
-		if outEvent.IsEmpty() || trEvent.event == outEvent {
-			err = f.SetState(trEvent.event)
-		} else {
-			err = f.SetState(outEvent)
-		}
+	// Set state when callback executed
+	if outEvent.IsEmpty() || trEvent.event == outEvent {
+		err = f.SetState(trEvent.event)
+	} else {
+		err = f.SetState(outEvent)
+	}
 
+	// Process auto event
+	if autoEvent, ok := f.autoTransitions[f.State()]; ok {
+		autoEventResp := &Response{
+			State: f.State(),
+		}
+		if autoEvent.runMode == EventRunAfter {
+			if callback, ok := f.callbacks[autoEvent.event]; ok {
+				outEvent, autoEventResp.Data, err = callback(autoEvent.event, args...)
+				if err != nil {
+					return autoEventResp, err
+				}
+			}
+			if outEvent.IsEmpty() || autoEvent.event == outEvent {
+				err = f.SetState(autoEvent.event)
+			} else {
+				err = f.SetState(outEvent)
+			}
+			if err != nil {
+				return autoEventResp, err
+			}
+		}
+		outEvent = ""
 	}
 
 	resp.State = f.State()
@@ -311,7 +382,7 @@ func (f *FSM) SetState(event Event) error {
 
 	trEvent, ok := f.transitions[trKey{f.currentState, event}]
 	if !ok {
-		return errors.New("cannot change state")
+		return errors.New(fmt.Sprintf("cannot execute event \"%s\" for state \"%s\"", event, f.currentState))
 	}
 
 	f.currentState = trEvent.dstState
