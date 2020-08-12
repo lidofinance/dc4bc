@@ -382,7 +382,7 @@ func (f *FSM) SetState(event Event) error {
 
 	trEvent, ok := f.transitions[trKey{f.currentState, event}]
 	if !ok {
-		return errors.New("cannot change state")
+		return errors.New(fmt.Sprintf("cannot execute event \"%s\" for state \"%s\"", event, f.currentState))
 	}
 
 	f.currentState = trEvent.dstState

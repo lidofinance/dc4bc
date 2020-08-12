@@ -375,9 +375,9 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 			compareErrNil(t, err)
 		}
 
-		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGDealConfirmationReceived, requests.DKGProposalDealConfirmationRequest{
+		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGResponseConfirmationReceived, requests.DKGProposalResponseConfirmationRequest{
 			ParticipantId: participant.ParticipantId,
-			Deal:          responseMock,
+			Response:      responseMock,
 			CreatedAt:     &tm,
 		})
 
@@ -391,97 +391,3 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 	compareState(t, fsm.StateGlobalDone, fsmResponse.State)
 }
-
-/*
-func Test_SignatureProposal_Negative_By_Decline(t *testing.T) {
-	testFSMInstance, err := FromDump(testFSMDump)
-
-	compareErrNil(t, err)
-
-	compareFSMInstanceNotNil(t, testFSMInstance)
-
-	fsmResponse, dump, err := testFSMInstance.Do(spf.EventInitProposal, testParticipantsListRequest)
-
-	compareErrNil(t, err)
-
-	compareDumpNotZero(t, dump)
-
-	compareFSMResponseNotNil(t, fsmResponse)
-
-	compareState(t, spf.StateAwaitParticipantsConfirmations, fsmResponse.State)
-
-	testParticipantsListResponse, ok := fsmResponse.Data.(responses.SignatureProposalParticipantInvitationsResponse)
-
-	if !ok {
-		t.Fatalf("expected response {SignatureProposalParticipantInvitationsResponse}")
-	}
-
-	if len(testParticipantsListResponse) != len(testParticipantsListRequest.Participants) {
-		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(testParticipantsListResponse))
-	}
-
-	participantsMap := map[int]*responses.SignatureProposalParticipantInvitationEntry{}
-
-	for _, participant := range testParticipantsListResponse {
-		if _, ok := participantsMap[participant.ParticipantId]; ok {
-			t.Fatalf("expected unique {ParticipantId}")
-		}
-
-		if participant.Title == "" {
-			t.Fatalf("expected not empty {Title}")
-		}
-
-		if participant.EncryptedInvitation == "" {
-			t.Fatalf("expected not empty {DecryptedInvitation}")
-		}
-
-		if participant.PubKeyFingerprint == "" {
-			t.Fatalf("expected not empty {PubKeyFingerprint}")
-		}
-
-		participantsMap[participant.ParticipantId] = participant
-	}
-
-	tm = tm.Add(10 * time.Second)
-
-	participantsCount := len(participantsMap)
-
-	participantCounter := participantsCount
-
-	for _, participant := range participantsMap {
-		participantCounter--
-		testFSMInstance, err = FromDump(dump)
-
-		compareErrNil(t, err)
-
-		compareFSMInstanceNotNil(t, testFSMInstance)
-
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
-			t.Fatalf("not found external user data for response fingerprint")
-		}
-
-		r := rand.Reader
-		encrypted, err := rsa.DecryptPKCS1v15(r, testParticipants[participant.PubKeyFingerprint].PrivKey, []byte(participant.EncryptedInvitation))
-
-		if err != nil {
-			t.Fatalf("cannot encrypt {DecryptedInvitation} with private key")
-		}
-
-		fsmResponse, dump, err = testFSMInstance.Do(spf.EventDeclineProposal, requests.SignatureProposalParticipantRequest{
-			PubKeyFingerprint:   participant.PubKeyFingerprint,
-			DecryptedInvitation: string(encrypted),
-			CreatedAt:           &tm,
-		})
-
-		compareErrNil(t, err)
-
-		compareDumpNotZero(t, dump)
-
-		compareFSMResponseNotNil(t, fsmResponse)
-
-		compareState(t, spf.StateValidationCanceledByParticipant,  fsmResponse.State)
-
-
-	}
-}
-*/
