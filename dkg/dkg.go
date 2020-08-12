@@ -226,18 +226,17 @@ func (d *DKG) processDealCommits(verifier *vss.Verifier, deal *dkg.Deal) (bool, 
 	return true, nil
 }
 
-func (d *DKG) Reconstruct() error {
+func (d *DKG) GetMasterPubKey() (*share.PubPoly, error) {
 	if d.instance == nil || !d.instance.Certified() {
-		return fmt.Errorf("dkg instance is not ready")
+		return nil, fmt.Errorf("dkg instance is not ready")
 	}
 
 	distKeyShare, err := d.instance.DistKeyShare()
 	if err != nil {
-		return fmt.Errorf("failed to get DistKeyShare: %v", err)
+		return nil, fmt.Errorf("failed to get DistKeyShare: %v", err)
 	}
 
 	masterPubKey := share.NewPubPoly(d.suite, nil, distKeyShare.Commitments())
-	fmt.Println(d.ParticipantID, masterPubKey)
 
-	return nil
+	return masterPubKey, nil
 }

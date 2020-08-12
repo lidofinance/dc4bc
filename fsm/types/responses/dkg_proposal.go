@@ -23,3 +23,11 @@ type DKGProposalDealParticipantEntry struct {
 	Title         string
 	Deal          []byte
 }
+
+type DKGProposalResponsesParticipantResponse []*DKGProposalResponsesParticipantEntry
+
+type DKGProposalResponsesParticipantEntry struct {
+	ParticipantId int
+	Title         string
+	Responses     []byte
+}
