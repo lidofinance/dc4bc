@@ -45,5 +45,6 @@ type DKGProposalResponseConfirmationRequest struct {
 // 			"event_dkg_response_confirm_canceled_by_error"
 type DKGProposalConfirmationErrorRequest struct {
 	ParticipantId int
+	Error         error
 	CreatedAt     *time.Time
 }

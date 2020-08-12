@@ -2,7 +2,9 @@ package client
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
+	"github.com/depools/dc4bc/fsm/fsm"
 	"time"
 )
 
@@ -36,4 +38,28 @@ func (o *Operation) Check(o2 *Operation) error {
 	}
 
 	return nil
+}
+
+type FSMRequest struct {
+	Event fsm.Event
+	Args  []interface{}
+}
+
+func FSMRequestFromBytes(data []byte) (FSMRequest, error) {
+	var (
+		r   FSMRequest
+		err error
+	)
+	if err = json.Unmarshal(data, &r); err != nil {
+		return r, err
+	}
+	return r, err
+}
+
+func FSMRequestToBytes(event fsm.Event, req interface{}) ([]byte, error) {
+	fsmReq := FSMRequest{
+		Event: event,
+		Args:  []interface{}{req},
+	}
+	return json.Marshal(fsmReq)
 }
