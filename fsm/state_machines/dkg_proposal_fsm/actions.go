@@ -7,6 +7,7 @@ import (
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/requests"
+	"reflect"
 	"time"
 )
 
@@ -424,6 +425,7 @@ func (m *DKGProposalFSM) actionMasterKeyConfirmationReceived(inEvent fsm.Event, 
 func (m *DKGProposalFSM) actionValidateDkgProposalAwaitMasterKey(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	var (
 		isContainsError, isContainsExpired bool
+		masterKeys                         [][]byte
 	)
 
 	m.payloadMu.Lock()
@@ -432,6 +434,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitMasterKey(inEvent fsm.Eve
 	tm := time.Now()
 
 	unconfirmedParticipants := m.payload.DKGQuorumCount()
+
 	for _, participant := range m.payload.DKGProposalPayload.Quorum {
 		if participant.Status == internal.MasterKeyAwaitConfirmation {
 			if participant.UpdatedAt.Add(config.DkgConfirmationDeadline).Before(tm) {
@@ -441,6 +444,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitMasterKey(inEvent fsm.Eve
 			if participant.Status == internal.MasterKeyConfirmationError {
 				isContainsError = true
 			} else if participant.Status == internal.MasterKeyConfirmed {
+				masterKeys = append(masterKeys, participant.MasterKey)
 				unconfirmedParticipants--
 			}
 		}
@@ -456,12 +460,37 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitMasterKey(inEvent fsm.Eve
 		return
 	}
 
+	// Temporary simplest match master keys
+	if len(masterKeys) > 1 {
+		for i, masterKey := range masterKeys {
+			for j := range masterKeys {
+				if i == j {
+					continue
+				}
+
+				if !reflect.DeepEqual(masterKey, masterKeys[i]) {
+					for _, participant := range m.payload.DKGProposalPayload.Quorum {
+						participant.Status = internal.MasterKeyConfirmationError
+						participant.Error = errors.New("master key is mismatched")
+					}
+
+					outEvent = eventDKGMasterKeyConfirmationCancelByErrorInternal
+					return
+				}
+			}
+		}
+	}
+
 	// The are no declined and timed out participants, check for all confirmations
 	if unconfirmedParticipants > 0 {
 		return
 	}
 
 	outEvent = eventDKGMasterKeyConfirmedInternal
+
+	for _, participant := range m.payload.DKGProposalPayload.Quorum {
+		participant.Status = internal.MasterKeyConfirmed
+	}
 
 	return
 }
