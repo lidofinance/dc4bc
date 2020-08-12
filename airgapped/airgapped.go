@@ -341,6 +341,7 @@ func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.
 
 // TODO @oopcode: reconstruct key and sign handlers
 
+// HandleQR - gets an operation from a QR code, do necessary things for the operation and returns paths to QR-code images
 func (am *AirgappedMachine) HandleQR() ([]string, error) {
 	var (
 		err error
@@ -401,7 +402,7 @@ func (am *AirgappedMachine) HandleQR() ([]string, error) {
 			return nil, fmt.Errorf("failed to marshal operation: %w", err)
 		}
 
-		if err := am.qrProcessor.WriteQR(fmt.Sprintf(qrPath, resultQRFolder, o.Type, o.ID, o.To), operationBz); err != nil {
+		if err = am.qrProcessor.WriteQR(fmt.Sprintf(qrPath, resultQRFolder, o.Type, o.ID, o.To), operationBz); err != nil {
 			return nil, fmt.Errorf("failed to write QR")
 		}
 		qrPaths = append(qrPaths, qrPath)
