@@ -19,15 +19,15 @@ const (
 	StateValidationCanceledByTimeout     = fsm.State("state_sig_proposal_canceled_by_timeout")
 
 	// Out state
-	StateValidationCompleted = fsm.State("state_sig_proposal_completed")
 
 	EventInitProposal                 = fsm.Event("event_sig_proposal_init")
 	EventConfirmProposal              = fsm.Event("event_sig_proposal_confirm_by_participant")
 	EventDeclineProposal              = fsm.Event("event_sig_proposal_decline_by_participant")
-	eventValidateProposalInternal     = fsm.Event("event_sig_proposal_validate")
+	eventAutoValidateProposalInternal = fsm.Event("event_sig_proposal_validate")
 	eventSetProposalValidatedInternal = fsm.Event("event_sig_proposal_set_validated")
 
-	eventSetValidationCanceledByTimeout = fsm.Event("event_sig_proposal_canceled_timeout")
+	eventSetValidationCanceledByTimeout     = fsm.Event("event_sig_proposal_canceled_timeout")
+	eventSetValidationCanceledByParticipant = fsm.Event("event_sig_proposal_declined_timeout")
 
 	// Switch to next fsm
 
@@ -55,9 +55,10 @@ func New() internal.DumpedMachineProvider {
 			{Name: EventConfirmProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations},
 			// Is decline event should auto change state to default, or it process will initiated by client (external emit)?
 			// Now set for external emitting.
-			{Name: EventDeclineProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateValidationCanceledByParticipant},
+			{Name: EventDeclineProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations},
+			{Name: eventSetValidationCanceledByParticipant, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateValidationCanceledByParticipant, IsInternal: true},
 
-			{Name: eventValidateProposalInternal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations, IsInternal: true},
+			{Name: eventAutoValidateProposalInternal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations, IsInternal: true, IsAuto: true},
 
 			// eventProposalValidate internal or from client?
 			// yay
@@ -67,10 +68,11 @@ func New() internal.DumpedMachineProvider {
 			{Name: eventSetValidationCanceledByTimeout, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateValidationCanceledByTimeout, IsInternal: true},
 		},
 		fsm.Callbacks{
-			EventInitProposal:             machine.actionInitProposal,
-			EventConfirmProposal:          machine.actionProposalResponseByParticipant,
-			EventDeclineProposal:          machine.actionProposalResponseByParticipant,
-			eventValidateProposalInternal: machine.actionValidateProposal,
+			EventInitProposal:                 machine.actionInitProposal,
+			EventConfirmProposal:              machine.actionProposalResponseByParticipant,
+			EventDeclineProposal:              machine.actionProposalResponseByParticipant,
+			eventAutoValidateProposalInternal: machine.actionValidateSignatureProposal,
+			eventSetProposalValidatedInternal: machine.actionSetValidatedSignatureProposal,
 		},
 	)
 	return machine

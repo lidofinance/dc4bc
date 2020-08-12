@@ -66,7 +66,7 @@ func Create() (*FSMInstance, error) {
 	return i, err
 }
 
-// Get fsm from dump
+// DKGQuorumGet fsm from dump
 func FromDump(data []byte) (*FSMInstance, error) {
 	var err error
 
@@ -127,9 +127,9 @@ func (i *FSMInstance) InitDump(transactionId string) error {
 		TransactionId: transactionId,
 		State:         fsm.StateGlobalIdle,
 		Payload: &internal.DumpedMachineStatePayload{
-			TransactionId:               transactionId,
-			ConfirmationProposalPayload: nil,
-			DKGProposalPayload:          nil,
+			TransactionId:            transactionId,
+			SignatureProposalPayload: nil,
+			DKGProposalPayload:       nil,
 		},
 	}
 	return nil
@@ -149,6 +149,13 @@ func (i *FSMInstance) Id() string {
 	return ""
 }
 
+func (i *FSMInstance) Dump() ([]byte, error) {
+	if i.dump == nil {
+		return []byte{}, errors.New("dump is not initialized")
+	}
+	return i.dump.Marshal()
+}
+
 // TODO: Add encryption
 func (d *FSMDump) Marshal() ([]byte, error) {
 	return json.Marshal(d)
@@ -157,7 +164,7 @@ func (d *FSMDump) Marshal() ([]byte, error) {
 // TODO: Add decryption
 func (d *FSMDump) Unmarshal(data []byte) error {
 	if d == nil {
-		return errors.New("dump struct is not initialized")
+		return errors.New("dump is not initialized")
 	}
 
 	return json.Unmarshal(data, d)

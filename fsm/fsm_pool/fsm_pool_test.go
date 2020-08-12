@@ -23,9 +23,9 @@ const (
 	fsm1StateStage1 = fsm.State("state_fsm1_stage1")
 	// Process data
 	fsm1StateStage2 = fsm.State("state_fsm1_stage2")
-	// Cancelled with internal event
+	// Canceled with internal event
 	fsm1StateCanceledByInternal = fsm.State("state_fsm1_canceled")
-	// Cancelled with external event
+	// Canceled with external event
 	fsm1StateCanceled2 = fsm.State("state_fsm1_canceled2")
 	// Out endpoint to switch
 	fsm1StateOutToFSM2 = fsm.State("state_fsm1_out_to_fsm2")
@@ -108,7 +108,7 @@ const (
 	// Process data
 	fsm2StateStage1 = fsm.State("state_fsm2_stage1")
 	fsm2StateStage2 = fsm.State("state_fsm2_stage2")
-	// Cancelled with internal event
+	// Canceled with internal event
 	fsm2StateCanceledByInternal = fsm.State("state_fsm2_canceled")
 	// Out endpoint to switch
 	fsm2StateOutToFSM3 = fsm.State("state_fsm2_out_to_fsm3")
