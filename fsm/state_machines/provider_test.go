@@ -265,7 +265,7 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGPubKeyConfirmationReceived, requests.DKGProposalPubKeyConfirmationRequest{
 			ParticipantId: participant.ParticipantId,
 			PubKey:        pubKeyMock,
-			CreatedAt:     &tm,
+			CreatedAt:     tm,
 		})
 
 		compareErrNil(t, err)
@@ -306,7 +306,7 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGCommitConfirmationReceived, requests.DKGProposalCommitConfirmationRequest{
 			ParticipantId: participant.ParticipantId,
 			Commit:        commitMock,
-			CreatedAt:     &tm,
+			CreatedAt:     tm,
 		})
 
 		compareErrNil(t, err)
@@ -342,7 +342,7 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGDealConfirmationReceived, requests.DKGProposalDealConfirmationRequest{
 			ParticipantId: participant.ParticipantId,
 			Deal:          dealMock,
-			CreatedAt:     &tm,
+			CreatedAt:     tm,
 		})
 
 		compareErrNil(t, err)
@@ -378,7 +378,43 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGResponseConfirmationReceived, requests.DKGProposalResponseConfirmationRequest{
 			ParticipantId: participant.ParticipantId,
 			Response:      responseMock,
-			CreatedAt:     &tm,
+			CreatedAt:     tm,
+		})
+
+		compareErrNil(t, err)
+
+		compareDumpNotZero(t, dump)
+
+		compareFSMResponseNotNil(t, fsmResponse)
+
+	}
+
+	compareState(t, dpf.StateDkgMasterKeyAwaitConfirmations, fsmResponse.State)
+
+	// Master keys
+
+	masterKeyMock := make([]byte, 128)
+	_, err = rand.Read(masterKeyMock)
+	if err != nil {
+		compareErrNil(t, err)
+	}
+
+	for _, participant := range participantsMap {
+		participantCounter--
+		testFSMInstance, err = FromDump(dump)
+
+		compareErrNil(t, err)
+
+		compareFSMInstanceNotNil(t, testFSMInstance)
+
+		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
+			t.Fatalf("not found external user data for response fingerprint")
+		}
+
+		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGMasterKeyConfirmationReceived, requests.DKGProposalMasterKeyConfirmationRequest{
+			ParticipantId: participant.ParticipantId,
+			MasterKey:     masterKeyMock,
+			CreatedAt:     tm,
 		})
 
 		compareErrNil(t, err)
@@ -390,4 +426,8 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 	}
 
 	compareState(t, fsm.StateGlobalDone, fsmResponse.State)
+}
+
+func Test_DKGProposal_Positive(t *testing.T) {
+
 }

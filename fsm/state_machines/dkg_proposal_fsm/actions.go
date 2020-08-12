@@ -32,12 +32,12 @@ func (m *DKGProposalFSM) actionPubKeyConfirmationReceived(inEvent fsm.Event, arg
 		return
 	}
 
-	dkgProposalParticipant, ok := m.payload.DKGProposalPayload[request.ParticipantId]
-
-	if !ok {
+	if !m.payload.DKGQuorumExists(request.ParticipantId) {
 		err = errors.New("{ParticipantId} not exist in quorum")
 		return
 	}
+
+	dkgProposalParticipant := m.payload.DKGQuorumGet(request.ParticipantId)
 
 	if dkgProposalParticipant.Status != internal.PubKeyAwaitConfirmation {
 		err = errors.New(fmt.Sprintf("cannot confirm pubkey with {Status} = {\"%s\"}", dkgProposalParticipant.Status))
@@ -45,10 +45,10 @@ func (m *DKGProposalFSM) actionPubKeyConfirmationReceived(inEvent fsm.Event, arg
 	}
 
 	copy(dkgProposalParticipant.PubKey, request.PubKey)
-	dkgProposalParticipant.UpdatedAt = request.CreatedAt
+	dkgProposalParticipant.UpdatedAt = &request.CreatedAt
 	dkgProposalParticipant.Status = internal.PubKeyConfirmed
 
-	m.payload.DKGProposalPayload[request.ParticipantId] = dkgProposalParticipant
+	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
 	return
 }
@@ -63,8 +63,8 @@ func (m *DKGProposalFSM) actionValidateDkgProposalPubKeys(inEvent fsm.Event, arg
 
 	tm := time.Now()
 
-	unconfirmedParticipants := len(m.payload.DKGProposalPayload)
-	for _, participant := range m.payload.DKGProposalPayload {
+	unconfirmedParticipants := m.payload.DKGQuorumCount()
+	for _, participant := range m.payload.DKGProposalPayload.Quorum {
 		if participant.Status == internal.PubKeyAwaitConfirmation {
 			if participant.UpdatedAt.Add(config.DkgConfirmationDeadline).Before(tm) {
 				isContainsExpired = true
@@ -95,7 +95,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalPubKeys(inEvent fsm.Event, arg
 
 	outEvent = eventDKGSetPubKeysConfirmedInternal
 
-	for _, participant := range m.payload.DKGProposalPayload {
+	for _, participant := range m.payload.DKGProposalPayload.Quorum {
 		participant.Status = internal.CommitAwaitConfirmation
 	}
 
@@ -124,12 +124,12 @@ func (m *DKGProposalFSM) actionCommitConfirmationReceived(inEvent fsm.Event, arg
 		return
 	}
 
-	dkgProposalParticipant, ok := m.payload.DKGProposalPayload[request.ParticipantId]
-
-	if !ok {
+	if !m.payload.DKGQuorumExists(request.ParticipantId) {
 		err = errors.New("{ParticipantId} not exist in quorum")
 		return
 	}
+
+	dkgProposalParticipant := m.payload.DKGQuorumGet(request.ParticipantId)
 
 	if dkgProposalParticipant.Status != internal.CommitAwaitConfirmation {
 		err = errors.New(fmt.Sprintf("cannot confirm commit with {Status} = {\"%s\"}", dkgProposalParticipant.Status))
@@ -137,10 +137,10 @@ func (m *DKGProposalFSM) actionCommitConfirmationReceived(inEvent fsm.Event, arg
 	}
 
 	copy(dkgProposalParticipant.Commit, request.Commit)
-	dkgProposalParticipant.UpdatedAt = request.CreatedAt
+	dkgProposalParticipant.UpdatedAt = &request.CreatedAt
 	dkgProposalParticipant.Status = internal.CommitConfirmed
 
-	m.payload.DKGProposalPayload[request.ParticipantId] = dkgProposalParticipant
+	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
 	return
 }
@@ -155,10 +155,10 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitCommits(inEvent fsm.Event
 
 	tm := time.Now()
 
-	unconfirmedParticipants := len(m.payload.DKGProposalPayload)
-	for _, participant := range m.payload.DKGProposalPayload {
+	unconfirmedParticipants := m.payload.DKGQuorumCount()
+	for _, participant := range m.payload.DKGProposalPayload.Quorum {
 		if participant.Status == internal.CommitAwaitConfirmation {
-			if participant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(tm) {
+			if participant.UpdatedAt.Add(config.DkgConfirmationDeadline).Before(tm) {
 				isContainsExpired = true
 			}
 		} else {
@@ -187,7 +187,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitCommits(inEvent fsm.Event
 
 	outEvent = eventDKGCommitsConfirmedInternal
 
-	for _, participant := range m.payload.DKGProposalPayload {
+	for _, participant := range m.payload.DKGProposalPayload.Quorum {
 		participant.Status = internal.DealAwaitConfirmation
 	}
 
@@ -216,12 +216,12 @@ func (m *DKGProposalFSM) actionDealConfirmationReceived(inEvent fsm.Event, args 
 		return
 	}
 
-	dkgProposalParticipant, ok := m.payload.DKGProposalPayload[request.ParticipantId]
-
-	if !ok {
+	if !m.payload.DKGQuorumExists(request.ParticipantId) {
 		err = errors.New("{ParticipantId} not exist in quorum")
 		return
 	}
+
+	dkgProposalParticipant := m.payload.DKGQuorumGet(request.ParticipantId)
 
 	if dkgProposalParticipant.Status != internal.DealAwaitConfirmation {
 		err = errors.New(fmt.Sprintf("cannot confirm deal with {Status} = {\"%s\"}", dkgProposalParticipant.Status))
@@ -229,10 +229,10 @@ func (m *DKGProposalFSM) actionDealConfirmationReceived(inEvent fsm.Event, args 
 	}
 
 	copy(dkgProposalParticipant.Deal, request.Deal)
-	dkgProposalParticipant.UpdatedAt = request.CreatedAt
+	dkgProposalParticipant.UpdatedAt = &request.CreatedAt
 	dkgProposalParticipant.Status = internal.DealConfirmed
 
-	m.payload.DKGProposalPayload[request.ParticipantId] = dkgProposalParticipant
+	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
 	return
 }
@@ -247,10 +247,10 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 
 	tm := time.Now()
 
-	unconfirmedParticipants := len(m.payload.DKGProposalPayload)
-	for _, participant := range m.payload.DKGProposalPayload {
+	unconfirmedParticipants := m.payload.DKGQuorumCount()
+	for _, participant := range m.payload.DKGProposalPayload.Quorum {
 		if participant.Status == internal.DealAwaitConfirmation {
-			if participant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(tm) {
+			if participant.UpdatedAt.Add(config.DkgConfirmationDeadline).Before(tm) {
 				isContainsExpired = true
 			}
 		} else {
@@ -279,7 +279,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 
 	outEvent = eventDKGDealsConfirmedInternal
 
-	for _, participant := range m.payload.DKGProposalPayload {
+	for _, participant := range m.payload.DKGProposalPayload.Quorum {
 		participant.Status = internal.ResponseAwaitConfirmation
 	}
 
@@ -308,12 +308,12 @@ func (m *DKGProposalFSM) actionResponseConfirmationReceived(inEvent fsm.Event, a
 		return
 	}
 
-	dkgProposalParticipant, ok := m.payload.DKGProposalPayload[request.ParticipantId]
-
-	if !ok {
+	if !m.payload.DKGQuorumExists(request.ParticipantId) {
 		err = errors.New("{ParticipantId} not exist in quorum")
 		return
 	}
+
+	dkgProposalParticipant := m.payload.DKGQuorumGet(request.ParticipantId)
 
 	if dkgProposalParticipant.Status != internal.ResponseAwaitConfirmation {
 		err = errors.New(fmt.Sprintf("cannot confirm response with {Status} = {\"%s\"}", dkgProposalParticipant.Status))
@@ -321,10 +321,10 @@ func (m *DKGProposalFSM) actionResponseConfirmationReceived(inEvent fsm.Event, a
 	}
 
 	copy(dkgProposalParticipant.Response, request.Response)
-	dkgProposalParticipant.UpdatedAt = request.CreatedAt
+	dkgProposalParticipant.UpdatedAt = &request.CreatedAt
 	dkgProposalParticipant.Status = internal.ResponseConfirmed
 
-	m.payload.DKGProposalPayload[request.ParticipantId] = dkgProposalParticipant
+	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
 	return
 }
@@ -339,10 +339,10 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitResponses(inEvent fsm.Eve
 
 	tm := time.Now()
 
-	unconfirmedParticipants := len(m.payload.DKGProposalPayload)
-	for _, participant := range m.payload.DKGProposalPayload {
+	unconfirmedParticipants := m.payload.DKGQuorumCount()
+	for _, participant := range m.payload.DKGProposalPayload.Quorum {
 		if participant.Status == internal.ResponseAwaitConfirmation {
-			if participant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(tm) {
+			if participant.UpdatedAt.Add(config.DkgConfirmationDeadline).Before(tm) {
 				isContainsExpired = true
 			}
 		} else {
@@ -371,6 +371,98 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitResponses(inEvent fsm.Eve
 
 	outEvent = eventDKGResponsesConfirmedInternal
 
+	for _, participant := range m.payload.DKGProposalPayload.Quorum {
+		participant.Status = internal.MasterKeyAwaitConfirmation
+	}
+
+	return
+}
+
+// Master key
+
+func (m *DKGProposalFSM) actionMasterKeyConfirmationReceived(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+	m.payloadMu.Lock()
+	defer m.payloadMu.Unlock()
+
+	if len(args) != 1 {
+		err = errors.New("{arg0} required {DKGProposalMasterKeyConfirmationRequest}")
+		return
+	}
+
+	request, ok := args[0].(requests.DKGProposalMasterKeyConfirmationRequest)
+
+	if !ok {
+		err = errors.New("cannot cast {arg0} to type {DKGProposalMasterKeyConfirmationRequest}")
+		return
+	}
+
+	if err = request.Validate(); err != nil {
+		return
+	}
+
+	if !m.payload.DKGQuorumExists(request.ParticipantId) {
+		err = errors.New("{ParticipantId} not exist in quorum")
+		return
+	}
+
+	dkgProposalParticipant := m.payload.DKGQuorumGet(request.ParticipantId)
+
+	if dkgProposalParticipant.Status != internal.MasterKeyAwaitConfirmation {
+		err = errors.New(fmt.Sprintf("cannot confirm response with {Status} = {\"%s\"}", dkgProposalParticipant.Status))
+		return
+	}
+
+	copy(dkgProposalParticipant.MasterKey, request.MasterKey)
+	dkgProposalParticipant.UpdatedAt = &request.CreatedAt
+	dkgProposalParticipant.Status = internal.MasterKeyConfirmed
+
+	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
+
+	return
+}
+
+func (m *DKGProposalFSM) actionValidateDkgProposalAwaitMasterKey(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+	var (
+		isContainsError, isContainsExpired bool
+	)
+
+	m.payloadMu.Lock()
+	defer m.payloadMu.Unlock()
+
+	tm := time.Now()
+
+	unconfirmedParticipants := m.payload.DKGQuorumCount()
+	for _, participant := range m.payload.DKGProposalPayload.Quorum {
+		if participant.Status == internal.MasterKeyAwaitConfirmation {
+			if participant.UpdatedAt.Add(config.DkgConfirmationDeadline).Before(tm) {
+				isContainsExpired = true
+			}
+		} else {
+			if participant.Status == internal.MasterKeyConfirmationError {
+				isContainsError = true
+			} else if participant.Status == internal.MasterKeyConfirmed {
+				unconfirmedParticipants--
+			}
+		}
+	}
+
+	if isContainsError {
+		outEvent = eventDKGMasterKeyConfirmationCancelByErrorInternal
+		return
+	}
+
+	if isContainsExpired {
+		outEvent = eventDKGMasterKeyConfirmationCancelByTimeoutInternal
+		return
+	}
+
+	// The are no declined and timed out participants, check for all confirmations
+	if unconfirmedParticipants > 0 {
+		return
+	}
+
+	outEvent = eventDKGMasterKeyConfirmedInternal
+
 	return
 }
 
@@ -395,12 +487,12 @@ func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...inte
 		return
 	}
 
-	dkgProposalParticipant, ok := m.payload.DKGProposalPayload[request.ParticipantId]
-
-	if !ok {
+	if !m.payload.DKGQuorumExists(request.ParticipantId) {
 		err = errors.New("{ParticipantId} not exist in quorum")
 		return
 	}
+
+	dkgProposalParticipant := m.payload.DKGQuorumGet(request.ParticipantId)
 
 	// TODO: Move to methods
 	switch inEvent {
@@ -431,13 +523,13 @@ func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...inte
 			err = errors.New(fmt.Sprintf(
 				"{Status} now is \"%s\" and cannot set to {\"%s\"}",
 				dkgProposalParticipant.Status,
-				internal.PubKeyConfirmationError,
+				internal.CommitConfirmationError,
 			))
 		}
 	case EventDKGDealConfirmationError:
 		switch dkgProposalParticipant.Status {
 		case internal.DealAwaitConfirmation:
-			dkgProposalParticipant.Status = internal.PubKeyConfirmationError
+			dkgProposalParticipant.Status = internal.DealConfirmationError
 		case internal.DealConfirmed:
 			err = errors.New("{Status} already confirmed")
 		case internal.DealConfirmationError:
@@ -446,13 +538,13 @@ func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...inte
 			err = errors.New(fmt.Sprintf(
 				"{Status} now is \"%s\" and cannot set to {\"%s\"}",
 				dkgProposalParticipant.Status,
-				internal.PubKeyConfirmationError,
+				internal.DealConfirmationError,
 			))
 		}
 	case EventDKGResponseConfirmationError:
 		switch dkgProposalParticipant.Status {
 		case internal.ResponseAwaitConfirmation:
-			dkgProposalParticipant.Status = internal.PubKeyConfirmationError
+			dkgProposalParticipant.Status = internal.ResponseConfirmationError
 		case internal.ResponseConfirmed:
 			err = errors.New("{Status} already confirmed")
 		case internal.ResponseConfirmationError:
@@ -461,7 +553,22 @@ func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...inte
 			err = errors.New(fmt.Sprintf(
 				"{Status} now is \"%s\" and cannot set to {\"%s\"}",
 				dkgProposalParticipant.Status,
-				internal.PubKeyConfirmationError,
+				internal.ResponseConfirmationError,
+			))
+		}
+	case EventDKGMasterKeyConfirmationError:
+		switch dkgProposalParticipant.Status {
+		case internal.MasterKeyAwaitConfirmation:
+			dkgProposalParticipant.Status = internal.MasterKeyConfirmationError
+		case internal.MasterKeyConfirmed:
+			err = errors.New("{Status} already confirmed")
+		case internal.MasterKeyConfirmationError:
+			err = errors.New(fmt.Sprintf("{Status} already has {\"%s\"}", internal.MasterKeyConfirmationError))
+		default:
+			err = errors.New(fmt.Sprintf(
+				"{Status} now is \"%s\" and cannot set to {\"%s\"}",
+				dkgProposalParticipant.Status,
+				internal.MasterKeyConfirmationError,
 			))
 		}
 	default:
@@ -472,9 +579,10 @@ func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...inte
 		return
 	}
 
-	dkgProposalParticipant.UpdatedAt = request.CreatedAt
+	dkgProposalParticipant.Error = request.Error
+	dkgProposalParticipant.UpdatedAt = &request.CreatedAt
 
-	m.payload.DKGProposalPayload[request.ParticipantId] = dkgProposalParticipant
+	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
 	// TODO: Add outEvent
 

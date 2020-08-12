@@ -66,7 +66,7 @@ func Create() (*FSMInstance, error) {
 	return i, err
 }
 
-// Get fsm from dump
+// DKGQuorumGet fsm from dump
 func FromDump(data []byte) (*FSMInstance, error) {
 	var err error
 
@@ -127,9 +127,9 @@ func (i *FSMInstance) InitDump(transactionId string) error {
 		TransactionId: transactionId,
 		State:         fsm.StateGlobalIdle,
 		Payload: &internal.DumpedMachineStatePayload{
-			TransactionId:               transactionId,
-			ConfirmationProposalPayload: nil,
-			DKGProposalPayload:          nil,
+			TransactionId:            transactionId,
+			SignatureProposalPayload: nil,
+			DKGProposalPayload:       nil,
 		},
 	}
 	return nil

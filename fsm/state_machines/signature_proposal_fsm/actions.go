@@ -34,7 +34,9 @@ func (m *SignatureProposalFSM) actionInitProposal(inEvent fsm.Event, args ...int
 		return
 	}
 
-	m.payload.ConfirmationProposalPayload = make(internal.SignatureProposalQuorum)
+	m.payload.SignatureProposalPayload = &internal.SignatureConfirmation{
+		Quorum: make(internal.SignatureProposalQuorum),
+	}
 
 	for index, participant := range request.Participants {
 		participantId := createFingerprint(&participant.PubKey)
@@ -49,7 +51,7 @@ func (m *SignatureProposalFSM) actionInitProposal(inEvent fsm.Event, args ...int
 			return inEvent, nil, errors.New("cannot parse {PubKey}")
 		}
 
-		m.payload.ConfirmationProposalPayload[participantId] = &internal.SignatureProposalParticipant{
+		m.payload.SignatureProposalPayload.Quorum[participantId] = &internal.SignatureProposalParticipant{
 			ParticipantId:    index,
 			Title:            participant.Title,
 			PublicKey:        parsedPubKey,
@@ -60,7 +62,7 @@ func (m *SignatureProposalFSM) actionInitProposal(inEvent fsm.Event, args ...int
 	}
 
 	// Checking fo quorum length
-	if len(m.payload.ConfirmationProposalPayload) != len(request.Participants) {
+	if m.payload.SigQuorumCount() != len(request.Participants) {
 		err = errors.New("error with creating {SignatureProposalQuorum}")
 		return
 	}
@@ -69,7 +71,7 @@ func (m *SignatureProposalFSM) actionInitProposal(inEvent fsm.Event, args ...int
 
 	responseData := make(responses.SignatureProposalParticipantInvitationsResponse, 0)
 
-	for pubKeyFingerprint, proposal := range m.payload.ConfirmationProposalPayload {
+	for pubKeyFingerprint, proposal := range m.payload.SignatureProposalPayload.Quorum {
 		encryptedInvitationSecret, err := encryptWithPubKey(proposal.PublicKey, proposal.InvitationSecret)
 		if err != nil {
 			return inEvent, nil, errors.New("cannot encryptWithPubKey")
@@ -108,12 +110,12 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 		return
 	}
 
-	signatureProposalParticipant, ok := m.payload.ConfirmationProposalPayload[request.PubKeyFingerprint]
-
-	if !ok {
+	if !m.payload.SigQuorumExists(request.PubKeyFingerprint) {
 		err = errors.New("{PubKeyFingerprint} not exist in quorum")
 		return
 	}
+
+	signatureProposalParticipant := m.payload.SigQuorumGet(request.PubKeyFingerprint)
 
 	if signatureProposalParticipant.InvitationSecret != request.DecryptedInvitation {
 		err = errors.New("{InvitationSecret} not match {DecryptedInvitation}")
@@ -142,7 +144,7 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 
 	signatureProposalParticipant.UpdatedAt = request.CreatedAt
 
-	m.payload.ConfirmationProposalPayload[request.PubKeyFingerprint] = signatureProposalParticipant
+	m.payload.SigQuorumUpdate(request.PubKeyFingerprint, signatureProposalParticipant)
 
 	return
 }
@@ -157,8 +159,8 @@ func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event
 
 	tm := time.Now()
 
-	unconfirmedParticipants := len(m.payload.ConfirmationProposalPayload)
-	for _, participant := range m.payload.ConfirmationProposalPayload {
+	unconfirmedParticipants := m.payload.SigQuorumCount()
+	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
 		if participant.Status == internal.SignatureConfirmationAwaitConfirmation {
 			if participant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(tm) {
 				isContainsExpired = true
@@ -203,17 +205,19 @@ func (m *SignatureProposalFSM) actionSetValidatedSignatureProposal(inEvent fsm.E
 		return
 	}
 
-	m.payload.DKGProposalPayload = make(internal.DKGProposalQuorum)
+	m.payload.DKGProposalPayload = &internal.DKGConfirmation{
+		Quorum: make(internal.DKGProposalQuorum),
+	}
 
-	for _, participant := range m.payload.ConfirmationProposalPayload {
-		m.payload.DKGProposalPayload[participant.ParticipantId] = &internal.DKGProposalParticipant{
+	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
+		m.payload.DKGProposalPayload.Quorum[participant.ParticipantId] = &internal.DKGProposalParticipant{
 			Title:     participant.Title,
 			Status:    internal.PubKeyAwaitConfirmation,
 			UpdatedAt: participant.UpdatedAt,
 		}
 	}
 
-	// Remove m.payload.ConfirmationProposalPayload?
+	// Remove m.payload.SignatureProposalPayload?
 
 	return
 }
@@ -224,7 +228,7 @@ func (m *SignatureProposalFSM) actionSignatureProposalCanceledByTimeout(inEvent 
 
 	responseData := make(responses.SignatureProposalParticipantStatusResponse, 0)
 
-	for pubKeyFingerprint, participant := range m.payload.ConfirmationProposalPayload {
+	for pubKeyFingerprint, participant := range m.payload.SignatureProposalPayload.Quorum {
 		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
 			ParticipantId:     participant.ParticipantId,
 			Title:             participant.Title,

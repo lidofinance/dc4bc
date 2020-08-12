@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type ConfirmationProposal struct {
+type SignatureConfirmation struct {
 	Quorum    SignatureProposalQuorum
 	CreatedAt *time.Time
 	ExpiresAt *time.Time
@@ -45,6 +45,9 @@ const (
 	ResponseAwaitConfirmation
 	ResponseConfirmed
 	ResponseConfirmationError
+	MasterKeyAwaitConfirmation
+	MasterKeyConfirmed
+	MasterKeyConfirmationError
 )
 
 type DKGProposalParticipant struct {
@@ -53,11 +56,19 @@ type DKGProposalParticipant struct {
 	Commit    []byte
 	Deal      []byte
 	Response  []byte
+	MasterKey []byte
 	Status    ParticipantStatus
+	Error     error
 	UpdatedAt *time.Time
 }
 
 type DKGProposalQuorum map[int]*DKGProposalParticipant
+
+type DKGConfirmation struct {
+	Quorum    DKGProposalQuorum
+	CreatedAt *time.Time
+	ExpiresAt *time.Time
+}
 
 type DKGProposalParticipantStatus uint8
 

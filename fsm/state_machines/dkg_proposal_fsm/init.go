@@ -30,7 +30,7 @@ const (
 	StateDkgDealsAwaitConfirmations = fsm.State("state_dkg_deals_await_confirmations")
 	// Canceled
 	StateDkgDealsAwaitCanceled          = fsm.State("state_dkg_deals_await_canceled")
-	StateDkgDealsAwaitCanceledByTimeout = fsm.State("state_dkg_deals_sending_canceled_by_timeout")
+	StateDkgDealsAwaitCanceledByTimeout = fsm.State("state_dkg_deals_await_canceled_by_timeout")
 	// Confirmed
 	//StateDkgDealsAwaitConfirmed = fsm.State("state_dkg_deals_await_confirmed")
 
@@ -40,6 +40,10 @@ const (
 	StateDkgResponsesAwaitCanceledByTimeout = fsm.State("state_dkg_responses_sending_canceled_by_timeout")
 	// Confirmed
 	StateDkgResponsesAwaitConfirmed = fsm.State("state_dkg_responses_await_confirmed")
+
+	StateDkgMasterKeyAwaitConfirmations     = fsm.State("state_dkg_master_key_await_confirmations")
+	StateDkgMasterKeyAwaitCanceled          = fsm.State("state_dkg_master_key_await_canceled")
+	StateDkgMasterKeyAwaitCanceledByTimeout = fsm.State("state_dkg_master_key_await_canceled_by_timeout")
 
 	// Events
 
@@ -74,6 +78,13 @@ const (
 	eventDKGResponseConfirmationCancelByErrorInternal   = fsm.Event("event_dkg_response_confirm_canceled_by_error_internal")
 	eventDKGResponsesConfirmedInternal                  = fsm.Event("event_dkg_responses_confirmed_internal")
 	eventAutoDKGValidateResponsesConfirmationInternal   = fsm.Event("event_dkg_responses_validate_internal")
+
+	EventDKGMasterKeyConfirmationReceived                = fsm.Event("event_dkg_master_key_confirm_received")
+	EventDKGMasterKeyConfirmationError                   = fsm.Event("event_dkg_master_key_confirm_canceled_by_error")
+	eventDKGMasterKeyConfirmationCancelByTimeoutInternal = fsm.Event("event_dkg_master_key_confirm_canceled_by_timeout_internal")
+	eventDKGMasterKeyConfirmationCancelByErrorInternal   = fsm.Event("event_dkg_master_key_confirm_canceled_by_error_internal")
+	eventDKGMasterKeyConfirmedInternal                   = fsm.Event("event_dkg_master_key_confirmed_internal")
+	eventAutoDKGValidateMasterKeyConfirmationInternal    = fsm.Event("event_dkg_master_key_validate_internal")
 
 	EventDKGMasterKeyRequiredInternal = fsm.Event("event_dkg_master_key_required_internal")
 )
@@ -139,7 +150,17 @@ func New() internal.DumpedMachineProvider {
 
 			{Name: eventAutoDKGValidateResponsesConfirmationInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitConfirmations, IsInternal: true, IsAuto: true},
 
-			{Name: eventDKGResponsesConfirmedInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: fsm.StateGlobalDone, IsInternal: true},
+			{Name: eventDKGResponsesConfirmedInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitConfirmations, IsInternal: true},
+
+			// Master key
+
+			{Name: EventDKGMasterKeyConfirmationReceived, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitConfirmations},
+			{Name: EventDKGMasterKeyConfirmationError, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitCanceled},
+			{Name: eventDKGMasterKeyConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitCanceledByTimeout, IsInternal: true},
+
+			{Name: eventAutoDKGValidateMasterKeyConfirmationInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitConfirmations, IsInternal: true, IsAuto: true},
+
+			{Name: eventDKGMasterKeyConfirmedInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: fsm.StateGlobalDone, IsInternal: true},
 
 			// Done
 			// {Name: EventDKGMasterKeyRequiredInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: fsm.StateGlobalDone, IsInternal: true},
@@ -161,6 +182,10 @@ func New() internal.DumpedMachineProvider {
 			EventDKGResponseConfirmationReceived:              machine.actionResponseConfirmationReceived,
 			EventDKGResponseConfirmationError:                 machine.actionConfirmationError,
 			eventAutoDKGValidateResponsesConfirmationInternal: machine.actionValidateDkgProposalAwaitResponses,
+
+			EventDKGMasterKeyConfirmationReceived:             machine.actionMasterKeyConfirmationReceived,
+			EventDKGMasterKeyConfirmationError:                machine.actionConfirmationError,
+			eventAutoDKGValidateMasterKeyConfirmationInternal: machine.actionValidateDkgProposalAwaitMasterKey,
 		},
 	)
 	return machine
