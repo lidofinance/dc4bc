@@ -274,11 +274,6 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 		compareFSMResponseNotNil(t, fsmResponse)
 
-		/*if participantCounter > 0 {
-			compareState(t, dpf.StateDkgPubKeysAwaitConfirmations, fsmResponse.State)
-		} else {
-			compareState(t, dpf.StateDkgCommitsAwaitConfirmations, fsmResponse.State)
-		}*/
 	}
 
 	compareState(t, dpf.StateDkgCommitsAwaitConfirmations, fsmResponse.State)
