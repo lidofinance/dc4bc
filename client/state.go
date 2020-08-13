@@ -13,14 +13,15 @@ import (
 const (
 	offsetKey     = "offset"
 	operationsKey = "operations"
+	fsmStateKey   = "fsm_state"
 )
 
 type State interface {
 	SaveOffset(uint64) error
 	LoadOffset() (uint64, error)
 
-	SaveFSM(interface{}) error
-	LoadFSM() (interface{}, error)
+	SaveFSM([]byte) error
+	LoadFSM() ([]byte, error)
 
 	PutOperation(operation *Operation) error
 	DeleteOperation(operationID string) error
@@ -95,13 +96,16 @@ func (s *LevelDBState) LoadOffset() (uint64, error) {
 }
 
 // TODO: implement.
-func (s *LevelDBState) SaveFSM(interface{}) error {
+func (s *LevelDBState) SaveFSM(fsmState []byte) error {
+	if err := s.stateDb.Put([]byte(fsmStateKey), fsmState, nil); err != nil {
+		return fmt.Errorf("failed to save fsm state: %w", err)
+	}
 	return nil
 }
 
 // TODO: implement.
-func (s *LevelDBState) LoadFSM() (interface{}, error) {
-	return nil, nil
+func (s *LevelDBState) LoadFSM() ([]byte, error) {
+	return s.stateDb.Get([]byte(fsmStateKey), nil)
 }
 
 func (s *LevelDBState) PutOperation(operation *Operation) error {
