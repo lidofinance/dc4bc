@@ -114,12 +114,14 @@ func Init(machines ...MachineProvider) *FSMPool {
 					p.states[state] = initMachineName
 					continue
 				}
-			}
-			if name, exists := p.states[state]; exists && name != machineName {
-				panic(fmt.Sprintf("duplicate state for machines \"%s\"", state))
+			} else {
+				if name, exists := p.states[state]; exists && name != machineName {
+					panic(fmt.Sprintf("duplicate state for machines \"%s\"", state))
+				}
+
+				p.states[state] = machineName
 			}
 
-			p.states[state] = machineName
 		}
 	}
 

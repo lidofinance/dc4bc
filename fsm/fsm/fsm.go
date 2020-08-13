@@ -380,6 +380,8 @@ func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err err
 		}
 	}
 
+	resp.State = f.State()
+
 	return
 }
 
