@@ -91,6 +91,10 @@ func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.
 		err     error
 	)
 
+	if _, ok := am.dkgInstances[o.DKGIdentifier]; ok {
+		return fmt.Errorf("dkg instance %s already exists", o.DKGIdentifier)
+	}
+
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
@@ -113,7 +117,7 @@ func (am *AirgappedMachine) GetPubKey() kyber.Point {
 
 func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) error {
 	var (
-		payload responses.DKGProposalPubKeyParticipantResponse
+		payload responses.SignatureProposalParticipantStatusResponse
 		err     error
 	)
 
@@ -128,10 +132,10 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 
 	for _, entry := range payload {
 		pubKey := bn256.NewSuiteG2().Point()
-		if err = pubKey.UnmarshalBinary(entry.PubKey); err != nil {
+		if err = pubKey.UnmarshalBinary(entry.DkgPubKey); err != nil {
 			return fmt.Errorf("failed to unmarshal pubkey: %w", err)
 		}
-		dkgInstance.StorePubKey(entry.Title, pubKey)
+		dkgInstance.StorePubKey(entry.Title, entry.ParticipantId, pubKey)
 	}
 
 	if err = dkgInstance.InitDKGInstance(); err != nil {

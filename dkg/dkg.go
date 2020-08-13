@@ -63,13 +63,18 @@ func (d *DKG) GetParticipantByIndex(index int) string {
 	return d.pubkeys.GetParticipantByIndex(index)
 }
 
-func (d *DKG) StorePubKey(participant string, pk kyber.Point) bool {
+func (d *DKG) GetPKByIndex(index int) kyber.Point {
+	return d.pubkeys.GetPKByIndex(index)
+}
+
+func (d *DKG) StorePubKey(participant string, pid int, pk kyber.Point) bool {
 	d.Lock()
 	defer d.Unlock()
 
 	return d.pubkeys.Add(&PK2Participant{
-		Participant: participant,
-		PK:          pk,
+		Participant:   participant,
+		PK:            pk,
+		ParticipantID: pid,
 	})
 }
 

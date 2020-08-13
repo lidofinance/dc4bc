@@ -6,8 +6,9 @@ import (
 )
 
 type PK2Participant struct {
-	Participant string
-	PK          kyber.Point
+	ParticipantID int
+	Participant   string
+	PK            kyber.Point
 }
 
 type PKStore []*PK2Participant
@@ -25,7 +26,7 @@ func (s *PKStore) Add(newPk *PK2Participant) bool {
 
 func (s PKStore) Len() int           { return len(s) }
 func (s PKStore) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s PKStore) Less(i, j int) bool { return s[i].Participant < s[j].Participant }
+func (s PKStore) Less(i, j int) bool { return s[i].ParticipantID < s[j].ParticipantID }
 func (s PKStore) GetPKs() []kyber.Point {
 	var out = make([]kyber.Point, len(s))
 	for idx, val := range s {
@@ -41,6 +42,13 @@ func (s PKStore) GetPKByParticipant(p string) (kyber.Point, error) {
 		}
 	}
 	return nil, fmt.Errorf("participant %s does not exist", p)
+}
+
+func (s PKStore) GetPKByIndex(index int) kyber.Point {
+	if index < 0 || index > len(s) {
+		return nil
+	}
+	return s[index].PK
 }
 
 func (s PKStore) GetParticipantByIndex(index int) string {
