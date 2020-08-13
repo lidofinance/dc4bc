@@ -23,9 +23,13 @@ func (r *SignatureProposalParticipantsListRequest) Validate() error {
 		if len(participant.PubKey) < 10 {
 			return errors.New("{PubKey} too short")
 		}
+
+		if len(participant.DkgPubKey) < 10 {
+			return errors.New("{DkgPubKey} too short")
+		}
 	}
 
-	if r.CreatedAt == nil {
+	if r.CreatedAt.IsZero() {
 		return errors.New("{CreatedAt} cannot be a nil")
 	}
 
@@ -41,7 +45,7 @@ func (r *SignatureProposalParticipantRequest) Validate() error {
 		return errors.New("{DecryptedInvitation} cannot zero length")
 	}
 
-	if r.CreatedAt == nil {
+	if r.CreatedAt.IsZero() {
 		return errors.New("{CreatedAt} cannot be a nil")
 	}
 	return nil

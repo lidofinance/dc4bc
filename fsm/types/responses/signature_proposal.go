@@ -22,8 +22,8 @@ type SignatureProposalParticipantInvitationEntry struct {
 type SignatureProposalParticipantStatusResponse []*SignatureProposalParticipantStatusEntry
 
 type SignatureProposalParticipantStatusEntry struct {
-	ParticipantId     int
-	Title             string
-	PubKeyFingerprint string
-	Status            uint8
+	ParticipantId int
+	Title         string
+	DkgPubKey     []byte
+	Status        uint8
 }

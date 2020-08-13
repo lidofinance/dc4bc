@@ -2,22 +2,6 @@ package requests
 
 import "errors"
 
-func (r *DKGProposalPubKeyConfirmationRequest) Validate() error {
-	if r.ParticipantId < 0 {
-		return errors.New("{ParticipantId} cannot be a negative number")
-	}
-
-	if len(r.PubKey) == 0 {
-		return errors.New("{PubKey} cannot zero length")
-	}
-
-	if r.CreatedAt.IsZero() {
-		return errors.New("{CreatedAt} is not set")
-	}
-
-	return nil
-}
-
 func (r *DKGProposalCommitConfirmationRequest) Validate() error {
 	if r.ParticipantId < 0 {
 		return errors.New("{ParticipantId} cannot be a negative number")
