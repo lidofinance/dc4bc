@@ -4,13 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	dkgFSM "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"go.dedis.ch/kyber/v3"
 	"log"
 	"path/filepath"
 	"sync"
 	"time"
 
+	fsmStateMachines "github.com/depools/dc4bc/fsm/state_machines"
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
+	sign "go.dedis.ch/kyber/v3/sign/schnorr"
+	"go.dedis.ch/kyber/v3/util/key"
 )
 
 const (
@@ -21,15 +26,19 @@ const (
 type Client struct {
 	sync.Mutex
 	ctx         context.Context
-	fsm         interface{}
+	fsm         *fsmStateMachines.FSMInstance
 	state       State
 	storage     storage.Storage
 	qrProcessor qr.Processor
+
+	// these just a template
+	suite       key.Suite
+	authKeyPair *key.Pair
 }
 
 func NewClient(
 	ctx context.Context,
-	fsm interface{},
+	fsm *fsmStateMachines.FSMInstance,
 	state State,
 	storage storage.Storage,
 	qrProcessor qr.Processor,
@@ -69,10 +78,34 @@ func (c *Client) Poll() error {
 			for _, message := range messages {
 				log.Println("Message:", message)
 
-				// Feed the message to the FSM, get a possibly empty operation.
+				fsmReq, err := FSMRequestFromBytes(message.Data)
+				if err != nil {
+					return fmt.Errorf("failed to get FSMRequest from message data: %w", err)
+				}
+
+				resp, fsmDump, err := c.fsm.Do(fsmReq.Event, fsmReq.Args...)
+				if err != nil {
+					return fmt.Errorf("failed to Do operation in FSM: %w", err)
+				}
+
 				var operation *Operation
 
-				// I.e., if FSM returned an Operation for us.
+				switch resp.State {
+				// if the new state is waiting for RPC to airgapped machine
+				case dkgFSM.StateDkgPubKeysAwaitConfirmations, dkgFSM.StateDkgCommitsAwaitConfirmations,
+					dkgFSM.StateDkgDealsAwaitConfirmations, dkgFSM.StateDkgResponsesAwaitConfirmations:
+					bz, err := json.Marshal(resp.Data)
+					if err != nil {
+						return fmt.Errorf("failed to marshal FSM response: %w", err)
+					}
+					operation = &Operation{
+						Type:    OperationType(resp.State),
+						Payload: bz,
+					}
+				default:
+					log.Printf("State %s does not require an operation", resp.State)
+				}
+
 				if operation != nil {
 					if err := c.state.PutOperation(operation); err != nil {
 						return fmt.Errorf("failed to PutOperation: %w", err)
@@ -83,7 +116,7 @@ func (c *Client) Poll() error {
 					return fmt.Errorf("failed to SaveOffset: %w", err)
 				}
 
-				if err := c.state.SaveFSM(c.fsm); err != nil {
+				if err := c.state.SaveFSM(fsmDump); err != nil {
 					return fmt.Errorf("failed to SaveFSM: %w", err)
 				}
 			}
@@ -155,7 +188,15 @@ func (c *Client) handleProcessedOperation(operation Operation) error {
 		return fmt.Errorf("processed operation does not match stored operation: %w", err)
 	}
 
-	var message storage.Message
+	sig, err := c.signMessage(operation.Result)
+	if err != nil {
+		return fmt.Errorf("failed to sign a message: %w", err)
+	}
+	message := storage.Message{
+		Data:      operation.Result,
+		Signature: sig,
+	}
+
 	if _, err := c.storage.Send(message); err != nil {
 		return fmt.Errorf("failed to post message: %w", err)
 	}
@@ -164,5 +205,24 @@ func (c *Client) handleProcessedOperation(operation Operation) error {
 		return fmt.Errorf("failed to DeleteOperation: %w", err)
 	}
 
+	return nil
+}
+
+// it's just a template
+func (c *Client) signMessage(msg []byte) ([]byte, error) {
+	//s, err := sign.Sign(c.suite, c.authKeyPair.Private, msg)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to sign a message: %w", err)
+	//}
+	return nil, nil
+}
+
+// it's just a template
+func (c *Client) verifyMessage(participant string, msg, signature []byte) error {
+	return sign.Verify(c.suite, c.getPublicKeyOfParticipant(participant), msg, signature)
+}
+
+// func should return public key of participant for checking his message signature
+func (c *Client) getPublicKeyOfParticipant(participant string) kyber.Point {
 	return nil
 }
