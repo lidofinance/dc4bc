@@ -28,14 +28,14 @@ type DKG struct {
 	Threshold     int
 }
 
-func Init() *DKG {
+func Init(suite *bn256.Suite, pubKey kyber.Point, secKey kyber.Scalar) *DKG {
 	var (
 		d DKG
 	)
 
-	d.suite = bn256.NewSuiteG2()
-	d.secKey = d.suite.Scalar().Pick(d.suite.RandomStream())
-	d.pubKey = d.suite.Point().Mul(d.secKey, nil)
+	d.suite = suite
+	d.secKey = secKey
+	d.pubKey = pubKey
 
 	d.deals = make(map[string]*dkg.Deal)
 	d.commits = make(map[string][]kyber.Point)
@@ -51,10 +51,10 @@ func (d *DKG) GetSecKey() kyber.Scalar {
 	return d.secKey
 }
 
-func (d *DKG) GetPubKeyByParticipantID(pid string) (kyber.Point, error) {
-	pk, err := d.pubkeys.GetPKByParticipant(pid)
+func (d *DKG) GetPubKeyByParticipant(participant string) (kyber.Point, error) {
+	pk, err := d.pubkeys.GetPKByParticipant(participant)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get pk for participant %s: %w", pid, err)
+		return nil, fmt.Errorf("failed to get pk for participant %s: %w", participant, err)
 	}
 	return pk, nil
 }

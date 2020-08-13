@@ -28,14 +28,24 @@ type AirgappedMachine struct {
 
 	dkgInstances map[string]*dkg.DKG
 	qrProcessor  qr.Processor
+
+	pubKey kyber.Point
+	secKey kyber.Scalar
+	suite  *bn256.Suite
 }
 
 func NewAirgappedMachine() *AirgappedMachine {
-	machine := &AirgappedMachine{
+	am := &AirgappedMachine{
 		dkgInstances: make(map[string]*dkg.DKG),
 		qrProcessor:  qr.NewCameraProcessor(),
 	}
-	return machine
+
+	// TODO: leveldb
+	am.suite = bn256.NewSuiteG2()
+	am.secKey = am.suite.Scalar().Pick(am.suite.RandomStream())
+	am.pubKey = am.suite.Point().Mul(am.secKey, nil)
+
+	return am
 }
 
 func (am *AirgappedMachine) getParticipantID(dkgIdentifier string) (int, error) {
@@ -53,7 +63,7 @@ func (am *AirgappedMachine) encryptData(dkgIdentifier, to string, data []byte) (
 		return nil, fmt.Errorf("invalid dkg identifier: %s", dkgIdentifier)
 	}
 
-	pk, err := dkgInstance.GetPubKeyByParticipantID(to)
+	pk, err := dkgInstance.GetPubKeyByParticipant(to)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pk for participant %s: %w", to, err)
 	}
@@ -65,16 +75,10 @@ func (am *AirgappedMachine) encryptData(dkgIdentifier, to string, data []byte) (
 	return encryptedData, nil
 }
 
-func (am *AirgappedMachine) decryptData(dkgIdentifier string, data []byte) ([]byte, error) {
+func (am *AirgappedMachine) decryptData(data []byte) ([]byte, error) {
 	suite := edwards25519.NewBlakeSHA256Ed25519()
-	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
-	if !ok {
-		return nil, fmt.Errorf("invalid dkg identifier: %s", dkgIdentifier)
-	}
 
-	privateKey := dkgInstance.GetSecKey()
-
-	decryptedData, err := ecies.Decrypt(suite, privateKey, data, suite.Hash)
+	decryptedData, err := ecies.Decrypt(suite, am.secKey, data, suite.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt data: %w", err)
 	}
@@ -95,35 +99,16 @@ func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.
 		return fmt.Errorf("dkg instance %s already exists", o.DKGIdentifier)
 	}
 
-	dkgInstance := dkg.Init()
+	dkgInstance := dkg.Init(am.suite, am.pubKey, am.secKey)
 	dkgInstance.Threshold = len(payload)
 
-	am.dkgInstances[o.DKGIdentifier] = dkg.Init()
+	am.dkgInstances[o.DKGIdentifier] = dkgInstance
 
 	return nil
 }
 
-func (am *AirgappedMachine) handleStateDkgPubKeysAwaitConfirmations(o *client.Operation) error {
-	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
-	if !ok {
-		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
-	}
-
-	pubKeyBz, err := dkgInstance.GetPubKey().MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("failed to marshal pubkey: %w", err)
-	}
-	req := requests.DKGProposalPubKeyConfirmationRequest{
-		ParticipantId: dkgInstance.ParticipantID,
-		PubKey:        pubKeyBz,
-		CreatedAt:     o.CreatedAt,
-	}
-	reqBz, err := client.FSMRequestToBytes(dkg_proposal_fsm.EventDKGPubKeyConfirmationReceived, req)
-	if err != nil {
-		return fmt.Errorf("failed to generate fsm request: %w", err)
-	}
-	o.Result = reqBz
-	return nil
+func (am *AirgappedMachine) GetPubKey() kyber.Point {
+	return am.pubKey
 }
 
 func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) error {
@@ -249,7 +234,7 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 	}
 
 	for _, entry := range payload {
-		decryptedDealBz, err := am.decryptData(o.DKGIdentifier, entry.Deal)
+		decryptedDealBz, err := am.decryptData(entry.Deal)
 		if err != nil {
 			return fmt.Errorf("failed to decrypt deal: %w", err)
 		}
@@ -341,15 +326,9 @@ func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.
 
 // TODO @oopcode: reconstruct key and sign handlers
 
-// HandleQR - gets an operation from a QR code, do necessary things for the operation and returns paths to QR-code images
-func (am *AirgappedMachine) HandleQR() ([]string, error) {
+func (am *AirgappedMachine) HandleOperation(operation client.Operation) ([]client.Operation, error) {
 	var (
 		err error
-
-		// input operation
-		operation client.Operation
-		qrData    []byte
-
 		// output operations (cause of deals)
 		operations []client.Operation
 	)
@@ -357,20 +336,11 @@ func (am *AirgappedMachine) HandleQR() ([]string, error) {
 	am.Lock()
 	defer am.Unlock()
 
-	if qrData, err = am.qrProcessor.ReadQR(); err != nil {
-		return nil, fmt.Errorf("failed to read QR: %w", err)
-	}
-	if err = json.Unmarshal(qrData, &operation); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal operation: %w", err)
-	}
-
 	// handler gets a pointer to an operation, do necessary things
 	// and write a result (or an error) to .Result field of operation
 	switch fsm.State(operation.Type) {
 	case signature_proposal_fsm.StateAwaitParticipantsConfirmations:
 		err = am.handleStateAwaitParticipantsConfirmations(&operation)
-	case dkg_proposal_fsm.StateDkgPubKeysAwaitConfirmations:
-		err = am.handleStateDkgPubKeysAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:
 		err = am.handleStateDkgCommitsAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:
@@ -394,6 +364,33 @@ func (am *AirgappedMachine) HandleQR() ([]string, error) {
 		operations = append(operations, operation)
 	}
 
+	return operations, nil
+}
+
+// HandleQR - gets an operation from a QR code, do necessary things for the operation and returns paths to QR-code images
+func (am *AirgappedMachine) HandleQR() ([]string, error) {
+	var (
+		err error
+
+		// input operation
+		operation client.Operation
+		qrData    []byte
+
+		// output operations (cause of deals)
+		operations []client.Operation
+	)
+
+	if qrData, err = am.qrProcessor.ReadQR(); err != nil {
+		return nil, fmt.Errorf("failed to read QR: %w", err)
+	}
+	if err = json.Unmarshal(qrData, &operation); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal operation: %w", err)
+	}
+
+	if operations, err = am.HandleOperation(operation); err != nil {
+		return nil, err
+	}
+
 	qrPath := "%s/%s_%s_%s.png"
 	qrPaths := make([]string, 0, len(operations))
 	for _, o := range operations {
@@ -415,7 +412,6 @@ func (am *AirgappedMachine) writeErrorRequestToOperation(o *client.Operation, ha
 	// each type of request should have a required event even error
 	// maybe should be global?
 	eventToErrorMap := map[fsm.State]fsm.Event{
-		dkg_proposal_fsm.StateDkgPubKeysAwaitConfirmations:   dkg_proposal_fsm.EventDKGPubKeyConfirmationError,
 		dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:   dkg_proposal_fsm.EventDKGCommitConfirmationError,
 		dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:     dkg_proposal_fsm.EventDKGDealConfirmationError,
 		dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations: dkg_proposal_fsm.EventDKGResponseConfirmationError,

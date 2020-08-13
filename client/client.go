@@ -92,8 +92,8 @@ func (c *Client) Poll() error {
 
 				switch resp.State {
 				// if the new state is waiting for RPC to airgapped machine
-				case dkgFSM.StateDkgPubKeysAwaitConfirmations, dkgFSM.StateDkgCommitsAwaitConfirmations,
-					dkgFSM.StateDkgDealsAwaitConfirmations, dkgFSM.StateDkgResponsesAwaitConfirmations:
+				case dkgFSM.StateDkgCommitsAwaitConfirmations, dkgFSM.StateDkgDealsAwaitConfirmations,
+					dkgFSM.StateDkgResponsesAwaitConfirmations:
 					bz, err := json.Marshal(resp.Data)
 					if err != nil {
 						return fmt.Errorf("failed to marshal FSM response: %w", err)
@@ -193,8 +193,10 @@ func (c *Client) handleProcessedOperation(operation Operation) error {
 		return fmt.Errorf("failed to sign a message: %w", err)
 	}
 	message := storage.Message{
+		To:        operation.To,
 		Data:      operation.Result,
 		Signature: sig,
+		CreatedAt: time.Now(),
 	}
 
 	if _, err := c.storage.Send(message); err != nil {
