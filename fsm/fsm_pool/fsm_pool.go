@@ -160,17 +160,3 @@ func (p *FSMPool) MachineByState(state fsm.State) (MachineProvider, error) {
 	}
 	return machine, nil
 }
-
-/*func (p *FSMPool) Do(machine MachineProvider, event fsm.Event, args ...interface{}) (resp *fsm.Response, err error) {
-	panic("llslsl")
-	resp, err = machine.Do(event, args...)
-	if err != nil {
-		return resp, err
-	}
-
-	if machine.IsFinState(resp.State) {
-		log.Println("Final!!!!")
-	}
-	return
-}
-*/

@@ -2,14 +2,6 @@ package requests
 
 import "time"
 
-// States: "state_dkg_pub_keys_await_confirmations"
-// Events: "event_dkg_pub_key_confirm_received"
-type DKGProposalPubKeyConfirmationRequest struct {
-	ParticipantId int
-	PubKey        []byte
-	CreatedAt     time.Time
-}
-
 // States: "state_dkg_commits_sending_await_confirmations"
 // Events: "event_dkg_commit_confirm_received"
 type DKGProposalCommitConfirmationRequest struct {
