@@ -231,6 +231,18 @@ func (d *DKG) processDealCommits(verifier *vss.Verifier, deal *dkg.Deal) (bool, 
 	return true, nil
 }
 
+func (d *DKG) GetDistKeyShare() (*dkg.DistKeyShare, error) {
+	return d.instance.DistKeyShare()
+}
+
+func (d *DKG) GetDistributedPublicKey() (kyber.Point, error) {
+	distKeyShare, err := d.instance.DistKeyShare()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get distKeyShare")
+	}
+	return distKeyShare.Public(), nil
+}
+
 func (d *DKG) GetMasterPubKey() (*share.PubPoly, error) {
 	if d.instance == nil || !d.instance.Certified() {
 		return nil, fmt.Errorf("dkg instance is not ready")

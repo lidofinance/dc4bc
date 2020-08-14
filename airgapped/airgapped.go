@@ -14,7 +14,10 @@ import (
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/encrypt/ecies"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
+	"go.dedis.ch/kyber/v3/share"
 	dkgPedersen "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+	"go.dedis.ch/kyber/v3/sign/bls"
+	"go.dedis.ch/kyber/v3/sign/tbls"
 	"log"
 	"sync"
 )
@@ -322,14 +325,12 @@ func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.
 		return fmt.Errorf("failed to process responses: %w", err)
 	}
 
-	//TODO: THIS BLOCK IS WRONG. @oopcode, what exactly should we broadcast?
-	///////////////////////////////////////////////////////////////////////////////
-	masterPubKey, err := dkgInstance.GetMasterPubKey()
+	masterPubKey, err := dkgInstance.GetDistributedPublicKey()
 	if err != nil {
 		return fmt.Errorf("failed to get master pub key: %w", err)
 	}
 
-	masterPubKeyBz, err := json.Marshal(masterPubKey)
+	masterPubKeyBz, err := masterPubKey.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal master pub key: %w", err)
 	}
@@ -345,14 +346,11 @@ func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.
 	if err != nil {
 		return fmt.Errorf("failed to generate fsm request: %w", err)
 	}
-	///////////////////////////////////////////////////////////////////////////////
 
 	o.Result = reqBz
 	o.Event = dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived
 	return nil
 }
-
-// TODO @oopcode: reconstruct key and sign handlers
 
 func (am *AirgappedMachine) HandleOperation(operation client.Operation) ([]client.Operation, error) {
 	var (
@@ -436,6 +434,57 @@ func (am *AirgappedMachine) HandleQR() ([]string, error) {
 	}
 
 	return qrPaths, nil
+}
+
+func (am *AirgappedMachine) handlePartialSign(msg []byte, dkgIdentifier string) ([]byte, error) {
+	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
+	if !ok {
+		return nil, fmt.Errorf("dkg instance with identifier %s does not exist", dkgIdentifier)
+	}
+
+	distKeyShare, err := dkgInstance.GetDistKeyShare()
+	if err != nil {
+		return nil, err
+	}
+
+	return am.makePartialSign(msg, distKeyShare.PriShare())
+}
+
+func (am *AirgappedMachine) handleRecoverFullSign(msg []byte, sigShares [][]byte, dkgIdentifier string) ([]byte, error) {
+	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
+	if !ok {
+		return nil, fmt.Errorf("dkg instance with identifier %s does not exist", dkgIdentifier)
+	}
+
+	masterKey, err := dkgInstance.GetMasterPubKey()
+	if err != nil {
+		return nil, err
+	}
+
+	return am.recoverFullSignature(msg, masterKey, sigShares, len(sigShares), len(sigShares))
+}
+
+func (am *AirgappedMachine) handleVerifySign(msg []byte, fullSignature []byte, dkgIdentifier string) error {
+	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
+	if !ok {
+		return fmt.Errorf("dkg instance with identifier %s does not exist", dkgIdentifier)
+	}
+
+	masterKey, err := dkgInstance.GetMasterPubKey()
+	if err != nil {
+		return err
+	}
+
+	return bls.Verify(am.suite, masterKey.Commit(), msg, fullSignature)
+}
+
+func (am *AirgappedMachine) makePartialSign(msg []byte, share *share.PriShare) ([]byte, error) {
+	return tbls.Sign(am.suite, share, msg)
+}
+
+func (am *AirgappedMachine) recoverFullSignature(msg []byte, pubPoly *share.PubPoly,
+	sigShares [][]byte, t, n int) ([]byte, error) {
+	return tbls.Recover(am.suite, pubPoly, msg, sigShares, t, n)
 }
 
 func (am *AirgappedMachine) writeErrorRequestToOperation(o *client.Operation, handlerError error) error {

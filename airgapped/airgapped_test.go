@@ -1,6 +1,7 @@
 package airgapped
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/depools/dc4bc/client"
@@ -14,6 +15,10 @@ import (
 	"time"
 )
 
+const (
+	DKGIdentifier = "dkg_identifier"
+)
+
 type Node struct {
 	ParticipantID int
 	Participant   string
@@ -21,7 +26,7 @@ type Node struct {
 	commits       []requests.DKGProposalCommitConfirmationRequest
 	deals         []requests.DKGProposalDealConfirmationRequest
 	responses     []requests.DKGProposalResponseConfirmationRequest
-	masterKey     []requests.DKGProposalMasterKeyConfirmationRequest
+	masterKeys    []requests.DKGProposalMasterKeyConfirmationRequest
 }
 
 func (n *Node) storeOperation(t *testing.T, o client.Operation) {
@@ -49,7 +54,7 @@ func (n *Node) storeOperation(t *testing.T, o client.Operation) {
 		if err := json.Unmarshal(o.Result, &req); err != nil {
 			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
-		n.masterKey = append(n.masterKey, req)
+		n.masterKeys = append(n.masterKeys, req)
 	default:
 		t.Fatalf("invalid event: %s", o.Event)
 	}
@@ -78,14 +83,14 @@ func createOperation(t *testing.T, opType string, to string, req interface{}) cl
 		Payload:       reqBz,
 		Result:        nil,
 		CreatedAt:     time.Now(),
-		DKGIdentifier: "dkg_identifier",
+		DKGIdentifier: DKGIdentifier,
 		To:            to,
 	}
 	return op
 }
 
-func TestAirgappedFullDKG(t *testing.T) {
-	nodesCount := 4
+func TestAirgappedAllSteps(t *testing.T) {
+	nodesCount := 13
 	participants := make([]string, nodesCount)
 	for i := 0; i < nodesCount; i++ {
 		participants[i] = fmt.Sprintf("Participant#%d", i)
@@ -219,9 +224,37 @@ func TestAirgappedFullDKG(t *testing.T) {
 		}
 	})
 
-	//TODO: check that master pub key is the same for every participant
+	// check that all master keys are equal
+	for _, n := range tr.nodes {
+		for i := 0; i < len(n.masterKeys); i++ {
+			if !bytes.Equal(n.masterKeys[0].MasterKey, n.masterKeys[i].MasterKey) {
+				t.Fatalf("master keys is not equal!")
+			}
+		}
+	}
 
-	t.Log("DKG succeeded")
+	msgToSign := []byte("i am a message")
+	sigShares := make([][]byte, 0)
+	for _, n := range tr.nodes {
+		sigShare, err := n.Machine.handlePartialSign(msgToSign, DKGIdentifier)
+		if err != nil {
+			t.Fatalf("failed to create sig share: %v", err.Error())
+		}
+		sigShares = append(sigShares, sigShare)
+	}
+
+	fullSign, err := tr.nodes[0].Machine.handleRecoverFullSign(msgToSign, sigShares, DKGIdentifier)
+	if err != nil {
+		t.Fatalf("failed to recover full sign: %v", err.Error())
+	}
+
+	for _, n := range tr.nodes {
+		if err = n.Machine.handleVerifySign(msgToSign, fullSign, DKGIdentifier); err != nil {
+			t.Fatalf("failed to verify signature: %v", err)
+		}
+	}
+
+	fmt.Println("DKG succeeded, signature recovered and verified")
 }
 
 func runStep(transport *Transport, cb func(n *Node, wg *sync.WaitGroup)) {
