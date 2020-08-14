@@ -2,7 +2,6 @@ package signature_proposal_fsm
 
 import (
 	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"sync"
 )
@@ -21,13 +20,17 @@ const (
 	// Out state
 
 	EventInitProposal                 = fsm.Event("event_sig_proposal_init")
-	EventConfirmProposal              = fsm.Event("event_sig_proposal_confirm_by_participant")
+	EventConfirmSignatureProposal     = fsm.Event("event_sig_proposal_confirm_by_participant")
 	EventDeclineProposal              = fsm.Event("event_sig_proposal_decline_by_participant")
 	eventAutoValidateProposalInternal = fsm.Event("event_sig_proposal_validate")
 	eventSetProposalValidatedInternal = fsm.Event("event_sig_proposal_set_validated")
 
+	eventDoneInternal = fsm.Event("event_sig_proposal_done")
+
 	eventSetValidationCanceledByTimeout     = fsm.Event("event_sig_proposal_canceled_timeout")
 	eventSetValidationCanceledByParticipant = fsm.Event("event_sig_proposal_declined_timeout")
+
+	StateSignatureProposalCollected = fsm.State("state_sig_proposal_collected")
 
 	// Switch to next fsm
 
@@ -52,7 +55,7 @@ func New() internal.DumpedMachineProvider {
 			{Name: EventInitProposal, SrcState: []fsm.State{StateParticipantsConfirmationsInit}, DstState: StateAwaitParticipantsConfirmations},
 
 			// Validate by participants
-			{Name: EventConfirmProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations},
+			{Name: EventConfirmSignatureProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations},
 			// Is decline event should auto change state to default, or it process will initiated by client (external emit)?
 			// Now set for external emitting.
 			{Name: EventDeclineProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations},
@@ -62,17 +65,18 @@ func New() internal.DumpedMachineProvider {
 
 			// eventProposalValidate internal or from client?
 			// yay
+
 			// Exit point
-			{Name: eventSetProposalValidatedInternal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: dkg_proposal_fsm.StateDkgPubKeysAwaitConfirmations, IsInternal: true},
+			{Name: eventSetProposalValidatedInternal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateSignatureProposalCollected, IsInternal: true},
+
 			// nan
 			{Name: eventSetValidationCanceledByTimeout, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateValidationCanceledByTimeout, IsInternal: true},
 		},
 		fsm.Callbacks{
-			EventInitProposal:                 machine.actionInitProposal,
-			EventConfirmProposal:              machine.actionProposalResponseByParticipant,
+			EventInitProposal:                 machine.actionInitSignatureProposal,
+			EventConfirmSignatureProposal:     machine.actionProposalResponseByParticipant,
 			EventDeclineProposal:              machine.actionProposalResponseByParticipant,
 			eventAutoValidateProposalInternal: machine.actionValidateSignatureProposal,
-			eventSetProposalValidatedInternal: machine.actionSetValidatedSignatureProposal,
 		},
 	)
 	return machine

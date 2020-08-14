@@ -14,7 +14,7 @@ import (
 
 // init -> awaitingConfirmations
 // args: payload, signing id, participants list
-func (m *SignatureProposalFSM) actionInitProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
@@ -54,7 +54,8 @@ func (m *SignatureProposalFSM) actionInitProposal(inEvent fsm.Event, args ...int
 		m.payload.SignatureProposalPayload.Quorum[participantId] = &internal.SignatureProposalParticipant{
 			ParticipantId:    index,
 			Title:            participant.Title,
-			PublicKey:        parsedPubKey,
+			PubKey:           parsedPubKey,
+			DkgPubKey:        participant.DkgPubKey,
 			InvitationSecret: secret,
 			Status:           internal.SignatureConfirmationAwaitConfirmation,
 			UpdatedAt:        request.CreatedAt,
@@ -72,7 +73,7 @@ func (m *SignatureProposalFSM) actionInitProposal(inEvent fsm.Event, args ...int
 	responseData := make(responses.SignatureProposalParticipantInvitationsResponse, 0)
 
 	for pubKeyFingerprint, proposal := range m.payload.SignatureProposalPayload.Quorum {
-		encryptedInvitationSecret, err := encryptWithPubKey(proposal.PublicKey, proposal.InvitationSecret)
+		encryptedInvitationSecret, err := encryptWithPubKey(proposal.PubKey, proposal.InvitationSecret)
 		if err != nil {
 			return inEvent, nil, errors.New("cannot encryptWithPubKey")
 		}
@@ -122,7 +123,7 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 		return
 	}
 
-	if signatureProposalParticipant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(*request.CreatedAt) {
+	if signatureProposalParticipant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(request.CreatedAt) {
 		outEvent = eventSetValidationCanceledByTimeout
 		return
 	}
@@ -133,7 +134,7 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 	}
 
 	switch inEvent {
-	case EventConfirmProposal:
+	case EventConfirmSignatureProposal:
 		signatureProposalParticipant.Status = internal.SignatureConfirmationConfirmed
 	case EventDeclineProposal:
 		signatureProposalParticipant.Status = internal.SignatureConfirmationDeclined
@@ -189,37 +190,19 @@ func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event
 		return
 	}
 
-	outEvent = eventSetProposalValidatedInternal
-
-	m.actionSetValidatedSignatureProposal(outEvent)
-
-	return
-}
-
-func (m *SignatureProposalFSM) actionSetValidatedSignatureProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
-	// m.payloadMu.Lock()
-	// defer m.payloadMu.Unlock()
-
-	// TODO: Run once after validation
-	if m.payload.DKGProposalPayload != nil {
-		return
-	}
-
-	m.payload.DKGProposalPayload = &internal.DKGConfirmation{
-		Quorum: make(internal.DKGProposalQuorum),
-	}
+	responseData := make(responses.SignatureProposalParticipantStatusResponse, 0)
 
 	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
-		m.payload.DKGProposalPayload.Quorum[participant.ParticipantId] = &internal.DKGProposalParticipant{
-			Title:     participant.Title,
-			Status:    internal.PubKeyAwaitConfirmation,
-			UpdatedAt: participant.UpdatedAt,
+		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
+			ParticipantId: participant.ParticipantId,
+			Title:         participant.Title,
+			DkgPubKey:     participant.DkgPubKey,
+			Status:        uint8(participant.Status),
 		}
+		responseData = append(responseData, responseEntry)
 	}
 
-	// Remove m.payload.SignatureProposalPayload?
-
-	return
+	return eventSetProposalValidatedInternal, responseData, nil
 }
 
 func (m *SignatureProposalFSM) actionSignatureProposalCanceledByTimeout(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
@@ -228,12 +211,11 @@ func (m *SignatureProposalFSM) actionSignatureProposalCanceledByTimeout(inEvent 
 
 	responseData := make(responses.SignatureProposalParticipantStatusResponse, 0)
 
-	for pubKeyFingerprint, participant := range m.payload.SignatureProposalPayload.Quorum {
+	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
 		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
-			ParticipantId:     participant.ParticipantId,
-			Title:             participant.Title,
-			PubKeyFingerprint: pubKeyFingerprint,
-			Status:            uint8(participant.Status),
+			ParticipantId: participant.ParticipantId,
+			Title:         participant.Title,
+			Status:        uint8(participant.Status),
 		}
 		responseData = append(responseData, responseEntry)
 	}

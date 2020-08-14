@@ -7,19 +7,20 @@ import (
 
 type SignatureConfirmation struct {
 	Quorum    SignatureProposalQuorum
-	CreatedAt *time.Time
-	ExpiresAt *time.Time
+	CreatedAt time.Time
+	ExpiresAt time.Time
 }
 
 type SignatureProposalParticipant struct {
 	// Public title for address, such as name, nickname, organization
 	ParticipantId int
 	Title         string
-	PublicKey     *rsa.PublicKey
-	// For validation user confirmation: sign(InvitationSecret, PublicKey) => user
+	PubKey        *rsa.PublicKey
+	DkgPubKey     []byte
+	// For validation user confirmation: sign(InvitationSecret, PubKey) => user
 	InvitationSecret string
 	Status           ParticipantStatus
-	UpdatedAt        *time.Time
+	UpdatedAt        time.Time
 }
 
 // Unique alias for map iteration - Public Key Fingerprint
@@ -33,9 +34,6 @@ const (
 	SignatureConfirmationConfirmed
 	SignatureConfirmationDeclined
 	SignatureConfirmationError
-	PubKeyAwaitConfirmation
-	PubKeyConfirmed
-	PubKeyConfirmationError
 	CommitAwaitConfirmation
 	CommitConfirmed
 	CommitConfirmationError
@@ -59,7 +57,7 @@ type DKGProposalParticipant struct {
 	MasterKey []byte
 	Status    ParticipantStatus
 	Error     error
-	UpdatedAt *time.Time
+	UpdatedAt time.Time
 }
 
 type DKGProposalQuorum map[int]*DKGProposalParticipant
@@ -83,12 +81,6 @@ func (s ParticipantStatus) String() string {
 		str = "SignatureConfirmationDeclined"
 	case SignatureConfirmationError:
 		str = "SignatureConfirmationError"
-	case PubKeyAwaitConfirmation:
-		str = "PubKeyAwaitConfirmation"
-	case PubKeyConfirmed:
-		str = "PubKeyConfirmed"
-	case PubKeyConfirmationError:
-		str = "PubKeyConfirmationError"
 	case CommitAwaitConfirmation:
 		str = "CommitAwaitConfirmation"
 	case CommitConfirmed:

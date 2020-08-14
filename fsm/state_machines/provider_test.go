@@ -17,14 +17,11 @@ import (
 	"time"
 )
 
-const (
-	testTransactionId = "d8a928b2043db77e340b523547bf16cb4aa483f0645fe0a290ed1f20aab76257"
-)
-
 type testExternalParticipants struct {
-	Title   string
-	PrivKey *rsa.PrivateKey
-	PubKey  *rsa.PublicKey
+	Title     string
+	PrivKey   *rsa.PrivateKey
+	PubKey    *rsa.PublicKey
+	DkgPubKey []byte
 }
 
 var (
@@ -34,7 +31,7 @@ var (
 
 	testParticipantsListRequest = requests.SignatureProposalParticipantsListRequest{
 		Participants: []*requests.SignatureProposalParticipantsEntry{},
-		CreatedAt:    &tm,
+		CreatedAt:    tm,
 	}
 
 	testFSMDump []byte
@@ -59,10 +56,15 @@ func init() {
 
 		fingerprint := base64.StdEncoding.EncodeToString(hash[:])
 
+		pubKeyMock := make([]byte, 128)
+
+		rand.Read(pubKeyMock)
+
 		participant := &testExternalParticipants{
-			Title:   fmt.Sprintf("User %d", i),
-			PrivKey: key,
-			PubKey:  &key.PublicKey,
+			Title:     fmt.Sprintf("User %d", i),
+			PrivKey:   key,
+			PubKey:    &key.PublicKey,
+			DkgPubKey: pubKeyMock,
 		}
 		testParticipants[fingerprint] = participant
 	}
@@ -72,8 +74,9 @@ func init() {
 	for _, participant := range testParticipants {
 
 		participantsForRequest = append(participantsForRequest, &requests.SignatureProposalParticipantsEntry{
-			Title:  participant.Title,
-			PubKey: x509.MarshalPKCS1PublicKey(participant.PubKey),
+			Title:     participant.Title,
+			PubKey:    x509.MarshalPKCS1PublicKey(participant.PubKey),
+			DkgPubKey: participant.DkgPubKey,
 		})
 	}
 	testParticipantsListRequest.Participants = participantsForRequest
@@ -197,7 +200,7 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 		participantsMap[participant.ParticipantId] = participant
 	}
 
-	tm = tm.Add(10 * time.Hour)
+	tm = tm.Add(1 * time.Hour)
 
 	participantsCount := len(participantsMap)
 
@@ -222,10 +225,10 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 			t.Fatalf("cannot encrypt {DecryptedInvitation} with private key")
 		}
 
-		fsmResponse, dump, err = testFSMInstance.Do(spf.EventConfirmProposal, requests.SignatureProposalParticipantRequest{
+		fsmResponse, dump, err = testFSMInstance.Do(spf.EventConfirmSignatureProposal, requests.SignatureProposalParticipantRequest{
 			PubKeyFingerprint:   participant.PubKeyFingerprint,
 			DecryptedInvitation: string(encrypted),
-			CreatedAt:           &tm,
+			CreatedAt:           tm,
 		})
 
 		compareErrNil(t, err)
@@ -236,45 +239,21 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 		if participantCounter > 0 {
 			compareState(t, spf.StateAwaitParticipantsConfirmations, fsmResponse.State)
-		} else {
-			compareState(t, dpf.StateDkgInitial, fsmResponse.State)
 		}
 
 	}
 
-	// PubKeys
+	compareState(t, spf.StateSignatureProposalCollected, fsmResponse.State)
 
-	for _, participant := range participantsMap {
-		participantCounter--
-		testFSMInstance, err = FromDump(dump)
+	testFSMInstance, err = FromDump(dump)
 
-		compareErrNil(t, err)
+	fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGInitProcess)
 
-		compareFSMInstanceNotNil(t, testFSMInstance)
+	compareErrNil(t, err)
 
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
-			t.Fatalf("not found external user data for response fingerprint")
-		}
+	compareDumpNotZero(t, dump)
 
-		pubKeyMock := make([]byte, 128)
-		_, err := rand.Read(pubKeyMock)
-		if err != nil {
-			compareErrNil(t, err)
-		}
-
-		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGPubKeyConfirmationReceived, requests.DKGProposalPubKeyConfirmationRequest{
-			ParticipantId: participant.ParticipantId,
-			PubKey:        pubKeyMock,
-			CreatedAt:     tm,
-		})
-
-		compareErrNil(t, err)
-
-		compareDumpNotZero(t, dump)
-
-		compareFSMResponseNotNil(t, fsmResponse)
-
-	}
+	compareFSMResponseNotNil(t, fsmResponse)
 
 	compareState(t, dpf.StateDkgCommitsAwaitConfirmations, fsmResponse.State)
 

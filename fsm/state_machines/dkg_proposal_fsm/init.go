@@ -3,20 +3,14 @@ package dkg_proposal_fsm
 import (
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
+	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"sync"
 )
 
 const (
 	FsmName = "dkg_proposal_fsm"
 
-	StateDkgInitial = StateDkgPubKeysAwaitConfirmations
-
-	StateDkgPubKeysAwaitConfirmations = fsm.State("state_dkg_pub_keys_await_confirmations")
-	// Canceled
-	StateDkgPubKeysAwaitCanceled          = fsm.State("state_dkg_pub_keys_await_canceled")
-	StateDkgPubKeysAwaitCanceledByTimeout = fsm.State("state_dkg_pub_keys_await_canceled_by_timeout")
-	// Confirmed
-	// StateDkgPubKeysAwaitConfirmed = fsm.State("state_dkg_pub_keys_await_confirmed")
+	StateDkgInitial = spf.StateSignatureProposalCollected
 
 	// Sending dkg commits
 	StateDkgCommitsAwaitConfirmations = fsm.State("state_dkg_commits_await_confirmations")
@@ -24,7 +18,7 @@ const (
 	StateDkgCommitsAwaitCanceled          = fsm.State("state_dkg_commits_await_canceled")
 	StateDkgCommitsAwaitCanceledByTimeout = fsm.State("state_dkg_commits_await_canceled_by_timeout")
 	// Confirmed
-	StateDkgCommitsAwaitConfirmed = fsm.State("state_dkg_commits_await_confirmed")
+	StateDkgCommitsCollected = fsm.State("state_dkg_commits_collected")
 
 	// Sending dkg deals
 	StateDkgDealsAwaitConfirmations = fsm.State("state_dkg_deals_await_confirmations")
@@ -32,31 +26,23 @@ const (
 	StateDkgDealsAwaitCanceled          = fsm.State("state_dkg_deals_await_canceled")
 	StateDkgDealsAwaitCanceledByTimeout = fsm.State("state_dkg_deals_await_canceled_by_timeout")
 	// Confirmed
-	//StateDkgDealsAwaitConfirmed = fsm.State("state_dkg_deals_await_confirmed")
+	//StateDkgDealsCollected = fsm.State("state_dkg_deals_collected")
 
 	StateDkgResponsesAwaitConfirmations = fsm.State("state_dkg_responses_await_confirmations")
 	// Canceled
 	StateDkgResponsesAwaitCanceled          = fsm.State("state_dkg_responses_await_canceled")
 	StateDkgResponsesAwaitCanceledByTimeout = fsm.State("state_dkg_responses_sending_canceled_by_timeout")
 	// Confirmed
-	StateDkgResponsesAwaitConfirmed = fsm.State("state_dkg_responses_await_confirmed")
+	StateDkgResponsesCollected = fsm.State("state_dkg_responses_collected")
 
 	StateDkgMasterKeyAwaitConfirmations     = fsm.State("state_dkg_master_key_await_confirmations")
 	StateDkgMasterKeyAwaitCanceled          = fsm.State("state_dkg_master_key_await_canceled")
 	StateDkgMasterKeyAwaitCanceledByTimeout = fsm.State("state_dkg_master_key_await_canceled_by_timeout")
 
+	StateDkgMasterKeyCollected = fsm.State("state_dkg_master_key_collected")
+
 	// Events
-
-	eventAutoDKGInitialInternal = fsm.Event("event_dkg_init_internal")
-
-	EventDKGPubKeyConfirmationReceived = fsm.Event("event_dkg_pub_key_confirm_received")
-	EventDKGPubKeyConfirmationError    = fsm.Event("event_dkg_pub_key_confirm_canceled_by_error")
-
-	eventAutoDKGValidatePubKeysConfirmationInternal = fsm.Event("event_dkg_pub_keys_validate_internal")
-
-	eventDKGSetPubKeysConfirmationCanceledByTimeoutInternal = fsm.Event("event_dkg_pub_keys_confirm_canceled_by_timeout_internal")
-	eventDKGSetPubKeysConfirmationCanceledByErrorInternal   = fsm.Event("event_dkg_pub_keys_confirm_canceled_by_error_internal")
-	eventDKGSetPubKeysConfirmedInternal                     = fsm.Event("event_dkg_pub_keys_confirmed_internal")
+	EventDKGInitProcess = fsm.Event("event_dkg_init_process")
 
 	EventDKGCommitConfirmationReceived                 = fsm.Event("event_dkg_commit_confirm_received")
 	EventDKGCommitConfirmationError                    = fsm.Event("event_dkg_commit_confirm_canceled_by_error")
@@ -107,20 +93,13 @@ func New() internal.DumpedMachineProvider {
 			// Switch to pub keys required
 			// 	{Name: eventDKGPubKeysSendingRequiredAuto, SrcState: []fsm.State{StateDkgInitial}, DstState: StateDkgPubKeysAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunAfter},
 
-			// {Name: eventAutoDKGInitialInternal, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunBefore},
+			// {Name: EventDKGInitProcess, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunBefore},
 
-			// Pub keys sending
-			{Name: EventDKGPubKeyConfirmationReceived, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitConfirmations},
-			// Canceled
-			{Name: EventDKGPubKeyConfirmationError, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitCanceled},
+			// StateDkgCommitsCollected = fsm.State("state_dkg_commits_collected")
 
-			{Name: eventAutoDKGValidatePubKeysConfirmationInternal, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitConfirmations, IsInternal: true, IsAuto: true},
+			// {Name: eventAutoDKGInitInternal, SrcState: []fsm.State{StateDkgInitial}, DstState: StateDkgCommitsAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunBefore},
 
-			{Name: eventDKGSetPubKeysConfirmationCanceledByTimeoutInternal, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitCanceledByTimeout, IsInternal: true},
-			// Confirmed
-			{Name: eventDKGSetPubKeysConfirmedInternal, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgCommitsAwaitConfirmations, IsInternal: true},
-
-			// Switch to commits required
+			{Name: EventDKGInitProcess, SrcState: []fsm.State{StateDkgInitial}, DstState: StateDkgCommitsAwaitConfirmations},
 
 			// Commits
 			{Name: EventDKGCommitConfirmationReceived, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitConfirmations},
@@ -166,10 +145,7 @@ func New() internal.DumpedMachineProvider {
 			// {Name: EventDKGMasterKeyRequiredInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: fsm.StateGlobalDone, IsInternal: true},
 		},
 		fsm.Callbacks{
-
-			EventDKGPubKeyConfirmationReceived:              machine.actionPubKeyConfirmationReceived,
-			EventDKGPubKeyConfirmationError:                 machine.actionConfirmationError,
-			eventAutoDKGValidatePubKeysConfirmationInternal: machine.actionValidateDkgProposalPubKeys,
+			EventDKGInitProcess: machine.actionInitDKGProposal,
 
 			EventDKGCommitConfirmationReceived:              machine.actionCommitConfirmationReceived,
 			EventDKGCommitConfirmationError:                 machine.actionConfirmationError,

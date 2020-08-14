@@ -41,7 +41,7 @@ func (e *Event) String() string {
 	return string(*e)
 }
 
-func (e *Event) IsEmpty() bool {
+func (e Event) IsEmpty() bool {
 	return e.String() == ""
 }
 
@@ -63,7 +63,7 @@ type FSM struct {
 	// May be mapping must require pair source + event?
 	transitions map[trKey]*trEvent
 
-	autoTransitions map[State]*trEvent
+	autoTransitions map[trAutoKeyEvent]*trEvent
 
 	callbacks Callbacks
 
@@ -92,6 +92,11 @@ type trEvent struct {
 	isInternal bool
 	isAuto     bool
 	runMode    EventRunMode
+}
+
+type trAutoKeyEvent struct {
+	state   State
+	runMode EventRunMode
 }
 
 type EventDesc struct {
@@ -138,7 +143,7 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 		currentState:    initialState,
 		initialState:    initialState,
 		transitions:     make(map[trKey]*trEvent),
-		autoTransitions: make(map[State]*trEvent),
+		autoTransitions: make(map[trAutoKeyEvent]*trEvent),
 		finStates:       make(map[State]bool),
 		callbacks:       make(map[Event]Callback),
 	}
@@ -217,14 +222,15 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 					panic("{AutoRunMode} not set for auto event")
 				}
 
-				if _, ok := f.autoTransitions[sourceState]; ok {
+				trAutoKey := trAutoKeyEvent{sourceState, event.AutoRunMode}
+				if _, ok := f.autoTransitions[trAutoKey]; ok {
 					panic(fmt.Sprintf(
 						"auto event \"%s\" already exists for state \"%s\"",
 						event.Name,
 						sourceState,
 					))
 				}
-				f.autoTransitions[sourceState] = trEvent
+				f.autoTransitions[trAutoKey] = trEvent
 			}
 
 			allSources[sourceState] = true
@@ -247,7 +253,7 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 		}
 
 		if _, ok := allEvents[event]; !ok {
-			panic("callback has empty event")
+			panic(fmt.Sprintf("callback has unused event \"%s\"", event))
 		}
 
 		f.callbacks[event] = callback
@@ -273,7 +279,7 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 func (f *FSM) DoInternal(event Event, args ...interface{}) (resp *Response, err error) {
 	trEvent, ok := f.transitions[trKey{f.currentState, event}]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("cannot execute event \"%s\" for state \"%s\"", event, f.currentState))
+		return nil, errors.New(fmt.Sprintf("cannot execute internal event \"%s\" for state \"%s\"", event, f.currentState))
 	}
 
 	return f.do(trEvent, args...)
@@ -290,41 +296,55 @@ func (f *FSM) Do(event Event, args ...interface{}) (resp *Response, err error) {
 
 	return f.do(trEvent, args...)
 }
+
+// Check and execute auto event
+func (f *FSM) processAutoEvent(mode EventRunMode, args ...interface{}) (exists bool, outEvent Event, response interface{}, err error) {
+	autoEvent, exists := f.autoTransitions[trAutoKeyEvent{f.State(), mode}]
+	if !exists {
+		return
+	}
+
+	if f.isCallbackExists(autoEvent.event) {
+		outEvent, response, err = f.execCallback(autoEvent.event, args...)
+		// Do not try change state on error
+		if err != nil {
+			return exists, "", response, err
+		}
+
+	}
+
+	if outEvent.IsEmpty() || autoEvent.event == outEvent {
+		err = f.SetState(autoEvent.event)
+	} else {
+		err = f.SetState(outEvent)
+	}
+
+	return
+}
+
 func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err error) {
 	var outEvent Event
 	// f.eventMu.Lock()
 	// defer f.eventMu.Unlock()
 
+	resp = &Response{}
+
 	// Process auto event
-	if autoEvent, ok := f.autoTransitions[f.State()]; ok {
-		autoEventResp := &Response{
-			State: f.State(),
+	isAutoEventExecuted, outEvent, data, err := f.processAutoEvent(EventRunBefore, args...)
+
+	if isAutoEventExecuted {
+		resp.State = f.State()
+		if data != nil {
+			resp.Data = data
 		}
-		if autoEvent.runMode == EventRunBefore {
-			if callback, ok := f.callbacks[autoEvent.event]; ok {
-				outEvent, autoEventResp.Data, err = callback(autoEvent.event, args...)
-				if err != nil {
-					return autoEventResp, err
-				}
-			}
-			if outEvent.IsEmpty() || autoEvent.event == outEvent {
-				err = f.SetState(autoEvent.event)
-			} else {
-				err = f.SetState(outEvent)
-			}
-			if err != nil {
-				return autoEventResp, err
-			}
+
+		if err != nil {
+			return resp, err
 		}
-		outEvent = ""
 	}
 
-	resp = &Response{
-		State: f.State(),
-	}
-
-	if callback, ok := f.callbacks[trEvent.event]; ok {
-		outEvent, resp.Data, err = callback(trEvent.event, args...)
+	if f.isCallbackExists(trEvent.event) {
+		outEvent, resp.Data, err = f.execCallback(trEvent.event, args...)
 		// Do not try change state on error
 		if err != nil {
 			return resp, err
@@ -334,32 +354,30 @@ func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err err
 	// Set state when callback executed
 	if outEvent.IsEmpty() || trEvent.event == outEvent {
 		err = f.SetState(trEvent.event)
+		if err != nil {
+			return resp, err
+		}
 	} else {
 		err = f.SetState(outEvent)
+		if err != nil {
+			return resp, err
+		}
 	}
 
+	resp.State = f.State()
+
 	// Process auto event
-	if autoEvent, ok := f.autoTransitions[f.State()]; ok {
-		autoEventResp := &Response{
-			State: f.State(),
+	isAutoEventExecuted, outEvent, data, err = f.processAutoEvent(EventRunAfter, args...)
+
+	if isAutoEventExecuted {
+		resp.State = f.State()
+		if data != nil {
+			resp.Data = data
 		}
-		if autoEvent.runMode == EventRunAfter {
-			if callback, ok := f.callbacks[autoEvent.event]; ok {
-				outEvent, autoEventResp.Data, err = callback(autoEvent.event, args...)
-				if err != nil {
-					return autoEventResp, err
-				}
-			}
-			if outEvent.IsEmpty() || autoEvent.event == outEvent {
-				err = f.SetState(autoEvent.event)
-			} else {
-				err = f.SetState(outEvent)
-			}
-			if err != nil {
-				return autoEventResp, err
-			}
+
+		if err != nil {
+			return resp, err
 		}
-		outEvent = ""
 	}
 
 	resp.State = f.State()
@@ -382,7 +400,7 @@ func (f *FSM) SetState(event Event) error {
 
 	trEvent, ok := f.transitions[trKey{f.currentState, event}]
 	if !ok {
-		return errors.New(fmt.Sprintf("cannot execute event \"%s\" for state \"%s\"", event, f.currentState))
+		return errors.New(fmt.Sprintf("cannot set state by event \"%s\" for state \"%s\"", event, f.currentState))
 	}
 
 	f.currentState = trEvent.dstState
@@ -455,6 +473,16 @@ func (f *FSM) StatesSourcesList() (states []State) {
 	}
 
 	return
+}
+
+func (f *FSM) isCallbackExists(event Event) bool {
+	_, exists := f.callbacks[event]
+	return exists
+}
+
+func (f *FSM) execCallback(event Event, args ...interface{}) (Event, interface{}, error) {
+	callback, _ := f.callbacks[event]
+	return callback(event, args...)
 }
 
 func (f *FSM) IsFinState(state State) bool {
