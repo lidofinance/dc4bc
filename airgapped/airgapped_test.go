@@ -29,29 +29,29 @@ func (n *Node) storeOperation(t *testing.T, o client.Operation) {
 	case dkg_proposal_fsm.EventDKGCommitConfirmationReceived:
 		var req requests.DKGProposalCommitConfirmationRequest
 		if err := json.Unmarshal(o.Result, &req); err != nil {
-			t.Errorf("failed to unmarshal fsm req: %v", err)
+			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
 		n.commits = append(n.commits, req)
 	case dkg_proposal_fsm.EventDKGDealConfirmationReceived:
 		var req requests.DKGProposalDealConfirmationRequest
 		if err := json.Unmarshal(o.Result, &req); err != nil {
-			t.Errorf("failed to unmarshal fsm req: %v", err)
+			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
 		n.deals = append(n.deals, req)
 	case dkg_proposal_fsm.EventDKGResponseConfirmationReceived:
 		var req requests.DKGProposalResponseConfirmationRequest
 		if err := json.Unmarshal(o.Result, &req); err != nil {
-			t.Errorf("failed to unmarshal fsm req: %v", err)
+			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
 		n.responses = append(n.responses, req)
 	case dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived:
 		var req requests.DKGProposalMasterKeyConfirmationRequest
 		if err := json.Unmarshal(o.Result, &req); err != nil {
-			t.Errorf("failed to unmarshal fsm req: %v", err)
+			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
 		n.masterKey = append(n.masterKey, req)
 	default:
-		t.Errorf("invalid event: %s", o.Event)
+		t.Fatalf("invalid event: %s", o.Event)
 	}
 }
 
@@ -70,7 +70,7 @@ func (tr *Transport) BroadcastOperation(t *testing.T, operation client.Operation
 func createOperation(t *testing.T, opType string, to string, req interface{}) client.Operation {
 	reqBz, err := json.Marshal(req)
 	if err != nil {
-		t.Errorf("failed to marshal request: %v", err)
+		t.Fatalf("failed to marshal request: %v", err)
 	}
 	op := client.Operation{
 		ID:            uuid.New().String(),
@@ -116,7 +116,7 @@ func TestAirgappedFullDKG(t *testing.T) {
 
 		_, err := n.Machine.HandleOperation(op)
 		if err != nil {
-			t.Errorf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
 		}
 	})
 
@@ -125,7 +125,7 @@ func TestAirgappedFullDKG(t *testing.T) {
 	for _, n := range tr.nodes {
 		pubKey, err := n.Machine.pubKey.MarshalBinary()
 		if err != nil {
-			t.Errorf("%s: failed to marshal pubkey: %v", n.Participant, err)
+			t.Fatalf("%s: failed to marshal pubkey: %v", n.Participant, err)
 		}
 		entry := &responses.SignatureProposalParticipantStatusEntry{
 			ParticipantId: n.ParticipantID,
@@ -140,7 +140,7 @@ func TestAirgappedFullDKG(t *testing.T) {
 
 		operations, err := n.Machine.HandleOperation(op)
 		if err != nil {
-			t.Errorf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
 		}
 		for _, op := range operations {
 			tr.BroadcastOperation(t, op)
@@ -164,7 +164,7 @@ func TestAirgappedFullDKG(t *testing.T) {
 
 		operations, err := n.Machine.HandleOperation(op)
 		if err != nil {
-			t.Errorf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
 		}
 		for _, op := range operations {
 			tr.BroadcastOperation(t, op)
@@ -188,7 +188,7 @@ func TestAirgappedFullDKG(t *testing.T) {
 
 		operations, err := n.Machine.HandleOperation(op)
 		if err != nil {
-			t.Errorf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
 		}
 		for _, op := range operations {
 			tr.BroadcastOperation(t, op)
@@ -212,16 +212,16 @@ func TestAirgappedFullDKG(t *testing.T) {
 
 		operations, err := n.Machine.HandleOperation(op)
 		if err != nil {
-			t.Errorf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
 		}
 		for _, op := range operations {
 			tr.BroadcastOperation(t, op)
 		}
 	})
 
-	for _, n := range tr.nodes {
-		fmt.Println(n.masterKey)
-	}
+	//TODO: check that master pub key is the same for every participant
+
+	t.Log("DKG succeeded")
 }
 
 func runStep(transport *Transport, cb func(n *Node, wg *sync.WaitGroup)) {

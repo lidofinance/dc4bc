@@ -322,6 +322,8 @@ func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.
 		return fmt.Errorf("failed to process responses: %w", err)
 	}
 
+	//TODO: THIS BLOCK IS WRONG. @oopcode, what exactly should we broadcast?
+	///////////////////////////////////////////////////////////////////////////////
 	masterPubKey, err := dkgInstance.GetMasterPubKey()
 	if err != nil {
 		return fmt.Errorf("failed to get master pub key: %w", err)
@@ -343,6 +345,8 @@ func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.
 	if err != nil {
 		return fmt.Errorf("failed to generate fsm request: %w", err)
 	}
+	///////////////////////////////////////////////////////////////////////////////
+
 	o.Result = reqBz
 	o.Event = dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived
 	return nil
