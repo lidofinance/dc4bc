@@ -13,9 +13,9 @@ import (
 	"github.com/depools/dc4bc/qr"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/encrypt/ecies"
-	"go.dedis.ch/kyber/v3/group/edwards25519"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
 	dkgPedersen "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+	"log"
 	"sync"
 )
 
@@ -57,7 +57,6 @@ func (am *AirgappedMachine) getParticipantID(dkgIdentifier string) (int, error) 
 }
 
 func (am *AirgappedMachine) encryptData(dkgIdentifier, to string, data []byte) ([]byte, error) {
-	suite := edwards25519.NewBlakeSHA256Ed25519()
 	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
 	if !ok {
 		return nil, fmt.Errorf("invalid dkg identifier: %s", dkgIdentifier)
@@ -68,7 +67,7 @@ func (am *AirgappedMachine) encryptData(dkgIdentifier, to string, data []byte) (
 		return nil, fmt.Errorf("failed to get pk for participant %s: %w", to, err)
 	}
 
-	encryptedData, err := ecies.Encrypt(suite, pk, data, suite.Hash)
+	encryptedData, err := ecies.Encrypt(am.suite, pk, data, am.suite.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt data: %w", err)
 	}
@@ -76,9 +75,7 @@ func (am *AirgappedMachine) encryptData(dkgIdentifier, to string, data []byte) (
 }
 
 func (am *AirgappedMachine) decryptData(data []byte) ([]byte, error) {
-	suite := edwards25519.NewBlakeSHA256Ed25519()
-
-	decryptedData, err := ecies.Decrypt(suite, am.secKey, data, suite.Hash)
+	decryptedData, err := ecies.Decrypt(am.suite, am.secKey, data, am.suite.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt data: %w", err)
 	}
@@ -115,6 +112,10 @@ func (am *AirgappedMachine) GetPubKey() kyber.Point {
 	return am.pubKey
 }
 
+type Commits struct {
+	MarshaledCommit []byte
+}
+
 func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) error {
 	var (
 		payload responses.SignatureProposalParticipantStatusResponse
@@ -142,28 +143,36 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 		return fmt.Errorf("failed to init dkg instance: %w", err)
 	}
 
-	commits, err := json.Marshal(dkgInstance.GetCommits())
-	if err != nil {
-		return fmt.Errorf("failed to marshal commits: %w", err)
+	// TODO: come up with something better
+	var commits []Commits
+	dkgCommits := dkgInstance.GetCommits()
+	for _, commit := range dkgCommits {
+		commitBz, err := commit.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("failed to marshal commits: %w", err)
+		}
+		commits = append(commits, Commits{MarshaledCommit: commitBz})
 	}
+	commitsBz, err := json.Marshal(commits)
 
 	am.dkgInstances[o.DKGIdentifier] = dkgInstance
 
 	req := requests.DKGProposalCommitConfirmationRequest{
 		ParticipantId: dkgInstance.ParticipantID,
-		Commit:        commits,
+		Commit:        commitsBz,
 		CreatedAt:     o.CreatedAt,
 	}
-	reqBz, err := client.FSMRequestToBytes(dkg_proposal_fsm.EventDKGCommitConfirmationReceived, req)
+	reqBz, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to generate fsm request: %w", err)
 	}
 	o.Result = reqBz
+	o.Event = dkg_proposal_fsm.EventDKGCommitConfirmationReceived
 	return nil
 }
 
 // We have many deals which should be sent privately to a required participant, so func returns a slice of operations
-func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Operation) ([]client.Operation, error) {
+func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o client.Operation) ([]client.Operation, error) {
 	var (
 		payload responses.DKGProposalCommitParticipantResponse
 		err     error
@@ -179,11 +188,19 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Oper
 	}
 
 	for _, entry := range payload {
-		var commits []kyber.Point
+		var commits []Commits
 		if err = json.Unmarshal(entry.Commit, &commits); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal commits: %w", err)
 		}
-		dkgInstance.StoreCommits(entry.Title, commits)
+		dkgCommits := make([]kyber.Point, 0, len(commits))
+		for _, c := range commits {
+			commit := am.suite.Point()
+			if err = commit.UnmarshalBinary(c.MarshaledCommit); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal commit: %w", err)
+			}
+			dkgCommits = append(dkgCommits, commit)
+		}
+		dkgInstance.StoreCommits(entry.Title, dkgCommits)
 	}
 
 	deals, err := dkgInstance.GetDeals()
@@ -212,12 +229,13 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Oper
 			CreatedAt:     o.CreatedAt,
 		}
 		o.To = toParticipant
-		reqBz, err := client.FSMRequestToBytes(dkg_proposal_fsm.EventDKGDealConfirmationReceived, req)
+		reqBz, err := json.Marshal(req)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate fsm request: %w", err)
 		}
 		o.Result = reqBz
-		operations = append(operations, *o)
+		o.Event = dkg_proposal_fsm.EventDKGDealConfirmationReceived
+		operations = append(operations, o)
 	}
 	return operations, nil
 }
@@ -267,12 +285,13 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 		CreatedAt:     o.CreatedAt,
 	}
 
-	reqBz, err := client.FSMRequestToBytes(dkg_proposal_fsm.EventDKGResponseConfirmationReceived, req)
+	reqBz, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to generate fsm request: %w", err)
 	}
 
 	o.Result = reqBz
+	o.Event = dkg_proposal_fsm.EventDKGResponseConfirmationReceived
 	return nil
 }
 
@@ -320,11 +339,12 @@ func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.
 		MasterKey:     masterPubKeyBz,
 		CreatedAt:     o.CreatedAt,
 	}
-	reqBz, err := client.FSMRequestToBytes(dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived, req)
+	reqBz, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to generate fsm request: %w", err)
 	}
 	o.Result = reqBz
+	o.Event = dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived
 	return nil
 }
 
@@ -348,7 +368,7 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) ([]clien
 	case dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:
 		err = am.handleStateDkgCommitsAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:
-		operations, err = am.handleStateDkgDealsAwaitConfirmations(&operation)
+		operations, err = am.handleStateDkgDealsAwaitConfirmations(operation)
 	case dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations:
 		err = am.handleStateDkgResponsesAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:
@@ -359,6 +379,8 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) ([]clien
 
 	// if we have error after handling the operation, we write the error to the operation, so we can feed it to a FSM
 	if err != nil {
+		log.Println(fmt.Sprintf("failed to handle operation %s, returning response with errot to client: %v",
+			operation.Type, err))
 		if e := am.writeErrorRequestToOperation(&operation, err); e != nil {
 			return nil, fmt.Errorf("failed to write error request to an operation: %w", e)
 		}
@@ -431,10 +453,11 @@ func (am *AirgappedMachine) writeErrorRequestToOperation(o *client.Operation, ha
 		CreatedAt:     o.CreatedAt,
 	}
 	errorEvent := eventToErrorMap[fsm.State(o.Type)]
-	reqBz, err := client.FSMRequestToBytes(errorEvent, req)
+	reqBz, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to generate fsm request: %w", err)
 	}
 	o.Result = reqBz
+	o.Event = errorEvent
 	return nil
 }

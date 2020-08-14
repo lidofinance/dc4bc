@@ -22,6 +22,7 @@ type Operation struct {
 	CreatedAt     time.Time
 	DKGIdentifier string
 	To            string
+	Event         fsm.Event
 }
 
 func (o *Operation) Check(o2 *Operation) error {
