@@ -5,10 +5,9 @@
 package clientMocks
 
 import (
-	reflect "reflect"
-
 	client "github.com/depools/dc4bc/client"
 	gomock "github.com/golang/mock/gomock"
+	reflect "reflect"
 )
 
 // MockState is a mock of State interface
@@ -72,7 +71,7 @@ func (m *MockState) SaveFSM(arg0 []byte) error {
 }
 
 // SaveFSM indicates an expected call of SaveFSM
-func (mr *MockStateMockRecorder) SaveFSM(arg0 []byte) *gomock.Call {
+func (mr *MockStateMockRecorder) SaveFSM(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveFSM", reflect.TypeOf((*MockState)(nil).SaveFSM), arg0)
 }

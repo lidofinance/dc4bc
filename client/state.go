@@ -45,15 +45,25 @@ func NewLevelDBState(stateDbPath string) (State, error) {
 	}
 
 	// Init state key for operations JSON.
-	if err := state.initJsonKey(operationsKey, map[string]*Operation{}); err != nil {
-		return nil, fmt.Errorf("failed to init %s storage: %w", operationsKey, err)
+	if _, err := state.stateDb.Get([]byte(operationsKey), nil); err != nil {
+		if err := state.initJsonKey(operationsKey, map[string]*Operation{}); err != nil {
+			return nil, fmt.Errorf("failed to init %s storage: %w", operationsKey, err)
+		}
 	}
 
 	// Init state key for offset bytes.
-	bz := make([]byte, 8)
-	binary.LittleEndian.PutUint64(bz, 0)
-	if err := db.Put([]byte(offsetKey), bz, nil); err != nil {
-		return nil, fmt.Errorf("failed to init %s storage: %w", offsetKey, err)
+	if _, err := state.stateDb.Get([]byte(offsetKey), nil); err != nil {
+		bz := make([]byte, 8)
+		binary.LittleEndian.PutUint64(bz, 0)
+		if err := db.Put([]byte(offsetKey), bz, nil); err != nil {
+			return nil, fmt.Errorf("failed to init %s storage: %w", offsetKey, err)
+		}
+	}
+
+	if _, err := state.stateDb.Get([]byte(fsmStateKey), nil); err != nil {
+		if err := db.Put([]byte(fsmStateKey), []byte{}, nil); err != nil {
+			return nil, fmt.Errorf("failed to init %s storage: %w", offsetKey, err)
+		}
 	}
 
 	return state, nil
