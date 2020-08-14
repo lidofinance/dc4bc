@@ -190,11 +190,6 @@ func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event
 		return
 	}
 
-	err = m.SetState(eventSetProposalValidatedInternal)
-	if err != nil {
-		return
-	}
-
 	responseData := make(responses.SignatureProposalParticipantStatusResponse, 0)
 
 	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
@@ -207,7 +202,7 @@ func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event
 		responseData = append(responseData, responseEntry)
 	}
 
-	return eventDoneInternal, responseData, nil
+	return eventSetProposalValidatedInternal, responseData, nil
 }
 
 func (m *SignatureProposalFSM) actionSignatureProposalCanceledByTimeout(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {

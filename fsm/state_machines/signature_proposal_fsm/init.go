@@ -2,7 +2,6 @@ package signature_proposal_fsm
 
 import (
 	"github.com/depools/dc4bc/fsm/fsm"
-	dpf "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"sync"
 )
@@ -67,10 +66,9 @@ func New() internal.DumpedMachineProvider {
 			// eventProposalValidate internal or from client?
 			// yay
 
+			// Exit point
 			{Name: eventSetProposalValidatedInternal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateSignatureProposalCollected, IsInternal: true},
 
-			// Exit point
-			{Name: eventDoneInternal, SrcState: []fsm.State{StateSignatureProposalCollected}, DstState: dpf.StateDkgInitial, IsInternal: true},
 			// nan
 			{Name: eventSetValidationCanceledByTimeout, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateValidationCanceledByTimeout, IsInternal: true},
 		},

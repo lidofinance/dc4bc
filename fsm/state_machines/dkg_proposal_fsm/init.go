@@ -3,13 +3,14 @@ package dkg_proposal_fsm
 import (
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
+	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"sync"
 )
 
 const (
 	FsmName = "dkg_proposal_fsm"
 
-	StateDkgInitial = StateDkgCommitsAwaitConfirmations
+	StateDkgInitial = spf.StateSignatureProposalCollected
 
 	// Sending dkg commits
 	StateDkgCommitsAwaitConfirmations = fsm.State("state_dkg_commits_await_confirmations")
@@ -41,7 +42,7 @@ const (
 	StateDkgMasterKeyCollected = fsm.State("state_dkg_master_key_collected")
 
 	// Events
-	eventAutoDKGInitialInternal = fsm.Event("event_dkg_init")
+	EventDKGInitProcess = fsm.Event("event_dkg_init_process")
 
 	EventDKGCommitConfirmationReceived                 = fsm.Event("event_dkg_commit_confirm_received")
 	EventDKGCommitConfirmationError                    = fsm.Event("event_dkg_commit_confirm_canceled_by_error")
@@ -92,13 +93,13 @@ func New() internal.DumpedMachineProvider {
 			// Switch to pub keys required
 			// 	{Name: eventDKGPubKeysSendingRequiredAuto, SrcState: []fsm.State{StateDkgInitial}, DstState: StateDkgPubKeysAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunAfter},
 
-			// {Name: eventAutoDKGInitialInternal, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunBefore},
+			// {Name: EventDKGInitProcess, SrcState: []fsm.State{StateDkgPubKeysAwaitConfirmations}, DstState: StateDkgPubKeysAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunBefore},
 
 			// StateDkgCommitsCollected = fsm.State("state_dkg_commits_collected")
 
-			//	{Name: eventAutoDKGInitInternal, SrcState: []fsm.State{StateDkgInitial}, DstState: StateDkgCommitsAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunBefore},
+			// {Name: eventAutoDKGInitInternal, SrcState: []fsm.State{StateDkgInitial}, DstState: StateDkgCommitsAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunBefore},
 
-			{Name: eventAutoDKGInitialInternal, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitConfirmations, IsInternal: true, IsAuto: true, AutoRunMode: fsm.EventRunBefore},
+			{Name: EventDKGInitProcess, SrcState: []fsm.State{StateDkgInitial}, DstState: StateDkgCommitsAwaitConfirmations},
 
 			// Commits
 			{Name: EventDKGCommitConfirmationReceived, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitConfirmations},
@@ -144,7 +145,7 @@ func New() internal.DumpedMachineProvider {
 			// {Name: EventDKGMasterKeyRequiredInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: fsm.StateGlobalDone, IsInternal: true},
 		},
 		fsm.Callbacks{
-			eventAutoDKGInitialInternal: machine.actionInitDKGProposal,
+			EventDKGInitProcess: machine.actionInitDKGProposal,
 
 			EventDKGCommitConfirmationReceived:              machine.actionCommitConfirmationReceived,
 			EventDKGCommitConfirmationError:                 machine.actionConfirmationError,

@@ -239,11 +239,21 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 		if participantCounter > 0 {
 			compareState(t, spf.StateAwaitParticipantsConfirmations, fsmResponse.State)
-		} else {
-			compareState(t, spf.StateSignatureProposalCollected, fsmResponse.State)
 		}
 
 	}
+
+	compareState(t, spf.StateSignatureProposalCollected, fsmResponse.State)
+
+	testFSMInstance, err = FromDump(dump)
+
+	fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGInitProcess)
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, dump)
+
+	compareFSMResponseNotNil(t, fsmResponse)
 
 	compareState(t, dpf.StateDkgCommitsAwaitConfirmations, fsmResponse.State)
 
