@@ -17,6 +17,7 @@ import (
 
 const (
 	DKGIdentifier = "dkg_identifier"
+	testDB        = "test_level_db"
 )
 
 type Node struct {
@@ -98,7 +99,10 @@ func TestAirgappedAllSteps(t *testing.T) {
 
 	tr := &Transport{}
 	for i := 0; i < nodesCount; i++ {
-		am := NewAirgappedMachine()
+		am, err := NewAirgappedMachine(fmt.Sprintf(testDB+"%d", i))
+		if err != nil {
+			t.Fatalf("failed to create airgapped machine: %v", err)
+		}
 		node := Node{
 			ParticipantID: i,
 			Participant:   participants[i],

@@ -11,6 +11,7 @@ import (
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
 	"github.com/depools/dc4bc/qr"
+	"github.com/syndtr/goleveldb/leveldb"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/encrypt/ecies"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
@@ -23,7 +24,9 @@ import (
 )
 
 const (
-	resultQRFolder = "result_qr_codes"
+	resultQRFolder  = "result_qr_codes"
+	pubKeyDBKey     = "public_key"
+	privateKeyDBKey = "private_key"
 )
 
 type AirgappedMachine struct {
@@ -37,18 +40,99 @@ type AirgappedMachine struct {
 	suite  *bn256.Suite
 }
 
-func NewAirgappedMachine() *AirgappedMachine {
+func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 	am := &AirgappedMachine{
 		dkgInstances: make(map[string]*dkg.DKG),
 		qrProcessor:  qr.NewCameraProcessor(),
 	}
 
-	// TODO: leveldb
 	am.suite = bn256.NewSuiteG2()
-	am.secKey = am.suite.Scalar().Pick(am.suite.RandomStream())
-	am.pubKey = am.suite.Point().Mul(am.secKey, nil)
 
-	return am
+	err := am.loadKeysFromDB(dbPath)
+	if err != nil && err != leveldb.ErrNotFound {
+		return nil, fmt.Errorf("failed to load keys from db %s: %w", dbPath, err)
+	}
+
+	// if keys were not generated yet
+	if err == leveldb.ErrNotFound {
+		am.secKey = am.suite.Scalar().Pick(am.suite.RandomStream())
+		am.pubKey = am.suite.Point().Mul(am.secKey, nil)
+
+		return am, am.saveKeysToDB(dbPath)
+	}
+
+	return am, nil
+}
+
+func (am *AirgappedMachine) loadKeysFromDB(dbPath string) error {
+	db, err := leveldb.OpenFile(dbPath, nil)
+	if err != nil {
+		return fmt.Errorf("failed to open db file %s for keys: %w", dbPath, err)
+	}
+	defer db.Close()
+
+	pubKeyBz, err := db.Get([]byte(pubKeyDBKey), nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return err
+		}
+		return fmt.Errorf("failed to get public key from db %s: %w", dbPath, err)
+	}
+
+	privateKeyBz, err := db.Get([]byte(privateKeyDBKey), nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return err
+		}
+		return fmt.Errorf("failed to get private key from db %s: %w", dbPath, err)
+	}
+
+	am.pubKey = am.suite.Point()
+	if err = am.pubKey.UnmarshalBinary(pubKeyBz); err != nil {
+		return fmt.Errorf("failed to unmarshal public key: %w", err)
+	}
+
+	am.secKey = am.suite.Scalar()
+	if err = am.secKey.UnmarshalBinary(privateKeyBz); err != nil {
+		return fmt.Errorf("failed to unmarshal private key: %w", err)
+	}
+	return nil
+}
+
+func (am *AirgappedMachine) saveKeysToDB(dbPath string) error {
+	db, err := leveldb.OpenFile(dbPath, nil)
+	if err != nil {
+		return fmt.Errorf("failed to open db file %s for keys: %w", dbPath, err)
+	}
+	defer db.Close()
+
+	pubKeyBz, err := am.pubKey.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to marshal pub key: %w", err)
+	}
+	privateKeyBz, err := am.secKey.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to marshal private key: %w", err)
+	}
+
+	tx, err := db.OpenTransaction()
+	if err != nil {
+		return fmt.Errorf("failed to open transcation for db %s: %w", dbPath, err)
+	}
+	defer tx.Discard()
+
+	if err = tx.Put([]byte(pubKeyDBKey), pubKeyBz, nil); err != nil {
+		return fmt.Errorf("failed to put pub key into db %s: %w", dbPath, err)
+	}
+
+	if err = tx.Put([]byte(privateKeyDBKey), privateKeyBz, nil); err != nil {
+		return fmt.Errorf("failed to put private key into db %s: %w", dbPath, err)
+	}
+
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit tx for saving keys into db %s: %w", dbPath, err)
+	}
+	return nil
 }
 
 func (am *AirgappedMachine) getParticipantID(dkgIdentifier string) (int, error) {
