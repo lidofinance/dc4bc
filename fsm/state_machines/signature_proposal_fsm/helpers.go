@@ -18,8 +18,6 @@ func ProposalParticipantsQuorumToResponse(list *internal.SignatureProposalQuorum
 		response = append(response, &responses.SignatureProposalParticipantInvitationEntry{
 			Title:             participant.Title,
 			PubKeyFingerprint: quorumId,
-			// TODO: Add encryption
-			EncryptedInvitation: participant.InvitationSecret,
 		})
 	}
 	return response

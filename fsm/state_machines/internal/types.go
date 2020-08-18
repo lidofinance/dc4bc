@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"crypto/rsa"
 	"time"
 )
 
@@ -15,12 +14,10 @@ type SignatureProposalParticipant struct {
 	// Public title for address, such as name, nickname, organization
 	ParticipantId int
 	Title         string
-	PubKey        *rsa.PublicKey
+	PubKey        []byte
 	DkgPubKey     []byte
-	// For validation user confirmation: sign(InvitationSecret, PubKey) => user
-	InvitationSecret string
-	Status           ParticipantStatus
-	UpdatedAt        time.Time
+	Status        ParticipantStatus
+	UpdatedAt     time.Time
 }
 
 // Unique alias for map iteration - Public Key Fingerprint

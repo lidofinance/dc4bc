@@ -1,7 +1,6 @@
 package signature_proposal_fsm
 
 import (
-	"crypto/x509"
 	"errors"
 	"fmt"
 	"time"
@@ -41,25 +40,13 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 
 	for index, participant := range request.Participants {
 		participantId := createFingerprint(&participant.PubKey)
-		secret, err := generateRandomString(32)
-		if err != nil {
-			return inEvent, nil, errors.New("cannot generate source for {InvitationSecret}")
-		}
-
-		parsedPubKey, err := x509.ParsePKCS1PublicKey(participant.PubKey)
-
-		if err != nil {
-			return inEvent, nil, errors.New("cannot parse {PubKey}")
-		}
-
 		m.payload.SignatureProposalPayload.Quorum[participantId] = &internal.SignatureProposalParticipant{
-			ParticipantId:    index,
-			Title:            participant.Addr,
-			PubKey:           parsedPubKey,
-			DkgPubKey:        participant.DkgPubKey,
-			InvitationSecret: secret,
-			Status:           internal.SignatureConfirmationAwaitConfirmation,
-			UpdatedAt:        request.CreatedAt,
+			ParticipantId: index,
+			Title:         participant.Addr,
+			PubKey:        participant.PubKey,
+			DkgPubKey:     participant.DkgPubKey,
+			Status:        internal.SignatureConfirmationAwaitConfirmation,
+			UpdatedAt:     request.CreatedAt,
 		}
 	}
 
@@ -74,15 +61,10 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 	responseData := make(responses.SignatureProposalParticipantInvitationsResponse, 0)
 
 	for pubKeyFingerprint, proposal := range m.payload.SignatureProposalPayload.Quorum {
-		encryptedInvitationSecret, err := encryptWithPubKey(proposal.PubKey, proposal.InvitationSecret)
-		if err != nil {
-			return inEvent, nil, errors.New("cannot encryptWithPubKey")
-		}
 		responseEntry := &responses.SignatureProposalParticipantInvitationEntry{
-			ParticipantId:       proposal.ParticipantId,
-			Title:               proposal.Title,
-			PubKeyFingerprint:   pubKeyFingerprint,
-			EncryptedInvitation: encryptedInvitationSecret,
+			ParticipantId:     proposal.ParticipantId,
+			Title:             proposal.Title,
+			PubKeyFingerprint: pubKeyFingerprint,
 		}
 		responseData = append(responseData, responseEntry)
 	}
@@ -118,12 +100,6 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 	}
 
 	signatureProposalParticipant := m.payload.SigQuorumGet(request.PubKeyFingerprint)
-
-	if signatureProposalParticipant.InvitationSecret != request.DecryptedInvitation {
-		err = errors.New("{InvitationSecret} not match {DecryptedInvitation}")
-		return
-	}
-
 	if signatureProposalParticipant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(request.CreatedAt) {
 		outEvent = eventSetValidationCanceledByTimeout
 		return
