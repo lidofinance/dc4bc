@@ -28,7 +28,7 @@ const (
 	eventDoneInternal = fsm.Event("event_sig_proposal_done")
 
 	eventSetValidationCanceledByTimeout     = fsm.Event("event_sig_proposal_canceled_timeout")
-	eventSetValidationCanceledByParticipant = fsm.Event("event_sig_proposal_declined_timeout")
+	eventSetValidationCanceledByParticipant = fsm.Event("event_sig_proposal_canceled_participant")
 
 	StateSignatureProposalCollected = fsm.State("state_sig_proposal_collected")
 
@@ -49,7 +49,7 @@ func New() internal.DumpedMachineProvider {
 		FsmName,
 		fsm.StateGlobalIdle,
 		[]fsm.EventDesc{
-			// {Name: "", SrcState: []string{""}, DstState: ""},
+			// {Name: "", SrcState: []fsm.State{""}, DstState: ""},
 
 			// Init
 			{Name: EventInitProposal, SrcState: []fsm.State{StateParticipantsConfirmationsInit}, DstState: StateAwaitParticipantsConfirmations},

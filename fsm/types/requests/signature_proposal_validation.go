@@ -11,6 +11,14 @@ func (r *SignatureProposalParticipantsListRequest) Validate() error {
 		return errors.New(fmt.Sprintf("too few participants, minimum is {%d}", config.ParticipantsMinCount))
 	}
 
+	if r.SigningThreshold < 2 {
+		return errors.New("{SigningThreshold} minimum count is {2}")
+	}
+
+	if r.SigningThreshold > len(r.Participants) {
+		return errors.New("{SigningThreshold} cannot be higher than {ParticipantsCount}")
+	}
+
 	for _, participant := range r.Participants {
 		if len(participant.Title) < 3 {
 			return errors.New("{Title} minimum length is {3}")

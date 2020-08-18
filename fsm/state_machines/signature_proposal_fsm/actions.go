@@ -57,7 +57,7 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 			PubKey:           parsedPubKey,
 			DkgPubKey:        participant.DkgPubKey,
 			InvitationSecret: secret,
-			Status:           internal.SignatureConfirmationAwaitConfirmation,
+			Status:           internal.SigConfirmationAwaitConfirmation,
 			UpdatedAt:        request.CreatedAt,
 		}
 	}
@@ -128,16 +128,16 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 		return
 	}
 
-	if signatureProposalParticipant.Status != internal.SignatureConfirmationAwaitConfirmation {
+	if signatureProposalParticipant.Status != internal.SigConfirmationAwaitConfirmation {
 		err = errors.New(fmt.Sprintf("cannot apply reply participant with {Status} = {\"%s\"}", signatureProposalParticipant.Status))
 		return
 	}
 
 	switch inEvent {
 	case EventConfirmSignatureProposal:
-		signatureProposalParticipant.Status = internal.SignatureConfirmationConfirmed
+		signatureProposalParticipant.Status = internal.SigConfirmationConfirmed
 	case EventDeclineProposal:
-		signatureProposalParticipant.Status = internal.SignatureConfirmationDeclined
+		signatureProposalParticipant.Status = internal.SigConfirmationDeclined
 	default:
 		err = errors.New("undefined {Event} for action")
 		return
@@ -162,14 +162,14 @@ func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event
 
 	unconfirmedParticipants := m.payload.SigQuorumCount()
 	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
-		if participant.Status == internal.SignatureConfirmationAwaitConfirmation {
+		if participant.Status == internal.SigConfirmationAwaitConfirmation {
 			if participant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(tm) {
 				isContainsExpired = true
 			}
 		} else {
-			if participant.Status == internal.SignatureConfirmationConfirmed {
+			if participant.Status == internal.SigConfirmationConfirmed {
 				unconfirmedParticipants--
-			} else if participant.Status == internal.SignatureConfirmationDeclined {
+			} else if participant.Status == internal.SigConfirmationDeclined {
 				isContainsDeclined = true
 			}
 		}

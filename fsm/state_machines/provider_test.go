@@ -80,6 +80,7 @@ func init() {
 		})
 	}
 	testParticipantsListRequest.Participants = participantsForRequest
+	testParticipantsListRequest.SigningThreshold = len(participantsForRequest)
 }
 
 func TestCreate_Positive(t *testing.T) {
@@ -399,7 +400,7 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 	}
 
-	compareState(t, fsm.StateGlobalDone, fsmResponse.State)
+	compareState(t, dpf.StateDkgMasterKeyCollected, fsmResponse.State)
 }
 
 func Test_DKGProposal_Positive(t *testing.T) {

@@ -13,6 +13,7 @@ type DumpedMachineStatePayload struct {
 	TransactionId            string
 	SignatureProposalPayload *SignatureConfirmation
 	DKGProposalPayload       *DKGConfirmation
+	SigningProposalPayload   *SigningConfirmation
 }
 
 // Signature quorum
@@ -75,6 +76,38 @@ func (p *DumpedMachineStatePayload) DKGQuorumGet(id int) (participant *DKGPropos
 func (p *DumpedMachineStatePayload) DKGQuorumUpdate(id int, participant *DKGProposalParticipant) {
 	if p.DKGProposalPayload.Quorum != nil {
 		p.DKGProposalPayload.Quorum[id] = participant
+	}
+	return
+}
+
+// Signing quorum
+
+func (p *DumpedMachineStatePayload) SigningQuorumCount() int {
+	var count int
+	if p.SigningProposalPayload.Quorum != nil {
+		count = len(p.SigningProposalPayload.Quorum)
+	}
+	return count
+}
+
+func (p *DumpedMachineStatePayload) SigningQuorumExists(id int) bool {
+	var exists bool
+	if p.SigningProposalPayload.Quorum != nil {
+		_, exists = p.SigningProposalPayload.Quorum[id]
+	}
+	return exists
+}
+
+func (p *DumpedMachineStatePayload) SigningQuorumGet(id int) (participant *SigningProposalParticipant) {
+	if p.SigningProposalPayload.Quorum != nil {
+		participant, _ = p.SigningProposalPayload.Quorum[id]
+	}
+	return
+}
+
+func (p *DumpedMachineStatePayload) SigningQuorumUpdate(id int, participant *SigningProposalParticipant) {
+	if p.SigningProposalPayload.Quorum != nil {
+		p.SigningProposalPayload.Quorum[id] = participant
 	}
 	return
 }
