@@ -4,14 +4,18 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+
+	"github.com/depools/dc4bc/fsm/state_machines"
+
 	"github.com/depools/dc4bc/fsm/fsm"
-	fsmStateMachines "github.com/depools/dc4bc/fsm/state_machines"
 	dkgFSM "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
@@ -25,8 +29,8 @@ const (
 type Client struct {
 	sync.Mutex
 	userName    string
+	address     string
 	ctx         context.Context
-	fsm         *fsmStateMachines.FSMInstance
 	state       State
 	storage     storage.Storage
 	keyStore    KeyStore
@@ -36,16 +40,20 @@ type Client struct {
 func NewClient(
 	ctx context.Context,
 	userName string,
-	fsm *fsmStateMachines.FSMInstance,
 	state State,
 	storage storage.Storage,
 	keyStore KeyStore,
 	qrProcessor qr.Processor,
 ) (*Client, error) {
+	keyPair, err := keyStore.LoadKeys(userName, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
+	}
+
 	return &Client{
 		ctx:         ctx,
 		userName:    userName,
-		fsm:         fsm,
+		address:     keyPair.GetAddr(),
 		state:       state,
 		storage:     storage,
 		keyStore:    keyStore,
@@ -89,12 +97,23 @@ func (c *Client) Poll() error {
 }
 
 func (c *Client) ProcessMessage(message storage.Message) error {
+	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
+	if err != nil {
+		return fmt.Errorf("failed to getFSMInstance: %w", err)
+	}
+
+	if fsm.Event(message.Event) != signature_proposal_fsm.EventInitProposal {
+		if err := c.verifyMessage(fsmInstance, message); err != nil {
+			return fmt.Errorf("failed to verifyMessage %+v: %w", message, err)
+		}
+	}
+
 	fsmReq, err := FSMRequestFromMessage(message)
 	if err != nil {
 		return fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
 	}
 
-	resp, fsmDump, err := c.fsm.Do(fsm.Event(message.Event), fsmReq)
+	resp, fsmDump, err := fsmInstance.Do(fsm.Event(message.Event), fsmReq)
 	if err != nil {
 		return fmt.Errorf("failed to Do operation in FSM: %w", err)
 	}
@@ -129,7 +148,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		return fmt.Errorf("failed to SaveOffset: %w", err)
 	}
 
-	if err := c.state.SaveFSM(fsmDump); err != nil {
+	if err := c.state.SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 		return fmt.Errorf("failed to SaveFSM: %w", err)
 	}
 
@@ -198,9 +217,8 @@ func (c *Client) handleProcessedOperation(operation Operation) error {
 	}
 
 	message := storage.Message{
-		Sender: c.userName,
-		Event:  string(operation.Type),
-		Data:   operation.Result,
+		Event: string(operation.Type),
+		Data:  operation.Result,
 	}
 
 	sig, err := c.signMessage(message.Bytes())
@@ -220,6 +238,31 @@ func (c *Client) handleProcessedOperation(operation Operation) error {
 	return nil
 }
 
+func (c *Client) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error) {
+	var err error
+	fsmInstance, ok, err := c.state.LoadFSM(dkgRoundID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to LoadFSM: %w", err)
+	}
+
+	if !ok {
+		fsmInstance, err = state_machines.Create(dkgRoundID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create FSM instance: %w", err)
+		}
+
+		bz, err := fsmInstance.Dump()
+		if err != nil {
+			return nil, fmt.Errorf("failed to Dump FSM instance: %w", err)
+		}
+		if err := c.state.SaveFSM(dkgRoundID, bz); err != nil {
+			return nil, fmt.Errorf("failed to SaveFSM: %w", err)
+		}
+	}
+
+	return fsmInstance, nil
+}
+
 func (c *Client) signMessage(message []byte) ([]byte, error) {
 	keyPair, err := c.keyStore.LoadKeys(c.userName, "")
 	if err != nil {
@@ -227,4 +270,17 @@ func (c *Client) signMessage(message []byte) ([]byte, error) {
 	}
 
 	return ed25519.Sign(keyPair.Priv, message), nil
+}
+
+func (c *Client) verifyMessage(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
+	senderPubKey, err := fsmInstance.GetPubKeyByAddr(message.SenderAddr)
+	if err != nil {
+		return fmt.Errorf("failed to GetPubKeyByAddr: %w", err)
+	}
+
+	if !ed25519.Verify(senderPubKey, message.Bytes(), message.Signature) {
+		return errors.New("signature is corrupt")
+	}
+
+	return nil
 }

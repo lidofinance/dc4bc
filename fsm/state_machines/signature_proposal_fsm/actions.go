@@ -4,12 +4,13 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/depools/dc4bc/fsm/config"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
-	"time"
 )
 
 // init -> awaitingConfirmations
@@ -53,7 +54,7 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 
 		m.payload.SignatureProposalPayload.Quorum[participantId] = &internal.SignatureProposalParticipant{
 			ParticipantId:    index,
-			Title:            participant.Title,
+			Title:            participant.Addr,
 			PubKey:           parsedPubKey,
 			DkgPubKey:        participant.DkgPubKey,
 			InvitationSecret: secret,

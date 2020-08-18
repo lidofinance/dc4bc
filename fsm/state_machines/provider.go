@@ -1,12 +1,14 @@
 package state_machines
 
 import (
+	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"strings"
+
+	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/fsm_pool"
@@ -43,19 +45,13 @@ func init() {
 
 // Create new fsm with unique id
 // transactionId required for unique identify dump
-func Create() (*FSMInstance, error) {
+func Create(dkgID string) (*FSMInstance, error) {
 	var (
 		err error
 		i   = &FSMInstance{}
 	)
-	transactionId, err := generateDkgTransactionId()
 
-	if err != nil {
-		return nil, err
-	}
-
-	err = i.InitDump(transactionId)
-
+	err = i.InitDump(dkgID)
 	if err != nil {
 		return nil, err
 	}
@@ -88,6 +84,10 @@ func FromDump(data []byte) (*FSMInstance, error) {
 	i.machine = machine.(internal.DumpedMachineProvider)
 	i.machine.SetUpPayload(i.dump.Payload)
 	return i, err
+}
+
+func (i *FSMInstance) GetPubKeyByAddr(addr string) (ed25519.PublicKey, error) {
+	return ed25519.PublicKey{}, nil
 }
 
 func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, err error) {

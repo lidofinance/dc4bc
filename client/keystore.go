@@ -2,6 +2,7 @@ package client
 
 import (
 	"crypto/ed25519"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 
@@ -89,4 +90,8 @@ func NewKeyPair() *KeyPair {
 		Pub:  pub,
 		Priv: priv,
 	}
+}
+
+func (p *KeyPair) GetAddr() string {
+	return hex.EncodeToString(p.Pub)
 }

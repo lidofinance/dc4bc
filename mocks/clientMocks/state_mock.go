@@ -6,6 +6,7 @@ package clientMocks
 
 import (
 	client "github.com/depools/dc4bc/client"
+	state_machines "github.com/depools/dc4bc/fsm/state_machines"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -63,32 +64,33 @@ func (mr *MockStateMockRecorder) LoadOffset() *gomock.Call {
 }
 
 // SaveFSM mocks base method
-func (m *MockState) SaveFSM(arg0 []byte) error {
+func (m *MockState) SaveFSM(dkgRoundID string, dump []byte) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveFSM", arg0)
+	ret := m.ctrl.Call(m, "SaveFSM", dkgRoundID, dump)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SaveFSM indicates an expected call of SaveFSM
-func (mr *MockStateMockRecorder) SaveFSM(arg0 interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) SaveFSM(dkgRoundID, dump interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveFSM", reflect.TypeOf((*MockState)(nil).SaveFSM), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveFSM", reflect.TypeOf((*MockState)(nil).SaveFSM), dkgRoundID, dump)
 }
 
 // LoadFSM mocks base method
-func (m *MockState) LoadFSM() ([]byte, error) {
+func (m *MockState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LoadFSM")
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret := m.ctrl.Call(m, "LoadFSM", dkgRoundID)
+	ret0, _ := ret[0].(*state_machines.FSMInstance)
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // LoadFSM indicates an expected call of LoadFSM
-func (mr *MockStateMockRecorder) LoadFSM() *gomock.Call {
+func (mr *MockStateMockRecorder) LoadFSM(dkgRoundID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadFSM", reflect.TypeOf((*MockState)(nil).LoadFSM))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadFSM", reflect.TypeOf((*MockState)(nil).LoadFSM), dkgRoundID)
 }
 
 // PutOperation mocks base method

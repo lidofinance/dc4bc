@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/depools/dc4bc/fsm/state_machines"
+
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -20,8 +22,8 @@ type State interface {
 	SaveOffset(uint64) error
 	LoadOffset() (uint64, error)
 
-	SaveFSM([]byte) error
-	LoadFSM() ([]byte, error)
+	SaveFSM(dkgRoundID string, dump []byte) error
+	LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error)
 
 	PutOperation(operation *Operation) error
 	DeleteOperation(operationID string) error
@@ -105,17 +107,48 @@ func (s *LevelDBState) LoadOffset() (uint64, error) {
 	return offset, nil
 }
 
-// TODO: implement.
-func (s *LevelDBState) SaveFSM(fsmState []byte) error {
-	if err := s.stateDb.Put([]byte(fsmStateKey), fsmState, nil); err != nil {
+func (s *LevelDBState) SaveFSM(dkgRoundID string, dump []byte) error {
+	bz, err := s.stateDb.Get([]byte(fsmStateKey), nil)
+	if err != nil {
+		return fmt.Errorf("failed to get FSM instances: %w", err)
+	}
+
+	var fsmInstances = map[string][]byte{}
+	if err := json.Unmarshal(bz, &fsmInstances); err != nil {
+		return fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+	}
+
+	fsmInstances[dkgRoundID] = dump
+
+	if err := s.stateDb.Put([]byte(fsmStateKey), dump, nil); err != nil {
 		return fmt.Errorf("failed to save fsm state: %w", err)
 	}
+
 	return nil
 }
 
-// TODO: implement.
-func (s *LevelDBState) LoadFSM() ([]byte, error) {
-	return s.stateDb.Get([]byte(fsmStateKey), nil)
+func (s *LevelDBState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error) {
+	bz, err := s.stateDb.Get([]byte(fsmStateKey), nil)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to get FSM instances: %w", err)
+	}
+
+	var fsmInstances = map[string][]byte{}
+	if err := json.Unmarshal(bz, &fsmInstances); err != nil {
+		return nil, false, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+	}
+
+	fsmInstanceBz, ok := fsmInstances[dkgRoundID]
+	if !ok {
+		return nil, false, nil
+	}
+
+	fsmInstance, err := state_machines.FromDump(fsmInstanceBz)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to restore FSM instance from dump: %w", err)
+	}
+
+	return fsmInstance, ok, nil
 }
 
 func (s *LevelDBState) PutOperation(operation *Operation) error {

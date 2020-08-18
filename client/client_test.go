@@ -31,17 +31,21 @@ func TestClient_ProcessMessage(t *testing.T) {
 	)
 	defer ctrl.Finish()
 
+	dkgRoundID := "dkg_round_id"
 	state := clientMocks.NewMockState(ctrl)
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
 	stg := storageMocks.NewMockStorage(ctrl)
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 
-	fsm, err := state_machines.Create()
+	testClientKeyPair := client.NewKeyPair()
+	keyStore.EXPECT().LoadKeys("test_client", "").Times(1).Return(testClientKeyPair, nil)
+
+	fsm, err := state_machines.Create(dkgRoundID)
+	state.EXPECT().LoadFSM(dkgRoundID).Times(1).Return(fsm, true, nil)
 
 	clt, err := client.NewClient(
 		ctx,
 		"test_client",
-		fsm,
 		state,
 		stg,
 		keyStore,
@@ -55,22 +59,22 @@ func TestClient_ProcessMessage(t *testing.T) {
 		messageData := requests.SignatureProposalParticipantsListRequest{
 			Participants: []*requests.SignatureProposalParticipantsEntry{
 				{
-					Title:     senderUserName,
+					Addr:      senderUserName,
 					PubKey:    senderKeyPair.Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 				{
-					Title:     "111",
+					Addr:      "111",
 					PubKey:    client.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 				{
-					Title:     "222",
+					Addr:      "222",
 					PubKey:    client.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 				{
-					Title:     "333",
+					Addr:      "333",
 					PubKey:    client.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},
@@ -81,16 +85,17 @@ func TestClient_ProcessMessage(t *testing.T) {
 		req.NoError(err)
 
 		message := storage.Message{
-			ID:     uuid.New().String(),
-			Offset: 1,
-			Event:  string(spf.EventInitProposal),
-			Data:   messageDataBz,
-			Sender: senderUserName,
+			ID:         uuid.New().String(),
+			DkgRoundID: dkgRoundID,
+			Offset:     1,
+			Event:      string(spf.EventInitProposal),
+			Data:       messageDataBz,
+			SenderAddr: senderUserName,
 		}
 		message.Signature = ed25519.Sign(senderKeyPair.Priv, message.Bytes())
 
 		state.EXPECT().SaveOffset(uint64(1)).Times(1).Return(nil)
-		state.EXPECT().SaveFSM(gomock.Any()).Times(1).Return(nil)
+		state.EXPECT().SaveFSM(gomock.Any(), gomock.Any()).Times(1).Return(nil)
 
 		err = clt.ProcessMessage(message)
 		req.NoError(err)
@@ -113,7 +118,6 @@ func TestClient_GetOperationsList(t *testing.T) {
 	clt, err := client.NewClient(
 		ctx,
 		"test_client",
-		nil,
 		state,
 		stg,
 		keyStore,
@@ -156,7 +160,6 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 	clt, err := client.NewClient(
 		ctx,
 		"test_client",
-		nil,
 		state,
 		stg,
 		keyStore,
@@ -203,7 +206,6 @@ func TestClient_ReadProcessedOperation(t *testing.T) {
 	clt, err := client.NewClient(
 		ctx,
 		"test_client",
-		nil,
 		state,
 		stg,
 		keyStore,
