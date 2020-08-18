@@ -7,14 +7,15 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"log"
+	"testing"
+	"time"
+
 	"github.com/depools/dc4bc/fsm/fsm"
 	dpf "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
-	"log"
-	"testing"
-	"time"
 )
 
 type testExternalParticipants struct {
@@ -74,7 +75,7 @@ func init() {
 	for _, participant := range testParticipants {
 
 		participantsForRequest = append(participantsForRequest, &requests.SignatureProposalParticipantsEntry{
-			Title:     participant.Title,
+			Addr:      participant.Title,
 			PubKey:    x509.MarshalPKCS1PublicKey(participant.PubKey),
 			DkgPubKey: participant.DkgPubKey,
 		})
@@ -186,7 +187,7 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 		}
 
 		if participant.Title == "" {
-			t.Fatalf("expected not empty {Title}")
+			t.Fatalf("expected not empty {Addr}")
 		}
 
 		if participant.EncryptedInvitation == "" {

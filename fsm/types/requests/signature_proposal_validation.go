@@ -3,6 +3,7 @@ package requests
 import (
 	"errors"
 	"fmt"
+
 	"github.com/depools/dc4bc/fsm/config"
 )
 
@@ -12,12 +13,12 @@ func (r *SignatureProposalParticipantsListRequest) Validate() error {
 	}
 
 	for _, participant := range r.Participants {
-		if len(participant.Title) < 3 {
-			return errors.New("{Title} minimum length is {3}")
+		if len(participant.Addr) < 3 {
+			return errors.New("{Addr} minimum length is {3}")
 		}
 
-		if len(participant.Title) > 150 {
-			return errors.New("{Title} maximum length is {150}")
+		if len(participant.Addr) > 150 {
+			return errors.New("{Addr} maximum length is {150}")
 		}
 
 		if len(participant.PubKey) < 10 {

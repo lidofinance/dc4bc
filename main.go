@@ -29,6 +29,7 @@ func main() {
 	var numNodes = 4
 	for nodeID := 0; nodeID < numNodes; nodeID++ {
 		var ctx = context.Background()
+		var userName = fmt.Sprintf("node_%d", nodeID)
 		var state, err = client.NewLevelDBState(fmt.Sprintf("/tmp/dc4bc_node_%d_state", nodeID))
 		if err != nil {
 			log.Fatalf("node %d failed to init state: %v\n", nodeID, err)
@@ -39,11 +40,18 @@ func main() {
 			log.Fatalf("node %d failed to init storage: %v\n", nodeID, err)
 		}
 
+		keyStore, err := client.NewLevelDBKeyStore(userName, fmt.Sprintf("/tmp/dc4bc_node_%d_key_store", nodeID))
+		if err != nil {
+			log.Fatalf("Failed to init key store: %v", err)
+		}
+
 		clt, err := client.NewClient(
 			ctx,
+			userName,
 			nil,
 			state,
 			stg,
+			keyStore,
 			qr.NewCameraProcessor(),
 		)
 		if err != nil {
