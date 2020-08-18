@@ -15,7 +15,7 @@ const (
 	// Sending dkg commits
 	StateDkgCommitsAwaitConfirmations = fsm.State("state_dkg_commits_await_confirmations")
 	// Canceled
-	StateDkgCommitsAwaitCanceled          = fsm.State("state_dkg_commits_await_canceled")
+	StateDkgCommitsAwaitCanceledByError   = fsm.State("state_dkg_commits_await_canceled_by_error")
 	StateDkgCommitsAwaitCanceledByTimeout = fsm.State("state_dkg_commits_await_canceled_by_timeout")
 	// Confirmed
 	StateDkgCommitsCollected = fsm.State("state_dkg_commits_collected")
@@ -23,20 +23,20 @@ const (
 	// Sending dkg deals
 	StateDkgDealsAwaitConfirmations = fsm.State("state_dkg_deals_await_confirmations")
 	// Canceled
-	StateDkgDealsAwaitCanceled          = fsm.State("state_dkg_deals_await_canceled")
+	StateDkgDealsAwaitCanceledByError   = fsm.State("state_dkg_deals_await_canceled_by_error")
 	StateDkgDealsAwaitCanceledByTimeout = fsm.State("state_dkg_deals_await_canceled_by_timeout")
 	// Confirmed
 	//StateDkgDealsCollected = fsm.State("state_dkg_deals_collected")
 
 	StateDkgResponsesAwaitConfirmations = fsm.State("state_dkg_responses_await_confirmations")
 	// Canceled
-	StateDkgResponsesAwaitCanceled          = fsm.State("state_dkg_responses_await_canceled")
+	StateDkgResponsesAwaitCanceledByError   = fsm.State("state_dkg_responses_await_canceled_by_error")
 	StateDkgResponsesAwaitCanceledByTimeout = fsm.State("state_dkg_responses_sending_canceled_by_timeout")
 	// Confirmed
 	StateDkgResponsesCollected = fsm.State("state_dkg_responses_collected")
 
 	StateDkgMasterKeyAwaitConfirmations     = fsm.State("state_dkg_master_key_await_confirmations")
-	StateDkgMasterKeyAwaitCanceled          = fsm.State("state_dkg_master_key_await_canceled")
+	StateDkgMasterKeyAwaitCanceledByError   = fsm.State("state_dkg_master_key_await_canceled_by_error")
 	StateDkgMasterKeyAwaitCanceledByTimeout = fsm.State("state_dkg_master_key_await_canceled_by_timeout")
 
 	StateDkgMasterKeyCollected = fsm.State("state_dkg_master_key_collected")
@@ -104,7 +104,7 @@ func New() internal.DumpedMachineProvider {
 			// Commits
 			{Name: EventDKGCommitConfirmationReceived, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitConfirmations},
 			// Canceled
-			{Name: EventDKGCommitConfirmationError, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitCanceled},
+			{Name: EventDKGCommitConfirmationError, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitCanceledByError},
 			{Name: eventDKGCommitsConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitCanceledByTimeout, IsInternal: true},
 
 			{Name: eventAutoDKGValidateConfirmationCommitsInternal, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitConfirmations, IsInternal: true, IsAuto: true},
@@ -115,7 +115,7 @@ func New() internal.DumpedMachineProvider {
 			// Deals
 			{Name: EventDKGDealConfirmationReceived, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitConfirmations},
 			// Canceled
-			{Name: EventDKGDealConfirmationError, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitCanceled},
+			{Name: EventDKGDealConfirmationError, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitCanceledByError},
 			{Name: eventDKGDealsConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitConfirmations, IsInternal: true},
 			{Name: eventAutoDKGValidateConfirmationDealsInternal, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitConfirmations, IsInternal: true, IsAuto: true},
 
@@ -124,7 +124,7 @@ func New() internal.DumpedMachineProvider {
 			// Responses
 			{Name: EventDKGResponseConfirmationReceived, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitConfirmations},
 			// Canceled
-			{Name: EventDKGResponseConfirmationError, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitCanceled},
+			{Name: EventDKGResponseConfirmationError, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitCanceledByError},
 			{Name: eventDKGResponseConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitCanceledByTimeout, IsInternal: true},
 
 			{Name: eventAutoDKGValidateResponsesConfirmationInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitConfirmations, IsInternal: true, IsAuto: true},
@@ -134,15 +134,13 @@ func New() internal.DumpedMachineProvider {
 			// Master key
 
 			{Name: EventDKGMasterKeyConfirmationReceived, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitConfirmations},
-			{Name: EventDKGMasterKeyConfirmationError, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitCanceled},
+			{Name: EventDKGMasterKeyConfirmationError, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitCanceledByError},
 			{Name: eventDKGMasterKeyConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitCanceledByTimeout, IsInternal: true},
 
 			{Name: eventAutoDKGValidateMasterKeyConfirmationInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitConfirmations, IsInternal: true, IsAuto: true},
 
-			{Name: eventDKGMasterKeyConfirmedInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: fsm.StateGlobalDone, IsInternal: true},
-
 			// Done
-			// {Name: EventDKGMasterKeyRequiredInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: fsm.StateGlobalDone, IsInternal: true},
+			{Name: eventDKGMasterKeyConfirmedInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyCollected, IsInternal: true},
 		},
 		fsm.Callbacks{
 			EventDKGInitProcess: machine.actionInitDKGProposal,

@@ -7,8 +7,9 @@ import "time"
 // States: "__idle"
 // Events: "event_sig_proposal_init"
 type SignatureProposalParticipantsListRequest struct {
-	Participants []*SignatureProposalParticipantsEntry
-	CreatedAt    time.Time
+	Participants     []*SignatureProposalParticipantsEntry
+	SigningThreshold int
+	CreatedAt        time.Time
 }
 
 type SignatureProposalParticipantsEntry struct {
