@@ -3,17 +3,18 @@ package dkg
 import (
 	"errors"
 	"fmt"
+	"go.dedis.ch/kyber/v3/share"
 	"math"
 	"sort"
 	"sync"
 
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
-	"go.dedis.ch/kyber/v3/share"
 	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
 	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
 )
 
+// TODO: dump necessary data on disk
 type DKG struct {
 	sync.Mutex
 	instance      *dkg.DistKeyGenerator
@@ -243,7 +244,7 @@ func (d *DKG) GetDistributedPublicKey() (kyber.Point, error) {
 	return distKeyShare.Public(), nil
 }
 
-func (d *DKG) GetMasterPubKey() (*share.PubPoly, error) {
+func (d *DKG) GetBLSKeyring() (*BLSKeyring, error) {
 	if d.instance == nil || !d.instance.Certified() {
 		return nil, fmt.Errorf("dkg instance is not ready")
 	}
@@ -255,5 +256,8 @@ func (d *DKG) GetMasterPubKey() (*share.PubPoly, error) {
 
 	masterPubKey := share.NewPubPoly(d.suite, nil, distKeyShare.Commitments())
 
-	return masterPubKey, nil
+	return &BLSKeyring{
+		PubPoly: masterPubKey,
+		Share:   distKeyShare.PriShare(),
+	}, nil
 }

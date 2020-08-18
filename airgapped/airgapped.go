@@ -9,16 +9,11 @@ import (
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/fsm/types/responses"
 	"github.com/depools/dc4bc/qr"
 	"github.com/syndtr/goleveldb/leveldb"
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/encrypt/ecies"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
-	"go.dedis.ch/kyber/v3/share"
-	dkgPedersen "go.dedis.ch/kyber/v3/share/dkg/pedersen"
-	"go.dedis.ch/kyber/v3/sign/bls"
-	"go.dedis.ch/kyber/v3/sign/tbls"
 	"log"
 	"sync"
 )
@@ -38,9 +33,15 @@ type AirgappedMachine struct {
 	pubKey kyber.Point
 	secKey kyber.Scalar
 	suite  *bn256.Suite
+
+	db *leveldb.DB
 }
 
 func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
+	var (
+		err error
+	)
+
 	am := &AirgappedMachine{
 		dkgInstances: make(map[string]*dkg.DKG),
 		qrProcessor:  qr.NewCameraProcessor(),
@@ -48,11 +49,14 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 
 	am.suite = bn256.NewSuiteG2()
 
-	err := am.loadKeysFromDB(dbPath)
+	if am.db, err = leveldb.OpenFile(dbPath, nil); err != nil {
+		return nil, fmt.Errorf("failed to open db file %s for keys: %w", dbPath, err)
+	}
+
+	err = am.loadKeysFromDB(dbPath)
 	if err != nil && err != leveldb.ErrNotFound {
 		return nil, fmt.Errorf("failed to load keys from db %s: %w", dbPath, err)
 	}
-
 	// if keys were not generated yet
 	if err == leveldb.ErrNotFound {
 		am.secKey = am.suite.Scalar().Pick(am.suite.RandomStream())
@@ -65,13 +69,7 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 }
 
 func (am *AirgappedMachine) loadKeysFromDB(dbPath string) error {
-	db, err := leveldb.OpenFile(dbPath, nil)
-	if err != nil {
-		return fmt.Errorf("failed to open db file %s for keys: %w", dbPath, err)
-	}
-	defer db.Close()
-
-	pubKeyBz, err := db.Get([]byte(pubKeyDBKey), nil)
+	pubKeyBz, err := am.db.Get([]byte(pubKeyDBKey), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
 			return err
@@ -79,7 +77,7 @@ func (am *AirgappedMachine) loadKeysFromDB(dbPath string) error {
 		return fmt.Errorf("failed to get public key from db %s: %w", dbPath, err)
 	}
 
-	privateKeyBz, err := db.Get([]byte(privateKeyDBKey), nil)
+	privateKeyBz, err := am.db.Get([]byte(privateKeyDBKey), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
 			return err
@@ -100,11 +98,6 @@ func (am *AirgappedMachine) loadKeysFromDB(dbPath string) error {
 }
 
 func (am *AirgappedMachine) saveKeysToDB(dbPath string) error {
-	db, err := leveldb.OpenFile(dbPath, nil)
-	if err != nil {
-		return fmt.Errorf("failed to open db file %s for keys: %w", dbPath, err)
-	}
-	defer db.Close()
 
 	pubKeyBz, err := am.pubKey.MarshalBinary()
 	if err != nil {
@@ -115,7 +108,7 @@ func (am *AirgappedMachine) saveKeysToDB(dbPath string) error {
 		return fmt.Errorf("failed to marshal private key: %w", err)
 	}
 
-	tx, err := db.OpenTransaction()
+	tx, err := am.db.OpenTransaction()
 	if err != nil {
 		return fmt.Errorf("failed to open transcation for db %s: %w", dbPath, err)
 	}
@@ -167,273 +160,6 @@ func (am *AirgappedMachine) decryptData(data []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to decrypt data: %w", err)
 	}
 	return decryptedData, nil
-}
-
-func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.Operation) error {
-	var (
-		payload responses.SignatureProposalParticipantInvitationsResponse
-		err     error
-	)
-
-	if _, ok := am.dkgInstances[o.DKGIdentifier]; ok {
-		return fmt.Errorf("dkg instance %s already exists", o.DKGIdentifier)
-	}
-
-	if err = json.Unmarshal(o.Payload, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
-	}
-
-	if _, ok := am.dkgInstances[o.DKGIdentifier]; ok {
-		return fmt.Errorf("dkg instance %s already exists", o.DKGIdentifier)
-	}
-
-	dkgInstance := dkg.Init(am.suite, am.pubKey, am.secKey)
-	dkgInstance.Threshold = len(payload)
-
-	am.dkgInstances[o.DKGIdentifier] = dkgInstance
-
-	return nil
-}
-
-func (am *AirgappedMachine) GetPubKey() kyber.Point {
-	return am.pubKey
-}
-
-type Commits struct {
-	MarshaledCommit []byte
-}
-
-func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) error {
-	var (
-		payload responses.SignatureProposalParticipantStatusResponse
-		err     error
-	)
-
-	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
-	if !ok {
-		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
-	}
-
-	if err = json.Unmarshal(o.Payload, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
-	}
-
-	for _, entry := range payload {
-		pubKey := bn256.NewSuiteG2().Point()
-		if err = pubKey.UnmarshalBinary(entry.DkgPubKey); err != nil {
-			return fmt.Errorf("failed to unmarshal pubkey: %w", err)
-		}
-		dkgInstance.StorePubKey(entry.Title, entry.ParticipantId, pubKey)
-	}
-
-	if err = dkgInstance.InitDKGInstance(); err != nil {
-		return fmt.Errorf("failed to init dkg instance: %w", err)
-	}
-
-	// TODO: come up with something better
-	var commits []Commits
-	dkgCommits := dkgInstance.GetCommits()
-	for _, commit := range dkgCommits {
-		commitBz, err := commit.MarshalBinary()
-		if err != nil {
-			return fmt.Errorf("failed to marshal commits: %w", err)
-		}
-		commits = append(commits, Commits{MarshaledCommit: commitBz})
-	}
-	commitsBz, err := json.Marshal(commits)
-
-	am.dkgInstances[o.DKGIdentifier] = dkgInstance
-
-	req := requests.DKGProposalCommitConfirmationRequest{
-		ParticipantId: dkgInstance.ParticipantID,
-		Commit:        commitsBz,
-		CreatedAt:     o.CreatedAt,
-	}
-	reqBz, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("failed to generate fsm request: %w", err)
-	}
-	o.Result = reqBz
-	o.Event = dkg_proposal_fsm.EventDKGCommitConfirmationReceived
-	return nil
-}
-
-// We have many deals which should be sent privately to a required participant, so func returns a slice of operations
-func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o client.Operation) ([]client.Operation, error) {
-	var (
-		payload responses.DKGProposalCommitParticipantResponse
-		err     error
-	)
-
-	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
-	if !ok {
-		return nil, fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
-	}
-
-	if err = json.Unmarshal(o.Payload, &payload); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal payload: %w", err)
-	}
-
-	for _, entry := range payload {
-		var commits []Commits
-		if err = json.Unmarshal(entry.Commit, &commits); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal commits: %w", err)
-		}
-		dkgCommits := make([]kyber.Point, 0, len(commits))
-		for _, c := range commits {
-			commit := am.suite.Point()
-			if err = commit.UnmarshalBinary(c.MarshaledCommit); err != nil {
-				return nil, fmt.Errorf("failed to unmarshal commit: %w", err)
-			}
-			dkgCommits = append(dkgCommits, commit)
-		}
-		dkgInstance.StoreCommits(entry.Title, dkgCommits)
-	}
-
-	deals, err := dkgInstance.GetDeals()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get deals: %w", err)
-	}
-
-	operations := make([]client.Operation, 0, len(deals))
-
-	am.dkgInstances[o.DKGIdentifier] = dkgInstance
-
-	// deals variable is a map, so every key is an index of participant we should send a deal
-	for index, deal := range deals {
-		dealBz, err := json.Marshal(deal)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal deal: %w", err)
-		}
-		toParticipant := dkgInstance.GetParticipantByIndex(index)
-		encryptedDeal, err := am.encryptData(o.DKGIdentifier, toParticipant, dealBz)
-		if err != nil {
-			return nil, fmt.Errorf("failed to encrypt deal: %w", err)
-		}
-		req := requests.DKGProposalDealConfirmationRequest{
-			ParticipantId: dkgInstance.ParticipantID,
-			Deal:          encryptedDeal,
-			CreatedAt:     o.CreatedAt,
-		}
-		o.To = toParticipant
-		reqBz, err := json.Marshal(req)
-		if err != nil {
-			return nil, fmt.Errorf("failed to generate fsm request: %w", err)
-		}
-		o.Result = reqBz
-		o.Event = dkg_proposal_fsm.EventDKGDealConfirmationReceived
-		operations = append(operations, o)
-	}
-	return operations, nil
-}
-
-func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.Operation) error {
-	var (
-		payload responses.DKGProposalDealParticipantResponse
-		err     error
-	)
-
-	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
-	if !ok {
-		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
-	}
-
-	if err = json.Unmarshal(o.Payload, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
-	}
-
-	for _, entry := range payload {
-		decryptedDealBz, err := am.decryptData(entry.Deal)
-		if err != nil {
-			return fmt.Errorf("failed to decrypt deal: %w", err)
-		}
-		var deal dkgPedersen.Deal
-		if err = json.Unmarshal(decryptedDealBz, &deal); err != nil {
-			return fmt.Errorf("failed to unmarshal deal")
-		}
-		dkgInstance.StoreDeal(entry.Title, &deal)
-	}
-
-	processedResponses, err := dkgInstance.ProcessDeals()
-	if err != nil {
-		return fmt.Errorf("failed to process deals: %w", err)
-	}
-
-	am.dkgInstances[o.DKGIdentifier] = dkgInstance
-
-	responsesBz, err := json.Marshal(processedResponses)
-	if err != nil {
-		return fmt.Errorf("failed to marshal deals")
-	}
-
-	req := requests.DKGProposalResponseConfirmationRequest{
-		ParticipantId: dkgInstance.ParticipantID,
-		Response:      responsesBz,
-		CreatedAt:     o.CreatedAt,
-	}
-
-	reqBz, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("failed to generate fsm request: %w", err)
-	}
-
-	o.Result = reqBz
-	o.Event = dkg_proposal_fsm.EventDKGResponseConfirmationReceived
-	return nil
-}
-
-func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.Operation) error {
-	var (
-		payload responses.DKGProposalResponsesParticipantResponse
-		err     error
-	)
-
-	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
-	if !ok {
-		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
-	}
-
-	if err = json.Unmarshal(o.Payload, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
-	}
-
-	for _, entry := range payload {
-		var entryResponses []*dkgPedersen.Response
-		if err = json.Unmarshal(entry.Responses, &entryResponses); err != nil {
-			return fmt.Errorf("failed to unmarshal responses: %w", err)
-		}
-		dkgInstance.StoreResponses(entry.Title, entryResponses)
-	}
-
-	if err = dkgInstance.ProcessResponses(); err != nil {
-		return fmt.Errorf("failed to process responses: %w", err)
-	}
-
-	masterPubKey, err := dkgInstance.GetDistributedPublicKey()
-	if err != nil {
-		return fmt.Errorf("failed to get master pub key: %w", err)
-	}
-
-	masterPubKeyBz, err := masterPubKey.MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("failed to marshal master pub key: %w", err)
-	}
-
-	am.dkgInstances[o.DKGIdentifier] = dkgInstance
-
-	req := requests.DKGProposalMasterKeyConfirmationRequest{
-		ParticipantId: dkgInstance.ParticipantID,
-		MasterKey:     masterPubKeyBz,
-		CreatedAt:     o.CreatedAt,
-	}
-	reqBz, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("failed to generate fsm request: %w", err)
-	}
-
-	o.Result = reqBz
-	o.Event = dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived
-	return nil
 }
 
 func (am *AirgappedMachine) HandleOperation(operation client.Operation) ([]client.Operation, error) {
@@ -518,57 +244,6 @@ func (am *AirgappedMachine) HandleQR() ([]string, error) {
 	}
 
 	return qrPaths, nil
-}
-
-func (am *AirgappedMachine) handlePartialSign(msg []byte, dkgIdentifier string) ([]byte, error) {
-	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
-	if !ok {
-		return nil, fmt.Errorf("dkg instance with identifier %s does not exist", dkgIdentifier)
-	}
-
-	distKeyShare, err := dkgInstance.GetDistKeyShare()
-	if err != nil {
-		return nil, err
-	}
-
-	return am.makePartialSign(msg, distKeyShare.PriShare())
-}
-
-func (am *AirgappedMachine) handleRecoverFullSign(msg []byte, sigShares [][]byte, dkgIdentifier string) ([]byte, error) {
-	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
-	if !ok {
-		return nil, fmt.Errorf("dkg instance with identifier %s does not exist", dkgIdentifier)
-	}
-
-	masterKey, err := dkgInstance.GetMasterPubKey()
-	if err != nil {
-		return nil, err
-	}
-
-	return am.recoverFullSignature(msg, masterKey, sigShares, len(sigShares), len(sigShares))
-}
-
-func (am *AirgappedMachine) handleVerifySign(msg []byte, fullSignature []byte, dkgIdentifier string) error {
-	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
-	if !ok {
-		return fmt.Errorf("dkg instance with identifier %s does not exist", dkgIdentifier)
-	}
-
-	masterKey, err := dkgInstance.GetMasterPubKey()
-	if err != nil {
-		return err
-	}
-
-	return bls.Verify(am.suite, masterKey.Commit(), msg, fullSignature)
-}
-
-func (am *AirgappedMachine) makePartialSign(msg []byte, share *share.PriShare) ([]byte, error) {
-	return tbls.Sign(am.suite, share, msg)
-}
-
-func (am *AirgappedMachine) recoverFullSignature(msg []byte, pubPoly *share.PubPoly,
-	sigShares [][]byte, t, n int) ([]byte, error) {
-	return tbls.Recover(am.suite, pubPoly, msg, sigShares, t, n)
 }
 
 func (am *AirgappedMachine) writeErrorRequestToOperation(o *client.Operation, handlerError error) error {
