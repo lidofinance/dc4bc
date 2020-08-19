@@ -79,7 +79,8 @@ func TestClient_ProcessMessage(t *testing.T) {
 					DkgPubKey: make([]byte, 128),
 				},
 			},
-			CreatedAt: time.Now(),
+			CreatedAt:        time.Now(),
+			SigningThreshold: 2,
 		}
 		messageDataBz, err := json.Marshal(messageData)
 		req.NoError(err)
