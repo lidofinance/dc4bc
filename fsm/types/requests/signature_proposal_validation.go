@@ -46,12 +46,8 @@ func (r *SignatureProposalParticipantsListRequest) Validate() error {
 }
 
 func (r *SignatureProposalParticipantRequest) Validate() error {
-	if len(r.PubKeyFingerprint) == 0 {
-		return errors.New("{PubKeyFingerprint} cannot zero length")
-	}
-
-	if len(r.DecryptedInvitation) == 0 {
-		return errors.New("{DecryptedInvitation} cannot zero length")
+	if r.ParticipantId < 0 {
+		return errors.New("{ParticipantId} cannot be a negative number")
 	}
 
 	if r.CreatedAt.IsZero() {

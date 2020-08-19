@@ -10,11 +10,7 @@ type SignatureProposalParticipantInvitationsResponse []*SignatureProposalPartici
 type SignatureProposalParticipantInvitationEntry struct {
 	ParticipantId int
 	// Public title for address, such as name, nickname, organization
-	Title string
-	// Key for link invitations to participants
-	PubKeyFingerprint string
-	// Encrypted with public key secret
-	EncryptedInvitation string
+	Addr string
 }
 
 // Public lists for proposal confirmation process
@@ -23,7 +19,6 @@ type SignatureProposalParticipantStatusResponse []*SignatureProposalParticipantS
 
 type SignatureProposalParticipantStatusEntry struct {
 	ParticipantId int
-	Title         string
-	DkgPubKey     []byte
+	Addr          string
 	Status        uint8
 }

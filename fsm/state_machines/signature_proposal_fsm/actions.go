@@ -35,19 +35,22 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 	}
 
 	m.payload.SignatureProposalPayload = &internal.SignatureConfirmation{
-		Quorum: make(internal.SignatureProposalQuorum),
+		Quorum:    make(internal.SignatureProposalQuorum),
+		CreatedAt: request.CreatedAt,
+		ExpiresAt: request.CreatedAt.Add(config.SignatureProposalConfirmationDeadline),
 	}
 
 	for index, participant := range request.Participants {
-		participantId := createFingerprint(&participant.PubKey)
-		m.payload.SignatureProposalPayload.Quorum[participantId] = &internal.SignatureProposalParticipant{
-			ParticipantId: index,
-			Title:         participant.Addr,
-			PubKey:        participant.PubKey,
-			DkgPubKey:     participant.DkgPubKey,
-			Status:        internal.SignatureConfirmationAwaitConfirmation,
-			UpdatedAt:     request.CreatedAt,
+		//participantId := createFingerprint(&participant.DkgPubKey)
+		m.payload.SignatureProposalPayload.Quorum[index] = &internal.SignatureProposalParticipant{
+			Addr:      participant.Addr,
+			PubKey:    participant.PubKey,
+			DkgPubKey: participant.DkgPubKey,
+			Status:    internal.SigConfirmationAwaitConfirmation,
+			UpdatedAt: request.CreatedAt,
 		}
+
+		m.payload.SetAddrHexPubKey(participant.Addr, participant.PubKey)
 	}
 
 	// Checking fo quorum length
@@ -60,11 +63,10 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 
 	responseData := make(responses.SignatureProposalParticipantInvitationsResponse, 0)
 
-	for pubKeyFingerprint, proposal := range m.payload.SignatureProposalPayload.Quorum {
+	for participantId, proposal := range m.payload.SignatureProposalPayload.Quorum {
 		responseEntry := &responses.SignatureProposalParticipantInvitationEntry{
-			ParticipantId:     proposal.ParticipantId,
-			Title:             proposal.Title,
-			PubKeyFingerprint: pubKeyFingerprint,
+			ParticipantId: participantId,
+			Addr:          proposal.Addr,
 		}
 		responseData = append(responseData, responseEntry)
 	}
@@ -94,12 +96,12 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 		return
 	}
 
-	if !m.payload.SigQuorumExists(request.PubKeyFingerprint) {
-		err = errors.New("{PubKeyFingerprint} not exist in quorum")
+	if !m.payload.SigQuorumExists(request.ParticipantId) {
+		err = errors.New("{ParticipantId} not exist in quorum")
 		return
 	}
 
-	signatureProposalParticipant := m.payload.SigQuorumGet(request.PubKeyFingerprint)
+	signatureProposalParticipant := m.payload.SigQuorumGet(request.ParticipantId)
 	if signatureProposalParticipant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(request.CreatedAt) {
 		outEvent = eventSetValidationCanceledByTimeout
 		return
@@ -122,7 +124,7 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 
 	signatureProposalParticipant.UpdatedAt = request.CreatedAt
 
-	m.payload.SigQuorumUpdate(request.PubKeyFingerprint, signatureProposalParticipant)
+	m.payload.SigQuorumUpdate(request.ParticipantId, signatureProposalParticipant)
 
 	return
 }
@@ -169,11 +171,10 @@ func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event
 
 	responseData := make(responses.SignatureProposalParticipantStatusResponse, 0)
 
-	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
+	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
 		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
-			ParticipantId: participant.ParticipantId,
-			Title:         participant.Title,
-			DkgPubKey:     participant.DkgPubKey,
+			ParticipantId: participantId,
+			Addr:          participant.Addr,
 			Status:        uint8(participant.Status),
 		}
 		responseData = append(responseData, responseEntry)
@@ -188,10 +189,10 @@ func (m *SignatureProposalFSM) actionSignatureProposalCanceledByTimeout(inEvent 
 
 	responseData := make(responses.SignatureProposalParticipantStatusResponse, 0)
 
-	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
+	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
 		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
-			ParticipantId: participant.ParticipantId,
-			Title:         participant.Title,
+			ParticipantId: participantId,
+			Addr:          participant.Addr,
 			Status:        uint8(participant.Status),
 		}
 		responseData = append(responseData, responseEntry)

@@ -14,14 +14,31 @@ func (m *SigningProposalFSM) actionInitSigningProposal(inEvent fsm.Event, args .
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
-	m.payload.SigningProposalPayload = &internal.SigningConfirmation{
-		Quorum: make(internal.SigningProposalQuorum),
-		// CreatedAt:
+	if len(args) != 1 {
+		err = errors.New("{arg0} required {DefaultRequest}")
+		return
 	}
 
-	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
-		m.payload.SigningProposalPayload.Quorum[participant.ParticipantId] = &internal.SigningProposalParticipant{
-			Title:     participant.Title,
+	request, ok := args[0].(requests.DefaultRequest)
+
+	if !ok {
+		err = errors.New("cannot cast {arg0} to type {DefaultRequest}")
+		return
+	}
+
+	if err = request.Validate(); err != nil {
+		return
+	}
+
+	m.payload.SigningProposalPayload = &internal.SigningConfirmation{
+		Quorum:    make(internal.SigningProposalQuorum),
+		CreatedAt: request.CreatedAt,
+		ExpiresAt: request.CreatedAt.Add(config.SigningConfirmationDeadline),
+	}
+
+	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
+		m.payload.SigningProposalPayload.Quorum[participantId] = &internal.SigningProposalParticipant{
+			Addr:      participant.Addr,
 			Status:    internal.SigningIdle,
 			UpdatedAt: participant.UpdatedAt,
 		}
@@ -49,6 +66,8 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 	if err = request.Validate(); err != nil {
 		return
 	}
+
+	m.payload.SigningProposalPayload.CreatedAt = request.CreatedAt
 
 	return
 }

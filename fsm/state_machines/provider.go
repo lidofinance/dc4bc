@@ -87,7 +87,11 @@ func FromDump(data []byte) (*FSMInstance, error) {
 }
 
 func (i *FSMInstance) GetPubKeyByAddr(addr string) (ed25519.PublicKey, error) {
-	return ed25519.PublicKey{}, nil
+	if i.dump == nil {
+		return nil, errors.New("dump not initialized")
+	}
+
+	return i.dump.Payload.GetPubKeyByAddr(addr)
 }
 
 func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, err error) {
@@ -112,22 +116,22 @@ func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Resp
 	return result, dump, err
 }
 
-func (i *FSMInstance) InitDump(transactionId string) error {
+func (i *FSMInstance) InitDump(dkgID string) error {
 	if i.dump != nil {
 		return errors.New("dump already initialized")
 	}
 
-	transactionId = strings.TrimSpace(transactionId)
+	dkgID = strings.TrimSpace(dkgID)
 
-	if transactionId == "" {
-		return errors.New("empty transaction id")
+	if dkgID == "" {
+		return errors.New("empty {dkgID}")
 	}
 
 	i.dump = &FSMDump{
-		TransactionId: transactionId,
+		TransactionId: dkgID,
 		State:         fsm.StateGlobalIdle,
 		Payload: &internal.DumpedMachineStatePayload{
-			TransactionId:            transactionId,
+			DkgId:                    dkgID,
 			SignatureProposalPayload: nil,
 			DKGProposalPayload:       nil,
 		},

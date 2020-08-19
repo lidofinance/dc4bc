@@ -14,21 +14,38 @@ import (
 // Init
 
 func (m *DKGProposalFSM) actionInitDKGProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+	m.payloadMu.Lock()
+	defer m.payloadMu.Unlock()
+
 	if m.payload.DKGProposalPayload != nil {
 		return
 	}
 
-	m.payload.DKGProposalPayload = &internal.DKGConfirmation{
-		Quorum: make(internal.DKGProposalQuorum),
+	if len(args) != 1 {
+		err = errors.New("{arg0} required {DefaultRequest}")
+		return
 	}
 
-	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
-		m.payload.DKGProposalPayload.Quorum[participant.ParticipantId] = &internal.DKGProposalParticipant{
-			Title:     participant.Title,
+	request, ok := args[0].(requests.DefaultRequest)
+
+	if !ok {
+		err = errors.New("cannot cast {arg0} to type {DefaultRequest}")
+		return
+	}
+
+	m.payload.DKGProposalPayload = &internal.DKGConfirmation{
+		Quorum:    make(internal.DKGProposalQuorum),
+		CreatedAt: request.CreatedAt,
+		ExpiresAt: request.CreatedAt.Add(config.DkgConfirmationDeadline),
+	}
+
+	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
+		m.payload.DKGProposalPayload.Quorum[participantId] = &internal.DKGProposalParticipant{
+			Addr:      participant.Addr,
 			Status:    internal.CommitAwaitConfirmation,
 			UpdatedAt: participant.UpdatedAt,
 		}
-		copy(m.payload.DKGProposalPayload.Quorum[participant.ParticipantId].PubKey, participant.DkgPubKey)
+		copy(m.payload.DKGProposalPayload.Quorum[participantId].DkgPubKey, participant.DkgPubKey)
 	}
 
 	// Remove m.payload.SignatureProposalPayload?
@@ -71,8 +88,10 @@ func (m *DKGProposalFSM) actionCommitConfirmationReceived(inEvent fsm.Event, arg
 	}
 
 	copy(dkgProposalParticipant.Commit, request.Commit)
-	dkgProposalParticipant.UpdatedAt = request.CreatedAt
 	dkgProposalParticipant.Status = internal.CommitConfirmed
+
+	dkgProposalParticipant.UpdatedAt = request.CreatedAt
+	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
@@ -163,8 +182,10 @@ func (m *DKGProposalFSM) actionDealConfirmationReceived(inEvent fsm.Event, args 
 	}
 
 	copy(dkgProposalParticipant.Deal, request.Deal)
-	dkgProposalParticipant.UpdatedAt = request.CreatedAt
 	dkgProposalParticipant.Status = internal.DealConfirmed
+
+	dkgProposalParticipant.UpdatedAt = request.CreatedAt
+	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
@@ -255,8 +276,10 @@ func (m *DKGProposalFSM) actionResponseConfirmationReceived(inEvent fsm.Event, a
 	}
 
 	copy(dkgProposalParticipant.Response, request.Response)
-	dkgProposalParticipant.UpdatedAt = request.CreatedAt
 	dkgProposalParticipant.Status = internal.ResponseConfirmed
+
+	dkgProposalParticipant.UpdatedAt = request.CreatedAt
+	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
@@ -347,8 +370,10 @@ func (m *DKGProposalFSM) actionMasterKeyConfirmationReceived(inEvent fsm.Event, 
 	}
 
 	copy(dkgProposalParticipant.MasterKey, request.MasterKey)
-	dkgProposalParticipant.UpdatedAt = request.CreatedAt
 	dkgProposalParticipant.Status = internal.MasterKeyConfirmed
+
+	dkgProposalParticipant.UpdatedAt = request.CreatedAt
+	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
@@ -527,7 +552,9 @@ func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...inte
 	}
 
 	dkgProposalParticipant.Error = request.Error
+
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
+	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
