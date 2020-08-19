@@ -1,10 +1,29 @@
 package storage
 
+import (
+	"bytes"
+	"crypto/ed25519"
+)
+
 type Message struct {
-	Data      []byte `json:"data"`
-	Signature []byte `json:"signature"`
-	ID        string `json:"id"`
-	Offset    uint64 `json:"offset"`
+	ID         string `json:"id"`
+	DkgRoundID string `json:"dkg_round_id"`
+	Offset     uint64 `json:"offset"`
+	Event      string `json:"event"`
+	Data       []byte `json:"data"`
+	Signature  []byte `json:"signature"`
+	SenderAddr string `json:"sender"`
+}
+
+func (m *Message) Bytes() []byte {
+	buf := bytes.NewBuffer(nil)
+	buf.Write(m.Data)
+
+	return buf.Bytes()
+}
+
+func (m *Message) Verify(pubKey ed25519.PublicKey) bool {
+	return ed25519.Verify(pubKey, m.Bytes(), m.Signature)
 }
 
 type Storage interface {

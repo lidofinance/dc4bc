@@ -14,7 +14,7 @@ type SignatureProposalParticipantsListRequest struct {
 
 type SignatureProposalParticipantsEntry struct {
 	// Public title for address, such as name, nickname, organization
-	Title     string
+	Addr      string
 	PubKey    []byte
 	DkgPubKey []byte
 }

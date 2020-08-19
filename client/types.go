@@ -2,8 +2,15 @@ package client
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/types/requests"
+	"github.com/depools/dc4bc/storage"
 )
 
 type OperationType string
@@ -34,4 +41,44 @@ func (o *Operation) Check(o2 *Operation) error {
 	}
 
 	return nil
+}
+
+func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
+	var resolvedValue interface{}
+	switch fsm.Event(message.Event) {
+	case signature_proposal_fsm.EventInitProposal:
+		var req requests.SignatureProposalParticipantsListRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
+	case dkg_proposal_fsm.EventDKGCommitConfirmationReceived:
+		var req requests.DKGProposalCommitConfirmationRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
+	case dkg_proposal_fsm.EventDKGDealConfirmationReceived:
+		var req requests.DKGProposalDealConfirmationRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
+	case dkg_proposal_fsm.EventDKGResponseConfirmationReceived:
+		var req requests.DKGProposalResponseConfirmationRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
+	case dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived:
+		var req requests.DKGProposalMasterKeyConfirmationRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
+	default:
+		return nil, fmt.Errorf("invalid event: %s", message.Event)
+	}
+
+	return resolvedValue, nil
 }
