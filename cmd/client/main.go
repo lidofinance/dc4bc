@@ -81,7 +81,7 @@ var rootCmd = &cobra.Command{
 
 		// TODO: create state machine.
 
-		cli, err := client.NewClient(ctx, userName, nil, state, stg, keyStore, processor)
+		cli, err := client.NewClient(ctx, userName, state, stg, keyStore, processor)
 		if err != nil {
 			log.Fatalf("Failed to init client: %v", err)
 		}
