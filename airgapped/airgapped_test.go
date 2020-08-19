@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/depools/dc4bc/client"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
 	"github.com/google/uuid"
@@ -111,23 +110,24 @@ func TestAirgappedAllSteps(t *testing.T) {
 		tr.nodes = append(tr.nodes, &node)
 	}
 
-	var initReq responses.SignatureProposalParticipantInvitationsResponse
-	for _, n := range tr.nodes {
-		entry := &responses.SignatureProposalParticipantInvitationEntry{
-			ParticipantId: n.ParticipantID,
-			Title:         n.Participant,
-		}
-		initReq = append(initReq, entry)
-	}
-	op := createOperation(t, string(signature_proposal_fsm.StateAwaitParticipantsConfirmations), "", initReq)
-	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
-		defer wg.Done()
-
-		_, err := n.Machine.HandleOperation(op)
-		if err != nil {
-			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
-		}
-	})
+	// Remove this block later, after client testing
+	//var initReq responses.SignatureProposalParticipantInvitationsResponse
+	//for _, n := range tr.nodes {
+	//	entry := &responses.SignatureProposalParticipantInvitationEntry{
+	//		ParticipantId: n.ParticipantID,
+	//		Title:         n.Participant,
+	//	}
+	//	initReq = append(initReq, entry)
+	//}
+	//op := createOperation(t, string(signature_proposal_fsm.StateAwaitParticipantsConfirmations), "", initReq)
+	//runStep(tr, func(n *Node, wg *sync.WaitGroup) {
+	//	defer wg.Done()
+	//
+	//	_, err := n.Machine.HandleOperation(op)
+	//	if err != nil {
+	//		t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+	//	}
+	//})
 
 	// get commits
 	var getCommitsRequest responses.SignatureProposalParticipantStatusResponse
@@ -143,7 +143,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		getCommitsRequest = append(getCommitsRequest, entry)
 	}
-	op = createOperation(t, string(dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations), "", getCommitsRequest)
+	op := createOperation(t, string(dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations), "", getCommitsRequest)
 	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
 		defer wg.Done()
 

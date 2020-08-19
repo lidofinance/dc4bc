@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/pairing/bn256"
 	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
 	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
 )
@@ -24,12 +23,12 @@ type DKG struct {
 	pubkeys       PKStore
 	pubKey        kyber.Point
 	secKey        kyber.Scalar
-	suite         *bn256.Suite
+	suite         vss.Suite
 	ParticipantID int
 	Threshold     int
 }
 
-func Init(suite *bn256.Suite, pubKey kyber.Point, secKey kyber.Scalar) *DKG {
+func Init(suite vss.Suite, pubKey kyber.Point, secKey kyber.Scalar) *DKG {
 	var (
 		d DKG
 	)

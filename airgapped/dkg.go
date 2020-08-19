@@ -11,8 +11,10 @@ import (
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
 	dkgPedersen "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+	"log"
 )
 
+// It seems that this handler is not needed, but i'll remove it after client testing
 func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.Operation) error {
 	var (
 		payload responses.SignatureProposalParticipantInvitationsResponse
@@ -51,8 +53,11 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 
 	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
 	if !ok {
-		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
+		log.Printf("dkg instance for dkg round %s does not exist, create new\n", o.DKGIdentifier)
+		dkgInstance = dkg.Init(am.suite, am.pubKey, am.secKey)
 	}
+
+	dkgInstance.Threshold = len(payload)
 
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
