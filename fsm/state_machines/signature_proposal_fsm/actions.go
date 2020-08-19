@@ -3,8 +3,6 @@ package signature_proposal_fsm
 import (
 	"errors"
 	"fmt"
-	"time"
-
 	"github.com/depools/dc4bc/fsm/config"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
@@ -131,36 +129,29 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 
 func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	var (
-		isContainsDeclined, isContainsExpired bool
+		isContainsDeclined bool
 	)
 
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
-	tm := time.Now()
+	if m.payload.SignatureProposalPayload.IsExpired() {
+		outEvent = eventSetValidationCanceledByTimeout
+		return
+	}
 
 	unconfirmedParticipants := m.payload.SigQuorumCount()
+
 	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
-		if participant.Status == internal.SigConfirmationAwaitConfirmation {
-			if participant.UpdatedAt.Add(config.SignatureProposalConfirmationDeadline).Before(tm) {
-				isContainsExpired = true
-			}
-		} else {
-			if participant.Status == internal.SigConfirmationConfirmed {
-				unconfirmedParticipants--
-			} else if participant.Status == internal.SigConfirmationDeclined {
-				isContainsDeclined = true
-			}
+		if participant.Status == internal.SigConfirmationConfirmed {
+			unconfirmedParticipants--
+		} else if participant.Status == internal.SigConfirmationDeclined {
+			isContainsDeclined = true
 		}
 	}
 
 	if isContainsDeclined {
 		outEvent = eventSetValidationCanceledByParticipant
-		return
-	}
-
-	if isContainsExpired {
-		outEvent = eventSetValidationCanceledByTimeout
 		return
 	}
 

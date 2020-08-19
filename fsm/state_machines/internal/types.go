@@ -46,6 +46,10 @@ type SignatureProposalParticipant struct {
 	UpdatedAt        time.Time
 }
 
+func (c *SignatureConfirmation) IsExpired() bool {
+	return c.ExpiresAt.Before(c.UpdatedAt)
+}
+
 // Unique alias for map iteration - Public Key Fingerprint
 // Excludes array merge and rotate operations
 type SignatureProposalQuorum map[int]*SignatureProposalParticipant
@@ -88,6 +92,10 @@ type DKGConfirmation struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	ExpiresAt time.Time
+}
+
+func (c *DKGConfirmation) IsExpired() bool {
+	return c.ExpiresAt.Before(c.UpdatedAt)
 }
 
 type DKGProposalParticipantStatus uint8
@@ -133,6 +141,10 @@ type SigningConfirmation struct {
 	CreatedAt        time.Time
 	UpdatedAt        time.Time
 	ExpiresAt        time.Time
+}
+
+func (c *SigningConfirmation) IsExpired() bool {
+	return c.ExpiresAt.Before(c.UpdatedAt)
 }
 
 type SigningProposalQuorum map[int]*SigningProposalParticipant

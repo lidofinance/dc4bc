@@ -19,7 +19,7 @@ type DumpedMachineStatePayload struct {
 	SignatureProposalPayload *SignatureConfirmation
 	DKGProposalPayload       *DKGConfirmation
 	SigningProposalPayload   *SigningConfirmation
-	pubKeys                  map[string]ed25519.PublicKey
+	PubKeys                  map[string]ed25519.PublicKey
 }
 
 // Signature quorum
@@ -118,23 +118,23 @@ func (p *DumpedMachineStatePayload) SigningQuorumUpdate(id int, participant *Sig
 	return
 }
 
-func (p *DumpedMachineStatePayload) SetAddrHexPubKey(addr string, key ed25519.PublicKey) {
-	if p.pubKeys == nil {
-		p.pubKeys = make(map[string]ed25519.PublicKey)
+func (p *DumpedMachineStatePayload) SetAddrHexPubKey(addr string, pubKey ed25519.PublicKey) {
+	if p.PubKeys == nil {
+		p.PubKeys = make(map[string]ed25519.PublicKey)
 	}
-	hexKey := hex.EncodeToString([]byte(addr))
-	p.pubKeys[hexKey] = key
+	hexAddr := hex.EncodeToString([]byte(addr))
+	p.PubKeys[hexAddr] = pubKey
 	return
 }
 
 func (p *DumpedMachineStatePayload) GetPubKeyByAddr(addr string) (ed25519.PublicKey, error) {
-	if p.pubKeys == nil {
-		return nil, errors.New("{pubKeys} not initialized")
+	if p.PubKeys == nil {
+		return nil, errors.New("{PubKeys} not initialized")
 	}
 	if addr == "" {
 		return nil, errors.New("{addr} cannot be empty")
 	}
-	pubKey, ok := p.pubKeys[addr]
+	pubKey, ok := p.PubKeys[addr]
 	if !ok {
 		return nil, errors.New("cannot find public key by {addr}")
 	}

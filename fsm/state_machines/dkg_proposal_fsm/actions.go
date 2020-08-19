@@ -8,7 +8,6 @@ import (
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"reflect"
-	"time"
 )
 
 // Init
@@ -100,36 +99,28 @@ func (m *DKGProposalFSM) actionCommitConfirmationReceived(inEvent fsm.Event, arg
 
 func (m *DKGProposalFSM) actionValidateDkgProposalAwaitCommits(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	var (
-		isContainsError, isContainsExpired bool
+		isContainsError bool
 	)
 
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
-	tm := time.Now()
+	if m.payload.DKGProposalPayload.IsExpired() {
+		outEvent = eventDKGCommitsConfirmationCancelByErrorInternal
+		return
+	}
 
 	unconfirmedParticipants := m.payload.DKGQuorumCount()
 	for _, participant := range m.payload.DKGProposalPayload.Quorum {
-		if participant.Status == internal.CommitAwaitConfirmation {
-			if participant.UpdatedAt.Add(config.DkgConfirmationDeadline).Before(tm) {
-				isContainsExpired = true
-			}
-		} else {
-			if participant.Status == internal.CommitConfirmationError {
-				isContainsError = true
-			} else if participant.Status == internal.CommitConfirmed {
-				unconfirmedParticipants--
-			}
+		if participant.Status == internal.CommitConfirmationError {
+			isContainsError = true
+		} else if participant.Status == internal.CommitConfirmed {
+			unconfirmedParticipants--
 		}
 	}
 
 	if isContainsError {
 		outEvent = eventDKGCommitsConfirmationCancelByTimeoutInternal
-		return
-	}
-
-	if isContainsExpired {
-		outEvent = eventDKGCommitsConfirmationCancelByErrorInternal
 		return
 	}
 
@@ -194,36 +185,28 @@ func (m *DKGProposalFSM) actionDealConfirmationReceived(inEvent fsm.Event, args 
 
 func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	var (
-		isContainsError, isContainsExpired bool
+		isContainsError bool
 	)
 
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
-	tm := time.Now()
+	if m.payload.DKGProposalPayload.IsExpired() {
+		outEvent = eventDKGDealsConfirmationCancelByTimeoutInternal
+		return
+	}
 
 	unconfirmedParticipants := m.payload.DKGQuorumCount()
 	for _, participant := range m.payload.DKGProposalPayload.Quorum {
-		if participant.Status == internal.DealAwaitConfirmation {
-			if participant.UpdatedAt.Add(config.DkgConfirmationDeadline).Before(tm) {
-				isContainsExpired = true
-			}
-		} else {
-			if participant.Status == internal.DealConfirmationError {
-				isContainsError = true
-			} else if participant.Status == internal.DealConfirmed {
-				unconfirmedParticipants--
-			}
+		if participant.Status == internal.DealConfirmationError {
+			isContainsError = true
+		} else if participant.Status == internal.DealConfirmed {
+			unconfirmedParticipants--
 		}
 	}
 
 	if isContainsError {
 		outEvent = eventDKGDealsConfirmationCancelByErrorInternal
-		return
-	}
-
-	if isContainsExpired {
-		outEvent = eventDKGDealsConfirmationCancelByTimeoutInternal
 		return
 	}
 
@@ -288,36 +271,28 @@ func (m *DKGProposalFSM) actionResponseConfirmationReceived(inEvent fsm.Event, a
 
 func (m *DKGProposalFSM) actionValidateDkgProposalAwaitResponses(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	var (
-		isContainsError, isContainsExpired bool
+		isContainsError bool
 	)
 
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
-	tm := time.Now()
+	if m.payload.DKGProposalPayload.IsExpired() {
+		outEvent = eventDKGResponseConfirmationCancelByTimeoutInternal
+		return
+	}
 
 	unconfirmedParticipants := m.payload.DKGQuorumCount()
 	for _, participant := range m.payload.DKGProposalPayload.Quorum {
-		if participant.Status == internal.ResponseAwaitConfirmation {
-			if participant.UpdatedAt.Add(config.DkgConfirmationDeadline).Before(tm) {
-				isContainsExpired = true
-			}
-		} else {
-			if participant.Status == internal.ResponseConfirmationError {
-				isContainsError = true
-			} else if participant.Status == internal.ResponseConfirmed {
-				unconfirmedParticipants--
-			}
+		if participant.Status == internal.ResponseConfirmationError {
+			isContainsError = true
+		} else if participant.Status == internal.ResponseConfirmed {
+			unconfirmedParticipants--
 		}
 	}
 
 	if isContainsError {
 		outEvent = eventDKGResponseConfirmationCancelByErrorInternal
-		return
-	}
-
-	if isContainsExpired {
-		outEvent = eventDKGResponseConfirmationCancelByTimeoutInternal
 		return
 	}
 
@@ -382,39 +357,31 @@ func (m *DKGProposalFSM) actionMasterKeyConfirmationReceived(inEvent fsm.Event, 
 
 func (m *DKGProposalFSM) actionValidateDkgProposalAwaitMasterKey(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	var (
-		isContainsError, isContainsExpired bool
-		masterKeys                         [][]byte
+		isContainsError bool
+		masterKeys      [][]byte
 	)
 
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
-	tm := time.Now()
+	if m.payload.DKGProposalPayload.IsExpired() {
+		outEvent = eventDKGMasterKeyConfirmationCancelByTimeoutInternal
+		return
+	}
 
 	unconfirmedParticipants := m.payload.DKGQuorumCount()
 
 	for _, participant := range m.payload.DKGProposalPayload.Quorum {
-		if participant.Status == internal.MasterKeyAwaitConfirmation {
-			if participant.UpdatedAt.Add(config.DkgConfirmationDeadline).Before(tm) {
-				isContainsExpired = true
-			}
-		} else {
-			if participant.Status == internal.MasterKeyConfirmationError {
-				isContainsError = true
-			} else if participant.Status == internal.MasterKeyConfirmed {
-				masterKeys = append(masterKeys, participant.MasterKey)
-				unconfirmedParticipants--
-			}
+		if participant.Status == internal.MasterKeyConfirmationError {
+			isContainsError = true
+		} else if participant.Status == internal.MasterKeyConfirmed {
+			masterKeys = append(masterKeys, participant.MasterKey)
+			unconfirmedParticipants--
 		}
 	}
 
 	if isContainsError {
 		outEvent = eventDKGMasterKeyConfirmationCancelByErrorInternal
-		return
-	}
-
-	if isContainsExpired {
-		outEvent = eventDKGMasterKeyConfirmationCancelByTimeoutInternal
 		return
 	}
 
