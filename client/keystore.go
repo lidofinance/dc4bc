@@ -14,6 +14,7 @@ const (
 )
 
 type KeyStore interface {
+	PutKeys(username string, keyPair *KeyPair) error
 	LoadKeys(userName, password string) (*KeyPair, error)
 }
 
@@ -34,14 +35,38 @@ func NewLevelDBKeyStore(username, keystorePath string) (KeyStore, error) {
 	}
 
 	if _, err := keystore.keystoreDb.Get([]byte(secretsKey), nil); err != nil {
-		if err := keystore.initJsonKey(secretsKey, map[string]*KeyPair{
-			username: NewKeyPair(),
-		}); err != nil {
+		if err := keystore.initJsonKey(secretsKey, map[string]*KeyPair{}); err != nil {
 			return nil, fmt.Errorf("failed to init %s storage: %w", operationsKey, err)
 		}
 	}
 
 	return keystore, nil
+}
+
+func (s *LevelDBKeyStore) PutKeys(username string, keyPair *KeyPair) error {
+	bz, err := s.keystoreDb.Get([]byte(secretsKey), nil)
+	if err != nil {
+		return fmt.Errorf("failed to read keystore: %w", err)
+	}
+
+	var keyPairs = map[string]*KeyPair{}
+	if err := json.Unmarshal(bz, &keyPairs); err != nil {
+		return fmt.Errorf("failed to unmarshak key pairs: %w", err)
+	}
+
+	keyPairs[username] = keyPair
+
+	keyPairsBz, err := json.Marshal(keyPairs)
+	if err != nil {
+		return fmt.Errorf("failed to marshal key pair: %w", err)
+	}
+
+	err = s.keystoreDb.Put([]byte(secretsKey), keyPairsBz, nil)
+	if err != nil {
+		return fmt.Errorf("failed to put key pairs: %w", err)
+	}
+
+	return nil
 }
 
 func (s *LevelDBKeyStore) LoadKeys(userName, password string) (*KeyPair, error) {
@@ -65,11 +90,11 @@ func (s *LevelDBKeyStore) LoadKeys(userName, password string) (*KeyPair, error) 
 
 func (s *LevelDBKeyStore) initJsonKey(key string, data interface{}) error {
 	if _, err := s.keystoreDb.Get([]byte(key), nil); err != nil {
-		operationsBz, err := json.Marshal(data)
+		dataBz, err := json.Marshal(data)
 		if err != nil {
 			return fmt.Errorf("failed to marshal storage structure: %w", err)
 		}
-		err = s.keystoreDb.Put([]byte(key), operationsBz, nil)
+		err = s.keystoreDb.Put([]byte(key), dataBz, nil)
 		if err != nil {
 			return fmt.Errorf("failed to init state: %w", err)
 		}
@@ -84,7 +109,6 @@ type KeyPair struct {
 }
 
 func NewKeyPair() *KeyPair {
-	// TODO: implement proper generation.
 	pub, priv, _ := ed25519.GenerateKey(nil)
 	return &KeyPair{
 		Pub:  pub,
