@@ -43,10 +43,6 @@ func (am *AirgappedMachine) GetPubKey() kyber.Point {
 	return am.pubKey
 }
 
-type Commits struct {
-	MarshaledCommit []byte
-}
-
 func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) error {
 	var (
 		payload responses.SignatureProposalParticipantStatusResponse
@@ -74,17 +70,16 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 		return fmt.Errorf("failed to init dkg instance: %w", err)
 	}
 
-	// TODO: come up with something better
-	var commits []Commits
 	dkgCommits := dkgInstance.GetCommits()
+	marshaledCommits := make([][]byte, 0, len(dkgCommits))
 	for _, commit := range dkgCommits {
 		commitBz, err := commit.MarshalBinary()
 		if err != nil {
 			return fmt.Errorf("failed to marshal commits: %w", err)
 		}
-		commits = append(commits, Commits{MarshaledCommit: commitBz})
+		marshaledCommits = append(marshaledCommits, commitBz)
 	}
-	commitsBz, err := json.Marshal(commits)
+	commitsBz, err := json.Marshal(marshaledCommits)
 
 	am.dkgInstances[o.DKGIdentifier] = dkgInstance
 
@@ -119,14 +114,14 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o client.Opera
 	}
 
 	for _, entry := range payload {
-		var commits []Commits
-		if err = json.Unmarshal(entry.Commit, &commits); err != nil {
+		var commitsBz [][]byte
+		if err = json.Unmarshal(entry.Commit, &commitsBz); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal commits: %w", err)
 		}
-		dkgCommits := make([]kyber.Point, 0, len(commits))
-		for _, c := range commits {
+		dkgCommits := make([]kyber.Point, 0, len(commitsBz))
+		for _, commitBz := range commitsBz {
 			commit := am.suite.Point()
-			if err = commit.UnmarshalBinary(c.MarshaledCommit); err != nil {
+			if err = commit.UnmarshalBinary(commitBz); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal commit: %w", err)
 			}
 			dkgCommits = append(dkgCommits, commit)
