@@ -16,6 +16,7 @@ func (m *SigningProposalFSM) actionInitSigningProposal(inEvent fsm.Event, args .
 
 	m.payload.SigningProposalPayload = &internal.SigningConfirmation{
 		Quorum: make(internal.SigningProposalQuorum),
+		// CreatedAt:
 	}
 
 	for _, participant := range m.payload.SignatureProposalPayload.Quorum {
