@@ -14,7 +14,7 @@ type SignatureProposalParticipantsListRequest struct {
 
 type SignatureProposalParticipantsEntry struct {
 	// Public title for address, such as name, nickname, organization
-	Title     string
+	Addr      string
 	PubKey    []byte
 	DkgPubKey []byte
 }
@@ -24,7 +24,6 @@ type SignatureProposalParticipantsEntry struct {
 // 		   "event_sig_proposal_decline_by_participant"
 type SignatureProposalParticipantRequest struct {
 	// Key for link invitations to participants
-	PubKeyFingerprint   string
-	DecryptedInvitation string
-	CreatedAt           time.Time
+	ParticipantId int
+	CreatedAt     time.Time
 }

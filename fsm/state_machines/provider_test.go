@@ -3,22 +3,21 @@ package state_machines
 import (
 	"crypto/rand"
 	"crypto/rsa"
-	"crypto/sha1"
 	"crypto/x509"
-	"encoding/base64"
 	"fmt"
+	"log"
+	"testing"
+	"time"
+
 	"github.com/depools/dc4bc/fsm/fsm"
 	dpf "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
-	"log"
-	"testing"
-	"time"
 )
 
 type testExternalParticipants struct {
-	Title     string
+	Addr      string
 	PrivKey   *rsa.PrivateKey
 	PubKey    *rsa.PublicKey
 	DkgPubKey []byte
@@ -27,7 +26,9 @@ type testExternalParticipants struct {
 var (
 	tm = time.Now()
 
-	testParticipants = map[string]*testExternalParticipants{}
+	dkgId = "1b7a6382afe0fbe2ff127a5779f5e9b042e685cabefeadcf4ef27c6089a56bfb"
+
+	testParticipants = map[int]*testExternalParticipants{}
 
 	testParticipantsListRequest = requests.SignatureProposalParticipantsListRequest{
 		Participants: []*requests.SignatureProposalParticipantsEntry{},
@@ -51,22 +52,17 @@ func init() {
 
 		key.Precompute()
 
-		marshaledPubKey := x509.MarshalPKCS1PublicKey(&key.PublicKey)
-		hash := sha1.Sum(marshaledPubKey)
-
-		fingerprint := base64.StdEncoding.EncodeToString(hash[:])
-
 		pubKeyMock := make([]byte, 128)
 
 		rand.Read(pubKeyMock)
 
 		participant := &testExternalParticipants{
-			Title:     fmt.Sprintf("User %d", i),
+			Addr:      fmt.Sprintf("User %d", i),
 			PrivKey:   key,
 			PubKey:    &key.PublicKey,
 			DkgPubKey: pubKeyMock,
 		}
-		testParticipants[fingerprint] = participant
+		testParticipants[i] = participant
 	}
 
 	participantsForRequest := make([]*requests.SignatureProposalParticipantsEntry, 0)
@@ -74,7 +70,7 @@ func init() {
 	for _, participant := range testParticipants {
 
 		participantsForRequest = append(participantsForRequest, &requests.SignatureProposalParticipantsEntry{
-			Title:     participant.Title,
+			Addr:      participant.Addr,
 			PubKey:    x509.MarshalPKCS1PublicKey(participant.PubKey),
 			DkgPubKey: participant.DkgPubKey,
 		})
@@ -84,7 +80,7 @@ func init() {
 }
 
 func TestCreate_Positive(t *testing.T) {
-	testFSMInstance, err := Create()
+	testFSMInstance, err := Create(dkgId)
 	if err != nil {
 		t.Fatalf("expected nil error, got {%s}", err)
 	}
@@ -127,7 +123,7 @@ func compareState(t *testing.T, expected fsm.State, got fsm.State) {
 // Test Workflow
 
 func Test_SignatureProposal_Init(t *testing.T) {
-	testFSMInstance, err := Create()
+	testFSMInstance, err := Create(dkgId)
 
 	compareErrNil(t, err)
 
@@ -186,16 +182,8 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 			t.Fatalf("expected unique {ParticipantId}")
 		}
 
-		if participant.Title == "" {
-			t.Fatalf("expected not empty {Title}")
-		}
-
-		if participant.EncryptedInvitation == "" {
-			t.Fatalf("expected not empty {DecryptedInvitation}")
-		}
-
-		if participant.PubKeyFingerprint == "" {
-			t.Fatalf("expected not empty {PubKeyFingerprint}")
+		if participant.Addr == "" {
+			t.Fatalf("expected not empty {Addr}")
 		}
 
 		participantsMap[participant.ParticipantId] = participant
@@ -215,21 +203,9 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 		compareFSMInstanceNotNil(t, testFSMInstance)
 
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
-			t.Fatalf("not found external user data for response fingerprint")
-		}
-
-		r := rand.Reader
-		encrypted, err := rsa.DecryptPKCS1v15(r, testParticipants[participant.PubKeyFingerprint].PrivKey, []byte(participant.EncryptedInvitation))
-
-		if err != nil {
-			t.Fatalf("cannot encrypt {DecryptedInvitation} with private key")
-		}
-
 		fsmResponse, dump, err = testFSMInstance.Do(spf.EventConfirmSignatureProposal, requests.SignatureProposalParticipantRequest{
-			PubKeyFingerprint:   participant.PubKeyFingerprint,
-			DecryptedInvitation: string(encrypted),
-			CreatedAt:           tm,
+			ParticipantId: participant.ParticipantId,
+			CreatedAt:     tm,
 		})
 
 		compareErrNil(t, err)
@@ -248,7 +224,9 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 	testFSMInstance, err = FromDump(dump)
 
-	fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGInitProcess)
+	fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGInitProcess, requests.DefaultRequest{
+		CreatedAt: time.Now(),
+	})
 
 	compareErrNil(t, err)
 
@@ -268,7 +246,7 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 		compareFSMInstanceNotNil(t, testFSMInstance)
 
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
+		if _, ok := testParticipants[participant.ParticipantId]; !ok {
 			t.Fatalf("not found external user data for response fingerprint")
 		}
 
@@ -304,7 +282,7 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 		compareFSMInstanceNotNil(t, testFSMInstance)
 
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
+		if _, ok := testParticipants[participant.ParticipantId]; !ok {
 			t.Fatalf("not found external user data for response fingerprint")
 		}
 
@@ -340,7 +318,7 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 		compareFSMInstanceNotNil(t, testFSMInstance)
 
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
+		if _, ok := testParticipants[participant.ParticipantId]; !ok {
 			t.Fatalf("not found external user data for response fingerprint")
 		}
 
@@ -382,7 +360,7 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 		compareFSMInstanceNotNil(t, testFSMInstance)
 
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
+		if _, ok := testParticipants[participant.ParticipantId]; !ok {
 			t.Fatalf("not found external user data for response fingerprint")
 		}
 

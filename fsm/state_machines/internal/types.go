@@ -1,7 +1,7 @@
 package internal
 
 import (
-	"crypto/rsa"
+	"crypto/ed25519"
 	"time"
 )
 
@@ -32,24 +32,27 @@ func (s ConfirmationParticipantStatus) String() string {
 type SignatureConfirmation struct {
 	Quorum    SignatureProposalQuorum
 	CreatedAt time.Time
+	UpdatedAt time.Time
 	ExpiresAt time.Time
 }
 
 type SignatureProposalParticipant struct {
-	// Public title for address, such as name, nickname, organization
-	ParticipantId int
-	Title         string
-	PubKey        *rsa.PublicKey
-	DkgPubKey     []byte
+	Addr      string
+	PubKey    ed25519.PublicKey
+	DkgPubKey []byte
 	// For validation user confirmation: sign(InvitationSecret, PubKey) => user
 	InvitationSecret string
 	Status           ConfirmationParticipantStatus
 	UpdatedAt        time.Time
 }
 
+func (c *SignatureConfirmation) IsExpired() bool {
+	return c.ExpiresAt.Before(c.UpdatedAt)
+}
+
 // Unique alias for map iteration - Public Key Fingerprint
 // Excludes array merge and rotate operations
-type SignatureProposalQuorum map[string]*SignatureProposalParticipant
+type SignatureProposalQuorum map[int]*SignatureProposalParticipant
 
 // DKG proposal
 
@@ -71,8 +74,8 @@ const (
 )
 
 type DKGProposalParticipant struct {
-	Title     string
-	PubKey    []byte
+	Addr      string
+	DkgPubKey []byte
 	Commit    []byte
 	Deal      []byte
 	Response  []byte
@@ -86,8 +89,13 @@ type DKGProposalQuorum map[int]*DKGProposalParticipant
 
 type DKGConfirmation struct {
 	Quorum    DKGProposalQuorum
-	CreatedAt *time.Time
-	ExpiresAt *time.Time
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	ExpiresAt time.Time
+}
+
+func (c *DKGConfirmation) IsExpired() bool {
+	return c.ExpiresAt.Before(c.UpdatedAt)
 }
 
 type DKGProposalParticipantStatus uint8
@@ -131,7 +139,12 @@ type SigningConfirmation struct {
 	SrcPayload       []byte
 	EncryptedPayload []byte
 	CreatedAt        time.Time
+	UpdatedAt        time.Time
 	ExpiresAt        time.Time
+}
+
+func (c *SigningConfirmation) IsExpired() bool {
+	return c.ExpiresAt.Before(c.UpdatedAt)
 }
 
 type SigningProposalQuorum map[int]*SigningProposalParticipant
@@ -171,7 +184,7 @@ func (s SigningParticipantStatus) String() string {
 }
 
 type SigningProposalParticipant struct {
-	Title      string
+	Addr       string
 	Status     SigningParticipantStatus
 	PartialKey []byte
 	Error      error

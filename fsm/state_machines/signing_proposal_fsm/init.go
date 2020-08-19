@@ -23,10 +23,14 @@ const (
 
 	StateSigningAwaitPartialKeys = fsm.State("state_signing_await_partial_keys")
 	// Cancelled
-	StateSigningPartialKeysAwaitCancelledByTimeout     = fsm.State("state_signing_partial_keys_await_cancelled_by_timeout")
-	StateSigningPartialKeysAwaitCancelledByParticipant = fsm.State("state_signing_partial_keys_await_cancelled_by_participant")
+	StateSigningPartialKeysAwaitCancelledByTimeout     = fsm.State("state_signing_partial_signatures_await_cancelled_by_timeout")
+	StateSigningPartialKeysAwaitCancelledByParticipant = fsm.State("state_signing_partial_signatures_await_cancelled_by_participant")
 
-	StateSigningPartialKeysCollected = fsm.State("state_signing_partial_keys_collected")
+	StateSigningPartialKeysCollected = fsm.State("state_signing_partial_signatures_collected")
+
+	// await full
+
+	//
 
 	// Events
 

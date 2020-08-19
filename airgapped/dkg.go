@@ -68,7 +68,7 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 		if err = pubKey.UnmarshalBinary(entry.DkgPubKey); err != nil {
 			return fmt.Errorf("failed to unmarshal pubkey: %w", err)
 		}
-		dkgInstance.StorePubKey(entry.Title, entry.ParticipantId, pubKey)
+		dkgInstance.StorePubKey(entry.Addr, entry.ParticipantId, pubKey)
 	}
 
 	if err = dkgInstance.InitDKGInstance(); err != nil {

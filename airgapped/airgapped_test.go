@@ -138,7 +138,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		entry := &responses.SignatureProposalParticipantStatusEntry{
 			ParticipantId: n.ParticipantID,
-			Title:         n.Participant,
+			Addr:         n.Participant,
 			DkgPubKey:     pubKey,
 		}
 		getCommitsRequest = append(getCommitsRequest, entry)

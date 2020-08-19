@@ -15,21 +15,30 @@ import (
 )
 
 const (
+	flagUserName     = "username"
 	flagListenAddr   = "listen_addr"
 	flagStateDBDSN   = "state_dbdsn"
 	flagStorageDBDSN = "storage_dbdsn"
+	flagStoreDBDSN   = "key_store_dbdsn"
 )
 
 func init() {
-	rootCmd.PersistentFlags().String(flagListenAddr, "localhost:8080", "Listen address")
+	rootCmd.PersistentFlags().String(flagUserName, "testUser", "Username")
+	rootCmd.PersistentFlags().String(flagListenAddr, "localhost:8080", "Listen Address")
 	rootCmd.PersistentFlags().String(flagStateDBDSN, "./dc4bc_client_state", "State DBDSN")
 	rootCmd.PersistentFlags().String(flagStorageDBDSN, "./dc4bc_file_storage", "Storage DBDSN")
+	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_jey_store", "Key Store DBDSN")
 }
 
 var rootCmd = &cobra.Command{
 	Use:   "dc4bc_client",
 	Short: "dc4bc client implementation",
 	Run: func(cmd *cobra.Command, args []string) {
+		userName, err := cmd.PersistentFlags().GetString(flagUserName)
+		if err != nil {
+			log.Fatalf("failed to read configuration: %v", err)
+		}
+
 		listenAddr, err := cmd.PersistentFlags().GetString(flagListenAddr)
 		if err != nil {
 			log.Fatalf("failed to read configuration: %v", err)
@@ -41,6 +50,11 @@ var rootCmd = &cobra.Command{
 		}
 
 		storageDBDSN, err := cmd.PersistentFlags().GetString(flagStorageDBDSN)
+		if err != nil {
+			log.Fatalf("failed to read configuration: %v", err)
+		}
+
+		keyStoreDBDSN, err := cmd.PersistentFlags().GetString(flagStoreDBDSN)
 		if err != nil {
 			log.Fatalf("failed to read configuration: %v", err)
 		}
@@ -58,11 +72,16 @@ var rootCmd = &cobra.Command{
 			log.Fatalf("Failed to init storage client: %v", err)
 		}
 
+		keyStore, err := client.NewLevelDBKeyStore(userName, keyStoreDBDSN)
+		if err != nil {
+			log.Fatalf("Failed to init key store: %v", err)
+		}
+
 		processor := qr.NewCameraProcessor()
 
 		// TODO: create state machine.
 
-		cli, err := client.NewClient(ctx, nil, state, stg, processor)
+		cli, err := client.NewClient(ctx, userName, nil, state, stg, keyStore, processor)
 		if err != nil {
 			log.Fatalf("Failed to init client: %v", err)
 		}

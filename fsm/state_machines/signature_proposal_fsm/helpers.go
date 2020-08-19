@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha1"
 	"encoding/base64"
+
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/responses"
 )
@@ -13,12 +14,9 @@ import (
 
 func ProposalParticipantsQuorumToResponse(list *internal.SignatureProposalQuorum) responses.SignatureProposalParticipantInvitationsResponse {
 	var response responses.SignatureProposalParticipantInvitationsResponse
-	for quorumId, parcipant := range *list {
+	for _, participant := range *list {
 		response = append(response, &responses.SignatureProposalParticipantInvitationEntry{
-			Title:             parcipant.Title,
-			PubKeyFingerprint: quorumId,
-			// TODO: Add encryption
-			EncryptedInvitation: parcipant.InvitationSecret,
+			Addr: participant.Addr,
 		})
 	}
 	return response

@@ -1,12 +1,14 @@
 package state_machines
 
 import (
+	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"strings"
+
+	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/fsm_pool"
@@ -43,19 +45,13 @@ func init() {
 
 // Create new fsm with unique id
 // transactionId required for unique identify dump
-func Create() (*FSMInstance, error) {
+func Create(dkgID string) (*FSMInstance, error) {
 	var (
 		err error
 		i   = &FSMInstance{}
 	)
-	transactionId, err := generateDkgTransactionId()
 
-	if err != nil {
-		return nil, err
-	}
-
-	err = i.InitDump(transactionId)
-
+	err = i.InitDump(dkgID)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +86,14 @@ func FromDump(data []byte) (*FSMInstance, error) {
 	return i, err
 }
 
+func (i *FSMInstance) GetPubKeyByAddr(addr string) (ed25519.PublicKey, error) {
+	if i.dump == nil {
+		return nil, errors.New("dump not initialized")
+	}
+
+	return i.dump.Payload.GetPubKeyByAddr(addr)
+}
+
 func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, err error) {
 	var dumpErr error
 
@@ -112,22 +116,22 @@ func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Resp
 	return result, dump, err
 }
 
-func (i *FSMInstance) InitDump(transactionId string) error {
+func (i *FSMInstance) InitDump(dkgID string) error {
 	if i.dump != nil {
 		return errors.New("dump already initialized")
 	}
 
-	transactionId = strings.TrimSpace(transactionId)
+	dkgID = strings.TrimSpace(dkgID)
 
-	if transactionId == "" {
-		return errors.New("empty transaction id")
+	if dkgID == "" {
+		return errors.New("empty {dkgID}")
 	}
 
 	i.dump = &FSMDump{
-		TransactionId: transactionId,
+		TransactionId: dkgID,
 		State:         fsm.StateGlobalIdle,
 		Payload: &internal.DumpedMachineStatePayload{
-			TransactionId:            transactionId,
+			DkgId:                    dkgID,
 			SignatureProposalPayload: nil,
 			DKGProposalPayload:       nil,
 		},
