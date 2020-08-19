@@ -62,9 +62,10 @@ func NewLevelDBState(stateDbPath string) (State, error) {
 		}
 	}
 
+	// Init state key for FSMs state.
 	if _, err := state.stateDb.Get([]byte(fsmStateKey), nil); err != nil {
-		if err := db.Put([]byte(fsmStateKey), []byte{}, nil); err != nil {
-			return nil, fmt.Errorf("failed to init %s storage: %w", offsetKey, err)
+		if err := state.initJsonKey(fsmStateKey, map[string]*state_machines.FSMInstance{}); err != nil {
+			return nil, fmt.Errorf("failed to init %s storage: %w", fsmStateKey, err)
 		}
 	}
 
@@ -73,11 +74,11 @@ func NewLevelDBState(stateDbPath string) (State, error) {
 
 func (s *LevelDBState) initJsonKey(key string, data interface{}) error {
 	if _, err := s.stateDb.Get([]byte(key), nil); err != nil {
-		operationsBz, err := json.Marshal(data)
+		dataBz, err := json.Marshal(data)
 		if err != nil {
 			return fmt.Errorf("failed to marshal storage structure: %w", err)
 		}
-		err = s.stateDb.Put([]byte(key), operationsBz, nil)
+		err = s.stateDb.Put([]byte(key), dataBz, nil)
 		if err != nil {
 			return fmt.Errorf("failed to init state: %w", err)
 		}
