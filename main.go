@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	_ "image/jpeg"
@@ -121,7 +122,7 @@ func main() {
 	dkgRoundID := md5.Sum(messageDataBz)
 	message := storage.Message{
 		ID:         uuid.New().String(),
-		DkgRoundID: string(dkgRoundID[:]),
+		DkgRoundID: base64.StdEncoding.EncodeToString(dkgRoundID[:]),
 		Event:      string(spf.EventInitProposal),
 		Data:       messageDataBz,
 		SenderAddr: nodes[0].client.GetAddr(),

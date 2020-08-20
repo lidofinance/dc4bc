@@ -3,6 +3,7 @@ package fsm_pool
 import (
 	"errors"
 	"fmt"
+
 	"github.com/depools/dc4bc/fsm/fsm"
 )
 

@@ -89,7 +89,14 @@ func (c *Client) Poll() error {
 
 			for _, message := range messages {
 				if err := c.ProcessMessage(message); err != nil {
-					log.Println("Failed to process message:", err)
+					log.Printf("[%s] Failed to process message: %v\n", c.userName, err)
+				} else {
+					log.Printf("[%s] Successfully processed message %s, offset %d\n",
+						c.userName, message.ID, message.Offset)
+				}
+
+				if err := c.state.SaveOffset(message.Offset + 1); err != nil {
+					return fmt.Errorf("failed to SaveOffset: %w", err)
 				}
 			}
 		case <-c.ctx.Done():
@@ -154,10 +161,6 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		if err := c.state.PutOperation(operation); err != nil {
 			return fmt.Errorf("failed to PutOperation: %w", err)
 		}
-	}
-
-	if err := c.state.SaveOffset(message.Offset); err != nil {
-		return fmt.Errorf("failed to SaveOffset: %w", err)
 	}
 
 	if err := c.state.SaveFSM(message.DkgRoundID, fsmDump); err != nil {
@@ -258,6 +261,7 @@ func (c *Client) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance,
 	}
 
 	if !ok {
+		log.Printf("[%s] Creating new FSMInstance for DKG round %s", c.userName, dkgRoundID)
 		fsmInstance, err = state_machines.Create(dkgRoundID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create FSM instance: %w", err)
@@ -267,6 +271,7 @@ func (c *Client) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance,
 		if err != nil {
 			return nil, fmt.Errorf("failed to Dump FSM instance: %w", err)
 		}
+
 		if err := c.state.SaveFSM(dkgRoundID, bz); err != nil {
 			return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 		}
