@@ -2,10 +2,9 @@ package state_machines
 
 import (
 	"crypto/ed25519"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"strings"
 
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -14,10 +13,6 @@ import (
 	"github.com/depools/dc4bc/fsm/fsm_pool"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-)
-
-const (
-	dkgTransactionIdLength = 128
 )
 
 // Is machine state scope dump will be locked?
@@ -40,6 +35,7 @@ func init() {
 	fsmPoolProvider = fsm_pool.Init(
 		signature_proposal_fsm.New(),
 		dkg_proposal_fsm.New(),
+		signing_proposal_fsm.New(),
 	)
 }
 
@@ -81,6 +77,9 @@ func FromDump(data []byte) (*FSMInstance, error) {
 	}
 
 	machine, err := fsmPoolProvider.MachineByState(i.dump.State)
+	if err != nil {
+		return nil, err
+	}
 	i.machine = machine.(internal.DumpedMachineProvider)
 	i.machine.SetUpPayload(i.dump.Payload)
 	return i, err
@@ -172,14 +171,4 @@ func (d *FSMDump) Unmarshal(data []byte) error {
 	}
 
 	return json.Unmarshal(data, d)
-}
-
-func generateDkgTransactionId() (string, error) {
-	b := make([]byte, dkgTransactionIdLength)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.URLEncoding.EncodeToString(b), err
 }

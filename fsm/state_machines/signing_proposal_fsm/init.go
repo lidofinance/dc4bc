@@ -28,10 +28,6 @@ const (
 
 	StateSigningPartialKeysCollected = fsm.State("state_signing_partial_signatures_collected")
 
-	// await full
-
-	//
-
 	// Events
 
 	EventSigningInit                                    = fsm.Event("event_signing_init")
@@ -49,7 +45,7 @@ const (
 	eventSigningPartialKeyCancelByTimeoutInternal = fsm.Event("event_signing_partial_key_canceled_by_timeout_internal")
 	eventSigningPartialKeyCancelByErrorInternal   = fsm.Event("event_signing_partial_key_canceled_by_error_internal")
 	eventSigningPartialKeysConfirmedInternal      = fsm.Event("event_signing_partial_keys_confirmed_internal")
-	EventSigningFinish                            = fsm.Event("event_signing_finish")
+	EventSigningRestart                           = fsm.Event("event_signing_restart")
 )
 
 type SigningProposalFSM struct {
@@ -82,7 +78,7 @@ func New() internal.DumpedMachineProvider {
 			// Validate
 			{Name: eventAutoValidateProposalInternal, SrcState: []fsm.State{StateSigningAwaitConfirmations}, DstState: StateSigningAwaitConfirmations, IsInternal: true, IsAuto: true},
 
-			{Name: eventSetProposalValidatedInternal, SrcState: []fsm.State{StateSigningAwaitConfirmations}, DstState: StateSigningAwaitConfirmations, IsInternal: true, IsAuto: true},
+			{Name: eventSetProposalValidatedInternal, SrcState: []fsm.State{StateSigningAwaitConfirmations}, DstState: StateSigningAwaitPartialKeys, IsInternal: true},
 
 			// Canceled
 			{Name: EventSigningPartialKeyReceived, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningAwaitPartialKeys},
@@ -92,10 +88,17 @@ func New() internal.DumpedMachineProvider {
 
 			{Name: eventSigningPartialKeysConfirmedInternal, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningPartialKeysCollected, IsInternal: true},
 
-			{Name: EventSigningFinish, SrcState: []fsm.State{StateSigningPartialKeysCollected}, DstState: StateSigningIdle, IsInternal: true},
+			{Name: EventSigningRestart, SrcState: []fsm.State{StateSigningPartialKeysCollected}, DstState: StateSigningIdle, IsInternal: true},
 		},
 		fsm.Callbacks{
-			EventSigningInit: machine.actionInitSigningProposal,
+			EventSigningInit:                  machine.actionInitSigningProposal,
+			EventSigningStart:                 machine.actionStartSigningProposal,
+			EventConfirmSigningConfirmation:   machine.actionProposalResponseByParticipant,
+			EventDeclineSigningConfirmation:   machine.actionProposalResponseByParticipant,
+			eventAutoValidateProposalInternal: machine.actionValidateSigningProposalConfirmations,
+			EventSigningPartialKeyReceived:    machine.actionPartialKeyConfirmationReceived,
+			EventSigningPartialKeyError:       machine.actionValidateSigningPartialKeyAwaitConfirmations,
+			// actionConfirmationError
 		},
 	)
 

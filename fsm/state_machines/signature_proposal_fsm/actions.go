@@ -116,11 +116,12 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 	case EventDeclineProposal:
 		signatureProposalParticipant.Status = internal.SigConfirmationDeclined
 	default:
-		err = errors.New("undefined {Event} for action")
+		err = errors.New(fmt.Sprintf("unsupported event for action {inEvent} = {\"%s\"}", inEvent))
 		return
 	}
 
 	signatureProposalParticipant.UpdatedAt = request.CreatedAt
+	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.SigQuorumUpdate(request.ParticipantId, signatureProposalParticipant)
 
@@ -129,7 +130,7 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 
 func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	var (
-		isContainsDeclined bool
+		isContainsDecline bool
 	)
 
 	m.payloadMu.Lock()
@@ -146,11 +147,11 @@ func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event
 		if participant.Status == internal.SigConfirmationConfirmed {
 			unconfirmedParticipants--
 		} else if participant.Status == internal.SigConfirmationDeclined {
-			isContainsDeclined = true
+			isContainsDecline = true
 		}
 	}
 
-	if isContainsDeclined {
+	if isContainsDecline {
 		outEvent = eventSetValidationCanceledByParticipant
 		return
 	}
@@ -166,6 +167,7 @@ func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event
 		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
 			ParticipantId: participantId,
 			Addr:          participant.Addr,
+			DkgPubKey:     participant.DkgPubKey,
 			Status:        uint8(participant.Status),
 		}
 		responseData = append(responseData, responseEntry)
@@ -184,6 +186,7 @@ func (m *SignatureProposalFSM) actionSignatureProposalCanceledByTimeout(inEvent 
 		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
 			ParticipantId: participantId,
 			Addr:          participant.Addr,
+			DkgPubKey:     participant.DkgPubKey,
 			Status:        uint8(participant.Status),
 		}
 		responseData = append(responseData, responseEntry)
