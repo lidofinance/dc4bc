@@ -55,3 +55,19 @@ func (r *SignatureProposalParticipantRequest) Validate() error {
 	}
 	return nil
 }
+
+func (r *SignatureProposalConfirmationErrorRequest) Validate() error {
+	if r.ParticipantId < 0 {
+		return errors.New("{ParticipantId} cannot be a negative number")
+	}
+
+	if r.Error == nil {
+		return errors.New("{Error} cannot be a nil")
+	}
+
+	if r.CreatedAt.IsZero() {
+		return errors.New("{CreatedAt} is not set")
+	}
+
+	return nil
+}

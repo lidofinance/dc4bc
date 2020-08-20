@@ -14,6 +14,7 @@ type SigningProposalStartRequest struct {
 // Events: "event_signing_proposal_confirm_by_participant"
 //		   "event_signing_proposal_decline_by_participant"
 type SigningProposalParticipantRequest struct {
+	SigningId     string
 	ParticipantId int
 	CreatedAt     time.Time
 }
@@ -21,6 +22,7 @@ type SigningProposalParticipantRequest struct {
 // States: "state_signing_await_partial_keys"
 // Events: "event_signing_partial_key_received"
 type SigningProposalPartialKeyRequest struct {
+	SigningId     string
 	ParticipantId int
 	PartialKey    []byte
 	CreatedAt     time.Time
