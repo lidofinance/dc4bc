@@ -94,7 +94,10 @@ func (c *Client) Poll() error {
 
 			for _, message := range messages {
 				if err := c.ProcessMessage(message); err != nil {
-					log.Println("Failed to process message:", err)
+					log.Println("Failed to process message:", c.userName, err)
+					fmt.Println("Not processed", c.userName, message.Event)
+				} else {
+					fmt.Println("Processed", c.userName, message.Event)
 				}
 			}
 
@@ -133,6 +136,8 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 	if err != nil {
 		return fmt.Errorf("failed to getFSMInstance: %w", err)
 	}
+	state, _ := fsmInstance.State()
+	fmt.Printf("Do msg %s for username %s with init state: %s\n", message.Event, c.userName, state)
 
 	if fsm.Event(message.Event) != signature_proposal_fsm.EventInitProposal {
 		if err := c.verifyMessage(fsmInstance, message); err != nil {
@@ -149,6 +154,9 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 	if err != nil {
 		return fmt.Errorf("failed to Do operation in FSM: %w", err)
 	}
+
+	state, _ = fsmInstance.State()
+	fmt.Printf("Done msg %s for username %s with state after Do: %s\n", message.Event, c.userName, state)
 
 	var operation *types.Operation
 	switch resp.State {
@@ -168,7 +176,6 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 			Payload:       bz,
 			DKGIdentifier: message.DkgRoundID,
 		}
-		fmt.Println("DKG - ", message.DkgRoundID)
 	default:
 		log.Printf("State %s does not require an operation", resp.State)
 	}
@@ -286,7 +293,6 @@ func (c *Client) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance,
 		if err != nil {
 			return nil, fmt.Errorf("failed to create FSM instance: %w", err)
 		}
-
 		bz, err := fsmInstance.Dump()
 		if err != nil {
 			return nil, fmt.Errorf("failed to Dump FSM instance: %w", err)
