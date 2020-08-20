@@ -164,9 +164,11 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		}
 
 		operation = &types.Operation{
-			Type:    types.OperationType(resp.State),
-			Payload: bz,
+			Type:          types.OperationType(resp.State),
+			Payload:       bz,
+			DKGIdentifier: message.DkgRoundID,
 		}
+		fmt.Println("DKG - ", message.DkgRoundID)
 	default:
 		log.Printf("State %s does not require an operation", resp.State)
 	}

@@ -7,6 +7,7 @@ import (
 	"github.com/depools/dc4bc/dkg"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/qr"
 	"github.com/syndtr/goleveldb/leveldb"
@@ -174,6 +175,8 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) ([]clien
 	// handler gets a pointer to an operation, do necessary things
 	// and write a result (or an error) to .Result field of operation
 	switch fsm.State(operation.Type) {
+	case signature_proposal_fsm.StateAwaitParticipantsConfirmations:
+		err = am.handleStateAwaitParticipantsConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:
 		err = am.handleStateDkgCommitsAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:

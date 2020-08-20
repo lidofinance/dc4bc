@@ -115,8 +115,10 @@ func (s *LevelDBState) SaveFSM(dkgRoundID string, dump []byte) error {
 	}
 
 	var fsmInstances = map[string][]byte{}
-	if err := json.Unmarshal(bz, &fsmInstances); err != nil {
-		return fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+	if len(bz) > 0 {
+		if err := json.Unmarshal(bz, &fsmInstances); err != nil {
+			return fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+		}
 	}
 
 	fsmInstances[dkgRoundID] = dump
@@ -135,8 +137,10 @@ func (s *LevelDBState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, 
 	}
 
 	var fsmInstances = map[string][]byte{}
-	if err := json.Unmarshal(bz, &fsmInstances); err != nil {
-		return nil, false, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+	if len(bz) > 0 {
+		if err := json.Unmarshal(bz, &fsmInstances); err != nil {
+			return nil, false, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+		}
 	}
 
 	fsmInstanceBz, ok := fsmInstances[dkgRoundID]
