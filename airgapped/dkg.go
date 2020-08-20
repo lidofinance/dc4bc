@@ -3,7 +3,7 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/depools/dc4bc/client"
+	client "github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/dkg"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"

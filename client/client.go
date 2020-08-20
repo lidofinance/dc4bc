@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/depools/dc4bc/airgapped"
+	"github.com/depools/dc4bc/client/types"
 	"log"
 	"path/filepath"
 	"sync"
@@ -37,6 +39,7 @@ type Client struct {
 	storage     storage.Storage
 	keyStore    KeyStore
 	qrProcessor qr.Processor
+	airgapped   *airgapped.AirgappedMachine
 }
 
 func NewClient(
@@ -46,6 +49,7 @@ func NewClient(
 	storage storage.Storage,
 	keyStore KeyStore,
 	qrProcessor qr.Processor,
+	airgappedMachine *airgapped.AirgappedMachine,
 ) (*Client, error) {
 	keyPair, err := keyStore.LoadKeys(userName, "")
 	if err != nil {
@@ -61,6 +65,7 @@ func NewClient(
 		storage:     storage,
 		keyStore:    keyStore,
 		qrProcessor: qrProcessor,
+		airgapped:   airgappedMachine,
 	}, nil
 }
 
@@ -92,6 +97,22 @@ func (c *Client) Poll() error {
 					log.Println("Failed to process message:", err)
 				}
 			}
+
+			operations, err := c.GetOperations()
+			if err != nil {
+				log.Println("Failed to get operations: %v", err)
+			}
+			for _, operation := range operations {
+				processedOperations, err := c.airgapped.HandleOperation(*operation)
+				if err != nil {
+					return fmt.Errorf("failed to process operation in airgapped: %w", err)
+				}
+				for _, po := range processedOperations {
+					if err = c.handleProcessedOperation(po); err != nil {
+						return fmt.Errorf("failed to handle processed operation")
+					}
+				}
+			}
 		case <-c.ctx.Done():
 			log.Println("Context closed, stop polling...")
 			return nil
@@ -119,7 +140,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		}
 	}
 
-	fsmReq, err := FSMRequestFromMessage(message)
+	fsmReq, err := types.FSMRequestFromMessage(message)
 	if err != nil {
 		return fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
 	}
@@ -129,7 +150,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		return fmt.Errorf("failed to Do operation in FSM: %w", err)
 	}
 
-	var operation *Operation
+	var operation *types.Operation
 	switch resp.State {
 	// if the new state is waiting for RPC to airgapped machine
 	case
@@ -142,8 +163,8 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 			return fmt.Errorf("failed to marshal FSM response: %w", err)
 		}
 
-		operation = &Operation{
-			Type:    OperationType(resp.State),
+		operation = &types.Operation{
+			Type:    types.OperationType(resp.State),
 			Payload: bz,
 		}
 	default:
@@ -167,7 +188,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 	return nil
 }
 
-func (c *Client) GetOperations() (map[string]*Operation, error) {
+func (c *Client) GetOperations() (map[string]*types.Operation, error) {
 	return c.state.GetOperations()
 }
 
@@ -210,7 +231,7 @@ func (c *Client) ReadProcessedOperation() error {
 		return fmt.Errorf("failed to ReadQR: %s", err)
 	}
 
-	var operation Operation
+	var operation types.Operation
 	if err = json.Unmarshal(bz, &operation); err != nil {
 		return fmt.Errorf("failed to unmarshal processed operation")
 	}
@@ -218,7 +239,7 @@ func (c *Client) ReadProcessedOperation() error {
 	return c.handleProcessedOperation(operation)
 }
 
-func (c *Client) handleProcessedOperation(operation Operation) error {
+func (c *Client) handleProcessedOperation(operation types.Operation) error {
 	storedOperation, err := c.state.GetOperationByID(operation.ID)
 	if err != nil {
 		return fmt.Errorf("failed to find matching operation: %w", err)

@@ -6,6 +6,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"github.com/depools/dc4bc/airgapped"
 	_ "image/jpeg"
 	"log"
 	"sync"
@@ -65,6 +66,11 @@ func main() {
 			log.Fatalf("Failed to PutKeys: %v\n", err)
 		}
 
+		airgappedMachine, err := airgapped.NewAirgappedMachine(fmt.Sprintf("/tmp/dc4bc_node_%d_airgapped_db", nodeID))
+		if err != nil {
+			log.Fatalf("Failed to create airgapped machine: %v", err)
+		}
+
 		clt, err := client.NewClient(
 			ctx,
 			userName,
@@ -72,6 +78,7 @@ func main() {
 			stg,
 			keyStore,
 			qr.NewCameraProcessor(),
+			airgappedMachine,
 		)
 		if err != nil {
 			log.Fatalf("node %d failed to init client: %v\n", nodeID, err)

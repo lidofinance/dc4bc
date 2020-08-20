@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/depools/dc4bc/client"
+	client "github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
@@ -138,7 +138,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		entry := &responses.SignatureProposalParticipantStatusEntry{
 			ParticipantId: n.ParticipantID,
-			Addr:         n.Participant,
+			Addr:          n.Participant,
 			DkgPubKey:     pubKey,
 		}
 		getCommitsRequest = append(getCommitsRequest, entry)

@@ -33,6 +33,10 @@ func (m *MockKeyStore) EXPECT() *MockKeyStoreMockRecorder {
 	return m.recorder
 }
 
+func (mr *MockKeyStore) PutKeys(userName string, keyPair *client.KeyPair) error {
+	return nil
+}
+
 // LoadKeys mocks base method
 func (m *MockKeyStore) LoadKeys(userName, password string) (*client.KeyPair, error) {
 	m.ctrl.T.Helper()

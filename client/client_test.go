@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"errors"
+	"github.com/depools/dc4bc/client/types"
 	"os"
 	"path/filepath"
 	"testing"
@@ -48,6 +49,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
+		nil,
 	)
 	req.NoError(err)
 
@@ -125,22 +127,23 @@ func TestClient_GetOperationsList(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
+		nil,
 	)
 	req.NoError(err)
 
-	state.EXPECT().GetOperations().Times(1).Return(map[string]*client.Operation{}, nil)
+	state.EXPECT().GetOperations().Times(1).Return(map[string]*types.Operation{}, nil)
 	operations, err := clt.GetOperations()
 	req.NoError(err)
 	req.Len(operations, 0)
 
-	operation := &client.Operation{
+	operation := &types.Operation{
 		ID:        "operation_id",
-		Type:      client.DKGCommits,
+		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		CreatedAt: time.Now(),
 	}
 	state.EXPECT().GetOperations().Times(1).Return(
-		map[string]*client.Operation{operation.ID: operation}, nil)
+		map[string]*types.Operation{operation.ID: operation}, nil)
 	operations, err = clt.GetOperations()
 	req.NoError(err)
 	req.Len(operations, 1)
@@ -167,12 +170,13 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
+		nil,
 	)
 	req.NoError(err)
 
-	operation := &client.Operation{
+	operation := &types.Operation{
 		ID:        "operation_id",
-		Type:      client.DKGCommits,
+		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		CreatedAt: time.Now(),
 	}
@@ -213,19 +217,20 @@ func TestClient_ReadProcessedOperation(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
+		nil,
 	)
 	req.NoError(err)
 
-	operation := &client.Operation{
+	operation := &types.Operation{
 		ID:        "operation_id",
-		Type:      client.DKGCommits,
+		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),
 	}
-	processedOperation := &client.Operation{
+	processedOperation := &types.Operation{
 		ID:        "operation_id",
-		Type:      client.DKGCommits,
+		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),
