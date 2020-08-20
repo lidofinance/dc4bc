@@ -100,7 +100,7 @@ func (c *Client) Poll() error {
 
 			operations, err := c.GetOperations()
 			if err != nil {
-				log.Println("Failed to get operations: %v", err)
+				log.Printf("Failed to get operations: %v", err)
 			}
 			for _, operation := range operations {
 				processedOperations, err := c.airgapped.HandleOperation(*operation)
@@ -252,8 +252,9 @@ func (c *Client) handleProcessedOperation(operation types.Operation) error {
 	}
 
 	message := storage.Message{
-		Event: string(operation.Type),
-		Data:  operation.Result,
+		Event:      string(operation.Type),
+		Data:       operation.Result,
+		DkgRoundID: operation.DKGIdentifier,
 	}
 
 	sig, err := c.signMessage(message.Bytes())

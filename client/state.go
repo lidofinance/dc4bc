@@ -123,7 +123,12 @@ func (s *LevelDBState) SaveFSM(dkgRoundID string, dump []byte) error {
 
 	fsmInstances[dkgRoundID] = dump
 
-	if err := s.stateDb.Put([]byte(fsmStateKey), dump, nil); err != nil {
+	fsmInstancesBz, err := json.Marshal(fsmInstances)
+	if err != nil {
+		return fmt.Errorf("failed to marshal FSM instances: %w", err)
+	}
+
+	if err := s.stateDb.Put([]byte(fsmStateKey), fsmInstancesBz, nil); err != nil {
 		return fmt.Errorf("failed to save fsm state: %w", err)
 	}
 

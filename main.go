@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/depools/dc4bc/airgapped"
@@ -128,7 +129,7 @@ func main() {
 	dkgRoundID := md5.Sum(messageDataBz)
 	message := storage.Message{
 		ID:         uuid.New().String(),
-		DkgRoundID: string(dkgRoundID[:]),
+		DkgRoundID: hex.EncodeToString(dkgRoundID[:]),
 		Event:      string(spf.EventInitProposal),
 		Data:       messageDataBz,
 		SenderAddr: nodes[0].client.GetAddr(),
