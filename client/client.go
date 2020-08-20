@@ -12,11 +12,12 @@ import (
 	"time"
 
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 
 	"github.com/depools/dc4bc/fsm/state_machines"
 
 	"github.com/depools/dc4bc/fsm/fsm"
-	dkgFSM "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	dpf "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
 )
@@ -30,6 +31,7 @@ type Client struct {
 	sync.Mutex
 	userName    string
 	address     string
+	pubKey      ed25519.PublicKey
 	ctx         context.Context
 	state       State
 	storage     storage.Storage
@@ -54,6 +56,7 @@ func NewClient(
 		ctx:         ctx,
 		userName:    userName,
 		address:     keyPair.GetAddr(),
+		pubKey:      keyPair.Pub,
 		state:       state,
 		storage:     storage,
 		keyStore:    keyStore,
@@ -61,12 +64,12 @@ func NewClient(
 	}, nil
 }
 
-func (c *Client) SendMessage(message storage.Message) error {
-	if _, err := c.storage.Send(message); err != nil {
-		return fmt.Errorf("failed to post message: %w", err)
-	}
+func (c *Client) GetAddr() string {
+	return c.address
+}
 
-	return nil
+func (c *Client) GetPubKey() ed25519.PublicKey {
+	return c.pubKey
 }
 
 func (c *Client) Poll() error {
@@ -96,6 +99,14 @@ func (c *Client) Poll() error {
 	}
 }
 
+func (c *Client) SendMessage(message storage.Message) error {
+	if _, err := c.storage.Send(message); err != nil {
+		return fmt.Errorf("failed to post message: %w", err)
+	}
+
+	return nil
+}
+
 func (c *Client) ProcessMessage(message storage.Message) error {
 	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
 	if err != nil {
@@ -122,9 +133,10 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 	switch resp.State {
 	// if the new state is waiting for RPC to airgapped machine
 	case
-		dkgFSM.StateDkgCommitsAwaitConfirmations,
-		dkgFSM.StateDkgDealsAwaitConfirmations,
-		dkgFSM.StateDkgResponsesAwaitConfirmations:
+		spf.StateAwaitParticipantsConfirmations,
+		dpf.StateDkgCommitsAwaitConfirmations,
+		dpf.StateDkgDealsAwaitConfirmations,
+		dpf.StateDkgResponsesAwaitConfirmations:
 		bz, err := json.Marshal(resp.Data)
 		if err != nil {
 			return fmt.Errorf("failed to marshal FSM response: %w", err)

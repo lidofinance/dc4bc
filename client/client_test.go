@@ -31,6 +31,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 	)
 	defer ctrl.Finish()
 
+	userName := "user_name"
 	dkgRoundID := "dkg_round_id"
 	state := clientMocks.NewMockState(ctrl)
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
@@ -38,14 +39,11 @@ func TestClient_ProcessMessage(t *testing.T) {
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 
 	testClientKeyPair := client.NewKeyPair()
-	keyStore.EXPECT().LoadKeys("test_client", "").Times(1).Return(testClientKeyPair, nil)
-
-	fsm, err := state_machines.Create(dkgRoundID)
-	state.EXPECT().LoadFSM(dkgRoundID).Times(1).Return(fsm, true, nil)
+	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
 	clt, err := client.NewClient(
 		ctx,
-		"test_client",
+		userName,
 		state,
 		stg,
 		keyStore,
@@ -53,13 +51,16 @@ func TestClient_ProcessMessage(t *testing.T) {
 	)
 	req.NoError(err)
 
-	t.Run("test_process_init_dkg", func(t *testing.T) {
-		senderUserName := "sender_username"
+	t.Run("test_process_dkg_init", func(t *testing.T) {
+		fsm, err := state_machines.Create(dkgRoundID)
+		state.EXPECT().LoadFSM(dkgRoundID).Times(1).Return(fsm, true, nil)
+
 		senderKeyPair := client.NewKeyPair()
+		senderAddr := senderKeyPair.GetAddr()
 		messageData := requests.SignatureProposalParticipantsListRequest{
 			Participants: []*requests.SignatureProposalParticipantsEntry{
 				{
-					Addr:      senderUserName,
+					Addr:      senderAddr,
 					PubKey:    senderKeyPair.Pub,
 					DkgPubKey: make([]byte, 128),
 				},
@@ -79,7 +80,8 @@ func TestClient_ProcessMessage(t *testing.T) {
 					DkgPubKey: make([]byte, 128),
 				},
 			},
-			CreatedAt: time.Now(),
+			CreatedAt:        time.Now(),
+			SigningThreshold: 2,
 		}
 		messageDataBz, err := json.Marshal(messageData)
 		req.NoError(err)
@@ -90,12 +92,13 @@ func TestClient_ProcessMessage(t *testing.T) {
 			Offset:     1,
 			Event:      string(spf.EventInitProposal),
 			Data:       messageDataBz,
-			SenderAddr: senderUserName,
+			SenderAddr: senderAddr,
 		}
 		message.Signature = ed25519.Sign(senderKeyPair.Priv, message.Bytes())
 
 		state.EXPECT().SaveOffset(uint64(1)).Times(1).Return(nil)
 		state.EXPECT().SaveFSM(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+		state.EXPECT().PutOperation(gomock.Any()).Times(1).Return(nil)
 
 		err = clt.ProcessMessage(message)
 		req.NoError(err)
