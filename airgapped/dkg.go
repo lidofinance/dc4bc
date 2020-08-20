@@ -6,6 +6,7 @@ import (
 	"github.com/depools/dc4bc/client"
 	"github.com/depools/dc4bc/dkg"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
 	"go.dedis.ch/kyber/v3"
@@ -14,7 +15,6 @@ import (
 	"log"
 )
 
-// It seems that this handler is not needed, but i'll remove it after client testing
 func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.Operation) error {
 	var (
 		payload responses.SignatureProposalParticipantInvitationsResponse
@@ -37,6 +37,17 @@ func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.
 	dkgInstance.Threshold = len(payload)
 
 	am.dkgInstances[o.DKGIdentifier] = dkgInstance
+
+	req := requests.SignatureProposalParticipantRequest{
+		ParticipantId: dkgInstance.ParticipantID,
+		CreatedAt:     o.CreatedAt,
+	}
+	reqBz, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to generate fsm request: %w", err)
+	}
+	o.Result = reqBz
+	o.Event = signature_proposal_fsm.EventConfirmSignatureProposal
 
 	return nil
 }
