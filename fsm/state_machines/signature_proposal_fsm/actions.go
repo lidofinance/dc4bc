@@ -61,15 +61,14 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 
 	responseData := make(responses.SignatureProposalParticipantInvitationsResponse, 0)
 
-	for participantId, proposal := range m.payload.SignatureProposalPayload.Quorum {
+	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
 		responseEntry := &responses.SignatureProposalParticipantInvitationEntry{
 			ParticipantId: participantId,
-			Addr:          proposal.Addr,
+			Addr:          participant.Addr,
 		}
 		responseData = append(responseData, responseEntry)
 	}
 
-	// Change state
 	return inEvent, responseData, nil
 }
 
@@ -167,7 +166,6 @@ func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event
 		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
 			ParticipantId: participantId,
 			Addr:          participant.Addr,
-			DkgPubKey:     participant.DkgPubKey,
 			Status:        uint8(participant.Status),
 		}
 		responseData = append(responseData, responseEntry)
@@ -186,7 +184,6 @@ func (m *SignatureProposalFSM) actionSignatureProposalCanceledByTimeout(inEvent 
 		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
 			ParticipantId: participantId,
 			Addr:          participant.Addr,
-			DkgPubKey:     participant.DkgPubKey,
 			Status:        uint8(participant.Status),
 		}
 		responseData = append(responseData, responseEntry)

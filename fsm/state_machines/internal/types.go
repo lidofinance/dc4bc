@@ -74,15 +74,15 @@ const (
 )
 
 type DKGProposalParticipant struct {
-	Addr      string
-	DkgPubKey []byte
-	Commit    []byte
-	Deal      []byte
-	Response  []byte
-	MasterKey []byte
-	Status    DKGParticipantStatus
-	Error     error
-	UpdatedAt time.Time
+	Addr         string
+	DkgPubKey    []byte
+	DkgCommit    []byte
+	DkgDeal      []byte
+	DkgResponse  []byte
+	DkgMasterKey []byte
+	Status       DKGParticipantStatus
+	Error        error
+	UpdatedAt    time.Time
 }
 
 type DKGProposalQuorum map[int]*DKGProposalParticipant

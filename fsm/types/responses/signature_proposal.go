@@ -20,6 +20,5 @@ type SignatureProposalParticipantStatusResponse []*SignatureProposalParticipantS
 type SignatureProposalParticipantStatusEntry struct {
 	ParticipantId int
 	Addr          string
-	DkgPubKey     []byte
 	Status        uint8
 }
