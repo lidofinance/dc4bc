@@ -27,18 +27,6 @@ type FSMInstance struct {
 	dump    *FSMDump
 }
 
-var (
-	fsmPoolProvider *fsm_pool.FSMPool
-)
-
-func init() {
-	fsmPoolProvider = fsm_pool.Init(
-		signature_proposal_fsm.New(),
-		dkg_proposal_fsm.New(),
-		signing_proposal_fsm.New(),
-	)
-}
-
 // Create new fsm with unique id
 // transactionId required for unique identify dump
 func Create(dkgID string) (*FSMInstance, error) {
@@ -51,6 +39,12 @@ func Create(dkgID string) (*FSMInstance, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	fsmPoolProvider := fsm_pool.Init(
+		signature_proposal_fsm.New(),
+		dkg_proposal_fsm.New(),
+		signing_proposal_fsm.New(),
+	)
 
 	machine, err := fsmPoolProvider.EntryPointMachine()
 	i.machine = machine.(internal.DumpedMachineProvider)
@@ -75,6 +69,12 @@ func FromDump(data []byte) (*FSMInstance, error) {
 	if err != nil {
 		return nil, errors.New("cannot read machine dump")
 	}
+
+	fsmPoolProvider := fsm_pool.Init(
+		signature_proposal_fsm.New(),
+		dkg_proposal_fsm.New(),
+		signing_proposal_fsm.New(),
+	)
 
 	machine, err := fsmPoolProvider.MachineByState(i.dump.State)
 	if err != nil {
