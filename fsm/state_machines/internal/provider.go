@@ -2,7 +2,6 @@ package internal
 
 import (
 	"crypto/ed25519"
-	"encoding/hex"
 	"errors"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/fsm_pool"
@@ -119,12 +118,11 @@ func (p *DumpedMachineStatePayload) SigningQuorumUpdate(id int, participant *Sig
 	return
 }
 
-func (p *DumpedMachineStatePayload) SetAddrHexPubKey(addr string, pubKey ed25519.PublicKey) {
+func (p *DumpedMachineStatePayload) SetPubKeyAddr(addr string, pubKey ed25519.PublicKey) {
 	if p.PubKeys == nil {
 		p.PubKeys = make(map[string]ed25519.PublicKey)
 	}
-	hexAddr := hex.EncodeToString([]byte(addr))
-	p.PubKeys[hexAddr] = pubKey
+	p.PubKeys[addr] = pubKey
 	return
 }
 

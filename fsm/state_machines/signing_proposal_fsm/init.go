@@ -110,6 +110,6 @@ func (m *SigningProposalFSM) WithSetup(state fsm.State, payload *internal.Dumped
 	defer m.payloadMu.Unlock()
 
 	m.payload = payload
-	m.FSM = m.FSM.CopyWithState(state)
+	m.FSM = m.FSM.MustCopyWithState(state)
 	return m
 }
