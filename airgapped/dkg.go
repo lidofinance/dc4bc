@@ -12,7 +12,6 @@ import (
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
 	dkgPedersen "go.dedis.ch/kyber/v3/share/dkg/pedersen"
-	"log"
 )
 
 func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.Operation) error {
@@ -72,7 +71,6 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 
 	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
 	if !ok {
-		log.Printf("dkg instance for dkg round %s does not exist, create new\n", o.DKGIdentifier)
 		dkgInstance = dkg.Init(am.suite, am.pubKey, am.secKey)
 	}
 

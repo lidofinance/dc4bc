@@ -130,13 +130,13 @@ func TestAirgappedAllSteps(t *testing.T) {
 	//})
 
 	// get commits
-	var getCommitsRequest responses.SignatureProposalParticipantStatusResponse
+	var getCommitsRequest responses.DKGProposalPubKeysParticipantResponse
 	for _, n := range tr.nodes {
 		pubKey, err := n.Machine.pubKey.MarshalBinary()
 		if err != nil {
 			t.Fatalf("%s: failed to marshal pubkey: %v", n.Participant, err)
 		}
-		entry := &responses.SignatureProposalParticipantStatusEntry{
+		entry := &responses.DKGProposalPubKeysParticipantEntry{
 			ParticipantId: n.ParticipantID,
 			Addr:          n.Participant,
 			DkgPubKey:     pubKey,
@@ -164,8 +164,8 @@ func TestAirgappedAllSteps(t *testing.T) {
 		for _, req := range n.commits {
 			p := responses.DKGProposalCommitParticipantEntry{
 				ParticipantId: req.ParticipantId,
-				Title:         fmt.Sprintf("Participant#%d", req.ParticipantId),
-				Commit:        req.Commit,
+				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				DkgCommit:     req.Commit,
 			}
 			payload = append(payload, &p)
 		}
@@ -188,8 +188,8 @@ func TestAirgappedAllSteps(t *testing.T) {
 		for _, req := range n.deals {
 			p := responses.DKGProposalDealParticipantEntry{
 				ParticipantId: req.ParticipantId,
-				Title:         fmt.Sprintf("Participant#%d", req.ParticipantId),
-				Deal:          req.Deal,
+				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				DkgDeal:       req.Deal,
 			}
 			payload = append(payload, &p)
 		}
@@ -208,12 +208,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
 		defer wg.Done()
 
-		var payload responses.DKGProposalResponsesParticipantResponse
+		var payload responses.DKGProposalResponseParticipantResponse
 		for _, req := range n.responses {
-			p := responses.DKGProposalResponsesParticipantEntry{
+			p := responses.DKGProposalResponseParticipantEntry{
 				ParticipantId: req.ParticipantId,
-				Title:         fmt.Sprintf("Participant#%d", req.ParticipantId),
-				Responses:     req.Response,
+				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				DkgResponse:   req.Response,
 			}
 			payload = append(payload, &p)
 		}
