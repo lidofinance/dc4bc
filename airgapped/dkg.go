@@ -66,7 +66,7 @@ func (am *AirgappedMachine) GetPubKey() kyber.Point {
 
 func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) error {
 	var (
-		payload responses.SignatureProposalParticipantStatusResponse
+		payload responses.DKGProposalPubKeysParticipantResponse
 		err     error
 	)
 
@@ -139,7 +139,7 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o client.Opera
 
 	for _, entry := range payload {
 		var commitsBz [][]byte
-		if err = json.Unmarshal(entry.Commit, &commitsBz); err != nil {
+		if err = json.Unmarshal(entry.DkgCommit, &commitsBz); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal commits: %w", err)
 		}
 		dkgCommits := make([]kyber.Point, 0, len(commitsBz))
@@ -150,7 +150,7 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o client.Opera
 			}
 			dkgCommits = append(dkgCommits, commit)
 		}
-		dkgInstance.StoreCommits(entry.Title, dkgCommits)
+		dkgInstance.StoreCommits(entry.Addr, dkgCommits)
 	}
 
 	deals, err := dkgInstance.GetDeals()
@@ -206,7 +206,7 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 	}
 
 	for _, entry := range payload {
-		decryptedDealBz, err := am.decryptData(entry.Deal)
+		decryptedDealBz, err := am.decryptData(entry.DkgDeal)
 		if err != nil {
 			return fmt.Errorf("failed to decrypt deal: %w", err)
 		}
@@ -214,7 +214,7 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 		if err = json.Unmarshal(decryptedDealBz, &deal); err != nil {
 			return fmt.Errorf("failed to unmarshal deal")
 		}
-		dkgInstance.StoreDeal(entry.Title, &deal)
+		dkgInstance.StoreDeal(entry.Addr, &deal)
 	}
 
 	processedResponses, err := dkgInstance.ProcessDeals()
@@ -247,7 +247,7 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 
 func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.Operation) error {
 	var (
-		payload responses.DKGProposalResponsesParticipantResponse
+		payload responses.DKGProposalResponseParticipantResponse
 		err     error
 	)
 
@@ -262,10 +262,10 @@ func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.
 
 	for _, entry := range payload {
 		var entryResponses []*dkgPedersen.Response
-		if err = json.Unmarshal(entry.Responses, &entryResponses); err != nil {
+		if err = json.Unmarshal(entry.DkgResponse, &entryResponses); err != nil {
 			return fmt.Errorf("failed to unmarshal responses: %w", err)
 		}
-		dkgInstance.StoreResponses(entry.Title, entryResponses)
+		dkgInstance.StoreResponses(entry.Addr, entryResponses)
 	}
 
 	if err = dkgInstance.ProcessResponses(); err != nil {
