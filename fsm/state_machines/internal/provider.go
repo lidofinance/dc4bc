@@ -4,12 +4,13 @@ import (
 	"crypto/ed25519"
 	"encoding/hex"
 	"errors"
+	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/fsm_pool"
 )
 
 type DumpedMachineProvider interface {
 	fsm_pool.MachineProvider
-	SetUpPayload(payload *DumpedMachineStatePayload)
+	WithSetup(state fsm.State, payload *DumpedMachineStatePayload) DumpedMachineProvider
 }
 
 // DKG and other stages quorums are separated,

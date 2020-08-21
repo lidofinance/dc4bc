@@ -105,9 +105,11 @@ func New() internal.DumpedMachineProvider {
 	return machine
 }
 
-func (m *SigningProposalFSM) SetUpPayload(payload *internal.DumpedMachineStatePayload) {
+func (m *SigningProposalFSM) WithSetup(state fsm.State, payload *internal.DumpedMachineStatePayload) internal.DumpedMachineProvider {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
 	m.payload = payload
+	m.FSM = m.FSM.CopyWithState(state)
+	return m
 }

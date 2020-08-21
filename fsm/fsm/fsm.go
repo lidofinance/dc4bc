@@ -120,7 +120,6 @@ type Callback func(event Event, args ...interface{}) (Event, interface{}, error)
 
 type Callbacks map[Event]Callback
 
-// TODO: Exports
 func MustNewFSM(machineName string, initialState State, events []EventDesc, callbacks Callbacks) *FSM {
 	machineName = strings.TrimSpace(machineName)
 	initialState = State(strings.TrimSpace(initialState.String()))
@@ -274,6 +273,17 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 	}
 
 	return f
+}
+
+// WithState returns FSM copy with custom setup state
+func (f FSM) CopyWithState(state State) *FSM {
+	f.stateMu.RLock()
+	defer f.stateMu.RUnlock()
+
+	if state != "" {
+		f.currentState = state
+	}
+	return &f
 }
 
 func (f *FSM) DoInternal(event Event, args ...interface{}) (resp *Response, err error) {
