@@ -47,8 +47,8 @@ func Create(dkgID string) (*FSMInstance, error) {
 	)
 
 	machine, err := fsmPoolProvider.EntryPointMachine()
-	i.machine = machine.(internal.DumpedMachineProvider)
-	i.machine.SetUpPayload(i.dump.Payload)
+	i.machine = machine.(internal.DumpedMachineProvider).
+		WithSetup(i.dump.State, i.dump.Payload)
 	return i, err
 }
 
@@ -60,6 +60,12 @@ func FromDump(data []byte) (*FSMInstance, error) {
 		return nil, errors.New("machine dump is empty")
 	}
 
+	fsmPoolProvider := fsm_pool.Init(
+		signature_proposal_fsm.New(),
+		dkg_proposal_fsm.New(),
+		signing_proposal_fsm.New(),
+	)
+
 	i := &FSMInstance{
 		dump: &FSMDump{},
 	}
@@ -70,18 +76,13 @@ func FromDump(data []byte) (*FSMInstance, error) {
 		return nil, errors.New("cannot read machine dump")
 	}
 
-	fsmPoolProvider := fsm_pool.Init(
-		signature_proposal_fsm.New(),
-		dkg_proposal_fsm.New(),
-		signing_proposal_fsm.New(),
-	)
-
 	machine, err := fsmPoolProvider.MachineByState(i.dump.State)
 	if err != nil {
 		return nil, err
 	}
-	i.machine = machine.(internal.DumpedMachineProvider)
-	i.machine.SetUpPayload(i.dump.Payload)
+
+	i.machine = machine.(internal.DumpedMachineProvider).
+		WithSetup(i.dump.State, i.dump.Payload)
 	return i, err
 }
 

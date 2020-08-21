@@ -439,6 +439,56 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 }
 
-func Test_DKGProposal_Positive(t *testing.T) {
+func Test_Parallel(t *testing.T) {
+	var (
+		id1 = "123"
+		id2 = "456"
+	)
+	testFSMInstance1, err := Create(id1)
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance1)
+
+	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance1.machine.State())
+
+	testFSMDump1, err := testFSMInstance1.Dump()
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, testFSMDump1)
+
+	/// fsm2
+	testFSMInstance2, err := Create(id2)
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance2)
+
+	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance2.machine.State())
+
+	testFSMDump2, err := testFSMInstance2.Dump()
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, testFSMDump2)
+
+	testFSMInstance1, err = FromDump(testFSMDump1)
+
+	compareErrNil(t, err)
+
+	testFSMInstance2, err = FromDump(testFSMDump2)
+
+	compareErrNil(t, err)
+
+	_, _, err = testFSMInstance1.Do(spf.EventInitProposal, testParticipantsListRequest)
+
+	s1, err := testFSMInstance1.State()
+
+	compareErrNil(t, err)
+
+	s2, err := testFSMInstance2.State()
+
+	if s1 == s2 {
+		t.Fatalf("MATCH STATES {%s}", s1)
+	}
 
 }
