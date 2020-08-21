@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/depools/dc4bc/client/types"
 	"sync"
+
+	"github.com/depools/dc4bc/client/types"
 
 	"github.com/depools/dc4bc/fsm/state_machines"
 
@@ -150,8 +151,6 @@ func (s *LevelDBState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, 
 			return nil, false, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
 		}
 	}
-
-	//fmt.Println("State loaded: ", string(bz), "--------", fsmInstances)
 
 	fsmInstanceBz, ok := fsmInstances[dkgRoundID]
 	if !ok {

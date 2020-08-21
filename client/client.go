@@ -6,14 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/depools/dc4bc/airgapped"
-	"github.com/depools/dc4bc/client/types"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/google/uuid"
 	"log"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/depools/dc4bc/airgapped"
+	"github.com/depools/dc4bc/client/types"
+	"github.com/depools/dc4bc/fsm/types/requests"
+	"github.com/google/uuid"
 
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
@@ -33,6 +34,7 @@ const (
 
 type Client struct {
 	sync.Mutex
+	logger      *logger
 	userName    string
 	address     string
 	pubKey      ed25519.PublicKey
@@ -60,6 +62,7 @@ func NewClient(
 
 	return &Client{
 		ctx:         ctx,
+		logger:      newLogger(userName),
 		userName:    userName,
 		address:     keyPair.GetAddr(),
 		pubKey:      keyPair.Pub,
@@ -95,12 +98,11 @@ func (c *Client) Poll() error {
 			}
 
 			for _, message := range messages {
-				fmt.Printf("%s: handling message %d %s\n", c.userName, message.Offset, message.Event)
+				c.logger.Log("handling message %d %s", message.Offset, message.Event)
 				if err := c.ProcessMessage(message); err != nil {
-					log.Println("Failed to process message:", c.userName, err)
-					fmt.Println("Not processed", c.userName, message.Event)
+					c.logger.Log("Failed to process message: %v", err)
 				} else {
-					fmt.Println("Processed", c.userName, message.Event)
+					c.logger.Log("Successfully processed message with offset %d", message.Event)
 				}
 			}
 
@@ -142,9 +144,6 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		return fmt.Errorf("failed to getFSMInstance: %w", err)
 	}
 
-	//state, _ := fsmInstance.State()
-	//fmt.Printf("Do msg %s for username %s with init state: %s\n", message.Event, c.userName, state)
-
 	if fsm.Event(message.Event) != signature_proposal_fsm.EventInitProposal {
 		if err := c.verifyMessage(fsmInstance, message); err != nil {
 			return fmt.Errorf("failed to verifyMessage %+v: %w", message, err)
@@ -173,10 +172,6 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 			return fmt.Errorf("failed to Do operation in FSM: %w", err)
 		}
 	}
-	//fmt.Printf("%s: fsm dump - %s\n", c.userName, string(fsmDump))
-
-	//state, _ = fsmInstance.State()
-	//fmt.Printf("Done msg %s for username %s with state after Do: %s\n", message.Event, c.userName, state)
 
 	var operation *types.Operation
 	switch resp.State {
