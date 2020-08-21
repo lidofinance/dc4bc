@@ -2,10 +2,9 @@ package state_machines
 
 import (
 	"crypto/ed25519"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"strings"
 
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -14,10 +13,6 @@ import (
 	"github.com/depools/dc4bc/fsm/fsm_pool"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-)
-
-const (
-	dkgTransactionIdLength = 128
 )
 
 // Is machine state scope dump will be locked?
@@ -32,17 +27,6 @@ type FSMInstance struct {
 	dump    *FSMDump
 }
 
-var (
-	fsmPoolProvider *fsm_pool.FSMPool
-)
-
-func init() {
-	fsmPoolProvider = fsm_pool.Init(
-		signature_proposal_fsm.New(),
-		dkg_proposal_fsm.New(),
-	)
-}
-
 // Create new fsm with unique id
 // transactionId required for unique identify dump
 func Create(dkgID string) (*FSMInstance, error) {
@@ -55,6 +39,12 @@ func Create(dkgID string) (*FSMInstance, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	fsmPoolProvider := fsm_pool.Init(
+		signature_proposal_fsm.New(),
+		dkg_proposal_fsm.New(),
+		signing_proposal_fsm.New(),
+	)
 
 	machine, err := fsmPoolProvider.EntryPointMachine()
 	i.machine = machine.(internal.DumpedMachineProvider)
@@ -80,7 +70,16 @@ func FromDump(data []byte) (*FSMInstance, error) {
 		return nil, errors.New("cannot read machine dump")
 	}
 
+	fsmPoolProvider := fsm_pool.Init(
+		signature_proposal_fsm.New(),
+		dkg_proposal_fsm.New(),
+		signing_proposal_fsm.New(),
+	)
+
 	machine, err := fsmPoolProvider.MachineByState(i.dump.State)
+	if err != nil {
+		return nil, err
+	}
 	i.machine = machine.(internal.DumpedMachineProvider)
 	i.machine.SetUpPayload(i.dump.Payload)
 	return i, err
@@ -172,14 +171,4 @@ func (d *FSMDump) Unmarshal(data []byte) error {
 	}
 
 	return json.Unmarshal(data, d)
-}
-
-func generateDkgTransactionId() (string, error) {
-	b := make([]byte, dkgTransactionIdLength)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.URLEncoding.EncodeToString(b), err
 }

@@ -19,6 +19,10 @@ func (r *SigningProposalStartRequest) Validate() error {
 }
 
 func (r *SigningProposalParticipantRequest) Validate() error {
+	if r.SigningId == "" {
+		return errors.New("{SigningId} cannot be empty")
+	}
+
 	if r.ParticipantId < 0 {
 		return errors.New("{ParticipantId} cannot be a negative number")
 	}
@@ -31,6 +35,10 @@ func (r *SigningProposalParticipantRequest) Validate() error {
 }
 
 func (r *SigningProposalPartialKeyRequest) Validate() error {
+	if r.SigningId == "" {
+		return errors.New("{SigningId} cannot be empty")
+	}
+
 	if r.ParticipantId < 0 {
 		return errors.New("{ParticipantId} cannot be a negative number")
 	}

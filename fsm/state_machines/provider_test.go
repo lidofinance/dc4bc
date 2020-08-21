@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
+	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"log"
 	"testing"
 	"time"
@@ -379,6 +380,63 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 	}
 
 	compareState(t, dpf.StateDkgMasterKeyCollected, fsmResponse.State)
+
+	// Signing
+
+	testFSMInstance, err = FromDump(dump)
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	fsmResponse, dump, err = testFSMInstance.Do(sif.EventSigningInit, requests.DefaultRequest{
+		CreatedAt: time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, dump)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareState(t, sif.StateSigningIdle, fsmResponse.State)
+
+	// Start
+
+	testFSMInstance, err = FromDump(dump)
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	fsmResponse, dump, err = testFSMInstance.Do(sif.EventSigningStart, requests.SigningProposalStartRequest{
+		ParticipantId: 1,
+		SrcPayload:    []byte("message to sign"),
+		CreatedAt:     time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, dump)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareState(t, sif.StateSigningAwaitConfirmations, fsmResponse.State)
+
+	testSigningParticipantsListResponse, ok := fsmResponse.Data.(responses.SigningProposalParticipantInvitationsResponse)
+
+	if !ok {
+		t.Fatalf("expected response {SigningProposalParticipantInvitationsResponse}")
+	}
+
+	if len(testSigningParticipantsListResponse.Participants) != len(testParticipantsListRequest.Participants) {
+		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(testSigningParticipantsListResponse.Participants))
+	}
+
+	if testSigningParticipantsListResponse.SigningId == "" {
+		t.Fatalf("expected field {SigningId}")
+	}
+
 }
 
 func Test_DKGProposal_Positive(t *testing.T) {

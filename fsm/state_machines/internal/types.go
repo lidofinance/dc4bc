@@ -134,6 +134,8 @@ func (s DKGParticipantStatus) String() string {
 // Signing proposal
 
 type SigningConfirmation struct {
+	SigningId        string
+	InitiatorId      int
 	Quorum           SigningProposalQuorum
 	RecoveredKey     []byte
 	SrcPayload       []byte
@@ -152,8 +154,7 @@ type SigningProposalQuorum map[int]*SigningProposalParticipant
 type SigningParticipantStatus uint8
 
 const (
-	SigningIdle SigningParticipantStatus = iota
-	SigningAwaitConfirmation
+	SigningAwaitConfirmation SigningParticipantStatus = iota
 	SigningConfirmed
 	SigningDeclined
 	SigningAwaitPartialKeys
@@ -165,8 +166,6 @@ const (
 func (s SigningParticipantStatus) String() string {
 	var str = "undefined"
 	switch s {
-	case SigningIdle:
-		str = "SigningIdle"
 	case SigningAwaitConfirmation:
 		str = "SigningAwaitConfirmation"
 	case SigningConfirmed:

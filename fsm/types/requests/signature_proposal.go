@@ -23,7 +23,12 @@ type SignatureProposalParticipantsEntry struct {
 // Events: "event_sig_proposal_confirm_by_participant"
 // 		   "event_sig_proposal_decline_by_participant"
 type SignatureProposalParticipantRequest struct {
-	// Key for link invitations to participants
 	ParticipantId int
+	CreatedAt     time.Time
+}
+
+type SignatureProposalConfirmationErrorRequest struct {
+	ParticipantId int
+	Error         error
 	CreatedAt     time.Time
 }
