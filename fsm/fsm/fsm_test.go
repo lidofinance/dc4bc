@@ -297,7 +297,26 @@ func TestFSM_StatesList(t *testing.T) {
 		stateStage2,
 	}
 
-	if !compareStatesArr(testingFSM.StatesSourcesList(), statesList) {
+	if !compareStatesArr(testingFSM.StatesList(), statesList) {
 		t.Error("expected states", statesList)
 	}
+}
+
+func TestFSM_CopyWithState(t *testing.T) {
+	testingFSM1 := MustNewFSM(
+		testName,
+		stateInit,
+		testingEvents,
+		testingCallbacks,
+	)
+	testingFSM2 := testingFSM.MustCopyWithState(stateStage2)
+
+	if testingFSM1.State() != stateInit {
+		t.Fatal("expect unchanged source state")
+	}
+
+	if testingFSM2.State() != stateStage2 {
+		t.Fatal("expect changed source state")
+	}
+
 }

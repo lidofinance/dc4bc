@@ -134,7 +134,7 @@ func (m *SigningProposalFSM) actionProposalResponseByParticipant(inEvent fsm.Eve
 		return
 	}
 
-	// copy(signingProposalParticipant.Commit, request.Commit)
+	// copy(signingProposalParticipant.DkgCommit, request.DkgCommit)
 	switch inEvent {
 	case EventConfirmSigningConfirmation:
 		signingProposalParticipant.Status = internal.SigningConfirmed

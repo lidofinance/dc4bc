@@ -276,14 +276,24 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 }
 
 // WithState returns FSM copy with custom setup state
-func (f FSM) CopyWithState(state State) *FSM {
+func (f *FSM) MustCopyWithState(state State) *FSM {
+	var exists bool
+
 	f.stateMu.RLock()
 	defer f.stateMu.RUnlock()
 
 	if state != "" {
+		for _, s := range f.StatesList() {
+			if s == state {
+				exists = true
+			}
+		}
+		if !exists {
+			panic(fmt.Sprintf("cannot set state, not exists  \"%s\" for \"%s\"", state, f.name))
+		}
 		f.currentState = state
 	}
-	return &f
+	return f
 }
 
 func (f *FSM) DoInternal(event Event, args ...interface{}) (resp *Response, err error) {
@@ -468,7 +478,7 @@ func (f *FSM) EventsList() (events []Event) {
 	return
 }
 
-func (f *FSM) StatesSourcesList() (states []State) {
+func (f *FSM) StatesList() (states []State) {
 	var allStates = map[State]bool{}
 	if len(f.transitions) > 0 {
 		for trKey, _ := range f.transitions {

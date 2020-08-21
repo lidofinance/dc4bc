@@ -7,6 +7,7 @@ import (
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/requests"
+	"github.com/depools/dc4bc/fsm/types/responses"
 	"reflect"
 )
 
@@ -49,7 +50,20 @@ func (m *DKGProposalFSM) actionInitDKGProposal(inEvent fsm.Event, args ...interf
 
 	// Remove m.payload.SignatureProposalPayload?
 
-	return
+	// Make response
+
+	responseData := make(responses.DKGProposalPubKeysParticipantResponse, 0)
+
+	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
+		responseEntry := &responses.DKGProposalPubKeysParticipantEntry{
+			ParticipantId: participantId,
+			Addr:          participant.Addr,
+			DkgPubKey:     participant.DkgPubKey,
+		}
+		responseData = append(responseData, responseEntry)
+	}
+
+	return inEvent, responseData, nil
 }
 
 // Commits
@@ -86,7 +100,7 @@ func (m *DKGProposalFSM) actionCommitConfirmationReceived(inEvent fsm.Event, arg
 		return
 	}
 
-	copy(dkgProposalParticipant.Commit, request.Commit)
+	copy(dkgProposalParticipant.DkgCommit, request.Commit)
 	dkgProposalParticipant.Status = internal.CommitConfirmed
 
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
@@ -135,6 +149,21 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitCommits(inEvent fsm.Event
 		participant.Status = internal.DealAwaitConfirmation
 	}
 
+	// Make response
+
+	responseData := make(responses.DKGProposalCommitParticipantResponse, 0)
+
+	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
+		responseEntry := &responses.DKGProposalCommitParticipantEntry{
+			ParticipantId: participantId,
+			Addr:          participant.Addr,
+			DkgCommit:     participant.DkgCommit,
+		}
+		responseData = append(responseData, responseEntry)
+	}
+
+	response = responseData
+
 	return
 }
 
@@ -172,7 +201,7 @@ func (m *DKGProposalFSM) actionDealConfirmationReceived(inEvent fsm.Event, args 
 		return
 	}
 
-	copy(dkgProposalParticipant.Deal, request.Deal)
+	copy(dkgProposalParticipant.DkgDeal, request.Deal)
 	dkgProposalParticipant.Status = internal.DealConfirmed
 
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
@@ -221,6 +250,21 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 		participant.Status = internal.ResponseAwaitConfirmation
 	}
 
+	// Make response
+
+	responseData := make(responses.DKGProposalDealParticipantResponse, 0)
+
+	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
+		responseEntry := &responses.DKGProposalDealParticipantEntry{
+			ParticipantId: participantId,
+			Addr:          participant.Addr,
+			DkgDeal:       participant.DkgDeal,
+		}
+		responseData = append(responseData, responseEntry)
+	}
+
+	response = responseData
+
 	return
 }
 
@@ -258,7 +302,7 @@ func (m *DKGProposalFSM) actionResponseConfirmationReceived(inEvent fsm.Event, a
 		return
 	}
 
-	copy(dkgProposalParticipant.Response, request.Response)
+	copy(dkgProposalParticipant.DkgResponse, request.Response)
 	dkgProposalParticipant.Status = internal.ResponseConfirmed
 
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
@@ -307,6 +351,21 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitResponses(inEvent fsm.Eve
 		participant.Status = internal.MasterKeyAwaitConfirmation
 	}
 
+	// Make response
+
+	responseData := make(responses.DKGProposalResponseParticipantResponse, 0)
+
+	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
+		responseEntry := &responses.DKGProposalResponseParticipantEntry{
+			ParticipantId: participantId,
+			Addr:          participant.Addr,
+			DkgResponse:   participant.DkgResponse,
+		}
+		responseData = append(responseData, responseEntry)
+	}
+
+	response = responseData
+
 	return
 }
 
@@ -344,7 +403,7 @@ func (m *DKGProposalFSM) actionMasterKeyConfirmationReceived(inEvent fsm.Event, 
 		return
 	}
 
-	copy(dkgProposalParticipant.MasterKey, request.MasterKey)
+	copy(dkgProposalParticipant.DkgMasterKey, request.MasterKey)
 	dkgProposalParticipant.Status = internal.MasterKeyConfirmed
 
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
@@ -375,7 +434,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitMasterKey(inEvent fsm.Eve
 		if participant.Status == internal.MasterKeyConfirmationError {
 			isContainsError = true
 		} else if participant.Status == internal.MasterKeyConfirmed {
-			masterKeys = append(masterKeys, participant.MasterKey)
+			masterKeys = append(masterKeys, participant.DkgMasterKey)
 			unconfirmedParticipants--
 		}
 	}
