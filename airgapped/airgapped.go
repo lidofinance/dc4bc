@@ -27,6 +27,8 @@ const (
 type AirgappedMachine struct {
 	sync.Mutex
 
+	ParticipantAddress string
+
 	dkgInstances map[string]*dkg.DKG
 	qrProcessor  qr.Processor
 
@@ -66,6 +68,10 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 	}
 
 	return am, nil
+}
+
+func (am *AirgappedMachine) SetAddress(address string) {
+	am.ParticipantAddress = address
 }
 
 func (am *AirgappedMachine) loadKeysFromDB(dbPath string) error {
@@ -193,9 +199,9 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) ([]clien
 	if err != nil {
 		log.Println(fmt.Sprintf("failed to handle operation %s, returning response with errot to client: %v",
 			operation.Type, err))
-		if e := am.writeErrorRequestToOperation(&operation, err); e != nil {
-			return nil, fmt.Errorf("failed to write error request to an operation: %w", e)
-		}
+		//if e := am.writeErrorRequestToOperation(&operation, err); e != nil {
+		//	return nil, fmt.Errorf("failed to write error request to an operation: %w", e)
+		//}
 	}
 
 	if len(operation.Result) > 0 {

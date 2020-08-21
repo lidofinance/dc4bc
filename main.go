@@ -84,6 +84,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("node %d failed to init client: %v\n", nodeID, err)
 		}
+		clt.Airgapped.SetAddress(clt.GetAddr())
 
 		nodes[nodeID] = &node{
 			client:  clt,
@@ -110,10 +111,14 @@ func main() {
 	// Node1 tells other participants to start DKG.
 	var participants []*requests.SignatureProposalParticipantsEntry
 	for _, node := range nodes {
+		dkgPubKey, err := node.client.Airgapped.GetPubKey().MarshalBinary()
+		if err != nil {
+			log.Fatalln("failed to get DKG pubKey:", err.Error())
+		}
 		participants = append(participants, &requests.SignatureProposalParticipantsEntry{
 			Addr:      node.client.GetAddr(),
 			PubKey:    node.client.GetPubKey(),
-			DkgPubKey: make([]byte, 128), // TODO: Use a real one.
+			DkgPubKey: dkgPubKey, // TODO: Use a real one.
 		})
 	}
 	messageData := requests.SignatureProposalParticipantsListRequest{

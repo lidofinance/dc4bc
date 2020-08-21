@@ -105,6 +105,7 @@ func (s *LevelDBState) LoadOffset() (uint64, error) {
 	}
 
 	offset := binary.LittleEndian.Uint64(bz)
+	fmt.Println("Loaded offset: ", offset)
 	return offset, nil
 }
 
@@ -132,6 +133,8 @@ func (s *LevelDBState) SaveFSM(dkgRoundID string, dump []byte) error {
 		return fmt.Errorf("failed to save fsm state: %w", err)
 	}
 
+	//fmt.Println("State saved: ", string(fsmInstancesBz))
+
 	return nil
 }
 
@@ -147,6 +150,8 @@ func (s *LevelDBState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, 
 			return nil, false, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
 		}
 	}
+
+	//fmt.Println("State loaded: ", string(bz), "--------", fsmInstances)
 
 	fsmInstanceBz, ok := fsmInstances[dkgRoundID]
 	if !ok {

@@ -38,8 +38,16 @@ func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.
 
 	am.dkgInstances[o.DKGIdentifier] = dkgInstance
 
+	pid := 0
+
+	for _, r := range payload {
+		if r.Addr == am.ParticipantAddress {
+			pid = r.ParticipantId
+		}
+	}
+
 	req := requests.SignatureProposalParticipantRequest{
-		ParticipantId: dkgInstance.ParticipantID,
+		ParticipantId: pid,
 		CreatedAt:     o.CreatedAt,
 	}
 	reqBz, err := json.Marshal(req)

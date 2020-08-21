@@ -49,6 +49,12 @@ func (o *Operation) Check(o2 *Operation) error {
 func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 	var resolvedValue interface{}
 	switch fsm.Event(message.Event) {
+	case signature_proposal_fsm.EventConfirmSignatureProposal:
+		var req requests.SignatureProposalParticipantRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
 	case signature_proposal_fsm.EventInitProposal:
 		var req requests.SignatureProposalParticipantsListRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {

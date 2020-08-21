@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"github.com/depools/dc4bc/airgapped"
 	"github.com/depools/dc4bc/client/types"
+	"github.com/depools/dc4bc/fsm/types/requests"
+	"github.com/google/uuid"
 	"log"
 	"path/filepath"
 	"sync"
@@ -39,7 +41,7 @@ type Client struct {
 	storage     storage.Storage
 	keyStore    KeyStore
 	qrProcessor qr.Processor
-	airgapped   *airgapped.AirgappedMachine
+	Airgapped   *airgapped.AirgappedMachine
 }
 
 func NewClient(
@@ -65,7 +67,7 @@ func NewClient(
 		storage:     storage,
 		keyStore:    keyStore,
 		qrProcessor: qrProcessor,
-		airgapped:   airgappedMachine,
+		Airgapped:   airgappedMachine,
 	}, nil
 }
 
@@ -93,6 +95,7 @@ func (c *Client) Poll() error {
 			}
 
 			for _, message := range messages {
+				fmt.Printf("%s: handling message %d %s\n", c.userName, message.Offset, message.Event)
 				if err := c.ProcessMessage(message); err != nil {
 					log.Println("Failed to process message:", c.userName, err)
 					fmt.Println("Not processed", c.userName, message.Event)
@@ -106,11 +109,13 @@ func (c *Client) Poll() error {
 				log.Printf("Failed to get operations: %v", err)
 			}
 			for _, operation := range operations {
-				processedOperations, err := c.airgapped.HandleOperation(*operation)
+				fmt.Printf("%s: handling operation %s in airgapped...\n", c.userName, operation.Type)
+				processedOperations, err := c.Airgapped.HandleOperation(*operation)
 				if err != nil {
 					return fmt.Errorf("failed to process operation in airgapped: %w", err)
 				}
 				for _, po := range processedOperations {
+					fmt.Printf("%s: operation %s handled in airgapped, result event is %s \n", c.userName, operation.Event, po.Event)
 					if err = c.handleProcessedOperation(po); err != nil {
 						return fmt.Errorf("failed to handle processed operation")
 					}
@@ -136,8 +141,9 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 	if err != nil {
 		return fmt.Errorf("failed to getFSMInstance: %w", err)
 	}
-	state, _ := fsmInstance.State()
-	fmt.Printf("Do msg %s for username %s with init state: %s\n", message.Event, c.userName, state)
+
+	//state, _ := fsmInstance.State()
+	//fmt.Printf("Do msg %s for username %s with init state: %s\n", message.Event, c.userName, state)
 
 	if fsm.Event(message.Event) != signature_proposal_fsm.EventInitProposal {
 		if err := c.verifyMessage(fsmInstance, message); err != nil {
@@ -155,8 +161,22 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		return fmt.Errorf("failed to Do operation in FSM: %w", err)
 	}
 
-	state, _ = fsmInstance.State()
-	fmt.Printf("Done msg %s for username %s with state after Do: %s\n", message.Event, c.userName, state)
+	if resp.State == spf.StateSignatureProposalCollected {
+		fsmInstance, err = state_machines.FromDump(fsmDump)
+		if err != nil {
+			return fmt.Errorf("failed get state_machines from dump: %w", err)
+		}
+		resp, fsmDump, err = fsmInstance.Do(dpf.EventDKGInitProcess, requests.DefaultRequest{
+			CreatedAt: time.Now(),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to Do operation in FSM: %w", err)
+		}
+	}
+	//fmt.Printf("%s: fsm dump - %s\n", c.userName, string(fsmDump))
+
+	//state, _ = fsmInstance.State()
+	//fmt.Printf("Done msg %s for username %s with state after Do: %s\n", message.Event, c.userName, state)
 
 	var operation *types.Operation
 	switch resp.State {
@@ -172,9 +192,11 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		}
 
 		operation = &types.Operation{
+			ID:            uuid.New().String(),
 			Type:          types.OperationType(resp.State),
 			Payload:       bz,
 			DKGIdentifier: message.DkgRoundID,
+			CreatedAt:     time.Now(),
 		}
 	default:
 		log.Printf("State %s does not require an operation", resp.State)
@@ -186,7 +208,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		}
 	}
 
-	if err := c.state.SaveOffset(message.Offset); err != nil {
+	if err := c.state.SaveOffset(message.Offset + 1); err != nil {
 		return fmt.Errorf("failed to SaveOffset: %w", err)
 	}
 
@@ -259,9 +281,10 @@ func (c *Client) handleProcessedOperation(operation types.Operation) error {
 	}
 
 	message := storage.Message{
-		Event:      string(operation.Type),
+		Event:      string(operation.Event),
 		Data:       operation.Result,
 		DkgRoundID: operation.DKGIdentifier,
+		SenderAddr: c.GetAddr(),
 	}
 
 	sig, err := c.signMessage(message.Bytes())
@@ -289,6 +312,7 @@ func (c *Client) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance,
 	}
 
 	if !ok {
+		fmt.Println("Creating new state...")
 		fsmInstance, err = state_machines.Create(dkgRoundID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create FSM instance: %w", err)
