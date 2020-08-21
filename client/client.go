@@ -98,28 +98,35 @@ func (c *Client) Poll() error {
 			}
 
 			for _, message := range messages {
-				c.logger.Log("handling message %d %s", message.Offset, message.Event)
+				c.logger.Log("Handling message with offset %d, type %s", message.Offset, message.Event)
 				if err := c.ProcessMessage(message); err != nil {
 					c.logger.Log("Failed to process message: %v", err)
 				} else {
-					c.logger.Log("Successfully processed message with offset %d", message.Event)
+					c.logger.Log("Successfully processed message with offset %d, type %s",
+						message.Offset, message.Event)
 				}
 			}
 
 			operations, err := c.GetOperations()
 			if err != nil {
-				log.Printf("Failed to get operations: %v", err)
+				c.logger.Log("Failed to get operations: %v", err)
 			}
+
+			c.logger.Log("Got %d Operations from pool", len(operations))
 			for _, operation := range operations {
-				fmt.Printf("%s: handling operation %s in airgapped...\n", c.userName, operation.Type)
+				c.logger.Log("Handling operation %s in airgapped", operation.Type)
 				processedOperations, err := c.Airgapped.HandleOperation(*operation)
 				if err != nil {
-					return fmt.Errorf("failed to process operation in airgapped: %w", err)
+					c.logger.Log("Failed to handle operation: %v", err)
 				}
-				for _, po := range processedOperations {
-					fmt.Printf("%s: operation %s handled in airgapped, result event is %s \n", c.userName, operation.Event, po.Event)
-					if err = c.handleProcessedOperation(po); err != nil {
-						return fmt.Errorf("failed to handle processed operation")
+
+				c.logger.Log("Got %d Processed Operations from Airgapped", len(operations))
+				for _, processedOperation := range processedOperations {
+					c.logger.Log("Operation %s handled in airgapped, result event is %s", operation.Event, processedOperation.Event)
+					if err = c.handleProcessedOperation(processedOperation); err != nil {
+						c.logger.Log("Failed to handle processed operation: %v", err)
+					} else {
+						c.logger.Log("Successfully handled processed operation %s", processedOperation.Event)
 					}
 				}
 			}
@@ -194,7 +201,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 			CreatedAt:     time.Now(),
 		}
 	default:
-		log.Printf("State %s does not require an operation", resp.State)
+		c.logger.Log("State %s does not require an operation", resp.State)
 	}
 
 	if operation != nil {

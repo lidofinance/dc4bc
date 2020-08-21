@@ -3,6 +3,7 @@ package signature_proposal_fsm
 import (
 	"errors"
 	"fmt"
+
 	"github.com/depools/dc4bc/fsm/config"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"

@@ -3,12 +3,13 @@ package dkg_proposal_fsm
 import (
 	"errors"
 	"fmt"
+	"reflect"
+
 	"github.com/depools/dc4bc/fsm/config"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
-	"reflect"
 )
 
 // Init
@@ -42,6 +43,7 @@ func (m *DKGProposalFSM) actionInitDKGProposal(inEvent fsm.Event, args ...interf
 	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
 		m.payload.DKGProposalPayload.Quorum[participantId] = &internal.DKGProposalParticipant{
 			Addr:      participant.Addr,
+			DkgPubKey: participant.DkgPubKey,
 			Status:    internal.CommitAwaitConfirmation,
 			UpdatedAt: participant.UpdatedAt,
 		}

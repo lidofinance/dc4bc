@@ -2,7 +2,6 @@ package client
 
 import (
 	"fmt"
-	"log"
 )
 
 type logger struct {
@@ -16,5 +15,5 @@ func newLogger(username string) *logger {
 }
 
 func (l *logger) Log(format string, args ...interface{}) {
-	log.Printf("[%s] %s\n", l.userName, fmt.Sprintf(format, args...))
+	fmt.Printf("[%s] %s\n", l.userName, fmt.Sprintf(format, args...))
 }

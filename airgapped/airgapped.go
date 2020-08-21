@@ -3,6 +3,9 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
+	"log"
+	"sync"
+
 	client "github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/dkg"
 	"github.com/depools/dc4bc/fsm/fsm"
@@ -14,8 +17,6 @@ import (
 	"go.dedis.ch/kyber/v3"
 	"go.dedis.ch/kyber/v3/encrypt/ecies"
 	"go.dedis.ch/kyber/v3/pairing/bn256"
-	"log"
-	"sync"
 )
 
 const (
@@ -197,7 +198,7 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) ([]clien
 
 	// if we have error after handling the operation, we write the error to the operation, so we can feed it to a FSM
 	if err != nil {
-		log.Println(fmt.Sprintf("failed to handle operation %s, returning response with errot to client: %v",
+		log.Println(fmt.Sprintf("failed to handle operation %s, returning response with error to client: %v",
 			operation.Type, err))
 		//if e := am.writeErrorRequestToOperation(&operation, err); e != nil {
 		//	return nil, fmt.Errorf("failed to write error request to an operation: %w", e)

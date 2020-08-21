@@ -7,11 +7,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/depools/dc4bc/airgapped"
 	_ "image/jpeg"
 	"log"
 	"sync"
 	"time"
+
+	"github.com/depools/dc4bc/airgapped"
 
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
