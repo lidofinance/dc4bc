@@ -102,6 +102,7 @@ func (m *DKGProposalFSM) actionCommitConfirmationReceived(inEvent fsm.Event, arg
 		return
 	}
 
+	dkgProposalParticipant.DkgCommit = make([]byte, len(request.Commit))
 	copy(dkgProposalParticipant.DkgCommit, request.Commit)
 	dkgProposalParticipant.Status = internal.CommitConfirmed
 
@@ -203,6 +204,7 @@ func (m *DKGProposalFSM) actionDealConfirmationReceived(inEvent fsm.Event, args 
 		return
 	}
 
+	dkgProposalParticipant.DkgDeal = make([]byte, len(request.Deal))
 	copy(dkgProposalParticipant.DkgDeal, request.Deal)
 	dkgProposalParticipant.Status = internal.DealConfirmed
 
@@ -242,7 +244,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 	}
 
 	// The are no declined and timed out participants, check for all confirmations
-	if unconfirmedParticipants > 0 {
+	if unconfirmedParticipants > 1 { //TODO: this is bad
 		return
 	}
 
@@ -257,6 +259,9 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 	responseData := make(responses.DKGProposalDealParticipantResponse, 0)
 
 	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
+		if len(participant.DkgDeal) == 0 {
+			continue
+		}
 		responseEntry := &responses.DKGProposalDealParticipantEntry{
 			ParticipantId: participantId,
 			Addr:          participant.Addr,
@@ -304,6 +309,7 @@ func (m *DKGProposalFSM) actionResponseConfirmationReceived(inEvent fsm.Event, a
 		return
 	}
 
+	dkgProposalParticipant.DkgResponse = make([]byte, len(request.Response))
 	copy(dkgProposalParticipant.DkgResponse, request.Response)
 	dkgProposalParticipant.Status = internal.ResponseConfirmed
 
