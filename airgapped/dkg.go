@@ -303,5 +303,8 @@ func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.
 
 	o.Result = reqBz
 	o.Event = dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived
+
+	fmt.Println(dkgInstance.ParticipantID, pubKey.String())
+
 	return nil
 }

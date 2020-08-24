@@ -1,45 +1,41 @@
 package airgapped
 
 import (
-	"encoding/json"
 	"fmt"
-	client "github.com/depools/dc4bc/client/types"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/fsm/types/responses"
 	"go.dedis.ch/kyber/v3/sign/bls"
 	"go.dedis.ch/kyber/v3/sign/tbls"
 )
 
-func (am *AirgappedMachine) handleStateSigningAwaitPartialKeys(o *client.Operation) error {
-	var (
-		payload responses.DKGProposalResponsesParticipantResponse
-		err     error
-	)
-
-	if err = json.Unmarshal(o.Payload, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
-	}
-
-	partialSign, err := am.createPartialSign(nil, o.DKGIdentifier)
-	if err != nil {
-		return fmt.Errorf("failed to create partialSign for msg: %w", err)
-	}
-
-	req := requests.SigningProposalPartialKeyRequest{
-		ParticipantId: 0, // TODO: from where?
-		PartialKey:    partialSign,
-		CreatedAt:     o.CreatedAt,
-	}
-	reqBz, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("failed to generate fsm request: %w", err)
-	}
-
-	o.Result = reqBz
-	o.Event = signing_proposal_fsm.EventSigningPartialKeyReceived
-	return nil
-}
+// commented because fsm is not ready
+//func (am *AirgappedMachine) handleStateSigningAwaitPartialKeys(o *client.Operation) error {
+//	var (
+//		payload responses.DKGProposalResponsesParticipantResponse
+//		err     error
+//	)
+//
+//	if err = json.Unmarshal(o.Payload, &payload); err != nil {
+//		return fmt.Errorf("failed to unmarshal payload: %w", err)
+//	}
+//
+//	partialSign, err := am.createPartialSign(nil, o.DKGIdentifier)
+//	if err != nil {
+//		return fmt.Errorf("failed to create partialSign for msg: %w", err)
+//	}
+//
+//	req := requests.SigningProposalPartialKeyRequest{
+//		ParticipantId: 0, // TODO: from where?
+//		PartialKey:    partialSign,
+//		CreatedAt:     o.CreatedAt,
+//	}
+//	reqBz, err := json.Marshal(req)
+//	if err != nil {
+//		return fmt.Errorf("failed to generate fsm request: %w", err)
+//	}
+//
+//	o.Result = reqBz
+//	o.Event = signing_proposal_fsm.EventSigningPartialKeyReceived
+//	return nil
+//}
 
 func (am *AirgappedMachine) createPartialSign(msg []byte, dkgIdentifier string) ([]byte, error) {
 	blsKeyring, err := am.loadBLSKeyring(dkgIdentifier)

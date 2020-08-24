@@ -44,7 +44,6 @@ type Client struct {
 	keyStore    KeyStore
 	qrProcessor qr.Processor
 	Airgapped   *airgapped.AirgappedMachine
-	stepBuf     map[string]bool
 }
 
 func NewClient(
@@ -72,7 +71,6 @@ func NewClient(
 		keyStore:    keyStore,
 		qrProcessor: qrProcessor,
 		Airgapped:   airgappedMachine,
-		stepBuf:     make(map[string]bool),
 	}, nil
 }
 
@@ -196,28 +194,27 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		dpf.StateDkgDealsAwaitConfirmations,
 		dpf.StateDkgResponsesAwaitConfirmations,
 		dpf.StateDkgMasterKeyAwaitConfirmations:
-		bz, err := json.Marshal(resp.Data)
-		if err != nil {
-			return fmt.Errorf("failed to marshal FSM response: %w", err)
-		}
+		if resp.Data != nil {
+			bz, err := json.Marshal(resp.Data)
+			if err != nil {
+				return fmt.Errorf("failed to marshal FSM response: %w", err)
+			}
 
-		operation = &types.Operation{
-			ID:            uuid.New().String(),
-			Type:          types.OperationType(resp.State),
-			Payload:       bz,
-			DKGIdentifier: message.DkgRoundID,
-			CreatedAt:     time.Now(),
+			operation = &types.Operation{
+				ID:            uuid.New().String(),
+				Type:          types.OperationType(resp.State),
+				Payload:       bz,
+				DKGIdentifier: message.DkgRoundID,
+				CreatedAt:     time.Now(),
+			}
 		}
 	default:
 		c.logger.Log("State %s does not require an operation", resp.State)
 	}
 
 	if operation != nil {
-		if _, ok := c.stepBuf[string(resp.State)]; !ok {
-			if err := c.state.PutOperation(operation); err != nil {
-				return fmt.Errorf("failed to PutOperation: %w", err)
-			}
-			c.stepBuf[string(resp.State)] = true
+		if err := c.state.PutOperation(operation); err != nil {
+			return fmt.Errorf("failed to PutOperation: %w", err)
 		}
 	}
 
@@ -326,7 +323,6 @@ func (c *Client) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance,
 	}
 
 	if !ok {
-		fmt.Println("Creating new state...")
 		fsmInstance, err = state_machines.Create(dkgRoundID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create FSM instance: %w", err)
