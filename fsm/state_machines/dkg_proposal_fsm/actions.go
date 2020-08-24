@@ -244,7 +244,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 	}
 
 	// The are no declined and timed out participants, check for all confirmations
-	if unconfirmedParticipants > 0 {
+	if unconfirmedParticipants > 1 { //TODO: this is bad
 		return
 	}
 
@@ -259,6 +259,9 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 	responseData := make(responses.DKGProposalDealParticipantResponse, 0)
 
 	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
+		if len(participant.DkgDeal) == 0 {
+			continue
+		}
 		responseEntry := &responses.DKGProposalDealParticipantEntry{
 			ParticipantId: participantId,
 			Addr:          participant.Addr,

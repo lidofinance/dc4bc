@@ -44,6 +44,7 @@ type Client struct {
 	keyStore    KeyStore
 	qrProcessor qr.Processor
 	Airgapped   *airgapped.AirgappedMachine
+	stepBuf     map[string]bool
 }
 
 func NewClient(
@@ -71,6 +72,7 @@ func NewClient(
 		keyStore:    keyStore,
 		qrProcessor: qrProcessor,
 		Airgapped:   airgappedMachine,
+		stepBuf:     make(map[string]bool),
 	}, nil
 }
 
@@ -98,12 +100,14 @@ func (c *Client) Poll() error {
 			}
 
 			for _, message := range messages {
-				c.logger.Log("Handling message with offset %d, type %s", message.Offset, message.Event)
-				if err := c.ProcessMessage(message); err != nil {
-					c.logger.Log("Failed to process message: %v", err)
-				} else {
-					c.logger.Log("Successfully processed message with offset %d, type %s",
-						message.Offset, message.Event)
+				if message.RecipientAddr == "" || message.RecipientAddr == c.GetAddr() {
+					c.logger.Log("Handling message with offset %d, type %s", message.Offset, message.Event)
+					if err := c.ProcessMessage(message); err != nil {
+						c.logger.Log("Failed to process message: %v", err)
+					} else {
+						c.logger.Log("Successfully processed message with offset %d, type %s",
+							message.Offset, message.Event)
+					}
 				}
 			}
 
@@ -111,6 +115,7 @@ func (c *Client) Poll() error {
 			if err != nil {
 				c.logger.Log("Failed to get operations: %v", err)
 			}
+			c.logger.Log("operations %v", operations)
 
 			c.logger.Log("Got %d Operations from pool", len(operations))
 			for _, operation := range operations {
@@ -167,6 +172,8 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		return fmt.Errorf("failed to Do operation in FSM: %w", err)
 	}
 
+	c.logger.Log("message %s done successfully from %s", message.Event, message.SenderAddr)
+
 	if resp.State == spf.StateSignatureProposalCollected {
 		fsmInstance, err = state_machines.FromDump(fsmDump)
 		if err != nil {
@@ -187,7 +194,8 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		spf.StateAwaitParticipantsConfirmations,
 		dpf.StateDkgCommitsAwaitConfirmations,
 		dpf.StateDkgDealsAwaitConfirmations,
-		dpf.StateDkgResponsesAwaitConfirmations:
+		dpf.StateDkgResponsesAwaitConfirmations,
+		dpf.StateDkgMasterKeyAwaitConfirmations:
 		bz, err := json.Marshal(resp.Data)
 		if err != nil {
 			return fmt.Errorf("failed to marshal FSM response: %w", err)
@@ -205,8 +213,11 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 	}
 
 	if operation != nil {
-		if err := c.state.PutOperation(operation); err != nil {
-			return fmt.Errorf("failed to PutOperation: %w", err)
+		if _, ok := c.stepBuf[string(resp.State)]; !ok {
+			if err := c.state.PutOperation(operation); err != nil {
+				return fmt.Errorf("failed to PutOperation: %w", err)
+			}
+			c.stepBuf[string(resp.State)] = true
 		}
 	}
 
@@ -273,20 +284,21 @@ func (c *Client) ReadProcessedOperation() error {
 }
 
 func (c *Client) handleProcessedOperation(operation types.Operation) error {
-	storedOperation, err := c.state.GetOperationByID(operation.ID)
-	if err != nil {
-		return fmt.Errorf("failed to find matching operation: %w", err)
-	}
-
-	if err := storedOperation.Check(&operation); err != nil {
-		return fmt.Errorf("processed operation does not match stored operation: %w", err)
-	}
+	//storedOperation, err := c.state.GetOperationByID(operation.ID)
+	//if err != nil {
+	//	return fmt.Errorf("failed to find matching operation: %w", err)
+	//}
+	//
+	//if err := storedOperation.Check(&operation); err != nil {
+	//	return fmt.Errorf("processed operation does not match stored operation: %w", err)
+	//}
 
 	message := storage.Message{
-		Event:      string(operation.Event),
-		Data:       operation.Result,
-		DkgRoundID: operation.DKGIdentifier,
-		SenderAddr: c.GetAddr(),
+		Event:         string(operation.Event),
+		Data:          operation.Result,
+		DkgRoundID:    operation.DKGIdentifier,
+		SenderAddr:    c.GetAddr(),
+		RecipientAddr: operation.To,
 	}
 
 	sig, err := c.signMessage(message.Bytes())
