@@ -134,7 +134,6 @@ func (m *SigningProposalFSM) actionProposalResponseByParticipant(inEvent fsm.Eve
 		return
 	}
 
-	// copy(signingProposalParticipant.DkgCommit, request.DkgCommit)
 	switch inEvent {
 	case EventConfirmSigningConfirmation:
 		signingProposalParticipant.Status = internal.SigningConfirmed
@@ -227,6 +226,7 @@ func (m *SigningProposalFSM) actionPartialKeyConfirmationReceived(inEvent fsm.Ev
 		return
 	}
 
+	signingProposalParticipant.PartialKey = make([]byte, len(request.PartialKey))
 	copy(signingProposalParticipant.PartialKey, request.PartialKey)
 	signingProposalParticipant.Status = internal.SigningPartialKeysConfirmed
 
