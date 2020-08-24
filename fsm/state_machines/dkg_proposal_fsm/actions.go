@@ -3,13 +3,12 @@ package dkg_proposal_fsm
 import (
 	"errors"
 	"fmt"
-	"reflect"
-
 	"github.com/depools/dc4bc/fsm/config"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
+	"reflect"
 )
 
 // Init
@@ -69,7 +68,6 @@ func (m *DKGProposalFSM) actionInitDKGProposal(inEvent fsm.Event, args ...interf
 }
 
 // Commits
-
 func (m *DKGProposalFSM) actionCommitConfirmationReceived(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
@@ -107,7 +105,7 @@ func (m *DKGProposalFSM) actionCommitConfirmationReceived(inEvent fsm.Event, arg
 	dkgProposalParticipant.Status = internal.CommitConfirmed
 
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
-	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
+	m.payload.DKGProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
@@ -123,7 +121,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitCommits(inEvent fsm.Event
 	defer m.payloadMu.Unlock()
 
 	if m.payload.DKGProposalPayload.IsExpired() {
-		outEvent = eventDKGCommitsConfirmationCancelByErrorInternal
+		outEvent = eventDKGCommitsConfirmationCancelByTimeoutInternal
 		return
 	}
 
@@ -137,7 +135,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitCommits(inEvent fsm.Event
 	}
 
 	if isContainsError {
-		outEvent = eventDKGCommitsConfirmationCancelByTimeoutInternal
+		outEvent = eventDKGCommitsConfirmationCancelByErrorInternal
 		return
 	}
 
@@ -209,7 +207,7 @@ func (m *DKGProposalFSM) actionDealConfirmationReceived(inEvent fsm.Event, args 
 	dkgProposalParticipant.Status = internal.DealConfirmed
 
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
-	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
+	m.payload.DKGProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
@@ -314,7 +312,7 @@ func (m *DKGProposalFSM) actionResponseConfirmationReceived(inEvent fsm.Event, a
 	dkgProposalParticipant.Status = internal.ResponseConfirmed
 
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
-	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
+	m.payload.DKGProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
@@ -416,7 +414,7 @@ func (m *DKGProposalFSM) actionMasterKeyConfirmationReceived(inEvent fsm.Event, 
 	dkgProposalParticipant.Status = internal.MasterKeyConfirmed
 
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
-	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
+	m.payload.DKGProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
@@ -455,21 +453,15 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitMasterKey(inEvent fsm.Eve
 
 	// Temporary simplest match master keys
 	if len(masterKeys) > 1 {
-		for i, masterKey := range masterKeys {
-			for j := range masterKeys {
-				if i == j {
-					continue
+		for _, masterKey := range masterKeys {
+			if !reflect.DeepEqual(masterKey, masterKeys[0]) {
+				for _, participant := range m.payload.DKGProposalPayload.Quorum {
+					participant.Status = internal.MasterKeyConfirmationError
+					participant.Error = errors.New("master key is mismatched")
 				}
 
-				if !reflect.DeepEqual(masterKey, masterKeys[i]) {
-					for _, participant := range m.payload.DKGProposalPayload.Quorum {
-						participant.Status = internal.MasterKeyConfirmationError
-						participant.Error = errors.New("master key is mismatched")
-					}
-
-					outEvent = eventDKGMasterKeyConfirmationCancelByErrorInternal
-					return
-				}
+				outEvent = eventDKGMasterKeyConfirmationCancelByErrorInternal
+				return
 			}
 		}
 	}
@@ -589,7 +581,7 @@ func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...inte
 	dkgProposalParticipant.Error = request.Error
 
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
-	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
+	m.payload.DKGProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 

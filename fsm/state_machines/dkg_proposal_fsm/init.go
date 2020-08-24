@@ -116,7 +116,7 @@ func New() internal.DumpedMachineProvider {
 			{Name: EventDKGDealConfirmationReceived, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitConfirmations},
 			// Canceled
 			{Name: EventDKGDealConfirmationError, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitCanceledByError},
-			{Name: eventDKGDealsConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitConfirmations, IsInternal: true},
+			{Name: eventDKGDealsConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitCanceledByTimeout, IsInternal: true},
 			{Name: eventAutoDKGValidateConfirmationDealsInternal, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitConfirmations, IsInternal: true, IsAuto: true},
 
 			{Name: eventDKGDealsConfirmedInternal, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgResponsesAwaitConfirmations, IsInternal: true},
@@ -135,6 +135,7 @@ func New() internal.DumpedMachineProvider {
 
 			{Name: EventDKGMasterKeyConfirmationReceived, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitConfirmations},
 			{Name: EventDKGMasterKeyConfirmationError, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitCanceledByError},
+			{Name: eventDKGMasterKeyConfirmationCancelByErrorInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitCanceledByError, IsInternal: true},
 			{Name: eventDKGMasterKeyConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitCanceledByTimeout, IsInternal: true},
 
 			{Name: eventAutoDKGValidateMasterKeyConfirmationInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitConfirmations, IsInternal: true, IsAuto: true},

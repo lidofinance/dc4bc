@@ -31,11 +31,3 @@ type DKGProposalResponseParticipantEntry struct {
 	Addr          string
 	DkgResponse   []byte
 }
-
-type DKGProposalResponsesParticipantResponse []*DKGProposalResponsesParticipantEntry
-
-type DKGProposalResponsesParticipantEntry struct {
-	ParticipantId int
-	Title         string
-	Responses     []byte
-}
