@@ -43,7 +43,7 @@ func (m *DKGProposalFSM) actionInitDKGProposal(inEvent fsm.Event, args ...interf
 	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
 		m.payload.DKGProposalPayload.Quorum[participantId] = &internal.DKGProposalParticipant{
 			Addr:      participant.Addr,
-			DkgPubKey: participant.DkgPubKey,
+			DkgPubKey: make([]byte, len(participant.DkgPubKey)),
 			Status:    internal.CommitAwaitConfirmation,
 			UpdatedAt: participant.UpdatedAt,
 		}
@@ -411,6 +411,7 @@ func (m *DKGProposalFSM) actionMasterKeyConfirmationReceived(inEvent fsm.Event, 
 		return
 	}
 
+	dkgProposalParticipant.DkgMasterKey = make([]byte, len(request.MasterKey))
 	copy(dkgProposalParticipant.DkgMasterKey, request.MasterKey)
 	dkgProposalParticipant.Status = internal.MasterKeyConfirmed
 
