@@ -229,12 +229,13 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 		return
 	}
 
-	unconfirmedParticipants := m.payload.DKGQuorumCount()
+	// Only awaiting deals stage requires ({all_participants} - 1) confirmations
+	unconfirmedDealsParticipants := m.payload.DKGQuorumCount() - 1
 	for _, participant := range m.payload.DKGProposalPayload.Quorum {
 		if participant.Status == internal.DealConfirmationError {
 			isContainsError = true
 		} else if participant.Status == internal.DealConfirmed {
-			unconfirmedParticipants--
+			unconfirmedDealsParticipants--
 		}
 	}
 
@@ -243,8 +244,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 		return
 	}
 
-	// The are no declined and timed out participants, check for all confirmations
-	if unconfirmedParticipants > 1 { //TODO: this is bad
+	if unconfirmedDealsParticipants > 0 {
 		return
 	}
 

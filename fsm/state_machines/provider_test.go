@@ -282,16 +282,13 @@ func Test_DkgProposal_Positive(t *testing.T) {
 	}
 
 	compareState(t, dpf.StateDkgCommitsAwaitConfirmations, fsmResponse.State)
-
-	// Commits
 }
 
+// Commits
 func Test_DkgProposal_EventDKGCommitConfirmationReceived(t *testing.T) {
 	var fsmResponse *fsm.Response
 
-	pCounter := 0
 	for participantId, participant := range testIdMapParticipants {
-		pCounter--
 		testFSMInstance, err := FromDump(testFSMDump)
 
 		compareErrNil(t, err)
@@ -343,9 +340,7 @@ func Test_DkgProposal_EventDKGCommitConfirmationReceived(t *testing.T) {
 func Test_DkgProposal_EventDKGDealConfirmationReceived(t *testing.T) {
 	var fsmResponse *fsm.Response
 
-	pCounter := 0
 	for participantId, participant := range testIdMapParticipants {
-		pCounter--
 		testFSMInstance, err := FromDump(testFSMDump)
 
 		compareErrNil(t, err)
@@ -364,6 +359,10 @@ func Test_DkgProposal_EventDKGDealConfirmationReceived(t *testing.T) {
 
 		compareFSMResponseNotNil(t, fsmResponse)
 
+		// Deals reached, next stage
+		if fsmResponse.State == dpf.StateDkgResponsesAwaitConfirmations {
+			break
+		}
 	}
 
 	compareState(t, dpf.StateDkgResponsesAwaitConfirmations, fsmResponse.State)
@@ -374,8 +373,9 @@ func Test_DkgProposal_EventDKGDealConfirmationReceived(t *testing.T) {
 		t.Fatalf("expected response {DKGProposalDealParticipantResponse}")
 	}
 
-	if len(response) != len(testParticipantsListRequest.Participants) {
-		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(response))
+	// Deals count less than total users count by 1 unit
+	if len(response) != len(testParticipantsListRequest.Participants)-1 {
+		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(response)-1)
 	}
 
 	for _, responseEntry := range response {
