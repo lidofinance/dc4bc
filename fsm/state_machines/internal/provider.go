@@ -1,18 +1,25 @@
 package internal
 
-import "github.com/depools/dc4bc/fsm/fsm_pool"
+import (
+	"crypto/ed25519"
+	"errors"
+	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/depools/dc4bc/fsm/fsm_pool"
+)
 
 type DumpedMachineProvider interface {
 	fsm_pool.MachineProvider
-	SetUpPayload(payload *DumpedMachineStatePayload)
+	WithSetup(state fsm.State, payload *DumpedMachineStatePayload) DumpedMachineProvider
 }
 
 // DKG and other stages quorums are separated,
 // because unnecessary data may be unset
 type DumpedMachineStatePayload struct {
-	TransactionId            string
+	DkgId                    string
 	SignatureProposalPayload *SignatureConfirmation
 	DKGProposalPayload       *DKGConfirmation
+	SigningProposalPayload   *SigningConfirmation
+	PubKeys                  map[string]ed25519.PublicKey
 }
 
 // Signature quorum
@@ -25,7 +32,7 @@ func (p *DumpedMachineStatePayload) SigQuorumCount() int {
 	return count
 }
 
-func (p *DumpedMachineStatePayload) SigQuorumExists(id string) bool {
+func (p *DumpedMachineStatePayload) SigQuorumExists(id int) bool {
 	var exists bool
 	if p.SignatureProposalPayload.Quorum != nil {
 		_, exists = p.SignatureProposalPayload.Quorum[id]
@@ -33,14 +40,14 @@ func (p *DumpedMachineStatePayload) SigQuorumExists(id string) bool {
 	return exists
 }
 
-func (p *DumpedMachineStatePayload) SigQuorumGet(id string) (participant *SignatureProposalParticipant) {
+func (p *DumpedMachineStatePayload) SigQuorumGet(id int) (participant *SignatureProposalParticipant) {
 	if p.SignatureProposalPayload.Quorum != nil {
 		participant, _ = p.SignatureProposalPayload.Quorum[id]
 	}
 	return
 }
 
-func (p *DumpedMachineStatePayload) SigQuorumUpdate(id string, participant *SignatureProposalParticipant) {
+func (p *DumpedMachineStatePayload) SigQuorumUpdate(id int, participant *SignatureProposalParticipant) {
 	if p.SignatureProposalPayload.Quorum != nil {
 		p.SignatureProposalPayload.Quorum[id] = participant
 	}
@@ -77,4 +84,59 @@ func (p *DumpedMachineStatePayload) DKGQuorumUpdate(id int, participant *DKGProp
 		p.DKGProposalPayload.Quorum[id] = participant
 	}
 	return
+}
+
+// Signing quorum
+
+func (p *DumpedMachineStatePayload) SigningQuorumCount() int {
+	var count int
+	if p.SigningProposalPayload.Quorum != nil {
+		count = len(p.SigningProposalPayload.Quorum)
+	}
+	return count
+}
+
+func (p *DumpedMachineStatePayload) SigningQuorumExists(id int) bool {
+	var exists bool
+	if p.SigningProposalPayload.Quorum != nil {
+		_, exists = p.SigningProposalPayload.Quorum[id]
+	}
+	return exists
+}
+
+func (p *DumpedMachineStatePayload) SigningQuorumGet(id int) (participant *SigningProposalParticipant) {
+	if p.SigningProposalPayload.Quorum != nil {
+		participant, _ = p.SigningProposalPayload.Quorum[id]
+	}
+	return
+}
+
+func (p *DumpedMachineStatePayload) SigningQuorumUpdate(id int, participant *SigningProposalParticipant) {
+	if p.SigningProposalPayload.Quorum != nil {
+		p.SigningProposalPayload.Quorum[id] = participant
+	}
+	return
+}
+
+func (p *DumpedMachineStatePayload) SetPubKeyAddr(addr string, pubKey ed25519.PublicKey) {
+	if p.PubKeys == nil {
+		p.PubKeys = make(map[string]ed25519.PublicKey)
+	}
+	p.PubKeys[addr] = pubKey
+	return
+}
+
+func (p *DumpedMachineStatePayload) GetPubKeyByAddr(addr string) (ed25519.PublicKey, error) {
+	if p.PubKeys == nil {
+		return nil, errors.New("{PubKeys} not initialized")
+	}
+	if addr == "" {
+		return nil, errors.New("{addr} cannot be empty")
+	}
+	pubKey, ok := p.PubKeys[addr]
+	if !ok {
+		return nil, errors.New("cannot find public key by {addr}")
+	}
+
+	return pubKey, nil
 }

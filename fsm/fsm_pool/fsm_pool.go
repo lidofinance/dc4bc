@@ -26,7 +26,7 @@ type MachineProvider interface {
 
 	EventsList() []fsm.Event
 
-	StatesSourcesList() []fsm.State
+	StatesList() []fsm.State
 
 	IsFinState(state fsm.State) bool
 }
@@ -106,7 +106,7 @@ func Init(machines ...MachineProvider) *FSMPool {
 	// Fill up states with initial and exit states checking
 	for _, machine := range machines {
 		machineName := machine.Name()
-		machineStates := machine.StatesSourcesList()
+		machineStates := machine.StatesList()
 		for _, state := range machineStates {
 			if machine.IsFinState(state) {
 				// If state is initial for another machine,

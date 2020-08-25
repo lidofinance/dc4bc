@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/depools/dc4bc/client/types"
+
 	"github.com/depools/dc4bc/fsm/state_machines"
 
 	"github.com/syndtr/goleveldb/leveldb"
@@ -25,10 +27,10 @@ type State interface {
 	SaveFSM(dkgRoundID string, dump []byte) error
 	LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error)
 
-	PutOperation(operation *Operation) error
+	PutOperation(operation *types.Operation) error
 	DeleteOperation(operationID string) error
-	GetOperations() (map[string]*Operation, error)
-	GetOperationByID(operationID string) (*Operation, error)
+	GetOperations() (map[string]*types.Operation, error)
+	GetOperationByID(operationID string) (*types.Operation, error)
 }
 
 type LevelDBState struct {
@@ -48,7 +50,7 @@ func NewLevelDBState(stateDbPath string) (State, error) {
 
 	// Init state key for operations JSON.
 	if _, err := state.stateDb.Get([]byte(operationsKey), nil); err != nil {
-		if err := state.initJsonKey(operationsKey, map[string]*Operation{}); err != nil {
+		if err := state.initJsonKey(operationsKey, map[string]*types.Operation{}); err != nil {
 			return nil, fmt.Errorf("failed to init %s storage: %w", operationsKey, err)
 		}
 	}
@@ -104,6 +106,7 @@ func (s *LevelDBState) LoadOffset() (uint64, error) {
 	}
 
 	offset := binary.LittleEndian.Uint64(bz)
+
 	return offset, nil
 }
 
@@ -114,15 +117,24 @@ func (s *LevelDBState) SaveFSM(dkgRoundID string, dump []byte) error {
 	}
 
 	var fsmInstances = map[string][]byte{}
-	if err := json.Unmarshal(bz, &fsmInstances); err != nil {
-		return fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+	if len(bz) > 0 {
+		if err := json.Unmarshal(bz, &fsmInstances); err != nil {
+			return fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+		}
 	}
 
 	fsmInstances[dkgRoundID] = dump
 
-	if err := s.stateDb.Put([]byte(fsmStateKey), dump, nil); err != nil {
+	fsmInstancesBz, err := json.Marshal(fsmInstances)
+	if err != nil {
+		return fmt.Errorf("failed to marshal FSM instances: %w", err)
+	}
+
+	if err := s.stateDb.Put([]byte(fsmStateKey), fsmInstancesBz, nil); err != nil {
 		return fmt.Errorf("failed to save fsm state: %w", err)
 	}
+
+	//fmt.Println("State saved: ", string(fsmInstancesBz))
 
 	return nil
 }
@@ -134,8 +146,10 @@ func (s *LevelDBState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, 
 	}
 
 	var fsmInstances = map[string][]byte{}
-	if err := json.Unmarshal(bz, &fsmInstances); err != nil {
-		return nil, false, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+	if len(bz) > 0 {
+		if err := json.Unmarshal(bz, &fsmInstances); err != nil {
+			return nil, false, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+		}
 	}
 
 	fsmInstanceBz, ok := fsmInstances[dkgRoundID]
@@ -151,7 +165,7 @@ func (s *LevelDBState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, 
 	return fsmInstance, ok, nil
 }
 
-func (s *LevelDBState) PutOperation(operation *Operation) error {
+func (s *LevelDBState) PutOperation(operation *types.Operation) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -200,14 +214,14 @@ func (s *LevelDBState) DeleteOperation(operationID string) error {
 	return nil
 }
 
-func (s *LevelDBState) GetOperations() (map[string]*Operation, error) {
+func (s *LevelDBState) GetOperations() (map[string]*types.Operation, error) {
 	s.Lock()
 	defer s.Unlock()
 
 	return s.getOperations()
 }
 
-func (s *LevelDBState) GetOperationByID(operationID string) (*Operation, error) {
+func (s *LevelDBState) GetOperationByID(operationID string) (*types.Operation, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -224,13 +238,13 @@ func (s *LevelDBState) GetOperationByID(operationID string) (*Operation, error) 
 	return operation, nil
 }
 
-func (s *LevelDBState) getOperations() (map[string]*Operation, error) {
+func (s *LevelDBState) getOperations() (map[string]*types.Operation, error) {
 	bz, err := s.stateDb.Get([]byte(operationsKey), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Operations (key: %s): %w", operationsKey, err)
 	}
 
-	var operations map[string]*Operation
+	var operations map[string]*types.Operation
 	if err := json.Unmarshal(bz, &operations); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal Operations: %w", err)
 	}

@@ -1,17 +1,33 @@
 package responses
 
+type DKGProposalPubKeysParticipantResponse []*DKGProposalPubKeysParticipantEntry
+
+type DKGProposalPubKeysParticipantEntry struct {
+	ParticipantId int
+	Addr          string
+	DkgPubKey     []byte
+}
+
 type DKGProposalCommitParticipantResponse []*DKGProposalCommitParticipantEntry
 
 type DKGProposalCommitParticipantEntry struct {
 	ParticipantId int
-	Title         string
-	Commit        []byte
+	Addr          string
+	DkgCommit     []byte
 }
 
 type DKGProposalDealParticipantResponse []*DKGProposalDealParticipantEntry
 
 type DKGProposalDealParticipantEntry struct {
 	ParticipantId int
-	Title         string
-	Deal          []byte
+	Addr          string
+	DkgDeal       []byte
+}
+
+type DKGProposalResponseParticipantResponse []*DKGProposalResponseParticipantEntry
+
+type DKGProposalResponseParticipantEntry struct {
+	ParticipantId int
+	Addr          string
+	DkgResponse   []byte
 }

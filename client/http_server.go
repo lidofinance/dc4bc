@@ -3,6 +3,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/depools/dc4bc/client/types"
 	"image"
 	"io/ioutil"
 	"log"
@@ -168,7 +169,7 @@ func (c *Client) readProcessedOperationFromBodyHandler(w http.ResponseWriter, r 
 		return
 	}
 
-	var operation Operation
+	var operation types.Operation
 	if err = json.Unmarshal(qrData, &operation); err != nil {
 		errorResponse(w, http.StatusInternalServerError,
 			fmt.Sprintf("failed to unmarshal processed operation: %v", err))

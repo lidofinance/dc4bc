@@ -1,13 +1,12 @@
 package state_machines
 
 import (
+	"crypto/ed25519"
 	"crypto/rand"
-	"crypto/rsa"
-	"crypto/sha1"
-	"crypto/x509"
 	"encoding/base64"
-	"fmt"
-	"log"
+	"errors"
+	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"reflect"
 	"testing"
 	"time"
 
@@ -18,73 +17,59 @@ import (
 	"github.com/depools/dc4bc/fsm/types/responses"
 )
 
-type testExternalParticipants struct {
-	Title     string
-	PrivKey   *rsa.PrivateKey
-	PubKey    *rsa.PublicKey
-	DkgPubKey []byte
+const (
+	addrMockLen = 32
+	keysMockLen = 128
+)
+
+type testParticipantsPayload struct {
+	Addr          string
+	HotPrivKey    ed25519.PrivateKey
+	HotPubKey     ed25519.PublicKey
+	DkgPubKey     []byte
+	DkgCommit     []byte
+	DkgDeal       []byte
+	DkgResponse   []byte
+	DkgPartialKey []byte
 }
 
 var (
 	tm = time.Now()
 
-	testParticipants = map[string]*testExternalParticipants{}
+	dkgId = "1b7a6382afe0fbe2ff127a5779f5e9b042e685cabefeadcf4ef27c6089a56bfb"
+
+	// map {addr} -> {participant}
+	testAddrMapParticipants = map[string]*testParticipantsPayload{}
+	// map {dkg_queue_id} -> {participant}
+	testIdMapParticipants = map[int]*testParticipantsPayload{}
 
 	testParticipantsListRequest = requests.SignatureProposalParticipantsListRequest{
 		Participants: []*requests.SignatureProposalParticipantsEntry{},
 		CreatedAt:    tm,
 	}
 
-	testFSMDump []byte
+	testFSMDump = map[fsm.State][]byte{}
 )
 
 func init() {
-
-	r := rand.Reader
-
 	for i := 0; i < 3; i++ {
-		key, err := rsa.GenerateKey(r, 2048)
 
-		if err != nil {
-			log.Fatal("Cannot generate key for user:", err)
-			return
+		participant := &testParticipantsPayload{
+			Addr:          base64.StdEncoding.EncodeToString(genDataMock(addrMockLen)),
+			HotPrivKey:    genDataMock(keysMockLen),
+			HotPubKey:     genDataMock(keysMockLen),
+			DkgPubKey:     genDataMock(keysMockLen),
+			DkgCommit:     genDataMock(keysMockLen),
+			DkgDeal:       genDataMock(keysMockLen),
+			DkgResponse:   genDataMock(keysMockLen),
+			DkgPartialKey: genDataMock(keysMockLen),
 		}
-
-		key.Precompute()
-
-		marshaledPubKey := x509.MarshalPKCS1PublicKey(&key.PublicKey)
-		hash := sha1.Sum(marshaledPubKey)
-
-		fingerprint := base64.StdEncoding.EncodeToString(hash[:])
-
-		pubKeyMock := make([]byte, 128)
-
-		rand.Read(pubKeyMock)
-
-		participant := &testExternalParticipants{
-			Title:     fmt.Sprintf("User %d", i),
-			PrivKey:   key,
-			PubKey:    &key.PublicKey,
-			DkgPubKey: pubKeyMock,
-		}
-		testParticipants[fingerprint] = participant
+		testAddrMapParticipants[participant.Addr] = participant
 	}
-
-	participantsForRequest := make([]*requests.SignatureProposalParticipantsEntry, 0)
-
-	for _, participant := range testParticipants {
-
-		participantsForRequest = append(participantsForRequest, &requests.SignatureProposalParticipantsEntry{
-			Addr:      participant.Title,
-			PubKey:    x509.MarshalPKCS1PublicKey(participant.PubKey),
-			DkgPubKey: participant.DkgPubKey,
-		})
-	}
-	testParticipantsListRequest.Participants = participantsForRequest
 }
 
 func TestCreate_Positive(t *testing.T) {
-	testFSMInstance, err := Create()
+	testFSMInstance, err := Create(dkgId)
 	if err != nil {
 		t.Fatalf("expected nil error, got {%s}", err)
 	}
@@ -92,6 +77,12 @@ func TestCreate_Positive(t *testing.T) {
 	if testFSMInstance == nil {
 		t.Fatalf("expected {*FSMInstance}")
 	}
+}
+
+func genDataMock(len int) []byte {
+	data := make([]byte, len)
+	rand.Read(data)
+	return data
 }
 
 func compareErrNil(t *testing.T, got error) {
@@ -125,9 +116,8 @@ func compareState(t *testing.T, expected fsm.State, got fsm.State) {
 }
 
 // Test Workflow
-
 func Test_SignatureProposal_Init(t *testing.T) {
-	testFSMInstance, err := Create()
+	testFSMInstance, err := Create(dkgId)
 
 	compareErrNil(t, err)
 
@@ -142,28 +132,42 @@ func Test_SignatureProposal_Init(t *testing.T) {
 	if testFSMInstance.machine.Name() != spf.FsmName {
 		t.Fatalf("expected machine name {%s}", spf.FsmName)
 	}
-
 	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance.machine.State())
 
-	testFSMDump, err = testFSMInstance.Dump()
+	testFSMDump[spf.StateParticipantsConfirmationsInit], err = testFSMInstance.Dump()
 
-	compareErrNil(t, err)
-
-	compareDumpNotZero(t, testFSMDump)
+	compareDumpNotZero(t, testFSMDump[spf.StateParticipantsConfirmationsInit])
 }
 
-func Test_SignatureProposal_Positive(t *testing.T) {
-	testFSMInstance, err := FromDump(testFSMDump)
+// EventInitProposal
+func Test_SignatureProposal_EventInitProposal_Positive(t *testing.T) {
+	var fsmResponse *fsm.Response
+
+	testFSMInstance, err := FromDump(testFSMDump[spf.StateParticipantsConfirmationsInit])
 
 	compareErrNil(t, err)
 
 	compareFSMInstanceNotNil(t, testFSMInstance)
 
-	fsmResponse, dump, err := testFSMInstance.Do(spf.EventInitProposal, testParticipantsListRequest)
+	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance.machine.State())
+
+	// Make request
+	request := make([]*requests.SignatureProposalParticipantsEntry, 0)
+
+	for _, participant := range testAddrMapParticipants {
+
+		request = append(request, &requests.SignatureProposalParticipantsEntry{
+			Addr:      participant.Addr,
+			PubKey:    participant.HotPubKey,
+			DkgPubKey: participant.DkgPubKey,
+		})
+	}
+	testParticipantsListRequest.Participants = request
+	testParticipantsListRequest.SigningThreshold = len(request)
+
+	fsmResponse, testFSMDump[spf.StateAwaitParticipantsConfirmations], err = testFSMInstance.Do(spf.EventInitProposal, testParticipantsListRequest)
 
 	compareErrNil(t, err)
-
-	compareDumpNotZero(t, dump)
 
 	compareFSMResponseNotNil(t, fsmResponse)
 
@@ -179,62 +183,60 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(testParticipantsListResponse))
 	}
 
-	participantsMap := map[int]*responses.SignatureProposalParticipantInvitationEntry{}
-
 	for _, participant := range testParticipantsListResponse {
-		if _, ok := participantsMap[participant.ParticipantId]; ok {
+		if _, ok := testIdMapParticipants[participant.ParticipantId]; ok {
 			t.Fatalf("expected unique {ParticipantId}")
 		}
 
-		if participant.Title == "" {
+		if participant.Addr == "" {
 			t.Fatalf("expected not empty {Addr}")
 		}
 
-		if participant.EncryptedInvitation == "" {
-			t.Fatalf("expected not empty {DecryptedInvitation}")
+		participantEntry, ok := testAddrMapParticipants[participant.Addr]
+
+		if !ok {
+			t.Fatalf("expected exist {Addr}")
 		}
 
-		if participant.PubKeyFingerprint == "" {
-			t.Fatalf("expected not empty {PubKeyFingerprint}")
-		}
-
-		participantsMap[participant.ParticipantId] = participant
+		testIdMapParticipants[participant.ParticipantId] = participantEntry
 	}
 
-	tm = tm.Add(1 * time.Hour)
+	compareDumpNotZero(t, testFSMDump[spf.StateAwaitParticipantsConfirmations])
+}
 
-	participantsCount := len(participantsMap)
+// EventConfirmSignatureProposal
+func Test_SignatureProposal_EventConfirmSignatureProposal_Positive(t *testing.T) {
+	var (
+		fsmResponse      *fsm.Response
+		testFSMDumpLocal []byte
+	)
+
+	participantsCount := len(testIdMapParticipants)
 
 	participantCounter := participantsCount
 
-	for _, participant := range participantsMap {
+	// testFSMDumpLocal = make([]b)
+	testFSMDumpLocal = testFSMDump[spf.StateAwaitParticipantsConfirmations]
+
+	for participantId, _ := range testIdMapParticipants {
 		participantCounter--
-		testFSMInstance, err = FromDump(dump)
+		testFSMInstance, err := FromDump(testFSMDumpLocal)
 
 		compareErrNil(t, err)
 
 		compareFSMInstanceNotNil(t, testFSMInstance)
 
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
-			t.Fatalf("not found external user data for response fingerprint")
-		}
+		inState, _ := testFSMInstance.State()
+		compareState(t, spf.StateAwaitParticipantsConfirmations, inState)
 
-		r := rand.Reader
-		encrypted, err := rsa.DecryptPKCS1v15(r, testParticipants[participant.PubKeyFingerprint].PrivKey, []byte(participant.EncryptedInvitation))
-
-		if err != nil {
-			t.Fatalf("cannot encrypt {DecryptedInvitation} with private key")
-		}
-
-		fsmResponse, dump, err = testFSMInstance.Do(spf.EventConfirmSignatureProposal, requests.SignatureProposalParticipantRequest{
-			PubKeyFingerprint:   participant.PubKeyFingerprint,
-			DecryptedInvitation: string(encrypted),
-			CreatedAt:           tm,
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(spf.EventConfirmSignatureProposal, requests.SignatureProposalParticipantRequest{
+			ParticipantId: participantId,
+			CreatedAt:     time.Now(),
 		})
 
 		compareErrNil(t, err)
 
-		compareDumpNotZero(t, dump)
+		compareDumpNotZero(t, testFSMDumpLocal)
 
 		compareFSMResponseNotNil(t, fsmResponse)
 
@@ -246,163 +248,713 @@ func Test_SignatureProposal_Positive(t *testing.T) {
 
 	compareState(t, spf.StateSignatureProposalCollected, fsmResponse.State)
 
-	testFSMInstance, err = FromDump(dump)
+	testFSMDump[spf.StateSignatureProposalCollected] = testFSMDumpLocal
 
-	fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGInitProcess)
+	compareDumpNotZero(t, testFSMDump[spf.StateSignatureProposalCollected])
+}
+
+func Test_SignatureProposal_EventConfirmSignatureProposal_Canceled_Participant(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[spf.StateAwaitParticipantsConfirmations])
 
 	compareErrNil(t, err)
 
-	compareDumpNotZero(t, dump)
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, spf.StateAwaitParticipantsConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(spf.EventDeclineProposal, requests.SignatureProposalParticipantRequest{
+		ParticipantId: 0,
+		CreatedAt:     time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareState(t, spf.StateValidationCanceledByParticipant, fsmResponse.State)
+}
+
+func Test_SignatureProposal_EventConfirmSignatureProposal_Canceled_Timeout(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[spf.StateAwaitParticipantsConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, spf.StateAwaitParticipantsConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(spf.EventConfirmSignatureProposal, requests.SignatureProposalParticipantRequest{
+		ParticipantId: 0,
+		CreatedAt:     time.Now().Add(36 * time.Hour),
+	})
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareState(t, spf.StateValidationCanceledByTimeout, fsmResponse.State)
+}
+
+func Test_DkgProposal_EventDKGInitProcess_Positive(t *testing.T) {
+	var fsmResponse *fsm.Response
+
+	testFSMInstance, err := FromDump(testFSMDump[spf.StateSignatureProposalCollected])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, spf.StateSignatureProposalCollected, inState)
+
+	fsmResponse, testFSMDump[dpf.StateDkgCommitsAwaitConfirmations], err = testFSMInstance.Do(dpf.EventDKGInitProcess, requests.DefaultRequest{
+		CreatedAt: time.Now(),
+	})
+
+	compareErrNil(t, err)
 
 	compareFSMResponseNotNil(t, fsmResponse)
 
 	compareState(t, dpf.StateDkgCommitsAwaitConfirmations, fsmResponse.State)
 
-	// Commits
+	response, ok := fsmResponse.Data.(responses.DKGProposalPubKeysParticipantResponse)
 
-	for _, participant := range participantsMap {
-		participantCounter--
-		testFSMInstance, err = FromDump(dump)
+	if !ok {
+		t.Fatalf("expected response {DKGProposalPubKeysParticipantResponse}")
+	}
+
+	if len(response) != len(testParticipantsListRequest.Participants) {
+		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(response))
+	}
+
+	for _, responseEntry := range response {
+		if _, ok := testIdMapParticipants[responseEntry.ParticipantId]; !ok {
+			t.Fatalf("expected exist {ParticipantId}")
+		}
+
+		if len(responseEntry.DkgPubKey) == 0 {
+			t.Fatalf("expected {DkgPubKey} non zero length")
+		}
+
+		if !reflect.DeepEqual(testIdMapParticipants[responseEntry.ParticipantId].DkgPubKey, responseEntry.DkgPubKey) {
+			t.Fatalf("expected valid {DkgPubKey}")
+		}
+	}
+
+	compareDumpNotZero(t, testFSMDump[dpf.StateDkgCommitsAwaitConfirmations])
+}
+
+// Commits
+func Test_DkgProposal_EventDKGCommitConfirmationReceived(t *testing.T) {
+	var (
+		fsmResponse      *fsm.Response
+		testFSMDumpLocal []byte
+	)
+
+	testFSMDumpLocal = testFSMDump[dpf.StateDkgCommitsAwaitConfirmations]
+
+	for participantId, participant := range testIdMapParticipants {
+		testFSMInstance, err := FromDump(testFSMDumpLocal)
 
 		compareErrNil(t, err)
 
 		compareFSMInstanceNotNil(t, testFSMInstance)
 
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
-			t.Fatalf("not found external user data for response fingerprint")
-		}
+		inState, _ := testFSMInstance.State()
+		compareState(t, dpf.StateDkgCommitsAwaitConfirmations, inState)
 
-		commitMock := make([]byte, 128)
-		_, err := rand.Read(commitMock)
-		if err != nil {
-			compareErrNil(t, err)
-		}
-
-		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGCommitConfirmationReceived, requests.DKGProposalCommitConfirmationRequest{
-			ParticipantId: participant.ParticipantId,
-			Commit:        commitMock,
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(dpf.EventDKGCommitConfirmationReceived, requests.DKGProposalCommitConfirmationRequest{
+			ParticipantId: participantId,
+			Commit:        participant.DkgCommit,
 			CreatedAt:     tm,
 		})
 
 		compareErrNil(t, err)
 
-		compareDumpNotZero(t, dump)
-
 		compareFSMResponseNotNil(t, fsmResponse)
+
+		compareDumpNotZero(t, testFSMDumpLocal)
 
 	}
 
 	compareState(t, dpf.StateDkgDealsAwaitConfirmations, fsmResponse.State)
 
-	// Deals
+	response, ok := fsmResponse.Data.(responses.DKGProposalCommitParticipantResponse)
 
-	for _, participant := range participantsMap {
-		participantCounter--
-		testFSMInstance, err = FromDump(dump)
+	if !ok {
+		t.Fatalf("expected response {DKGProposalCommitParticipantResponse}")
+	}
+
+	if len(response) != len(testParticipantsListRequest.Participants) {
+		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(response))
+	}
+
+	for _, responseEntry := range response {
+		if _, ok := testIdMapParticipants[responseEntry.ParticipantId]; !ok {
+			t.Fatalf("expected exist {ParticipantId}")
+		}
+
+		if len(responseEntry.DkgCommit) == 0 {
+			t.Fatalf("expected {DkgCommit} non zero length")
+		}
+
+		if !reflect.DeepEqual(testIdMapParticipants[responseEntry.ParticipantId].DkgCommit, responseEntry.DkgCommit) {
+			t.Fatalf("expected valid {DkgCommit}")
+		}
+	}
+
+	testFSMDump[dpf.StateDkgDealsAwaitConfirmations] = testFSMDumpLocal
+
+	compareDumpNotZero(t, testFSMDump[dpf.StateDkgDealsAwaitConfirmations])
+}
+
+func Test_DkgProposal_EventDKGCommitConfirmationReceived_Canceled_Error(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[dpf.StateDkgCommitsAwaitConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, dpf.StateDkgCommitsAwaitConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGCommitConfirmationError, requests.DKGProposalConfirmationErrorRequest{
+		ParticipantId: 0,
+		Error:         errors.New("test error"),
+		CreatedAt:     time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareState(t, dpf.StateDkgCommitsAwaitCanceledByError, fsmResponse.State)
+
+}
+
+func Test_DkgProposal_EventDKGCommitConfirmationReceived_Canceled_Timeout(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[dpf.StateDkgCommitsAwaitConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, dpf.StateDkgCommitsAwaitConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGCommitConfirmationReceived, requests.DKGProposalCommitConfirmationRequest{
+		ParticipantId: 0,
+		Commit:        testIdMapParticipants[0].DkgCommit,
+		CreatedAt:     time.Now().Add(36 * time.Hour),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareState(t, dpf.StateDkgCommitsAwaitCanceledByTimeout, fsmResponse.State)
+
+}
+
+// Deals
+func Test_DkgProposal_EventDKGDealConfirmationReceived(t *testing.T) {
+	var (
+		fsmResponse      *fsm.Response
+		testFSMDumpLocal []byte
+	)
+
+	testFSMDumpLocal = testFSMDump[dpf.StateDkgDealsAwaitConfirmations]
+
+	for participantId, participant := range testIdMapParticipants {
+		testFSMInstance, err := FromDump(testFSMDumpLocal)
 
 		compareErrNil(t, err)
 
 		compareFSMInstanceNotNil(t, testFSMInstance)
 
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
-			t.Fatalf("not found external user data for response fingerprint")
-		}
+		inState, _ := testFSMInstance.State()
+		compareState(t, dpf.StateDkgDealsAwaitConfirmations, inState)
 
-		dealMock := make([]byte, 128)
-		_, err := rand.Read(dealMock)
-		if err != nil {
-			compareErrNil(t, err)
-		}
-
-		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGDealConfirmationReceived, requests.DKGProposalDealConfirmationRequest{
-			ParticipantId: participant.ParticipantId,
-			Deal:          dealMock,
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(dpf.EventDKGDealConfirmationReceived, requests.DKGProposalDealConfirmationRequest{
+			ParticipantId: participantId,
+			Deal:          participant.DkgDeal,
 			CreatedAt:     tm,
 		})
 
 		compareErrNil(t, err)
 
-		compareDumpNotZero(t, dump)
-
 		compareFSMResponseNotNil(t, fsmResponse)
 
+		compareDumpNotZero(t, testFSMDumpLocal)
+
+		// Deals reached, next stage
+		if fsmResponse.State == dpf.StateDkgResponsesAwaitConfirmations {
+			break
+		}
 	}
 
 	compareState(t, dpf.StateDkgResponsesAwaitConfirmations, fsmResponse.State)
 
-	// Responses
+	response, ok := fsmResponse.Data.(responses.DKGProposalDealParticipantResponse)
 
-	for _, participant := range participantsMap {
-		participantCounter--
-		testFSMInstance, err = FromDump(dump)
+	if !ok {
+		t.Fatalf("expected response {DKGProposalDealParticipantResponse}")
+	}
+
+	// Deals count less than total users count by 1 unit
+	if len(response) != len(testParticipantsListRequest.Participants)-1 {
+		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(response)-1)
+	}
+
+	for _, responseEntry := range response {
+		if _, ok := testIdMapParticipants[responseEntry.ParticipantId]; !ok {
+			t.Fatalf("expected exist {ParticipantId}")
+		}
+
+		if len(responseEntry.DkgDeal) == 0 {
+			t.Fatalf("expected {DkgDeal} non zero length")
+		}
+
+		if !reflect.DeepEqual(testIdMapParticipants[responseEntry.ParticipantId].DkgDeal, responseEntry.DkgDeal) {
+			t.Fatalf("expected valid {DkgDeal}")
+		}
+	}
+
+	testFSMDump[dpf.StateDkgResponsesAwaitConfirmations] = testFSMDumpLocal
+
+	compareDumpNotZero(t, testFSMDump[dpf.StateDkgResponsesAwaitConfirmations])
+}
+
+func Test_DkgProposal_EventDKGDealConfirmationReceived_Canceled_Error(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[dpf.StateDkgDealsAwaitConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, dpf.StateDkgDealsAwaitConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGDealConfirmationError, requests.DKGProposalConfirmationErrorRequest{
+		ParticipantId: 0,
+		Error:         errors.New("test error"),
+		CreatedAt:     time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareState(t, dpf.StateDkgDealsAwaitCanceledByError, fsmResponse.State)
+
+}
+
+func Test_DkgProposal_EventDKGDealConfirmationReceived_Canceled_Timeout(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[dpf.StateDkgDealsAwaitConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, dpf.StateDkgDealsAwaitConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGDealConfirmationReceived, requests.DKGProposalDealConfirmationRequest{
+		ParticipantId: 0,
+		Deal:          testIdMapParticipants[0].DkgDeal,
+		CreatedAt:     time.Now().Add(36 * time.Hour),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareState(t, dpf.StateDkgDealsAwaitCanceledByTimeout, fsmResponse.State)
+
+}
+
+// Responses
+func Test_DkgProposal_EventDKGResponseConfirmationReceived_Positive(t *testing.T) {
+	var (
+		fsmResponse      *fsm.Response
+		testFSMDumpLocal []byte
+	)
+
+	testFSMDumpLocal = testFSMDump[dpf.StateDkgResponsesAwaitConfirmations]
+
+	for participantId, participant := range testIdMapParticipants {
+		testFSMInstance, err := FromDump(testFSMDumpLocal)
 
 		compareErrNil(t, err)
 
 		compareFSMInstanceNotNil(t, testFSMInstance)
 
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
-			t.Fatalf("not found external user data for response fingerprint")
-		}
+		inState, _ := testFSMInstance.State()
+		compareState(t, dpf.StateDkgResponsesAwaitConfirmations, inState)
 
-		responseMock := make([]byte, 128)
-		_, err := rand.Read(responseMock)
-		if err != nil {
-			compareErrNil(t, err)
-		}
-
-		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGResponseConfirmationReceived, requests.DKGProposalResponseConfirmationRequest{
-			ParticipantId: participant.ParticipantId,
-			Response:      responseMock,
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(dpf.EventDKGResponseConfirmationReceived, requests.DKGProposalResponseConfirmationRequest{
+			ParticipantId: participantId,
+			Response:      participant.DkgResponse,
 			CreatedAt:     tm,
 		})
 
 		compareErrNil(t, err)
 
-		compareDumpNotZero(t, dump)
-
 		compareFSMResponseNotNil(t, fsmResponse)
 
+		compareDumpNotZero(t, testFSMDumpLocal)
 	}
 
 	compareState(t, dpf.StateDkgMasterKeyAwaitConfirmations, fsmResponse.State)
 
-	// Master keys
+	response, ok := fsmResponse.Data.(responses.DKGProposalResponseParticipantResponse)
 
-	masterKeyMock := make([]byte, 128)
-	_, err = rand.Read(masterKeyMock)
-	if err != nil {
-		compareErrNil(t, err)
+	if !ok {
+		t.Fatalf("expected response {DKGProposalResponseParticipantResponse}")
 	}
 
-	for _, participant := range participantsMap {
-		participantCounter--
-		testFSMInstance, err = FromDump(dump)
+	if len(response) != len(testParticipantsListRequest.Participants) {
+		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(response))
+	}
+
+	for _, responseEntry := range response {
+		if _, ok := testIdMapParticipants[responseEntry.ParticipantId]; !ok {
+			t.Fatalf("expected exist {ParticipantId}")
+		}
+
+		if len(responseEntry.DkgResponse) == 0 {
+			t.Fatalf("expected {DkgResponse} non zero length")
+		}
+
+		if !reflect.DeepEqual(testIdMapParticipants[responseEntry.ParticipantId].DkgResponse, responseEntry.DkgResponse) {
+			t.Fatalf("expected valid {DkgResponse}")
+		}
+	}
+
+	testFSMDump[dpf.StateDkgMasterKeyAwaitConfirmations] = testFSMDumpLocal
+
+	compareDumpNotZero(t, testFSMDump[dpf.StateDkgMasterKeyAwaitConfirmations])
+}
+
+func Test_DkgProposal_EventDKGResponseConfirmationError_Canceled_Error(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[dpf.StateDkgResponsesAwaitConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, dpf.StateDkgResponsesAwaitConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGResponseConfirmationError, requests.DKGProposalConfirmationErrorRequest{
+		ParticipantId: 0,
+		Error:         errors.New("test error"),
+		CreatedAt:     time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareState(t, dpf.StateDkgResponsesAwaitCanceledByError, fsmResponse.State)
+
+}
+
+func Test_DkgProposal_EventDKGResponseConfirmationReceived_Canceled_Timeout(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[dpf.StateDkgResponsesAwaitConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, dpf.StateDkgResponsesAwaitConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGResponseConfirmationReceived, requests.DKGProposalResponseConfirmationRequest{
+		ParticipantId: 0,
+		Response:      testIdMapParticipants[0].DkgResponse,
+		CreatedAt:     time.Now().Add(36 * time.Hour),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareState(t, dpf.StateDkgResponsesAwaitCanceledByTimeout, fsmResponse.State)
+
+}
+
+// Master keys
+func Test_DkgProposal_EventDKGMasterKeyConfirmationReceived_Positive(t *testing.T) {
+	var (
+		fsmResponse      *fsm.Response
+		testFSMDumpLocal []byte
+	)
+
+	testFSMDumpLocal = testFSMDump[dpf.StateDkgMasterKeyAwaitConfirmations]
+
+	masterKeyMockup := genDataMock(keysMockLen)
+
+	for participantId, _ := range testIdMapParticipants {
+		testFSMInstance, err := FromDump(testFSMDumpLocal)
 
 		compareErrNil(t, err)
 
 		compareFSMInstanceNotNil(t, testFSMInstance)
 
-		if _, ok := testParticipants[participant.PubKeyFingerprint]; !ok {
-			t.Fatalf("not found external user data for response fingerprint")
-		}
+		inState, _ := testFSMInstance.State()
+		compareState(t, dpf.StateDkgMasterKeyAwaitConfirmations, inState)
 
-		fsmResponse, dump, err = testFSMInstance.Do(dpf.EventDKGMasterKeyConfirmationReceived, requests.DKGProposalMasterKeyConfirmationRequest{
-			ParticipantId: participant.ParticipantId,
-			MasterKey:     masterKeyMock,
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(dpf.EventDKGMasterKeyConfirmationReceived, requests.DKGProposalMasterKeyConfirmationRequest{
+			ParticipantId: participantId,
+			MasterKey:     masterKeyMockup,
 			CreatedAt:     tm,
 		})
 
 		compareErrNil(t, err)
 
-		compareDumpNotZero(t, dump)
-
 		compareFSMResponseNotNil(t, fsmResponse)
 
+		compareDumpNotZero(t, testFSMDumpLocal)
 	}
 
-	compareState(t, fsm.StateGlobalDone, fsmResponse.State)
+	compareState(t, dpf.StateDkgMasterKeyCollected, fsmResponse.State)
+
+	testFSMDump[dpf.StateDkgMasterKeyCollected] = testFSMDumpLocal
+
+	compareDumpNotZero(t, testFSMDump[dpf.StateDkgMasterKeyCollected])
+
+	return
 }
 
-func Test_DKGProposal_Positive(t *testing.T) {
+func Test_DkgProposal_EventDKGMasterKeyConfirmationError_Canceled_Error(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[dpf.StateDkgMasterKeyAwaitConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, dpf.StateDkgMasterKeyAwaitConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGMasterKeyConfirmationError, requests.DKGProposalConfirmationErrorRequest{
+		ParticipantId: 0,
+		Error:         errors.New("test error"),
+		CreatedAt:     time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareState(t, dpf.StateDkgMasterKeyAwaitCanceledByError, fsmResponse.State)
+
+}
+
+func Test_DkgProposal_EventDKGMasterKeyConfirmationReceived_Canceled_Timeout(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[dpf.StateDkgMasterKeyAwaitConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, dpf.StateDkgMasterKeyAwaitConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGMasterKeyConfirmationReceived, requests.DKGProposalMasterKeyConfirmationRequest{
+		ParticipantId: 0,
+		MasterKey:     genDataMock(keysMockLen),
+		CreatedAt:     time.Now().Add(36 * time.Hour),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareState(t, dpf.StateDkgMasterKeyAwaitCanceledByTimeout, fsmResponse.State)
+
+}
+
+func Test_DkgProposal_EventDKGMasterKeyConfirmationReceived_Canceled_Mismatched(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[dpf.StateDkgMasterKeyAwaitConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, dpf.StateDkgMasterKeyAwaitConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGMasterKeyConfirmationReceived, requests.DKGProposalMasterKeyConfirmationRequest{
+		ParticipantId: 0,
+		MasterKey:     genDataMock(keysMockLen),
+		CreatedAt:     time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(dpf.EventDKGMasterKeyConfirmationReceived, requests.DKGProposalMasterKeyConfirmationRequest{
+		ParticipantId: 1,
+		MasterKey:     genDataMock(keysMockLen),
+		CreatedAt:     time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareState(t, dpf.StateDkgMasterKeyAwaitCanceledByError, fsmResponse.State)
+
+}
+
+// Signing
+func Test_SigningProposal_EventSigningInit(t *testing.T) {
+	var fsmResponse *fsm.Response
+
+	testFSMInstance, err := FromDump(testFSMDump[dpf.StateDkgMasterKeyCollected])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, dpf.StateDkgMasterKeyCollected, inState)
+
+	fsmResponse, testFSMDump[sif.StateSigningIdle], err = testFSMInstance.Do(sif.EventSigningInit, requests.DefaultRequest{
+		CreatedAt: time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareState(t, sif.StateSigningIdle, fsmResponse.State)
+
+	compareDumpNotZero(t, testFSMDump[sif.StateSigningIdle])
+
+}
+
+// Start
+func Test_SigningProposal_EventSigningStart(t *testing.T) {
+	var fsmResponse *fsm.Response
+
+	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningIdle])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, sif.StateSigningIdle, inState)
+
+	fsmResponse, testFSMDump[sif.StateSigningAwaitConfirmations], err = testFSMInstance.Do(sif.EventSigningStart, requests.SigningProposalStartRequest{
+		ParticipantId: 1,
+		SrcPayload:    []byte("message to sign"),
+		CreatedAt:     time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareState(t, sif.StateSigningAwaitConfirmations, fsmResponse.State)
+
+	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitConfirmations])
+
+	testSigningParticipantsListResponse, ok := fsmResponse.Data.(responses.SigningProposalParticipantInvitationsResponse)
+
+	if !ok {
+		t.Fatalf("expected response {SigningProposalParticipantInvitationsResponse}")
+	}
+
+	if len(testSigningParticipantsListResponse.Participants) != len(testParticipantsListRequest.Participants) {
+		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(testSigningParticipantsListResponse.Participants))
+	}
+
+	if testSigningParticipantsListResponse.SigningId == "" {
+		t.Fatalf("expected field {SigningId}")
+	}
+
+}
+
+func Test_Parallel(t *testing.T) {
+	var (
+		id1 = "123"
+		id2 = "456"
+	)
+	testFSMInstance1, err := Create(id1)
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance1)
+
+	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance1.machine.State())
+
+	testFSMDump1, err := testFSMInstance1.Dump()
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, testFSMDump1)
+
+	/// fsm2
+	testFSMInstance2, err := Create(id2)
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance2)
+
+	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance2.machine.State())
+
+	testFSMDump2, err := testFSMInstance2.Dump()
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, testFSMDump2)
+
+	testFSMInstance1, err = FromDump(testFSMDump1)
+
+	compareErrNil(t, err)
+
+	testFSMInstance2, err = FromDump(testFSMDump2)
+
+	compareErrNil(t, err)
+
+	_, _, err = testFSMInstance1.Do(spf.EventInitProposal, testParticipantsListRequest)
+
+	s1, err := testFSMInstance1.State()
+
+	compareErrNil(t, err)
+
+	s2, err := testFSMInstance2.State()
+
+	if s1 == s2 {
+		t.Fatalf("MATCH STATES {%s}", s1)
+	}
 
 }

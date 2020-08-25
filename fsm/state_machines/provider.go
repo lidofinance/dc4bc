@@ -2,10 +2,9 @@ package state_machines
 
 import (
 	"crypto/ed25519"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"strings"
 
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -14,10 +13,6 @@ import (
 	"github.com/depools/dc4bc/fsm/fsm_pool"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-)
-
-const (
-	dkgTransactionIdLength = 128
 )
 
 // Is machine state scope dump will be locked?
@@ -30,17 +25,6 @@ type FSMDump struct {
 type FSMInstance struct {
 	machine internal.DumpedMachineProvider
 	dump    *FSMDump
-}
-
-var (
-	fsmPoolProvider *fsm_pool.FSMPool
-)
-
-func init() {
-	fsmPoolProvider = fsm_pool.Init(
-		signature_proposal_fsm.New(),
-		dkg_proposal_fsm.New(),
-	)
 }
 
 // Create new fsm with unique id
@@ -56,9 +40,15 @@ func Create(dkgID string) (*FSMInstance, error) {
 		return nil, err
 	}
 
+	fsmPoolProvider := fsm_pool.Init(
+		signature_proposal_fsm.New(),
+		dkg_proposal_fsm.New(),
+		signing_proposal_fsm.New(),
+	)
+
 	machine, err := fsmPoolProvider.EntryPointMachine()
-	i.machine = machine.(internal.DumpedMachineProvider)
-	i.machine.SetUpPayload(i.dump.Payload)
+	i.machine = machine.(internal.DumpedMachineProvider).
+		WithSetup(i.dump.State, i.dump.Payload)
 	return i, err
 }
 
@@ -69,6 +59,12 @@ func FromDump(data []byte) (*FSMInstance, error) {
 	if len(data) < 2 {
 		return nil, errors.New("machine dump is empty")
 	}
+
+	fsmPoolProvider := fsm_pool.Init(
+		signature_proposal_fsm.New(),
+		dkg_proposal_fsm.New(),
+		signing_proposal_fsm.New(),
+	)
 
 	i := &FSMInstance{
 		dump: &FSMDump{},
@@ -81,13 +77,21 @@ func FromDump(data []byte) (*FSMInstance, error) {
 	}
 
 	machine, err := fsmPoolProvider.MachineByState(i.dump.State)
-	i.machine = machine.(internal.DumpedMachineProvider)
-	i.machine.SetUpPayload(i.dump.Payload)
+	if err != nil {
+		return nil, err
+	}
+
+	i.machine = machine.(internal.DumpedMachineProvider).
+		WithSetup(i.dump.State, i.dump.Payload)
 	return i, err
 }
 
 func (i *FSMInstance) GetPubKeyByAddr(addr string) (ed25519.PublicKey, error) {
-	return ed25519.PublicKey{}, nil
+	if i.dump == nil {
+		return nil, errors.New("dump not initialized")
+	}
+
+	return i.dump.Payload.GetPubKeyByAddr(addr)
 }
 
 func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, err error) {
@@ -112,22 +116,22 @@ func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Resp
 	return result, dump, err
 }
 
-func (i *FSMInstance) InitDump(transactionId string) error {
+func (i *FSMInstance) InitDump(dkgID string) error {
 	if i.dump != nil {
 		return errors.New("dump already initialized")
 	}
 
-	transactionId = strings.TrimSpace(transactionId)
+	dkgID = strings.TrimSpace(dkgID)
 
-	if transactionId == "" {
-		return errors.New("empty transaction id")
+	if dkgID == "" {
+		return errors.New("empty {dkgID}")
 	}
 
 	i.dump = &FSMDump{
-		TransactionId: transactionId,
+		TransactionId: dkgID,
 		State:         fsm.StateGlobalIdle,
 		Payload: &internal.DumpedMachineStatePayload{
-			TransactionId:            transactionId,
+			DkgId:                    dkgID,
 			SignatureProposalPayload: nil,
 			DKGProposalPayload:       nil,
 		},
@@ -168,14 +172,4 @@ func (d *FSMDump) Unmarshal(data []byte) error {
 	}
 
 	return json.Unmarshal(data, d)
-}
-
-func generateDkgTransactionId() (string, error) {
-	b := make([]byte, dkgTransactionIdLength)
-	_, err := rand.Read(b)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.URLEncoding.EncodeToString(b), err
 }

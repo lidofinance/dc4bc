@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"errors"
+	"github.com/depools/dc4bc/client/types"
 	"os"
 	"path/filepath"
 	"testing"
@@ -31,6 +32,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 	)
 	defer ctrl.Finish()
 
+	userName := "user_name"
 	dkgRoundID := "dkg_round_id"
 	state := clientMocks.NewMockState(ctrl)
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
@@ -38,28 +40,29 @@ func TestClient_ProcessMessage(t *testing.T) {
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 
 	testClientKeyPair := client.NewKeyPair()
-	keyStore.EXPECT().LoadKeys("test_client", "").Times(1).Return(testClientKeyPair, nil)
-
-	fsm, err := state_machines.Create(dkgRoundID)
-	state.EXPECT().LoadFSM(dkgRoundID).Times(1).Return(fsm, true, nil)
+	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
 	clt, err := client.NewClient(
 		ctx,
-		"test_client",
+		userName,
 		state,
 		stg,
 		keyStore,
 		qrProcessor,
+		nil,
 	)
 	req.NoError(err)
 
-	t.Run("test_process_init_dkg", func(t *testing.T) {
-		senderUserName := "sender_username"
+	t.Run("test_process_dkg_init", func(t *testing.T) {
+		fsm, err := state_machines.Create(dkgRoundID)
+		state.EXPECT().LoadFSM(dkgRoundID).Times(1).Return(fsm, true, nil)
+
 		senderKeyPair := client.NewKeyPair()
+		senderAddr := senderKeyPair.GetAddr()
 		messageData := requests.SignatureProposalParticipantsListRequest{
 			Participants: []*requests.SignatureProposalParticipantsEntry{
 				{
-					Addr:      senderUserName,
+					Addr:      senderAddr,
 					PubKey:    senderKeyPair.Pub,
 					DkgPubKey: make([]byte, 128),
 				},
@@ -79,7 +82,8 @@ func TestClient_ProcessMessage(t *testing.T) {
 					DkgPubKey: make([]byte, 128),
 				},
 			},
-			CreatedAt: time.Now(),
+			CreatedAt:        time.Now(),
+			SigningThreshold: 2,
 		}
 		messageDataBz, err := json.Marshal(messageData)
 		req.NoError(err)
@@ -90,12 +94,13 @@ func TestClient_ProcessMessage(t *testing.T) {
 			Offset:     1,
 			Event:      string(spf.EventInitProposal),
 			Data:       messageDataBz,
-			SenderAddr: senderUserName,
+			SenderAddr: senderAddr,
 		}
 		message.Signature = ed25519.Sign(senderKeyPair.Priv, message.Bytes())
 
 		state.EXPECT().SaveOffset(uint64(1)).Times(1).Return(nil)
 		state.EXPECT().SaveFSM(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+		state.EXPECT().PutOperation(gomock.Any()).Times(1).Return(nil)
 
 		err = clt.ProcessMessage(message)
 		req.NoError(err)
@@ -122,22 +127,23 @@ func TestClient_GetOperationsList(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
+		nil,
 	)
 	req.NoError(err)
 
-	state.EXPECT().GetOperations().Times(1).Return(map[string]*client.Operation{}, nil)
+	state.EXPECT().GetOperations().Times(1).Return(map[string]*types.Operation{}, nil)
 	operations, err := clt.GetOperations()
 	req.NoError(err)
 	req.Len(operations, 0)
 
-	operation := &client.Operation{
+	operation := &types.Operation{
 		ID:        "operation_id",
-		Type:      client.DKGCommits,
+		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		CreatedAt: time.Now(),
 	}
 	state.EXPECT().GetOperations().Times(1).Return(
-		map[string]*client.Operation{operation.ID: operation}, nil)
+		map[string]*types.Operation{operation.ID: operation}, nil)
 	operations, err = clt.GetOperations()
 	req.NoError(err)
 	req.Len(operations, 1)
@@ -164,12 +170,13 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
+		nil,
 	)
 	req.NoError(err)
 
-	operation := &client.Operation{
+	operation := &types.Operation{
 		ID:        "operation_id",
-		Type:      client.DKGCommits,
+		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		CreatedAt: time.Now(),
 	}
@@ -210,19 +217,20 @@ func TestClient_ReadProcessedOperation(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
+		nil,
 	)
 	req.NoError(err)
 
-	operation := &client.Operation{
+	operation := &types.Operation{
 		ID:        "operation_id",
-		Type:      client.DKGCommits,
+		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),
 	}
-	processedOperation := &client.Operation{
+	processedOperation := &types.Operation{
 		ID:        "operation_id",
-		Type:      client.DKGCommits,
+		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),

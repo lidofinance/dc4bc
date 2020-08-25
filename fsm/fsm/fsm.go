@@ -120,7 +120,6 @@ type Callback func(event Event, args ...interface{}) (Event, interface{}, error)
 
 type Callbacks map[Event]Callback
 
-// TODO: Exports
 func MustNewFSM(machineName string, initialState State, events []EventDesc, callbacks Callbacks) *FSM {
 	machineName = strings.TrimSpace(machineName)
 	initialState = State(strings.TrimSpace(initialState.String()))
@@ -273,6 +272,27 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 		panic("cannot initialize machine without final states")
 	}
 
+	return f
+}
+
+// WithState returns FSM copy with custom setup state
+func (f *FSM) MustCopyWithState(state State) *FSM {
+	var exists bool
+
+	f.stateMu.RLock()
+	defer f.stateMu.RUnlock()
+
+	if state != "" {
+		for _, s := range f.StatesList() {
+			if s == state {
+				exists = true
+			}
+		}
+		if !exists {
+			panic(fmt.Sprintf("cannot set state, not exists  \"%s\" for \"%s\"", state, f.name))
+		}
+		f.currentState = state
+	}
 	return f
 }
 
@@ -458,7 +478,7 @@ func (f *FSM) EventsList() (events []Event) {
 	return
 }
 
-func (f *FSM) StatesSourcesList() (states []State) {
+func (f *FSM) StatesList() (states []State) {
 	var allStates = map[State]bool{}
 	if len(f.transitions) > 0 {
 		for trKey, _ := range f.transitions {

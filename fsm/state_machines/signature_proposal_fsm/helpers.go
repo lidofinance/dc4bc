@@ -14,10 +14,9 @@ import (
 
 func ProposalParticipantsQuorumToResponse(list *internal.SignatureProposalQuorum) responses.SignatureProposalParticipantInvitationsResponse {
 	var response responses.SignatureProposalParticipantInvitationsResponse
-	for quorumId, participant := range *list {
+	for _, participant := range *list {
 		response = append(response, &responses.SignatureProposalParticipantInvitationEntry{
-			Title:             participant.Title,
-			PubKeyFingerprint: quorumId,
+			Addr: participant.Addr,
 		})
 	}
 	return response

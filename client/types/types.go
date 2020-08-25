@@ -1,4 +1,4 @@
-package client
+package types
 
 import (
 	"bytes"
@@ -20,11 +20,14 @@ const (
 )
 
 type Operation struct {
-	ID        string // UUID4
-	Type      OperationType
-	Payload   []byte
-	Result    []byte
-	CreatedAt time.Time
+	ID            string // UUID4
+	Type          OperationType
+	Payload       []byte
+	ResultMsgs    []storage.Message
+	CreatedAt     time.Time
+	DKGIdentifier string
+	To            string
+	Event         fsm.Event
 }
 
 func (o *Operation) Check(o2 *Operation) error {
@@ -46,6 +49,12 @@ func (o *Operation) Check(o2 *Operation) error {
 func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 	var resolvedValue interface{}
 	switch fsm.Event(message.Event) {
+	case signature_proposal_fsm.EventConfirmSignatureProposal:
+		var req requests.SignatureProposalParticipantRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
 	case signature_proposal_fsm.EventInitProposal:
 		var req requests.SignatureProposalParticipantsListRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {

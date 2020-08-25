@@ -12,6 +12,14 @@ func (r *SignatureProposalParticipantsListRequest) Validate() error {
 		return errors.New(fmt.Sprintf("too few participants, minimum is {%d}", config.ParticipantsMinCount))
 	}
 
+	if r.SigningThreshold < 2 {
+		return errors.New("{SigningThreshold} minimum count is {2}")
+	}
+
+	if r.SigningThreshold > len(r.Participants) {
+		return errors.New("{SigningThreshold} cannot be higher than {ParticipantsCount}")
+	}
+
 	for _, participant := range r.Participants {
 		if len(participant.Addr) < 3 {
 			return errors.New("{Addr} minimum length is {3}")
@@ -38,16 +46,28 @@ func (r *SignatureProposalParticipantsListRequest) Validate() error {
 }
 
 func (r *SignatureProposalParticipantRequest) Validate() error {
-	if len(r.PubKeyFingerprint) == 0 {
-		return errors.New("{PubKeyFingerprint} cannot zero length")
-	}
-
-	if len(r.DecryptedInvitation) == 0 {
-		return errors.New("{DecryptedInvitation} cannot zero length")
+	if r.ParticipantId < 0 {
+		return errors.New("{ParticipantId} cannot be a negative number")
 	}
 
 	if r.CreatedAt.IsZero() {
 		return errors.New("{CreatedAt} cannot be a nil")
 	}
+	return nil
+}
+
+func (r *SignatureProposalConfirmationErrorRequest) Validate() error {
+	if r.ParticipantId < 0 {
+		return errors.New("{ParticipantId} cannot be a negative number")
+	}
+
+	if r.Error == nil {
+		return errors.New("{Error} cannot be a nil")
+	}
+
+	if r.CreatedAt.IsZero() {
+		return errors.New("{CreatedAt} is not set")
+	}
+
 	return nil
 }

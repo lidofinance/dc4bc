@@ -3,17 +3,17 @@ package dkg
 import (
 	"errors"
 	"fmt"
+	"go.dedis.ch/kyber/v3/share"
 	"math"
 	"sort"
 	"sync"
 
 	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/pairing/bn256"
-	"go.dedis.ch/kyber/v3/share"
 	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
 	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
 )
 
+// TODO: dump necessary data on disk
 type DKG struct {
 	sync.Mutex
 	instance      *dkg.DistKeyGenerator
@@ -23,18 +23,19 @@ type DKG struct {
 	pubkeys       PKStore
 	pubKey        kyber.Point
 	secKey        kyber.Scalar
-	suite         *bn256.Suite
+	suite         vss.Suite
 	ParticipantID int
+	Threshold     int
 }
 
-func Init() *DKG {
+func Init(suite vss.Suite, pubKey kyber.Point, secKey kyber.Scalar) *DKG {
 	var (
 		d DKG
 	)
 
-	d.suite = bn256.NewSuiteG2()
-	d.secKey = d.suite.Scalar().Pick(d.suite.RandomStream())
-	d.pubKey = d.suite.Point().Mul(d.secKey, nil)
+	d.suite = suite
+	d.secKey = secKey
+	d.pubKey = pubKey
 
 	d.deals = make(map[string]*dkg.Deal)
 	d.commits = make(map[string][]kyber.Point)
@@ -46,13 +47,34 @@ func (d *DKG) GetPubKey() kyber.Point {
 	return d.pubKey
 }
 
-func (d *DKG) StorePubKey(participant string, pk kyber.Point) bool {
+func (d *DKG) GetSecKey() kyber.Scalar {
+	return d.secKey
+}
+
+func (d *DKG) GetPubKeyByParticipant(participant string) (kyber.Point, error) {
+	pk, err := d.pubkeys.GetPKByParticipant(participant)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pk for participant %s: %w", participant, err)
+	}
+	return pk, nil
+}
+
+func (d *DKG) GetParticipantByIndex(index int) string {
+	return d.pubkeys.GetParticipantByIndex(index)
+}
+
+func (d *DKG) GetPKByIndex(index int) kyber.Point {
+	return d.pubkeys.GetPKByIndex(index)
+}
+
+func (d *DKG) StorePubKey(participant string, pid int, pk kyber.Point) bool {
 	d.Lock()
 	defer d.Unlock()
 
 	return d.pubkeys.Add(&PK2Participant{
-		Participant: participant,
-		PK:          pk,
+		Participant:   participant,
+		PK:            pk,
+		ParticipantID: pid,
 	})
 }
 
@@ -65,7 +87,7 @@ func (d *DKG) calcParticipantID() int {
 	return -1
 }
 
-func (d *DKG) InitDKGInstance(t int) (err error) {
+func (d *DKG) InitDKGInstance() (err error) {
 	sort.Sort(d.pubkeys)
 
 	publicKeys := d.pubkeys.GetPKs()
@@ -82,7 +104,7 @@ func (d *DKG) InitDKGInstance(t int) (err error) {
 
 	d.responses = newMessageStore(int(math.Pow(float64(participantsCount)-1, 2)))
 
-	d.instance, err = dkg.NewDistKeyGenerator(d.suite, d.secKey, publicKeys, t)
+	d.instance, err = dkg.NewDistKeyGenerator(d.suite, d.secKey, publicKeys, d.Threshold)
 	if err != nil {
 		return err
 	}
@@ -209,18 +231,32 @@ func (d *DKG) processDealCommits(verifier *vss.Verifier, deal *dkg.Deal) (bool, 
 	return true, nil
 }
 
-func (d *DKG) Reconstruct() error {
+func (d *DKG) GetDistKeyShare() (*dkg.DistKeyShare, error) {
+	return d.instance.DistKeyShare()
+}
+
+func (d *DKG) GetDistributedPublicKey() (kyber.Point, error) {
+	distKeyShare, err := d.instance.DistKeyShare()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get distKeyShare")
+	}
+	return distKeyShare.Public(), nil
+}
+
+func (d *DKG) GetBLSKeyring() (*BLSKeyring, error) {
 	if d.instance == nil || !d.instance.Certified() {
-		return fmt.Errorf("dkg instance is not ready")
+		return nil, fmt.Errorf("dkg instance is not ready")
 	}
 
 	distKeyShare, err := d.instance.DistKeyShare()
 	if err != nil {
-		return fmt.Errorf("failed to get DistKeyShare: %v", err)
+		return nil, fmt.Errorf("failed to get DistKeyShare: %v", err)
 	}
 
 	masterPubKey := share.NewPubPoly(d.suite, nil, distKeyShare.Commitments())
-	fmt.Println(d.ParticipantID, masterPubKey)
 
-	return nil
+	return &BLSKeyring{
+		PubPoly: masterPubKey,
+		Share:   distKeyShare.PriShare(),
+	}, nil
 }

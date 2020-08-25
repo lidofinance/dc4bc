@@ -1,12 +1,19 @@
 package dkg
 
 import (
+	"bytes"
+	"encoding/gob"
+	"encoding/json"
+	"fmt"
 	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/pairing/bn256"
+	"go.dedis.ch/kyber/v3/share"
 )
 
 type PK2Participant struct {
-	Participant string
-	PK          kyber.Point
+	ParticipantID int
+	Participant   string
+	PK            kyber.Point
 }
 
 type PKStore []*PK2Participant
@@ -24,13 +31,29 @@ func (s *PKStore) Add(newPk *PK2Participant) bool {
 
 func (s PKStore) Len() int           { return len(s) }
 func (s PKStore) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s PKStore) Less(i, j int) bool { return s[i].Participant < s[j].Participant }
+func (s PKStore) Less(i, j int) bool { return s[i].ParticipantID < s[j].ParticipantID }
 func (s PKStore) GetPKs() []kyber.Point {
 	var out = make([]kyber.Point, len(s))
 	for idx, val := range s {
 		out[idx] = val.PK
 	}
 	return out
+}
+
+func (s PKStore) GetPKByParticipant(p string) (kyber.Point, error) {
+	for _, val := range s {
+		if val.Participant == p {
+			return val.PK, nil
+		}
+	}
+	return nil, fmt.Errorf("participant %s does not exist", p)
+}
+
+func (s PKStore) GetPKByIndex(index int) kyber.Point {
+	if index < 0 || index > len(s) {
+		return nil
+	}
+	return s[index].PK
 }
 
 func (s PKStore) GetParticipantByIndex(index int) string {
@@ -75,4 +98,73 @@ func (ms *messageStore) add(addr string, index int, val interface{}) {
 	ms.indexToData[index] = data
 
 	ms.messagesCount++
+}
+
+type BLSKeyring struct {
+	PubPoly *share.PubPoly
+	Share   *share.PriShare
+}
+
+type blsKeyringJSON struct {
+	Commitments [][]byte `json:"commitments"`
+	Share       []byte   `json:"share"`
+}
+
+func (b *BLSKeyring) Bytes() ([]byte, error) {
+	var shareBuf bytes.Buffer
+	shareEnc := gob.NewEncoder(&shareBuf)
+	if err := shareEnc.Encode(b.Share); err != nil {
+		return nil, fmt.Errorf("failed to encode private key: %v", err)
+	}
+
+	_, commitments := b.PubPoly.Info()
+	commitmentsBz := make([][]byte, 0, len(commitments))
+	for _, commitment := range commitments {
+		data, err := commitment.MarshalBinary()
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal commitment: %w", err)
+		}
+		commitmentsBz = append(commitmentsBz, data)
+	}
+	var buf bytes.Buffer
+	enc := gob.NewEncoder(&buf)
+	if err := enc.Encode(commitmentsBz); err != nil {
+		return nil, fmt.Errorf("failed to encode commitmentBz: %w", err)
+	}
+
+	blsKeyringJSON := blsKeyringJSON{
+		Commitments: commitmentsBz,
+		Share:       shareBuf.Bytes(),
+	}
+
+	return json.Marshal(blsKeyringJSON)
+}
+
+func LoadBLSKeyringFromBytes(data []byte) (*BLSKeyring, error) {
+	var (
+		err            error
+		blsKeyringJson blsKeyringJSON
+	)
+	if err = json.Unmarshal(data, &blsKeyringJson); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal blsKeyringJson: %w", err)
+	}
+
+	commitments := make([]kyber.Point, 0, len(blsKeyringJson.Commitments))
+	for _, commitmentBz := range blsKeyringJson.Commitments {
+		commitment := bn256.NewSuiteG2().Point()
+		if err := commitment.UnmarshalBinary(commitmentBz); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal commitment: %w", err)
+		}
+		commitments = append(commitments, commitment)
+	}
+
+	priShare, privDec := &share.PriShare{V: bn256.NewSuite().G1().Scalar()}, gob.NewDecoder(bytes.NewBuffer(blsKeyringJson.Share))
+	if err := privDec.Decode(priShare); err != nil {
+		return nil, fmt.Errorf("failed to share: %v", err)
+	}
+
+	return &BLSKeyring{
+		PubPoly: share.NewPubPoly(bn256.NewSuiteG2(), nil, commitments),
+		Share:   priShare,
+	}, nil
 }

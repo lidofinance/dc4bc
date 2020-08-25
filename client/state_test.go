@@ -1,6 +1,7 @@
 package client_test
 
 import (
+	"github.com/depools/dc4bc/client/types"
 	"os"
 	"testing"
 	"time"
@@ -38,9 +39,9 @@ func TestLevelDBState_PutOperation(t *testing.T) {
 	stg, err := client.NewLevelDBState(dbPath)
 	req.NoError(err)
 
-	operation := &client.Operation{
+	operation := &types.Operation{
 		ID:        "operation_id",
-		Type:      client.DKGCommits,
+		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),
@@ -69,9 +70,9 @@ func TestLevelDBState_GetOperations(t *testing.T) {
 	stg, err := client.NewLevelDBState(dbPath)
 	req.NoError(err)
 
-	operation := &client.Operation{
+	operation := &types.Operation{
 		ID:        "operation_1",
-		Type:      client.DKGCommits,
+		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),
@@ -98,9 +99,9 @@ func TestLevelDBState_DeleteOperation(t *testing.T) {
 	stg, err := client.NewLevelDBState(dbPath)
 	req.NoError(err)
 
-	operation := &client.Operation{
+	operation := &types.Operation{
 		ID:        "operation_id",
-		Type:      client.DKGCommits,
+		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),
