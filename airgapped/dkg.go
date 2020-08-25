@@ -47,12 +47,14 @@ func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.
 
 	am.dkgInstances[o.DKGIdentifier] = dkgInstance
 
-	pid := 0
-
+	pid := -1
 	for _, r := range payload {
 		if r.Addr == am.ParticipantAddress {
 			pid = r.ParticipantId
 		}
+	}
+	if pid < 0 {
+		return fmt.Errorf("failed to determine participant id for DKG with participant address %s", am.ParticipantAddress)
 	}
 
 	req := requests.SignatureProposalParticipantRequest{
