@@ -111,25 +111,6 @@ func TestAirgappedAllSteps(t *testing.T) {
 		tr.nodes = append(tr.nodes, &node)
 	}
 
-	// Remove this block later, after client testing
-	//var initReq responses.SignatureProposalParticipantInvitationsResponse
-	//for _, n := range tr.nodes {
-	//	entry := &responses.SignatureProposalParticipantInvitationEntry{
-	//		ParticipantId: n.ParticipantID,
-	//		Title:         n.Participant,
-	//	}
-	//	initReq = append(initReq, entry)
-	//}
-	//op := createOperation(t, string(signature_proposal_fsm.StateAwaitParticipantsConfirmations), "", initReq)
-	//runStep(tr, func(n *Node, wg *sync.WaitGroup) {
-	//	defer wg.Done()
-	//
-	//	_, err := n.Machine.HandleOperation(op)
-	//	if err != nil {
-	//		t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
-	//	}
-	//})
-
 	// get commits
 	var getCommitsRequest responses.DKGProposalPubKeysParticipantResponse
 	for _, n := range tr.nodes {
