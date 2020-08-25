@@ -118,19 +118,17 @@ func (c *Client) Poll() error {
 			c.logger.Log("Got %d Operations from pool", len(operations))
 			for _, operation := range operations {
 				c.logger.Log("Handling operation %s in airgapped", operation.Type)
-				processedOperations, err := c.Airgapped.HandleOperation(*operation)
+				processedOperation, err := c.Airgapped.HandleOperation(*operation)
 				if err != nil {
 					c.logger.Log("Failed to handle operation: %v", err)
 				}
 
 				c.logger.Log("Got %d Processed Operations from Airgapped", len(operations))
-				for _, processedOperation := range processedOperations {
-					c.logger.Log("Operation %s handled in airgapped, result event is %s", operation.Event, processedOperation.Event)
-					if err = c.handleProcessedOperation(processedOperation); err != nil {
-						c.logger.Log("Failed to handle processed operation: %v", err)
-					} else {
-						c.logger.Log("Successfully handled processed operation %s", processedOperation.Event)
-					}
+				c.logger.Log("Operation %s handled in airgapped, result event is %s", operation.Event, processedOperation.Event)
+				if err = c.handleProcessedOperation(processedOperation); err != nil {
+					c.logger.Log("Failed to handle processed operation: %v", err)
+				} else {
+					c.logger.Log("Successfully handled processed operation %s", processedOperation.Event)
 				}
 			}
 		case <-c.ctx.Done():
@@ -281,31 +279,27 @@ func (c *Client) ReadProcessedOperation() error {
 }
 
 func (c *Client) handleProcessedOperation(operation types.Operation) error {
-	//storedOperation, err := c.state.GetOperationByID(operation.ID)
-	//if err != nil {
-	//	return fmt.Errorf("failed to find matching operation: %w", err)
-	//}
-	//
-	//if err := storedOperation.Check(&operation); err != nil {
-	//	return fmt.Errorf("processed operation does not match stored operation: %w", err)
-	//}
-
-	message := storage.Message{
-		Event:         string(operation.Event),
-		Data:          operation.Result,
-		DkgRoundID:    operation.DKGIdentifier,
-		SenderAddr:    c.GetAddr(),
-		RecipientAddr: operation.To,
-	}
-
-	sig, err := c.signMessage(message.Bytes())
+	storedOperation, err := c.state.GetOperationByID(operation.ID)
 	if err != nil {
-		return fmt.Errorf("failed to sign a message: %w", err)
+		return fmt.Errorf("failed to find matching operation: %w", err)
 	}
-	message.Signature = sig
 
-	if _, err := c.storage.Send(message); err != nil {
-		return fmt.Errorf("failed to post message: %w", err)
+	if err := storedOperation.Check(&operation); err != nil {
+		return fmt.Errorf("processed operation does not match stored operation: %w", err)
+	}
+
+	for _, message := range operation.ResultMsgs {
+		message.SenderAddr = c.GetAddr()
+
+		sig, err := c.signMessage(message.Bytes())
+		if err != nil {
+			return fmt.Errorf("failed to sign a message: %w", err)
+		}
+		message.Signature = sig
+
+		if _, err := c.storage.Send(message); err != nil {
+			return fmt.Errorf("failed to post message: %w", err)
+		}
 	}
 
 	if err := c.state.DeleteOperation(operation.ID); err != nil {

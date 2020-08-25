@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	client "github.com/depools/dc4bc/client/types"
+	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
+	"github.com/depools/dc4bc/storage"
 	"github.com/google/uuid"
 	"sync"
 	"testing"
@@ -29,34 +31,34 @@ type Node struct {
 	masterKeys    []requests.DKGProposalMasterKeyConfirmationRequest
 }
 
-func (n *Node) storeOperation(t *testing.T, o client.Operation) {
-	switch o.Event {
+func (n *Node) storeOperation(t *testing.T, msg storage.Message) {
+	switch fsm.Event(msg.Event) {
 	case dkg_proposal_fsm.EventDKGCommitConfirmationReceived:
 		var req requests.DKGProposalCommitConfirmationRequest
-		if err := json.Unmarshal(o.Result, &req); err != nil {
+		if err := json.Unmarshal(msg.Data, &req); err != nil {
 			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
 		n.commits = append(n.commits, req)
 	case dkg_proposal_fsm.EventDKGDealConfirmationReceived:
 		var req requests.DKGProposalDealConfirmationRequest
-		if err := json.Unmarshal(o.Result, &req); err != nil {
+		if err := json.Unmarshal(msg.Data, &req); err != nil {
 			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
 		n.deals = append(n.deals, req)
 	case dkg_proposal_fsm.EventDKGResponseConfirmationReceived:
 		var req requests.DKGProposalResponseConfirmationRequest
-		if err := json.Unmarshal(o.Result, &req); err != nil {
+		if err := json.Unmarshal(msg.Data, &req); err != nil {
 			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
 		n.responses = append(n.responses, req)
 	case dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived:
 		var req requests.DKGProposalMasterKeyConfirmationRequest
-		if err := json.Unmarshal(o.Result, &req); err != nil {
+		if err := json.Unmarshal(msg.Data, &req); err != nil {
 			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
 		n.masterKeys = append(n.masterKeys, req)
 	default:
-		t.Fatalf("invalid event: %s", o.Event)
+		t.Fatalf("invalid event: %s", msg.Event)
 	}
 }
 
@@ -64,10 +66,10 @@ type Transport struct {
 	nodes []*Node
 }
 
-func (tr *Transport) BroadcastOperation(t *testing.T, operation client.Operation) {
+func (tr *Transport) BroadcastMessage(t *testing.T, msg storage.Message) {
 	for _, node := range tr.nodes {
-		if operation.To == "" || operation.To == node.Participant {
-			node.storeOperation(t, operation)
+		if msg.RecipientAddr == "" || msg.RecipientAddr == node.Participant {
+			node.storeOperation(t, msg)
 		}
 	}
 }
@@ -81,7 +83,6 @@ func createOperation(t *testing.T, opType string, to string, req interface{}) cl
 		ID:            uuid.New().String(),
 		Type:          client.OperationType(opType),
 		Payload:       reqBz,
-		Result:        nil,
 		CreatedAt:     time.Now(),
 		DKGIdentifier: DKGIdentifier,
 		To:            to,
@@ -90,7 +91,7 @@ func createOperation(t *testing.T, opType string, to string, req interface{}) cl
 }
 
 func TestAirgappedAllSteps(t *testing.T) {
-	nodesCount := 13
+	nodesCount := 25
 	participants := make([]string, nodesCount)
 	for i := 0; i < nodesCount; i++ {
 		participants[i] = fmt.Sprintf("Participant#%d", i)
@@ -147,12 +148,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
 		defer wg.Done()
 
-		operations, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.HandleOperation(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
 		}
-		for _, op := range operations {
-			tr.BroadcastOperation(t, op)
+		for _, msg := range operation.ResultMsgs {
+			tr.BroadcastMessage(t, msg)
 		}
 	})
 
@@ -171,12 +172,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		op := createOperation(t, string(dkg_proposal_fsm.StateDkgDealsAwaitConfirmations), "", payload)
 
-		operations, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.HandleOperation(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
 		}
-		for _, op := range operations {
-			tr.BroadcastOperation(t, op)
+		for _, msg := range operation.ResultMsgs {
+			tr.BroadcastMessage(t, msg)
 		}
 	})
 
@@ -195,12 +196,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		op := createOperation(t, string(dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations), "", payload)
 
-		operations, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.HandleOperation(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
 		}
-		for _, op := range operations {
-			tr.BroadcastOperation(t, op)
+		for _, msg := range operation.ResultMsgs {
+			tr.BroadcastMessage(t, msg)
 		}
 	})
 
@@ -219,12 +220,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		op := createOperation(t, string(dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations), "", payload)
 
-		operations, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.HandleOperation(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
 		}
-		for _, op := range operations {
-			tr.BroadcastOperation(t, op)
+		for _, msg := range operation.ResultMsgs {
+			tr.BroadcastMessage(t, msg)
 		}
 	})
 

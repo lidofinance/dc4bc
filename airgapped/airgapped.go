@@ -169,11 +169,9 @@ func (am *AirgappedMachine) decryptData(data []byte) ([]byte, error) {
 	return decryptedData, nil
 }
 
-func (am *AirgappedMachine) HandleOperation(operation client.Operation) ([]client.Operation, error) {
+func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.Operation, error) {
 	var (
 		err error
-		// output operations (cause of deals)
-		operations []client.Operation
 	)
 
 	am.Lock()
@@ -187,7 +185,7 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) ([]clien
 	case dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:
 		err = am.handleStateDkgCommitsAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:
-		operations, err = am.handleStateDkgDealsAwaitConfirmations(operation)
+		err = am.handleStateDkgDealsAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations:
 		err = am.handleStateDkgResponsesAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:
@@ -205,15 +203,11 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) ([]clien
 		//}
 	}
 
-	if len(operation.Result) > 0 {
-		operations = append(operations, operation)
-	}
-
-	return operations, nil
+	return operation, nil
 }
 
 // HandleQR - gets an operation from a QR code, do necessary things for the operation and returns paths to QR-code images
-func (am *AirgappedMachine) HandleQR() ([]string, error) {
+func (am *AirgappedMachine) HandleQR() (string, error) {
 	var (
 		err error
 
@@ -221,36 +215,31 @@ func (am *AirgappedMachine) HandleQR() ([]string, error) {
 		operation client.Operation
 		qrData    []byte
 
-		// output operations (cause of deals)
-		operations []client.Operation
+		resultOperation client.Operation
 	)
 
 	if qrData, err = am.qrProcessor.ReadQR(); err != nil {
-		return nil, fmt.Errorf("failed to read QR: %w", err)
+		return "", fmt.Errorf("failed to read QR: %w", err)
 	}
 	if err = json.Unmarshal(qrData, &operation); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal operation: %w", err)
+		return "", fmt.Errorf("failed to unmarshal operation: %w", err)
 	}
 
-	if operations, err = am.HandleOperation(operation); err != nil {
-		return nil, err
+	if resultOperation, err = am.HandleOperation(operation); err != nil {
+		return "", err
 	}
 
-	qrPath := "%s/%s_%s_%s.png"
-	qrPaths := make([]string, 0, len(operations))
-	for _, o := range operations {
-		operationBz, err := json.Marshal(o)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal operation: %w", err)
-		}
-
-		if err = am.qrProcessor.WriteQR(fmt.Sprintf(qrPath, resultQRFolder, o.Type, o.ID, o.To), operationBz); err != nil {
-			return nil, fmt.Errorf("failed to write QR")
-		}
-		qrPaths = append(qrPaths, qrPath)
+	qrPath := fmt.Sprintf("%s/%s_%s_%s.png", resultQRFolder, resultOperation.Type, resultOperation.ID, resultOperation.To)
+	operationBz, err := json.Marshal(resultOperation)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	return qrPaths, nil
+	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
+		return "", fmt.Errorf("failed to write QR")
+	}
+
+	return qrPath, nil
 }
 
 func (am *AirgappedMachine) writeErrorRequestToOperation(o *client.Operation, handlerError error) error {
@@ -276,7 +265,7 @@ func (am *AirgappedMachine) writeErrorRequestToOperation(o *client.Operation, ha
 	if err != nil {
 		return fmt.Errorf("failed to generate fsm request: %w", err)
 	}
-	o.Result = reqBz
 	o.Event = errorEvent
+	o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, reqBz))
 	return nil
 }
