@@ -198,9 +198,9 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.
 	if err != nil {
 		log.Println(fmt.Sprintf("failed to handle operation %s, returning response with error to client: %v",
 			operation.Type, err))
-		//if e := am.writeErrorRequestToOperation(&operation, err); e != nil {
-		//	return nil, fmt.Errorf("failed to write error request to an operation: %w", e)
-		//}
+		if e := am.writeErrorRequestToOperation(&operation, err); e != nil {
+			return operation, fmt.Errorf("failed to write error request to an operation: %w", e)
+		}
 	}
 
 	return operation, nil
