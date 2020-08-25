@@ -113,7 +113,6 @@ func (c *Client) Poll() error {
 			if err != nil {
 				c.logger.Log("Failed to get operations: %v", err)
 			}
-			c.logger.Log("operations %v", operations)
 
 			c.logger.Log("Got %d Operations from pool", len(operations))
 			for _, operation := range operations {
@@ -124,7 +123,8 @@ func (c *Client) Poll() error {
 				}
 
 				c.logger.Log("Got %d Processed Operations from Airgapped", len(operations))
-				c.logger.Log("Operation %s handled in airgapped, result event is %s", operation.Event, processedOperation.Event)
+				c.logger.Log("Operation %s handled in airgapped, result event is %s",
+					operation.Event, processedOperation.Event)
 				if err = c.handleProcessedOperation(processedOperation); err != nil {
 					c.logger.Log("Failed to handle processed operation: %v", err)
 				} else {

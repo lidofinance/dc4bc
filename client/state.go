@@ -106,7 +106,7 @@ func (s *LevelDBState) LoadOffset() (uint64, error) {
 	}
 
 	offset := binary.LittleEndian.Uint64(bz)
-	fmt.Println("Loaded offset: ", offset)
+
 	return offset, nil
 }
 
