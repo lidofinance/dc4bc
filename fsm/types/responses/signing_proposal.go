@@ -37,8 +37,8 @@ type SigningProposalParticipantStatusEntry struct {
 	Status        uint8
 }
 
-// Event:  ""
-// States: ""
+// Event:  "event_signing_partial_key_received"
+// States: "state_signing_partial_signatures_collected"
 type SigningProcessParticipantResponse struct {
 	SigningId    string
 	SrcPayload   []byte
