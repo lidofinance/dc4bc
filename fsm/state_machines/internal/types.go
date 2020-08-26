@@ -183,9 +183,9 @@ func (s SigningParticipantStatus) String() string {
 }
 
 type SigningProposalParticipant struct {
-	Addr       string
-	Status     SigningParticipantStatus
-	PartialKey []byte
-	Error      error
-	UpdatedAt  time.Time
+	Addr        string
+	Status      SigningParticipantStatus
+	PartialSign []byte
+	Error       error
+	UpdatedAt   time.Time
 }

@@ -50,6 +50,7 @@ var (
 
 	testSigningId        string
 	testSigningInitiator int
+	testSigningPayload   = []byte("message to sign")
 
 	testFSMDump = map[fsm.State][]byte{}
 )
@@ -880,7 +881,6 @@ func Test_SigningProposal_EventSigningInit(t *testing.T) {
 // Start
 func Test_SigningProposal_EventSigningStart(t *testing.T) {
 	var (
-		mockPayload = []byte("message to sign")
 		fsmResponse *fsm.Response
 	)
 
@@ -919,8 +919,8 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 		t.Fatalf("expected field {SigningId}")
 	}
 
-	if !reflect.DeepEqual(response.SrcPayload, mockPayload) {
-		t.Fatalf("expected matched {SigningId}")
+	if !reflect.DeepEqual(response.SrcPayload, testSigningPayload) {
+		t.Fatalf("expected matched {SrcPayload}")
 	}
 
 	testSigningId = response.SigningId
@@ -976,6 +976,20 @@ func Test_SigningProposal_EventConfirmSigningConfirmation_Positive(t *testing.T)
 	}
 
 	compareState(t, sif.StateSigningAwaitPartialKeys, fsmResponse.State)
+
+	response, ok := fsmResponse.Data.(responses.SigningPartialSignsParticipantInvitationsResponse)
+
+	if !ok {
+		t.Fatalf("expected response {SigningProposalParticipantInvitationsResponse}")
+	}
+
+	if response.SigningId == "" {
+		t.Fatalf("expected field {SigningId}")
+	}
+
+	if !reflect.DeepEqual(response.SrcPayload, testSigningPayload) {
+		t.Fatalf("expected matched {SrcPayload}")
+	}
 
 	testFSMDump[sif.StateSigningAwaitPartialKeys] = testFSMDumpLocal
 
@@ -1059,7 +1073,7 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningPartialKeyReceived, requests.SigningProposalPartialKeyRequest{
 			SigningId:     testSigningId,
 			ParticipantId: participantId,
-			PartialKey:    participant.DkgPartialKey,
+			PartialSign:   participant.DkgPartialKey,
 			CreatedAt:     time.Now(),
 		})
 
@@ -1076,6 +1090,20 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 	}
 
 	compareState(t, sif.StateSigningPartialKeysCollected, fsmResponse.State)
+
+	response, ok := fsmResponse.Data.(responses.SigningProcessParticipantResponse)
+
+	if !ok {
+		t.Fatalf("expected response {SigningProcessParticipantResponse}")
+	}
+
+	if response.SigningId == "" {
+		t.Fatalf("expected field {SigningId}")
+	}
+
+	if !reflect.DeepEqual(response.SrcPayload, testSigningPayload) {
+		t.Fatalf("expected matched {SrcPayload}")
+	}
 
 	testFSMDump[sif.StateSigningPartialKeysCollected] = testFSMDumpLocal
 

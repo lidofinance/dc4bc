@@ -1,5 +1,7 @@
 package responses
 
+// Event:  "event_signing_start"
+// States: "state_signing_await_confirmations"
 type SigningProposalParticipantInvitationsResponse struct {
 	SigningId    string
 	InitiatorId  int
@@ -14,6 +16,16 @@ type SigningProposalParticipantInvitationEntry struct {
 	Status        uint8
 }
 
+// Event:  "event_signing_proposal_confirm_by_participant"
+// States: "state_signing_await_partial_keys"
+type SigningPartialSignsParticipantInvitationsResponse struct {
+	SigningId   string
+	InitiatorId int
+	SrcPayload  []byte
+}
+
+// Event:  ""
+// States: ""
 type SigningProposalParticipantStatusResponse struct {
 	SigningId    string
 	Participants []*SignatureProposalParticipantStatusEntry
@@ -25,6 +37,8 @@ type SigningProposalParticipantStatusEntry struct {
 	Status        uint8
 }
 
+// Event:  ""
+// States: ""
 type SigningProcessParticipantResponse struct {
 	SigningId    string
 	SrcPayload   []byte
@@ -34,5 +48,5 @@ type SigningProcessParticipantResponse struct {
 type SigningProcessParticipantEntry struct {
 	ParticipantId int
 	Addr          string
-	PartialKey    []byte
+	PartialSign   []byte
 }

@@ -4,7 +4,6 @@ package responses
 
 // Event: "event_sig_proposal_init"
 // States: "__idle"
-
 type SignatureProposalParticipantInvitationsResponse []*SignatureProposalParticipantInvitationEntry
 
 type SignatureProposalParticipantInvitationEntry struct {

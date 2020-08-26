@@ -24,7 +24,7 @@ import (
 //
 //	req := requests.SigningProposalPartialKeyRequest{
 //		ParticipantId: 0, // TODO: from where?
-//		PartialKey:    partialSign,
+//		PartialSign:    partialSign,
 //		CreatedAt:     o.CreatedAt,
 //	}
 //	reqBz, err := json.Marshal(req)

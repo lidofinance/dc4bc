@@ -84,7 +84,6 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 	m.payload.SigningProposalPayload.CreatedAt = request.CreatedAt
 
 	// Make response
-
 	responseData := responses.SigningProposalParticipantInvitationsResponse{
 		SigningId:    m.payload.SigningProposalPayload.SigningId,
 		InitiatorId:  m.payload.SigningProposalPayload.InitiatorId,
@@ -192,6 +191,15 @@ func (m *SigningProposalFSM) actionValidateSigningProposalConfirmations(inEvent 
 		participant.Status = internal.SigningAwaitPartialKeys
 	}
 
+	// Make response
+	responseData := responses.SigningPartialSignsParticipantInvitationsResponse{
+		SigningId:   m.payload.SigningProposalPayload.SigningId,
+		InitiatorId: m.payload.SigningProposalPayload.InitiatorId,
+		SrcPayload:  m.payload.SigningProposalPayload.SrcPayload,
+	}
+
+	response = responseData
+
 	return
 }
 
@@ -227,8 +235,8 @@ func (m *SigningProposalFSM) actionPartialKeyConfirmationReceived(inEvent fsm.Ev
 		return
 	}
 
-	signingProposalParticipant.PartialKey = make([]byte, len(request.PartialKey))
-	copy(signingProposalParticipant.PartialKey, request.PartialKey)
+	signingProposalParticipant.PartialSign = make([]byte, len(request.PartialSign))
+	copy(signingProposalParticipant.PartialSign, request.PartialSign)
 	signingProposalParticipant.Status = internal.SigningPartialKeysConfirmed
 
 	signingProposalParticipant.UpdatedAt = request.CreatedAt
@@ -280,6 +288,7 @@ func (m *SigningProposalFSM) actionValidateSigningPartialKeyAwaitConfirmations(i
 	// Response
 	responseData := responses.SigningProcessParticipantResponse{
 		SigningId:    m.payload.SigningProposalPayload.SigningId,
+		SrcPayload:   m.payload.SigningProposalPayload.SrcPayload,
 		Participants: make([]*responses.SigningProcessParticipantEntry, 0),
 	}
 
@@ -287,7 +296,7 @@ func (m *SigningProposalFSM) actionValidateSigningPartialKeyAwaitConfirmations(i
 		responseEntry := &responses.SigningProcessParticipantEntry{
 			ParticipantId: participantId,
 			Addr:          participant.Addr,
-			PartialKey:    participant.PartialKey,
+			PartialSign:   participant.PartialSign,
 		}
 		responseData.Participants = append(responseData.Participants, responseEntry)
 	}
