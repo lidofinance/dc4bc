@@ -3,6 +3,7 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"log"
 	"sync"
 
@@ -190,6 +191,10 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.
 		err = am.handleStateDkgResponsesAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:
 		err = am.handleStateDkgMasterKeyAwaitConfirmations(&operation)
+	case signing_proposal_fsm.StateSigningAwaitPartialKeys:
+		err = am.handleStateSigningAwaitPartialSigns(&operation)
+	case signing_proposal_fsm.StateSigningPartialKeysCollected:
+		err = am.reconstructThresholdSignature(&operation)
 	default:
 		err = fmt.Errorf("invalid operation type: %s", operation.Type)
 	}
