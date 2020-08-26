@@ -23,7 +23,7 @@ type Operation struct {
 	ID            string // UUID4
 	Type          OperationType
 	Payload       []byte
-	Result        []byte
+	ResultMsgs    []storage.Message
 	CreatedAt     time.Time
 	DKGIdentifier string
 	To            string
