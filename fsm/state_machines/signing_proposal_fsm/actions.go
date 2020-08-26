@@ -92,10 +92,11 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 		Participants: make([]*responses.SigningProposalParticipantInvitationEntry, 0),
 	}
 
-	for participantId, proposal := range m.payload.SigningProposalPayload.Quorum {
+	for participantId, participant := range m.payload.SigningProposalPayload.Quorum {
 		responseEntry := &responses.SigningProposalParticipantInvitationEntry{
 			ParticipantId: participantId,
-			Addr:          proposal.Addr,
+			Addr:          participant.Addr,
+			Status:        uint8(participant.Status),
 		}
 		responseData.Participants = append(responseData.Participants, responseEntry)
 	}

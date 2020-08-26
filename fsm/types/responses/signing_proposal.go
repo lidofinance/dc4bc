@@ -11,6 +11,7 @@ type SigningProposalParticipantInvitationsResponse struct {
 type SigningProposalParticipantInvitationEntry struct {
 	ParticipantId int
 	Addr          string
+	Status        uint8
 }
 
 type SigningProposalParticipantStatusResponse []*SignatureProposalParticipantStatusEntry
