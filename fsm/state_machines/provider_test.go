@@ -48,6 +48,9 @@ var (
 		CreatedAt:    tm,
 	}
 
+	testSigningId        string
+	testSigningInitiator int
+
 	testFSMDump = map[fsm.State][]byte{}
 )
 
@@ -173,17 +176,17 @@ func Test_SignatureProposal_EventInitProposal_Positive(t *testing.T) {
 
 	compareState(t, spf.StateAwaitParticipantsConfirmations, fsmResponse.State)
 
-	testParticipantsListResponse, ok := fsmResponse.Data.(responses.SignatureProposalParticipantInvitationsResponse)
+	response, ok := fsmResponse.Data.(responses.SignatureProposalParticipantInvitationsResponse)
 
 	if !ok {
 		t.Fatalf("expected response {SignatureProposalParticipantInvitationsResponse}")
 	}
 
-	if len(testParticipantsListResponse) != len(testParticipantsListRequest.Participants) {
-		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(testParticipantsListResponse))
+	if len(response) != len(testParticipantsListRequest.Participants) {
+		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(response))
 	}
 
-	for _, participant := range testParticipantsListResponse {
+	for _, participant := range response {
 		if _, ok := testIdMapParticipants[participant.ParticipantId]; ok {
 			t.Fatalf("expected unique {ParticipantId}")
 		}
@@ -864,7 +867,10 @@ func Test_SigningProposal_EventSigningInit(t *testing.T) {
 
 // Start
 func Test_SigningProposal_EventSigningStart(t *testing.T) {
-	var fsmResponse *fsm.Response
+	var (
+		mockPayload = []byte("message to sign")
+		fsmResponse *fsm.Response
+	)
 
 	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningIdle])
 
@@ -887,22 +893,185 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 
 	compareState(t, sif.StateSigningAwaitConfirmations, fsmResponse.State)
 
-	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitConfirmations])
-
-	testSigningParticipantsListResponse, ok := fsmResponse.Data.(responses.SigningProposalParticipantInvitationsResponse)
+	response, ok := fsmResponse.Data.(responses.SigningProposalParticipantInvitationsResponse)
 
 	if !ok {
 		t.Fatalf("expected response {SigningProposalParticipantInvitationsResponse}")
 	}
 
-	if len(testSigningParticipantsListResponse.Participants) != len(testParticipantsListRequest.Participants) {
-		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(testSigningParticipantsListResponse.Participants))
+	if len(response.Participants) != len(testParticipantsListRequest.Participants) {
+		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(response.Participants))
 	}
 
-	if testSigningParticipantsListResponse.SigningId == "" {
+	if response.SigningId == "" {
 		t.Fatalf("expected field {SigningId}")
 	}
 
+	if !reflect.DeepEqual(response.SrcPayload, mockPayload) {
+		t.Fatalf("expected matched {SigningId}")
+	}
+
+	testSigningId = response.SigningId
+	testSigningInitiator = response.InitiatorId
+
+	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitConfirmations])
+}
+
+func Test_SigningProposal_EventConfirmSigningConfirmation_Positive(t *testing.T) {
+	var (
+		fsmResponse      *fsm.Response
+		testFSMDumpLocal []byte
+	)
+
+	participantsCount := len(testIdMapParticipants)
+
+	participantCounter := participantsCount
+
+	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitConfirmations]
+
+	for participantId, _ := range testIdMapParticipants {
+		participantCounter--
+
+		if testSigningInitiator == participantId {
+			continue
+		}
+
+		testFSMInstance, err := FromDump(testFSMDumpLocal)
+
+		compareErrNil(t, err)
+
+		compareFSMInstanceNotNil(t, testFSMInstance)
+
+		inState, _ := testFSMInstance.State()
+		compareState(t, sif.StateSigningAwaitConfirmations, inState)
+
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventConfirmSigningConfirmation, requests.SigningProposalParticipantRequest{
+			SigningId:     testSigningId,
+			ParticipantId: participantId,
+			CreatedAt:     time.Now(),
+		})
+
+		compareErrNil(t, err)
+
+		compareDumpNotZero(t, testFSMDumpLocal)
+
+		compareFSMResponseNotNil(t, fsmResponse)
+
+		if participantCounter-1 > 0 {
+			compareState(t, sif.StateSigningAwaitConfirmations, fsmResponse.State)
+		}
+
+	}
+
+	compareState(t, sif.StateSigningAwaitPartialKeys, fsmResponse.State)
+
+	testFSMDump[sif.StateSigningAwaitPartialKeys] = testFSMDumpLocal
+
+	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitPartialKeys])
+}
+
+func Test_SigningProposal_EventDeclineProposal_Canceled_Participant(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningAwaitConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, sif.StateSigningAwaitConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(sif.EventDeclineSigningConfirmation, requests.SigningProposalParticipantRequest{
+		SigningId:     testSigningId,
+		ParticipantId: 0,
+		CreatedAt:     time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareState(t, sif.StateSigningConfirmationsAwaitCancelledByParticipant, fsmResponse.State)
+}
+
+func Test_SigningProposal_EventConfirmSignatureProposal_Canceled_Timeout(t *testing.T) {
+	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningAwaitConfirmations])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, sif.StateSigningAwaitConfirmations, inState)
+
+	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(sif.EventConfirmSigningConfirmation, requests.SigningProposalParticipantRequest{
+		SigningId:     testSigningId,
+		ParticipantId: 0,
+		CreatedAt:     time.Now().Add(36 * time.Hour),
+	})
+
+	compareErrNil(t, err)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareState(t, sif.StateSigningConfirmationsAwaitCancelledByTimeout, fsmResponse.State)
+}
+
+func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) {
+	var (
+		fsmResponse      *fsm.Response
+		testFSMDumpLocal []byte
+	)
+
+	participantsCount := len(testIdMapParticipants)
+
+	participantCounter := participantsCount
+
+	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitPartialKeys]
+
+	for participantId, participant := range testIdMapParticipants {
+		participantCounter--
+
+		if testSigningInitiator == participantId {
+			continue
+		}
+
+		testFSMInstance, err := FromDump(testFSMDumpLocal)
+
+		compareErrNil(t, err)
+
+		compareFSMInstanceNotNil(t, testFSMInstance)
+
+		inState, _ := testFSMInstance.State()
+		compareState(t, sif.StateSigningAwaitPartialKeys, inState)
+
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningPartialKeyReceived, requests.SigningProposalPartialKeyRequest{
+			SigningId:     testSigningId,
+			ParticipantId: participantId,
+			PartialKey:    participant.DkgPartialKey,
+			CreatedAt:     time.Now(),
+		})
+
+		compareErrNil(t, err)
+
+		compareDumpNotZero(t, testFSMDumpLocal)
+
+		compareFSMResponseNotNil(t, fsmResponse)
+
+		if participantCounter > 0 {
+			compareState(t, sif.StateSigningAwaitPartialKeys, fsmResponse.State)
+		}
+
+	}
+
+	compareState(t, sif.StateSigningPartialKeysCollected, fsmResponse.State)
+
+	testFSMDump[sif.StateSigningPartialKeysCollected] = testFSMDumpLocal
+
+	compareDumpNotZero(t, testFSMDump[sif.StateSigningPartialKeysCollected])
 }
 
 func Test_Parallel(t *testing.T) {

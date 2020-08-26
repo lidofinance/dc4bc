@@ -4,6 +4,8 @@ type SigningProposalParticipantInvitationsResponse struct {
 	InitiatorId  int
 	Participants []*SigningProposalParticipantInvitationEntry
 	SigningId    string
+	// Source message for signing
+	SrcPayload []byte
 }
 
 type SigningProposalParticipantInvitationEntry struct {

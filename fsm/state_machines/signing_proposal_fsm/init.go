@@ -23,8 +23,8 @@ const (
 
 	StateSigningAwaitPartialKeys = fsm.State("state_signing_await_partial_keys")
 	// Cancelled
-	StateSigningPartialKeysAwaitCancelledByTimeout     = fsm.State("state_signing_partial_signatures_await_cancelled_by_timeout")
-	StateSigningPartialKeysAwaitCancelledByParticipant = fsm.State("state_signing_partial_signatures_await_cancelled_by_participant")
+	StateSigningPartialKeysAwaitCancelledByTimeout = fsm.State("state_signing_partial_signatures_await_cancelled_by_timeout")
+	StateSigningPartialKeysAwaitCancelledByError   = fsm.State("state_signing_partial_signatures_await_cancelled_by_error")
 
 	StateSigningPartialKeysCollected = fsm.State("state_signing_partial_signatures_collected")
 
@@ -82,9 +82,9 @@ func New() internal.DumpedMachineProvider {
 
 			// Canceled
 			{Name: EventSigningPartialKeyReceived, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningAwaitPartialKeys},
-			{Name: EventSigningPartialKeyError, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningPartialKeysAwaitCancelledByParticipant},
+			{Name: EventSigningPartialKeyError, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningPartialKeysAwaitCancelledByError},
 			{Name: eventSigningPartialKeyCancelByTimeoutInternal, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningPartialKeysAwaitCancelledByTimeout, IsInternal: true},
-			{Name: eventSigningPartialKeyCancelByErrorInternal, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningPartialKeysAwaitCancelledByParticipant, IsInternal: true, IsAuto: true},
+			{Name: eventSigningPartialKeyCancelByErrorInternal, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningPartialKeysAwaitCancelledByError, IsInternal: true, IsAuto: true},
 
 			{Name: eventSigningPartialKeysConfirmedInternal, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningPartialKeysCollected, IsInternal: true},
 

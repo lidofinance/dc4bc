@@ -88,6 +88,7 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 	responseData := responses.SigningProposalParticipantInvitationsResponse{
 		SigningId:    m.payload.SigningProposalPayload.SigningId,
 		InitiatorId:  m.payload.SigningProposalPayload.InitiatorId,
+		SrcPayload:   m.payload.SigningProposalPayload.SrcPayload,
 		Participants: make([]*responses.SigningProposalParticipantInvitationEntry, 0),
 	}
 
@@ -130,7 +131,7 @@ func (m *SigningProposalFSM) actionProposalResponseByParticipant(inEvent fsm.Eve
 	signingProposalParticipant := m.payload.SigningQuorumGet(request.ParticipantId)
 
 	if signingProposalParticipant.Status != internal.SigningAwaitConfirmation {
-		err = errors.New(fmt.Sprintf("cannot confirm commit with {Status} = {\"%s\"}", signingProposalParticipant.Status))
+		err = errors.New(fmt.Sprintf("cannot confirm participant with {Status} = {\"%s\"}", signingProposalParticipant.Status))
 		return
 	}
 
@@ -143,7 +144,6 @@ func (m *SigningProposalFSM) actionProposalResponseByParticipant(inEvent fsm.Eve
 		err = errors.New(fmt.Sprintf("unsupported event for action {inEvent} = {\"%s\"}", inEvent))
 		return
 	}
-	signingProposalParticipant.Status = internal.SigningConfirmed
 
 	signingProposalParticipant.UpdatedAt = request.CreatedAt
 	m.payload.SigningProposalPayload.UpdatedAt = request.CreatedAt
@@ -162,7 +162,7 @@ func (m *SigningProposalFSM) actionValidateSigningProposalConfirmations(inEvent 
 	defer m.payloadMu.Unlock()
 
 	if m.payload.SigningProposalPayload.IsExpired() {
-		outEvent = eventSetSigningConfirmCanceledByParticipantInternal
+		outEvent = eventSetSigningConfirmCanceledByTimeoutInternal
 		return
 	}
 
