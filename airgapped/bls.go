@@ -11,10 +11,38 @@ import (
 	"go.dedis.ch/kyber/v3/sign/tbls"
 )
 
-// commented because fsm is not ready
-func (am *AirgappedMachine) handleStateSigningAwaitPartialSigns(o *client.Operation) error {
+func (am *AirgappedMachine) handleStateSigningAwaitConfirmations(o *client.Operation) error {
 	var (
 		payload responses.SigningProposalParticipantInvitationsResponse
+		err     error
+	)
+
+	if err = json.Unmarshal(o.Payload, &payload); err != nil {
+		return fmt.Errorf("failed to unmarshal payload: %w", err)
+	}
+
+	participantID, err := am.getParticipantID(o.DKGIdentifier)
+	if err != nil {
+		return fmt.Errorf("failed to get paricipant id: %w", err)
+	}
+	req := requests.SigningProposalParticipantRequest{
+		SigningId:     payload.SigningId,
+		ParticipantId: participantID,
+		CreatedAt:     o.CreatedAt,
+	}
+	reqBz, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to generate fsm request: %w", err)
+	}
+
+	o.Event = signing_proposal_fsm.EventConfirmSigningConfirmation
+	o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, reqBz))
+	return nil
+}
+
+func (am *AirgappedMachine) handleStateSigningAwaitPartialSigns(o *client.Operation) error {
+	var (
+		payload responses.SigningPartialSignsParticipantInvitationsResponse
 		err     error
 	)
 
@@ -32,6 +60,7 @@ func (am *AirgappedMachine) handleStateSigningAwaitPartialSigns(o *client.Operat
 		return fmt.Errorf("failed to get paricipant id: %w", err)
 	}
 	req := requests.SigningProposalPartialKeyRequest{
+		SigningId:     payload.SigningId,
 		ParticipantId: participantID,
 		PartialSign:   partialSign,
 		CreatedAt:     o.CreatedAt,

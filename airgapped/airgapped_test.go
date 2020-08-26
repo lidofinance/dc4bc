@@ -233,7 +233,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
 		defer wg.Done()
 
-		payload := responses.SigningProposalParticipantInvitationsResponse{
+		payload := responses.SigningPartialSignsParticipantInvitationsResponse{
 			SrcPayload: msgToSign,
 		}
 

@@ -191,6 +191,8 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.
 		err = am.handleStateDkgResponsesAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:
 		err = am.handleStateDkgMasterKeyAwaitConfirmations(&operation)
+	case signing_proposal_fsm.StateSigningAwaitConfirmations:
+		err = am.handleStateSigningAwaitConfirmations(&operation)
 	case signing_proposal_fsm.StateSigningAwaitPartialKeys:
 		err = am.handleStateSigningAwaitPartialSigns(&operation)
 	case signing_proposal_fsm.StateSigningPartialKeysCollected:
