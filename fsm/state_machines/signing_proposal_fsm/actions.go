@@ -277,6 +277,28 @@ func (m *SigningProposalFSM) actionValidateSigningPartialKeyAwaitConfirmations(i
 		participant.Status = internal.SigningProcess
 	}
 
+	// Response
+	responseData := responses.SigningProcessParticipantResponse{
+		SigningId:    m.payload.SigningProposalPayload.SigningId,
+		Participants: make([]*responses.SigningProcessParticipantEntry, 0),
+	}
+
+	for participantId, participant := range m.payload.SigningProposalPayload.Quorum {
+		responseEntry := &responses.SigningProcessParticipantEntry{
+			ParticipantId: participantId,
+			Addr:          participant.Addr,
+			PartialKey:    participant.PartialKey,
+		}
+		responseData.Participants = append(responseData.Participants, responseEntry)
+	}
+
+	response = responseData
+
+	return
+}
+
+func (m *SigningProposalFSM) actionSigningRestart(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+
 	return
 }
 

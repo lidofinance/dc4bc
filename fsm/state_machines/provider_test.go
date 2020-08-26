@@ -403,6 +403,10 @@ func Test_DkgProposal_EventDKGCommitConfirmationReceived(t *testing.T) {
 			t.Fatalf("expected exist {ParticipantId}")
 		}
 
+		if responseEntry.Addr == "" {
+			t.Fatalf("expected {Addr} non zero length")
+		}
+
 		if len(responseEntry.DkgCommit) == 0 {
 			t.Fatalf("expected {DkgCommit} non zero length")
 		}
@@ -524,6 +528,10 @@ func Test_DkgProposal_EventDKGDealConfirmationReceived(t *testing.T) {
 			t.Fatalf("expected exist {ParticipantId}")
 		}
 
+		if responseEntry.Addr == "" {
+			t.Fatalf("expected {Addr} non zero length")
+		}
+
 		if len(responseEntry.DkgDeal) == 0 {
 			t.Fatalf("expected {DkgDeal} non zero length")
 		}
@@ -637,6 +645,10 @@ func Test_DkgProposal_EventDKGResponseConfirmationReceived_Positive(t *testing.T
 	for _, responseEntry := range response {
 		if _, ok := testIdMapParticipants[responseEntry.ParticipantId]; !ok {
 			t.Fatalf("expected exist {ParticipantId}")
+		}
+
+		if responseEntry.Addr == "" {
+			t.Fatalf("expected {Addr} non zero length")
 		}
 
 		if len(responseEntry.DkgResponse) == 0 {
@@ -1035,10 +1047,6 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 	for participantId, participant := range testIdMapParticipants {
 		participantCounter--
 
-		if testSigningInitiator == participantId {
-			continue
-		}
-
 		testFSMInstance, err := FromDump(testFSMDumpLocal)
 
 		compareErrNil(t, err)
@@ -1072,6 +1080,34 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 	testFSMDump[sif.StateSigningPartialKeysCollected] = testFSMDumpLocal
 
 	compareDumpNotZero(t, testFSMDump[sif.StateSigningPartialKeysCollected])
+}
+
+func Test_DkgProposal_EventSigningRestart_Positive(t *testing.T) {
+	var (
+		fsmResponse      *fsm.Response
+		testFSMDumpLocal []byte
+	)
+
+	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningPartialKeysCollected])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, sif.StateSigningPartialKeysCollected, inState)
+
+	fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningRestart, requests.DefaultRequest{
+		CreatedAt: time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareState(t, sif.StateSigningIdle, fsmResponse.State)
+
+	compareDumpNotZero(t, testFSMDumpLocal)
 }
 
 func Test_Parallel(t *testing.T) {
