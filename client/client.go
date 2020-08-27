@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	sipf "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"log"
 	"path/filepath"
 	"sync"
@@ -188,7 +188,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		if err != nil {
 			return fmt.Errorf("failed get state_machines from dump: %w", err)
 		}
-		resp, fsmDump, err = fsmInstance.Do(signing_proposal_fsm.EventSigningInit, requests.DefaultRequest{
+		resp, fsmDump, err = fsmInstance.Do(sipf.EventSigningInit, requests.DefaultRequest{
 			CreatedAt: time.Now(),
 		})
 		if err != nil {
@@ -205,9 +205,9 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		dpf.StateDkgDealsAwaitConfirmations,
 		dpf.StateDkgResponsesAwaitConfirmations,
 		dpf.StateDkgMasterKeyAwaitConfirmations,
-		signing_proposal_fsm.StateSigningAwaitPartialKeys,
-		signing_proposal_fsm.StateSigningPartialKeysCollected,
-		signing_proposal_fsm.StateSigningAwaitConfirmations:
+		sipf.StateSigningAwaitPartialKeys,
+		sipf.StateSigningPartialKeysCollected,
+		sipf.StateSigningAwaitConfirmations:
 		if resp.Data != nil {
 			bz, err := json.Marshal(resp.Data)
 			if err != nil {

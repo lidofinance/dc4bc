@@ -147,6 +147,7 @@ func main() {
 		log.Fatalf("Failed to send %+v to storage: %v\n", message, err)
 	}
 
+	// i haven't a better idea to test signing without big changes in the client code
 	time.Sleep(10 * time.Second)
 	log.Println("Propose message to sign")
 
