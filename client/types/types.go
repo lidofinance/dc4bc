@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"time"
 
 	"github.com/depools/dc4bc/fsm/fsm"
@@ -81,6 +82,24 @@ func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 		resolvedValue = req
 	case dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived:
 		var req requests.DKGProposalMasterKeyConfirmationRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
+	case signing_proposal_fsm.EventSigningPartialKeyReceived:
+		var req requests.SigningProposalPartialKeyRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
+	case signing_proposal_fsm.EventConfirmSigningConfirmation:
+		var req requests.SigningProposalParticipantRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
+	case signing_proposal_fsm.EventSigningStart:
+		var req requests.SigningProposalStartRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
 		}

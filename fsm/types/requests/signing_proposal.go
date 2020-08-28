@@ -24,6 +24,6 @@ type SigningProposalParticipantRequest struct {
 type SigningProposalPartialKeyRequest struct {
 	SigningId     string
 	ParticipantId int
-	PartialKey    []byte
+	PartialSign   []byte
 	CreatedAt     time.Time
 }

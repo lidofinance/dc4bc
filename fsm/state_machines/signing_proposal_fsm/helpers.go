@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	dkgTransactionIdLength = 128
+	dkgTransactionIdLength = 512
 )
 
 func generateSigningId() (string, error) {

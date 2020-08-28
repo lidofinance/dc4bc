@@ -84,17 +84,18 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 	m.payload.SigningProposalPayload.CreatedAt = request.CreatedAt
 
 	// Make response
-
 	responseData := responses.SigningProposalParticipantInvitationsResponse{
 		SigningId:    m.payload.SigningProposalPayload.SigningId,
 		InitiatorId:  m.payload.SigningProposalPayload.InitiatorId,
+		SrcPayload:   m.payload.SigningProposalPayload.SrcPayload,
 		Participants: make([]*responses.SigningProposalParticipantInvitationEntry, 0),
 	}
 
-	for participantId, proposal := range m.payload.SigningProposalPayload.Quorum {
+	for participantId, participant := range m.payload.SigningProposalPayload.Quorum {
 		responseEntry := &responses.SigningProposalParticipantInvitationEntry{
 			ParticipantId: participantId,
-			Addr:          proposal.Addr,
+			Addr:          participant.Addr,
+			Status:        uint8(participant.Status),
 		}
 		responseData.Participants = append(responseData.Participants, responseEntry)
 	}
@@ -130,7 +131,7 @@ func (m *SigningProposalFSM) actionProposalResponseByParticipant(inEvent fsm.Eve
 	signingProposalParticipant := m.payload.SigningQuorumGet(request.ParticipantId)
 
 	if signingProposalParticipant.Status != internal.SigningAwaitConfirmation {
-		err = errors.New(fmt.Sprintf("cannot confirm commit with {Status} = {\"%s\"}", signingProposalParticipant.Status))
+		err = errors.New(fmt.Sprintf("cannot confirm participant with {Status} = {\"%s\"}", signingProposalParticipant.Status))
 		return
 	}
 
@@ -143,7 +144,6 @@ func (m *SigningProposalFSM) actionProposalResponseByParticipant(inEvent fsm.Eve
 		err = errors.New(fmt.Sprintf("unsupported event for action {inEvent} = {\"%s\"}", inEvent))
 		return
 	}
-	signingProposalParticipant.Status = internal.SigningConfirmed
 
 	signingProposalParticipant.UpdatedAt = request.CreatedAt
 	m.payload.SigningProposalPayload.UpdatedAt = request.CreatedAt
@@ -162,7 +162,7 @@ func (m *SigningProposalFSM) actionValidateSigningProposalConfirmations(inEvent 
 	defer m.payloadMu.Unlock()
 
 	if m.payload.SigningProposalPayload.IsExpired() {
-		outEvent = eventSetSigningConfirmCanceledByParticipantInternal
+		outEvent = eventSetSigningConfirmCanceledByTimeoutInternal
 		return
 	}
 
@@ -190,6 +190,15 @@ func (m *SigningProposalFSM) actionValidateSigningProposalConfirmations(inEvent 
 	for _, participant := range m.payload.SigningProposalPayload.Quorum {
 		participant.Status = internal.SigningAwaitPartialKeys
 	}
+
+	// Make response
+	responseData := responses.SigningPartialSignsParticipantInvitationsResponse{
+		SigningId:   m.payload.SigningProposalPayload.SigningId,
+		InitiatorId: m.payload.SigningProposalPayload.InitiatorId,
+		SrcPayload:  m.payload.SigningProposalPayload.SrcPayload,
+	}
+
+	response = responseData
 
 	return
 }
@@ -226,8 +235,8 @@ func (m *SigningProposalFSM) actionPartialKeyConfirmationReceived(inEvent fsm.Ev
 		return
 	}
 
-	signingProposalParticipant.PartialKey = make([]byte, len(request.PartialKey))
-	copy(signingProposalParticipant.PartialKey, request.PartialKey)
+	signingProposalParticipant.PartialSign = make([]byte, len(request.PartialSign))
+	copy(signingProposalParticipant.PartialSign, request.PartialSign)
 	signingProposalParticipant.Status = internal.SigningPartialKeysConfirmed
 
 	signingProposalParticipant.UpdatedAt = request.CreatedAt
@@ -275,6 +284,29 @@ func (m *SigningProposalFSM) actionValidateSigningPartialKeyAwaitConfirmations(i
 	for _, participant := range m.payload.SigningProposalPayload.Quorum {
 		participant.Status = internal.SigningProcess
 	}
+
+	// Response
+	responseData := responses.SigningProcessParticipantResponse{
+		SigningId:    m.payload.SigningProposalPayload.SigningId,
+		SrcPayload:   m.payload.SigningProposalPayload.SrcPayload,
+		Participants: make([]*responses.SigningProcessParticipantEntry, 0),
+	}
+
+	for participantId, participant := range m.payload.SigningProposalPayload.Quorum {
+		responseEntry := &responses.SigningProcessParticipantEntry{
+			ParticipantId: participantId,
+			Addr:          participant.Addr,
+			PartialSign:   participant.PartialSign,
+		}
+		responseData.Participants = append(responseData.Participants, responseEntry)
+	}
+
+	response = responseData
+
+	return
+}
+
+func (m *SigningProposalFSM) actionSigningRestart(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 
 	return
 }

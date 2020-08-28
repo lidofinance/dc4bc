@@ -7,6 +7,7 @@ import (
 	client "github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
 	"github.com/depools/dc4bc/storage"
@@ -29,6 +30,7 @@ type Node struct {
 	deals         []requests.DKGProposalDealConfirmationRequest
 	responses     []requests.DKGProposalResponseConfirmationRequest
 	masterKeys    []requests.DKGProposalMasterKeyConfirmationRequest
+	partialSigns  []requests.SigningProposalPartialKeyRequest
 }
 
 func (n *Node) storeOperation(t *testing.T, msg storage.Message) {
@@ -57,6 +59,12 @@ func (n *Node) storeOperation(t *testing.T, msg storage.Message) {
 			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
 		n.masterKeys = append(n.masterKeys, req)
+	case signing_proposal_fsm.EventSigningPartialKeyReceived:
+		var req requests.SigningProposalPartialKeyRequest
+		if err := json.Unmarshal(msg.Data, &req); err != nil {
+			t.Fatalf("failed to unmarshal fsm req: %v", err)
+		}
+		n.partialSigns = append(n.partialSigns, req)
 	default:
 		t.Fatalf("invalid event: %s", msg.Event)
 	}
@@ -91,7 +99,7 @@ func createOperation(t *testing.T, opType string, to string, req interface{}) cl
 }
 
 func TestAirgappedAllSteps(t *testing.T) {
-	nodesCount := 25
+	nodesCount := 10
 	participants := make([]string, nodesCount)
 	for i := 0; i < nodesCount; i++ {
 		participants[i] = fmt.Sprintf("Participant#%d", i)
@@ -220,27 +228,52 @@ func TestAirgappedAllSteps(t *testing.T) {
 	}
 
 	msgToSign := []byte("i am a message")
-	sigShares := make([][]byte, 0)
-	for _, n := range tr.nodes {
-		sigShare, err := n.Machine.createPartialSign(msgToSign, DKGIdentifier)
+
+	//partialSigns
+	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		payload := responses.SigningPartialSignsParticipantInvitationsResponse{
+			SrcPayload: msgToSign,
+		}
+
+		op := createOperation(t, string(signing_proposal_fsm.StateSigningAwaitPartialKeys), "", payload)
+
+		operation, err := n.Machine.HandleOperation(op)
 		if err != nil {
-			t.Fatalf("failed to create sig share: %v", err.Error())
+			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
 		}
-		sigShares = append(sigShares, sigShare)
-	}
-
-	fullSign, err := tr.nodes[0].Machine.recoverFullSign(msgToSign, sigShares, DKGIdentifier)
-	if err != nil {
-		t.Fatalf("failed to recover full sign: %v", err.Error())
-	}
-
-	for _, n := range tr.nodes {
-		if err = n.Machine.verifySign(msgToSign, fullSign, DKGIdentifier); err != nil {
-			t.Fatalf("failed to verify signature: %v", err)
+		for _, msg := range operation.ResultMsgs {
+			tr.BroadcastMessage(t, msg)
 		}
-	}
+	})
 
-	fmt.Println("DKG succeeded, signature recovered and verified")
+	//recover full signature
+	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		var payload responses.SigningProcessParticipantResponse
+		for _, req := range n.partialSigns {
+			p := responses.SigningProcessParticipantEntry{
+				ParticipantId: req.ParticipantId,
+				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				PartialSign:   req.PartialSign,
+			}
+			payload.Participants = append(payload.Participants, &p)
+		}
+		payload.SrcPayload = msgToSign
+		op := createOperation(t, string(signing_proposal_fsm.StateSigningPartialKeysCollected), "", payload)
+
+		operation, err := n.Machine.HandleOperation(op)
+		if err != nil {
+			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		for _, msg := range operation.ResultMsgs {
+			tr.BroadcastMessage(t, msg)
+		}
+	})
+
+	fmt.Println("DKG succeeded, signature recovered")
 }
 
 func runStep(transport *Transport, cb func(n *Node, wg *sync.WaitGroup)) {
