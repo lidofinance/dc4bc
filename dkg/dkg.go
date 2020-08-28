@@ -25,7 +25,9 @@ type DKG struct {
 	secKey        kyber.Scalar
 	suite         vss.Suite
 	ParticipantID int
-	Threshold     int
+
+	N         int
+	Threshold int
 }
 
 func Init(suite vss.Suite, pubKey kyber.Point, secKey kyber.Scalar) *DKG {

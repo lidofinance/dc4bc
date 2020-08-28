@@ -9,7 +9,8 @@ type SignatureProposalParticipantInvitationsResponse []*SignatureProposalPartici
 type SignatureProposalParticipantInvitationEntry struct {
 	ParticipantId int
 	// Public title for address, such as name, nickname, organization
-	Addr string
+	Addr      string
+	Threshold int
 }
 
 // Public lists for proposal confirmation process
