@@ -3,14 +3,15 @@ package dkg
 import (
 	"errors"
 	"fmt"
-	"go.dedis.ch/kyber/v3/share"
 	"math"
 	"sort"
 	"sync"
 
-	"go.dedis.ch/kyber/v3"
-	dkg "go.dedis.ch/kyber/v3/share/dkg/pedersen"
-	vss "go.dedis.ch/kyber/v3/share/vss/pedersen"
+	"github.com/corestario/kyber/share"
+
+	"github.com/corestario/kyber"
+	dkg "github.com/corestario/kyber/share/dkg/pedersen"
+	vss "github.com/corestario/kyber/share/vss/pedersen"
 )
 
 // TODO: dump necessary data on disk

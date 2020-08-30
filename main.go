@@ -7,29 +7,19 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	_ "image/jpeg"
 	"log"
 	"sync"
 	"time"
 
 	"github.com/depools/dc4bc/airgapped"
-
+	"github.com/depools/dc4bc/client"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/google/uuid"
-
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
-
-	"github.com/depools/dc4bc/client"
-
-	_ "image/gif"
-	_ "image/png"
-
-	_ "golang.org/x/image/bmp"
-	_ "golang.org/x/image/tiff"
-	_ "golang.org/x/image/webp"
+	"github.com/google/uuid"
 )
 
 type Transport struct {
