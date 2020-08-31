@@ -21,12 +21,12 @@ const (
 	StateSigningConfirmationsAwaitCancelledByTimeout     = fsm.State("state_signing_confirmations_await_cancelled_by_timeout")
 	StateSigningConfirmationsAwaitCancelledByParticipant = fsm.State("state_signing_confirmations_await_cancelled_by_participant")
 
-	StateSigningAwaitPartialKeys = fsm.State("state_signing_await_partial_keys")
+	StateSigningAwaitPartialSigns = fsm.State("state_signing_await_partial_signs")
 	// Cancelled
-	StateSigningPartialKeysAwaitCancelledByTimeout = fsm.State("state_signing_partial_signatures_await_cancelled_by_timeout")
-	StateSigningPartialKeysAwaitCancelledByError   = fsm.State("state_signing_partial_signatures_await_cancelled_by_error")
+	StateSigningPartialSignsAwaitCancelledByTimeout = fsm.State("state_signing_partial_signs_await_cancelled_by_timeout")
+	StateSigningPartialSignsAwaitCancelledByError   = fsm.State("state_signing_partial_signs_await_cancelled_by_error")
 
-	StateSigningPartialKeysCollected = fsm.State("state_signing_partial_signatures_collected")
+	StateSigningPartialSignsCollected = fsm.State("state_signing_partial_signs_collected")
 
 	// Events
 
@@ -40,15 +40,15 @@ const (
 	eventAutoSigningValidateProposalInternal = fsm.Event("event_signing_proposal_await_validate")
 	eventSetProposalValidatedInternal        = fsm.Event("event_signing_proposal_set_validated")
 
-	EventSigningPartialKeyReceived                = fsm.Event("event_signing_partial_key_received")
-	EventSigningPartialKeyError                   = fsm.Event("event_signing_partial_key_error_received")
-	eventSigningPartialKeyCancelByTimeoutInternal = fsm.Event("event_signing_partial_key_canceled_by_timeout_internal")
-	eventSigningPartialKeyCancelByErrorInternal   = fsm.Event("event_signing_partial_key_canceled_by_error_internal")
+	EventSigningPartialSignReceived                      = fsm.Event("event_signing_partial_sign_received")
+	EventSigningPartialSignError                         = fsm.Event("event_signing_partial_sign_error_received")
+	eventSigningPartialSignsAwaitCancelByTimeoutInternal = fsm.Event("event_signing_partial_signs_await_cancel_by_timeout_internal")
+	eventSigningPartialSignsAwaitCancelByErrorInternal   = fsm.Event("event_signing_partial_signs_await_sign_cancel_by_error_internal")
 
-	eventAutoSigningValidatePartialKeyInternal = fsm.Event("event_signing_partial_keys_await_validate")
+	eventAutoSigningValidatePartialSignInternal = fsm.Event("event_signing_partial_signs_await_validate")
 
-	eventSigningPartialKeysConfirmedInternal = fsm.Event("event_signing_partial_keys_confirmed_internal")
-	EventSigningRestart                      = fsm.Event("event_signing_restart")
+	eventSigningPartialSignsConfirmedInternal = fsm.Event("event_signing_partial_signs_confirmed_internal")
+	EventSigningRestart                       = fsm.Event("event_signing_restart")
 )
 
 type SigningProposalFSM struct {
@@ -81,31 +81,31 @@ func New() internal.DumpedMachineProvider {
 			// Validate
 			{Name: eventAutoSigningValidateProposalInternal, SrcState: []fsm.State{StateSigningAwaitConfirmations}, DstState: StateSigningAwaitConfirmations, IsInternal: true, IsAuto: true},
 
-			{Name: eventSetProposalValidatedInternal, SrcState: []fsm.State{StateSigningAwaitConfirmations}, DstState: StateSigningAwaitPartialKeys, IsInternal: true},
+			{Name: eventSetProposalValidatedInternal, SrcState: []fsm.State{StateSigningAwaitConfirmations}, DstState: StateSigningAwaitPartialSigns, IsInternal: true},
 
 			// Canceled
-			{Name: EventSigningPartialKeyReceived, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningAwaitPartialKeys},
-			{Name: EventSigningPartialKeyError, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningPartialKeysAwaitCancelledByError},
-			{Name: eventSigningPartialKeyCancelByTimeoutInternal, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningPartialKeysAwaitCancelledByTimeout, IsInternal: true},
-			{Name: eventSigningPartialKeyCancelByErrorInternal, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningPartialKeysAwaitCancelledByError, IsInternal: true},
+			{Name: EventSigningPartialSignReceived, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningAwaitPartialSigns},
+			{Name: EventSigningPartialSignError, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningPartialSignsAwaitCancelledByError},
+			{Name: eventSigningPartialSignsAwaitCancelByTimeoutInternal, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningPartialSignsAwaitCancelledByTimeout, IsInternal: true},
+			{Name: eventSigningPartialSignsAwaitCancelByErrorInternal, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningPartialSignsAwaitCancelledByError, IsInternal: true},
 
 			// Validate
-			{Name: eventAutoSigningValidatePartialKeyInternal, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningAwaitPartialKeys, IsInternal: true, IsAuto: true},
+			{Name: eventAutoSigningValidatePartialSignInternal, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningAwaitPartialSigns, IsInternal: true, IsAuto: true},
 
-			{Name: eventSigningPartialKeysConfirmedInternal, SrcState: []fsm.State{StateSigningAwaitPartialKeys}, DstState: StateSigningPartialKeysCollected, IsInternal: true},
+			{Name: eventSigningPartialSignsConfirmedInternal, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningPartialSignsCollected, IsInternal: true},
 
-			{Name: EventSigningRestart, SrcState: []fsm.State{StateSigningPartialKeysCollected}, DstState: StateSigningIdle},
+			{Name: EventSigningRestart, SrcState: []fsm.State{StateSigningPartialSignsCollected}, DstState: StateSigningIdle},
 		},
 		fsm.Callbacks{
-			EventSigningInit:                           machine.actionInitSigningProposal,
-			EventSigningStart:                          machine.actionStartSigningProposal,
-			EventConfirmSigningConfirmation:            machine.actionProposalResponseByParticipant,
-			EventDeclineSigningConfirmation:            machine.actionProposalResponseByParticipant,
-			eventAutoSigningValidateProposalInternal:   machine.actionValidateSigningProposalConfirmations,
-			EventSigningPartialKeyReceived:             machine.actionPartialKeyConfirmationReceived,
-			eventAutoSigningValidatePartialKeyInternal: machine.actionValidateSigningPartialKeyAwaitConfirmations,
-			EventSigningPartialKeyError:                machine.actionConfirmationError,
-			EventSigningRestart:                        machine.actionSigningRestart,
+			EventSigningInit:                            machine.actionInitSigningProposal,
+			EventSigningStart:                           machine.actionStartSigningProposal,
+			EventConfirmSigningConfirmation:             machine.actionProposalResponseByParticipant,
+			EventDeclineSigningConfirmation:             machine.actionProposalResponseByParticipant,
+			eventAutoSigningValidateProposalInternal:    machine.actionValidateSigningProposalConfirmations,
+			EventSigningPartialSignReceived:             machine.actionPartialSignConfirmationReceived,
+			eventAutoSigningValidatePartialSignInternal: machine.actionValidateSigningPartialSignsAwaitConfirmations,
+			EventSigningPartialSignError:                machine.actionConfirmationError,
+			EventSigningRestart:                         machine.actionSigningRestart,
 		},
 	)
 
