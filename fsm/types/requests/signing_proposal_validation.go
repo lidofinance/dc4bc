@@ -34,7 +34,7 @@ func (r *SigningProposalParticipantRequest) Validate() error {
 	return nil
 }
 
-func (r *SigningProposalPartialKeyRequest) Validate() error {
+func (r *SigningProposalPartialSignRequest) Validate() error {
 	if r.SigningId == "" {
 		return errors.New("{SigningId} cannot be empty")
 	}

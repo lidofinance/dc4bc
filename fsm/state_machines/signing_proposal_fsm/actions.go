@@ -188,7 +188,7 @@ func (m *SigningProposalFSM) actionValidateSigningProposalConfirmations(inEvent 
 	outEvent = eventSetProposalValidatedInternal
 
 	for _, participant := range m.payload.SigningProposalPayload.Quorum {
-		participant.Status = internal.SigningAwaitPartialKeys
+		participant.Status = internal.SigningAwaitPartialSigns
 	}
 
 	// Make response
@@ -203,19 +203,19 @@ func (m *SigningProposalFSM) actionValidateSigningProposalConfirmations(inEvent 
 	return
 }
 
-func (m *SigningProposalFSM) actionPartialKeyConfirmationReceived(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+func (m *SigningProposalFSM) actionPartialSignConfirmationReceived(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
 	if len(args) != 1 {
-		err = errors.New("{arg0} required {SigningProposalPartialKeyRequest}")
+		err = errors.New("{arg0} required {SigningProposalPartialSignRequest}")
 		return
 	}
 
-	request, ok := args[0].(requests.SigningProposalPartialKeyRequest)
+	request, ok := args[0].(requests.SigningProposalPartialSignRequest)
 
 	if !ok {
-		err = errors.New("cannot cast {arg0} to type {SigningProposalPartialKeyRequest}")
+		err = errors.New("cannot cast {arg0} to type {SigningProposalPartialSignRequest}")
 		return
 	}
 
@@ -230,14 +230,14 @@ func (m *SigningProposalFSM) actionPartialKeyConfirmationReceived(inEvent fsm.Ev
 
 	signingProposalParticipant := m.payload.SigningQuorumGet(request.ParticipantId)
 
-	if signingProposalParticipant.Status != internal.SigningAwaitPartialKeys {
+	if signingProposalParticipant.Status != internal.SigningAwaitPartialSigns {
 		err = errors.New(fmt.Sprintf("cannot confirm response with {Status} = {\"%s\"}", signingProposalParticipant.Status))
 		return
 	}
 
 	signingProposalParticipant.PartialSign = make([]byte, len(request.PartialSign))
 	copy(signingProposalParticipant.PartialSign, request.PartialSign)
-	signingProposalParticipant.Status = internal.SigningPartialKeysConfirmed
+	signingProposalParticipant.Status = internal.SigningPartialSignsConfirmed
 
 	signingProposalParticipant.UpdatedAt = request.CreatedAt
 	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
@@ -247,7 +247,7 @@ func (m *SigningProposalFSM) actionPartialKeyConfirmationReceived(inEvent fsm.Ev
 	return
 }
 
-func (m *SigningProposalFSM) actionValidateSigningPartialKeyAwaitConfirmations(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	var (
 		isContainsError bool
 	)
@@ -256,7 +256,7 @@ func (m *SigningProposalFSM) actionValidateSigningPartialKeyAwaitConfirmations(i
 	defer m.payloadMu.Unlock()
 
 	if m.payload.SigningProposalPayload.IsExpired() {
-		outEvent = eventSigningPartialKeyCancelByTimeoutInternal
+		outEvent = eventSigningPartialSignsAwaitCancelByTimeoutInternal
 		return
 	}
 
@@ -264,13 +264,13 @@ func (m *SigningProposalFSM) actionValidateSigningPartialKeyAwaitConfirmations(i
 	for _, participant := range m.payload.SigningProposalPayload.Quorum {
 		if participant.Status == internal.SigningError {
 			isContainsError = true
-		} else if participant.Status == internal.SigningPartialKeysConfirmed {
+		} else if participant.Status == internal.SigningPartialSignsConfirmed {
 			unconfirmedParticipants--
 		}
 	}
 
 	if isContainsError {
-		outEvent = eventSigningPartialKeyCancelByErrorInternal
+		outEvent = eventSigningPartialSignsAwaitCancelByErrorInternal
 		return
 	}
 
@@ -279,7 +279,7 @@ func (m *SigningProposalFSM) actionValidateSigningPartialKeyAwaitConfirmations(i
 		return
 	}
 
-	outEvent = eventSigningPartialKeysConfirmedInternal
+	outEvent = eventSigningPartialSignsConfirmedInternal
 
 	for _, participant := range m.payload.SigningProposalPayload.Quorum {
 		participant.Status = internal.SigningProcess
@@ -341,11 +341,11 @@ func (m *SigningProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...
 
 	// TODO: Move to methods
 	switch inEvent {
-	case EventSigningPartialKeyError:
+	case EventSigningPartialSignError:
 		switch signingProposalParticipant.Status {
-		case internal.SigningAwaitPartialKeys:
+		case internal.SigningAwaitPartialSigns:
 			signingProposalParticipant.Status = internal.SigningError
-		case internal.SigningPartialKeysConfirmed:
+		case internal.SigningPartialSignsConfirmed:
 			err = errors.New("{Status} already confirmed")
 		case internal.SigningError:
 			err = errors.New(fmt.Sprintf("{Status} already has {\"%s\"}", internal.SigningError))
