@@ -90,7 +90,13 @@ func (am *AirgappedMachine) reconstructThresholdSignature(o *client.Operation) e
 		partialSignatures = append(partialSignatures, participant.PartialSign)
 	}
 
-	reconstructedSignature, err := am.recoverFullSign(payload.SrcPayload, partialSignatures, o.DKGIdentifier)
+	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
+	if !ok {
+		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
+	}
+
+	reconstructedSignature, err := am.recoverFullSign(payload.SrcPayload, partialSignatures, dkgInstance.Threshold,
+		dkgInstance.N, o.DKGIdentifier)
 	if err != nil {
 		return fmt.Errorf("failed to reconsruct full signature for msg: %w", err)
 	}
@@ -107,13 +113,13 @@ func (am *AirgappedMachine) createPartialSign(msg []byte, dkgIdentifier string) 
 	return tbls.Sign(am.suite, blsKeyring.Share, msg)
 }
 
-func (am *AirgappedMachine) recoverFullSign(msg []byte, sigShares [][]byte, dkgIdentifier string) ([]byte, error) {
+func (am *AirgappedMachine) recoverFullSign(msg []byte, sigShares [][]byte, t, n int, dkgIdentifier string) ([]byte, error) {
 	blsKeyring, err := am.loadBLSKeyring(dkgIdentifier)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load blsKeyring: %w", err)
 	}
 
-	return tbls.Recover(am.suite, blsKeyring.PubPoly, msg, sigShares, len(sigShares), len(sigShares))
+	return tbls.Recover(am.suite, blsKeyring.PubPoly, msg, sigShares, t, n)
 }
 
 func (am *AirgappedMachine) verifySign(msg []byte, fullSignature []byte, dkgIdentifier string) error {

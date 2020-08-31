@@ -46,6 +46,7 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 			PubKey:    participant.PubKey,
 			DkgPubKey: participant.DkgPubKey,
 			Status:    internal.SigConfirmationAwaitConfirmation,
+			Threshold: request.SigningThreshold,
 			UpdatedAt: request.CreatedAt,
 		}
 
@@ -66,6 +67,7 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 		responseEntry := &responses.SignatureProposalParticipantInvitationEntry{
 			ParticipantId: participantId,
 			Addr:          participant.Addr,
+			Threshold:     participant.Threshold,
 		}
 		responseData = append(responseData, responseEntry)
 	}

@@ -7,6 +7,7 @@ import (
 	client "github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
@@ -100,6 +101,7 @@ func createOperation(t *testing.T, opType string, to string, req interface{}) cl
 
 func TestAirgappedAllSteps(t *testing.T) {
 	nodesCount := 10
+	threshold := 3
 	participants := make([]string, nodesCount)
 	for i := 0; i < nodesCount; i++ {
 		participants[i] = fmt.Sprintf("Participant#%d", i)
@@ -111,6 +113,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create airgapped machine: %v", err)
 		}
+		am.SetAddress(participants[i])
 		node := Node{
 			ParticipantID: i,
 			Participant:   participants[i],
@@ -118,6 +121,25 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		tr.nodes = append(tr.nodes, &node)
 	}
+
+	var initReq responses.SignatureProposalParticipantInvitationsResponse
+	for _, n := range tr.nodes {
+		entry := &responses.SignatureProposalParticipantInvitationEntry{
+			ParticipantId: n.ParticipantID,
+			Addr:          n.Participant,
+			Threshold:     threshold,
+		}
+		initReq = append(initReq, entry)
+	}
+	op := createOperation(t, string(signature_proposal_fsm.StateAwaitParticipantsConfirmations), "", initReq)
+	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
+		defer wg.Done()
+
+		_, err := n.Machine.HandleOperation(op)
+		if err != nil {
+			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+	})
 
 	// get commits
 	var getCommitsRequest responses.DKGProposalPubKeysParticipantResponse
@@ -133,7 +155,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		getCommitsRequest = append(getCommitsRequest, entry)
 	}
-	op := createOperation(t, string(dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations), "", getCommitsRequest)
+	op = createOperation(t, string(dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations), "", getCommitsRequest)
 	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
 		defer wg.Done()
 

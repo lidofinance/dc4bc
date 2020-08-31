@@ -43,6 +43,7 @@ type SignatureProposalParticipant struct {
 	// For validation user confirmation: sign(InvitationSecret, PubKey) => user
 	InvitationSecret string
 	Status           ConfirmationParticipantStatus
+	Threshold        int
 	UpdatedAt        time.Time
 }
 
