@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	_ "image/jpeg"
 	"log"
 	"sync"
@@ -119,7 +120,7 @@ func main() {
 		participants = append(participants, &requests.SignatureProposalParticipantsEntry{
 			Addr:      node.client.GetAddr(),
 			PubKey:    node.client.GetPubKey(),
-			DkgPubKey: dkgPubKey, // TODO: Use a real one.
+			DkgPubKey: dkgPubKey,
 		})
 	}
 	messageData := requests.SignatureProposalParticipantsListRequest{
@@ -137,6 +138,33 @@ func main() {
 		ID:         uuid.New().String(),
 		DkgRoundID: hex.EncodeToString(dkgRoundID[:]),
 		Event:      string(spf.EventInitProposal),
+		Data:       messageDataBz,
+		SenderAddr: nodes[0].client.GetAddr(),
+	}
+
+	message.Signature = ed25519.Sign(nodes[0].keyPair.Priv, message.Bytes())
+	if _, err := stg.Send(message); err != nil {
+		log.Fatalf("Failed to send %+v to storage: %v\n", message, err)
+	}
+
+	// i haven't a better idea to test signing without big changes in the client code
+	time.Sleep(10 * time.Second)
+	log.Println("Propose message to sign")
+
+	messageDataSign := requests.SigningProposalStartRequest{
+		ParticipantId: 0,
+		SrcPayload:    []byte("message to sign"),
+		CreatedAt:     time.Now(),
+	}
+	messageDataBz, err = json.Marshal(messageDataSign)
+	if err != nil {
+		log.Fatalf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)
+	}
+
+	message = storage.Message{
+		ID:         uuid.New().String(),
+		DkgRoundID: hex.EncodeToString(dkgRoundID[:]),
+		Event:      string(sif.EventSigningStart),
 		Data:       messageDataBz,
 		SenderAddr: nodes[0].client.GetAddr(),
 	}
