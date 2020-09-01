@@ -59,7 +59,7 @@ func (am *AirgappedMachine) handleStateSigningAwaitPartialSigns(o *client.Operat
 	if err != nil {
 		return fmt.Errorf("failed to get paricipant id: %w", err)
 	}
-	req := requests.SigningProposalPartialKeyRequest{
+	req := requests.SigningProposalPartialSignRequest{
 		SigningId:     payload.SigningId,
 		ParticipantId: participantID,
 		PartialSign:   partialSign,
@@ -70,7 +70,7 @@ func (am *AirgappedMachine) handleStateSigningAwaitPartialSigns(o *client.Operat
 		return fmt.Errorf("failed to generate fsm request: %w", err)
 	}
 
-	o.Event = signing_proposal_fsm.EventSigningPartialKeyReceived
+	o.Event = signing_proposal_fsm.EventSigningPartialSignReceived
 	o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, reqBz))
 	return nil
 }
