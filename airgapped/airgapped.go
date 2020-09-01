@@ -214,7 +214,7 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.
 }
 
 // HandleQR - gets an operation from a QR code, do necessary things for the operation and returns paths to QR-code images
-func (am *AirgappedMachine) HandleQR() (string, error) {
+func (am *AirgappedMachine) HandleQR() ([]string, error) {
 	var (
 		err error
 
@@ -225,28 +225,38 @@ func (am *AirgappedMachine) HandleQR() (string, error) {
 		resultOperation client.Operation
 	)
 
-	if qrData, err = am.qrProcessor.ReadQR(); err != nil {
-		return "", fmt.Errorf("failed to read QR: %w", err)
+	if qrData, err = qr.ReadDataFromQRChunks(am.qrProcessor); err != nil {
+		return nil, fmt.Errorf("failed to read QR: %w", err)
 	}
 	if err = json.Unmarshal(qrData, &operation); err != nil {
-		return "", fmt.Errorf("failed to unmarshal operation: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal operation: %w", err)
 	}
 
 	if resultOperation, err = am.HandleOperation(operation); err != nil {
-		return "", err
+		return nil, err
 	}
 
-	qrPath := fmt.Sprintf("%s/%s_%s_%s.png", resultQRFolder, resultOperation.Type, resultOperation.ID, resultOperation.To)
 	operationBz, err := json.Marshal(resultOperation)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal operation: %w", err)
+		return nil, fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
-		return "", fmt.Errorf("failed to write QR")
+	chunks, err := qr.DataToChunks(operationBz)
+	if err != nil {
+		return nil, fmt.Errorf("failed to divide a data on chunks: %w", err)
+	}
+	qrPaths := make([]string, 0, len(chunks))
+
+	for idx, chunk := range chunks {
+		qrPath := fmt.Sprintf("%s/%s_%s_%s-%d.png", resultQRFolder, resultOperation.Type, resultOperation.ID,
+			resultOperation.To, idx)
+		if err = am.qrProcessor.WriteQR(qrPath, chunk); err != nil {
+			return nil, fmt.Errorf("failed to write QR")
+		}
+		qrPaths = append(qrPaths, qrPath)
 	}
 
-	return qrPath, nil
+	return qrPaths, nil
 }
 
 func (am *AirgappedMachine) writeErrorRequestToOperation(o *client.Operation, handlerError error) error {

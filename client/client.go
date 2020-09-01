@@ -263,25 +263,36 @@ func (c *Client) getOperationJSON(operationID string) ([]byte, error) {
 // GetOperationQRPath returns a path to the image with the QR generated
 // for the specified operation. It is supposed that the user will open
 // this file herself.
-func (c *Client) GetOperationQRPath(operationID string) (string, error) {
+func (c *Client) GetOperationQRPath(operationID string) ([]string, error) {
 	operationJSON, err := c.getOperationJSON(operationID)
 	if err != nil {
-		return "", fmt.Errorf("failed to get operation in JSON: %w", err)
+		return nil, fmt.Errorf("failed to get operation in JSON: %w", err)
 	}
 
 	operationQRPath := filepath.Join(QrCodesDir, operationID)
-	if err := c.qrProcessor.WriteQR(operationQRPath, operationJSON); err != nil {
-		return "", fmt.Errorf("failed to WriteQR: %w", err)
+	chunks, err := qr.DataToChunks(operationJSON)
+	if err != nil {
+		return nil, fmt.Errorf("failed to divide a data on chunks: %w", err)
 	}
 
-	return operationQRPath, nil
+	qrs := make([]string, 0, len(chunks))
+
+	for idx, chunk := range chunks {
+		qrPath := fmt.Sprintf("%s-%d", operationQRPath, idx)
+		if err = c.qrProcessor.WriteQR(qrPath, chunk); err != nil {
+			return nil, err
+		}
+		qrs = append(qrs, qrPath)
+	}
+
+	return qrs, nil
 }
 
 // ReadProcessedOperation reads the processed operation from camera, checks that
 // the processed operation has its unprocessed counterpart in our state,
 // posts a Message to the storage and deletes the operation from our state.
 func (c *Client) ReadProcessedOperation() error {
-	bz, err := c.qrProcessor.ReadQR()
+	bz, err := qr.ReadDataFromQRChunks(c.qrProcessor)
 	if err != nil {
 		return fmt.Errorf("failed to ReadQR: %s", err)
 	}

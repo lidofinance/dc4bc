@@ -31,7 +31,7 @@ type Node struct {
 	deals         []requests.DKGProposalDealConfirmationRequest
 	responses     []requests.DKGProposalResponseConfirmationRequest
 	masterKeys    []requests.DKGProposalMasterKeyConfirmationRequest
-	partialSigns  []requests.SigningProposalPartialKeyRequest
+	partialSigns  []requests.SigningProposalPartialSignRequest
 }
 
 func (n *Node) storeOperation(t *testing.T, msg storage.Message) {
@@ -60,8 +60,8 @@ func (n *Node) storeOperation(t *testing.T, msg storage.Message) {
 			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
 		n.masterKeys = append(n.masterKeys, req)
-	case signing_proposal_fsm.EventSigningPartialKeyReceived:
-		var req requests.SigningProposalPartialKeyRequest
+	case signing_proposal_fsm.EventSigningPartialSignReceived:
+		var req requests.SigningProposalPartialSignRequest
 		if err := json.Unmarshal(msg.Data, &req); err != nil {
 			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
@@ -259,7 +259,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 			SrcPayload: msgToSign,
 		}
 
-		op := createOperation(t, string(signing_proposal_fsm.StateSigningAwaitPartialKeys), "", payload)
+		op := createOperation(t, string(signing_proposal_fsm.StateSigningAwaitPartialSigns), "", payload)
 
 		operation, err := n.Machine.HandleOperation(op)
 		if err != nil {
@@ -284,7 +284,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 			payload.Participants = append(payload.Participants, &p)
 		}
 		payload.SrcPayload = msgToSign
-		op := createOperation(t, string(signing_proposal_fsm.StateSigningPartialKeysCollected), "", payload)
+		op := createOperation(t, string(signing_proposal_fsm.StateSigningPartialSignsCollected), "", payload)
 
 		operation, err := n.Machine.HandleOperation(op)
 		if err != nil {

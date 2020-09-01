@@ -93,13 +93,14 @@ func (c *Client) getOperationQRPathHandler(w http.ResponseWriter, r *http.Reques
 	}
 	operationID := r.URL.Query().Get("operationID")
 
-	qrPath, err := c.GetOperationQRPath(operationID)
+	qrPaths, err := c.GetOperationQRPath(operationID)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operation QR path: %v", err))
 		return
 	}
-
-	successResponse(w, []byte(qrPath))
+	for _, qrPath := range qrPaths {
+		successResponse(w, []byte(qrPath))
+	}
 }
 
 func (c *Client) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Request) {
