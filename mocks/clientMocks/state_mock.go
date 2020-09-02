@@ -5,7 +5,7 @@
 package clientMocks
 
 import (
-	client "github.com/depools/dc4bc/client"
+	types "github.com/depools/dc4bc/client/types"
 	state_machines "github.com/depools/dc4bc/fsm/state_machines"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
@@ -94,7 +94,7 @@ func (mr *MockStateMockRecorder) LoadFSM(dkgRoundID interface{}) *gomock.Call {
 }
 
 // PutOperation mocks base method
-func (m *MockState) PutOperation(operation *client.Operation) error {
+func (m *MockState) PutOperation(operation *types.Operation) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PutOperation", operation)
 	ret0, _ := ret[0].(error)
@@ -122,10 +122,10 @@ func (mr *MockStateMockRecorder) DeleteOperation(operationID interface{}) *gomoc
 }
 
 // GetOperations mocks base method
-func (m *MockState) GetOperations() (map[string]*client.Operation, error) {
+func (m *MockState) GetOperations() (map[string]*types.Operation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOperations")
-	ret0, _ := ret[0].(map[string]*client.Operation)
+	ret0, _ := ret[0].(map[string]*types.Operation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -137,10 +137,10 @@ func (mr *MockStateMockRecorder) GetOperations() *gomock.Call {
 }
 
 // GetOperationByID mocks base method
-func (m *MockState) GetOperationByID(operationID string) (*client.Operation, error) {
+func (m *MockState) GetOperationByID(operationID string) (*types.Operation, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetOperationByID", operationID)
-	ret0, _ := ret[0].(*client.Operation)
+	ret0, _ := ret[0].(*types.Operation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

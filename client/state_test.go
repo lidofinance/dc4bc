@@ -1,10 +1,11 @@
 package client_test
 
 import (
-	"github.com/depools/dc4bc/client/types"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/depools/dc4bc/client/types"
 
 	"github.com/depools/dc4bc/client"
 	"github.com/stretchr/testify/require"
@@ -43,7 +44,6 @@ func TestLevelDBState_PutOperation(t *testing.T) {
 		ID:        "operation_id",
 		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
-		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),
 	}
 	err = stg.PutOperation(operation)
@@ -54,7 +54,6 @@ func TestLevelDBState_PutOperation(t *testing.T) {
 	req.Equal(operation.ID, loadedOperation.ID)
 	req.Equal(operation.Type, loadedOperation.Type)
 	req.Equal(operation.Payload, loadedOperation.Payload)
-	req.Equal(operation.Result, loadedOperation.Result)
 
 	err = stg.PutOperation(operation)
 	req.Error(err)
@@ -74,7 +73,6 @@ func TestLevelDBState_GetOperations(t *testing.T) {
 		ID:        "operation_1",
 		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
-		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),
 	}
 	err = stg.PutOperation(operation)
@@ -103,7 +101,6 @@ func TestLevelDBState_DeleteOperation(t *testing.T) {
 		ID:        "operation_id",
 		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
-		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),
 	}
 	err = stg.PutOperation(operation)
