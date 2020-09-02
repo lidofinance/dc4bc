@@ -975,7 +975,7 @@ func Test_SigningProposal_EventConfirmSigningConfirmation_Positive(t *testing.T)
 
 	}
 
-	compareState(t, sif.StateSigningAwaitPartialKeys, fsmResponse.State)
+	compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
 
 	response, ok := fsmResponse.Data.(responses.SigningPartialSignsParticipantInvitationsResponse)
 
@@ -991,9 +991,9 @@ func Test_SigningProposal_EventConfirmSigningConfirmation_Positive(t *testing.T)
 		t.Fatalf("expected matched {SrcPayload}")
 	}
 
-	testFSMDump[sif.StateSigningAwaitPartialKeys] = testFSMDumpLocal
+	testFSMDump[sif.StateSigningAwaitPartialSigns] = testFSMDumpLocal
 
-	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitPartialKeys])
+	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitPartialSigns])
 }
 
 func Test_SigningProposal_EventDeclineProposal_Canceled_Participant(t *testing.T) {
@@ -1056,7 +1056,7 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 
 	participantCounter := participantsCount
 
-	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitPartialKeys]
+	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitPartialSigns]
 
 	for participantId, participant := range testIdMapParticipants {
 		participantCounter--
@@ -1068,9 +1068,9 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 		compareFSMInstanceNotNil(t, testFSMInstance)
 
 		inState, _ := testFSMInstance.State()
-		compareState(t, sif.StateSigningAwaitPartialKeys, inState)
+		compareState(t, sif.StateSigningAwaitPartialSigns, inState)
 
-		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningPartialKeyReceived, requests.SigningProposalPartialKeyRequest{
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningPartialSignReceived, requests.SigningProposalPartialSignRequest{
 			SigningId:     testSigningId,
 			ParticipantId: participantId,
 			PartialSign:   participant.DkgPartialKey,
@@ -1084,12 +1084,12 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 		compareFSMResponseNotNil(t, fsmResponse)
 
 		if participantCounter > 0 {
-			compareState(t, sif.StateSigningAwaitPartialKeys, fsmResponse.State)
+			compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
 		}
 
 	}
 
-	compareState(t, sif.StateSigningPartialKeysCollected, fsmResponse.State)
+	compareState(t, sif.StateSigningPartialSignsCollected, fsmResponse.State)
 
 	response, ok := fsmResponse.Data.(responses.SigningProcessParticipantResponse)
 
@@ -1105,9 +1105,9 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 		t.Fatalf("expected matched {SrcPayload}")
 	}
 
-	testFSMDump[sif.StateSigningPartialKeysCollected] = testFSMDumpLocal
+	testFSMDump[sif.StateSigningPartialSignsCollected] = testFSMDumpLocal
 
-	compareDumpNotZero(t, testFSMDump[sif.StateSigningPartialKeysCollected])
+	compareDumpNotZero(t, testFSMDump[sif.StateSigningPartialSignsCollected])
 }
 
 func Test_DkgProposal_EventSigningRestart_Positive(t *testing.T) {
@@ -1116,14 +1116,14 @@ func Test_DkgProposal_EventSigningRestart_Positive(t *testing.T) {
 		testFSMDumpLocal []byte
 	)
 
-	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningPartialKeysCollected])
+	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningPartialSignsCollected])
 
 	compareErrNil(t, err)
 
 	compareFSMInstanceNotNil(t, testFSMInstance)
 
 	inState, _ := testFSMInstance.State()
-	compareState(t, sif.StateSigningPartialKeysCollected, inState)
+	compareState(t, sif.StateSigningPartialSignsCollected, inState)
 
 	fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningRestart, requests.DefaultRequest{
 		CreatedAt: time.Now(),

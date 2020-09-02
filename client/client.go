@@ -205,8 +205,8 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		dpf.StateDkgDealsAwaitConfirmations,
 		dpf.StateDkgResponsesAwaitConfirmations,
 		dpf.StateDkgMasterKeyAwaitConfirmations,
-		sipf.StateSigningAwaitPartialKeys,
-		sipf.StateSigningPartialKeysCollected,
+		sipf.StateSigningAwaitPartialSigns,
+		sipf.StateSigningPartialSignsCollected,
 		sipf.StateSigningAwaitConfirmations:
 		if resp.Data != nil {
 			bz, err := json.Marshal(resp.Data)

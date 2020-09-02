@@ -195,9 +195,9 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.
 		err = am.handleStateDkgMasterKeyAwaitConfirmations(&operation)
 	case signing_proposal_fsm.StateSigningAwaitConfirmations:
 		err = am.handleStateSigningAwaitConfirmations(&operation)
-	case signing_proposal_fsm.StateSigningAwaitPartialKeys:
+	case signing_proposal_fsm.StateSigningAwaitPartialSigns:
 		err = am.handleStateSigningAwaitPartialSigns(&operation)
-	case signing_proposal_fsm.StateSigningPartialKeysCollected:
+	case signing_proposal_fsm.StateSigningPartialSignsCollected:
 		err = am.reconstructThresholdSignature(&operation)
 	default:
 		err = fmt.Errorf("invalid operation type: %s", operation.Type)

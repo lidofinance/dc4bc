@@ -86,8 +86,8 @@ func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
 		}
 		resolvedValue = req
-	case signing_proposal_fsm.EventSigningPartialKeyReceived:
-		var req requests.SigningProposalPartialKeyRequest
+	case signing_proposal_fsm.EventSigningPartialSignReceived:
+		var req requests.SigningProposalPartialSignRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
 		}

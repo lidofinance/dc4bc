@@ -21,7 +21,7 @@ type SigningProposalParticipantRequest struct {
 
 // States: "state_signing_await_partial_keys"
 // Events: "event_signing_partial_key_received"
-type SigningProposalPartialKeyRequest struct {
+type SigningProposalPartialSignRequest struct {
 	SigningId     string
 	ParticipantId int
 	PartialSign   []byte

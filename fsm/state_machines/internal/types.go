@@ -43,6 +43,7 @@ type SignatureProposalParticipant struct {
 	// For validation user confirmation: sign(InvitationSecret, PubKey) => user
 	InvitationSecret string
 	Status           ConfirmationParticipantStatus
+	Threshold        int
 	UpdatedAt        time.Time
 }
 
@@ -157,8 +158,8 @@ const (
 	SigningAwaitConfirmation SigningParticipantStatus = iota
 	SigningConfirmed
 	SigningDeclined
-	SigningAwaitPartialKeys
-	SigningPartialKeysConfirmed
+	SigningAwaitPartialSigns
+	SigningPartialSignsConfirmed
 	SigningError
 	SigningProcess
 )
@@ -170,10 +171,10 @@ func (s SigningParticipantStatus) String() string {
 		str = "SigningAwaitConfirmation"
 	case SigningConfirmed:
 		str = "SigningConfirmed"
-	case SigningAwaitPartialKeys:
-		str = "SigningAwaitPartialKeys"
-	case SigningPartialKeysConfirmed:
-		str = "SigningPartialKeysConfirmed"
+	case SigningAwaitPartialSigns:
+		str = "SigningAwaitPartialSigns"
+	case SigningPartialSignsConfirmed:
+		str = "SigningPartialSignsConfirmed"
 	case SigningError:
 		str = "SigningError"
 	case SigningProcess:

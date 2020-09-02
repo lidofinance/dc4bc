@@ -39,24 +39,25 @@ func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
 
-	if _, ok := am.dkgInstances[o.DKGIdentifier]; ok {
-		return fmt.Errorf("dkg instance %s already exists", o.DKGIdentifier)
-	}
-
-	dkgInstance := dkg.Init(am.suite, am.pubKey, am.secKey)
-	dkgInstance.Threshold = len(payload)
-
-	am.dkgInstances[o.DKGIdentifier] = dkgInstance
-
 	pid := -1
 	for _, r := range payload {
 		if r.Addr == am.ParticipantAddress {
 			pid = r.ParticipantId
+			break
 		}
 	}
 	if pid < 0 {
 		return fmt.Errorf("failed to determine participant id for DKG with participant address %s", am.ParticipantAddress)
 	}
+
+	if _, ok := am.dkgInstances[o.DKGIdentifier]; ok {
+		return fmt.Errorf("dkg instance %s already exists", o.DKGIdentifier)
+	}
+
+	dkgInstance := dkg.Init(am.suite, am.pubKey, am.secKey)
+	dkgInstance.Threshold = payload[0].Threshold //same for everyone
+	dkgInstance.N = len(payload)
+	am.dkgInstances[o.DKGIdentifier] = dkgInstance
 
 	req := requests.SignatureProposalParticipantRequest{
 		ParticipantId: pid,
@@ -84,10 +85,8 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 
 	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
 	if !ok {
-		dkgInstance = dkg.Init(am.suite, am.pubKey, am.secKey)
+		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
 	}
-
-	dkgInstance.Threshold = len(payload)
 
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
