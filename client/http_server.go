@@ -13,16 +13,40 @@ import (
 	"github.com/depools/dc4bc/storage"
 )
 
-func errorResponse(w http.ResponseWriter, statusCode int, err string) {
-	log.Println(err)
-	w.WriteHeader(statusCode)
-	if _, err := w.Write([]byte(err)); err != nil {
+type Response struct {
+	ErrorMessage string `json:"error_message,omitempty"`
+	Result interface{} `json:"result"`
+}
+
+func rawResponse(w http.ResponseWriter, response []byte) {
+	if _, err := w.Write(response); err != nil {
 		panic(fmt.Sprintf("failed to write response: %v", err))
 	}
 }
 
-func successResponse(w http.ResponseWriter, response []byte) {
-	if _, err := w.Write(response); err != nil {
+func errorResponse(w http.ResponseWriter, statusCode int, error string) {
+	w.WriteHeader(statusCode)
+	w.Header().Set("Content-Type", "application/json")
+	resp := Response{ErrorMessage: error}
+	respBz, err := json.Marshal(resp)
+	if err != nil {
+		log.Printf("Failed to marshal response: %v\n", err)
+		return
+	}
+	if _, err := w.Write(respBz); err != nil {
+		panic(fmt.Sprintf("failed to write response: %v", err))
+	}
+}
+
+func successResponse(w http.ResponseWriter, response interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	resp := Response{Result: response}
+	respBz, err := json.Marshal(resp)
+	if err != nil {
+		log.Printf("Failed to marshal response: %v\n", err)
+		return
+	}
+	if _, err := w.Write(respBz); err != nil {
 		panic(fmt.Sprintf("failed to write response: %v", err))
 	}
 }
@@ -62,7 +86,7 @@ func (c *Client) sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	successResponse(w, []byte("ok"))
+	successResponse(w, "ok")
 }
 
 func (c *Client) getOperationsHandler(w http.ResponseWriter, r *http.Request) {
@@ -77,13 +101,7 @@ func (c *Client) getOperationsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := json.Marshal(operations)
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to marshal operations: %v", err))
-		return
-	}
-
-	successResponse(w, response)
+	successResponse(w, operations)
 }
 
 func (c *Client) getOperationQRPathHandler(w http.ResponseWriter, r *http.Request) {
@@ -99,7 +117,7 @@ func (c *Client) getOperationQRPathHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	successResponse(w, []byte(qrPath))
+	successResponse(w, qrPath)
 }
 
 func (c *Client) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Request) {
@@ -123,7 +141,7 @@ func (c *Client) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(encodedData)))
-	successResponse(w, encodedData)
+	rawResponse(w, encodedData)
 }
 
 func (c *Client) readProcessedOperationFromCameraHandler(w http.ResponseWriter, r *http.Request) {
@@ -138,7 +156,7 @@ func (c *Client) readProcessedOperationFromCameraHandler(w http.ResponseWriter, 
 		return
 	}
 
-	successResponse(w, []byte("ok"))
+	successResponse(w, "ok")
 }
 
 func (c *Client) readProcessedOperationFromBodyHandler(w http.ResponseWriter, r *http.Request) {
@@ -179,4 +197,6 @@ func (c *Client) readProcessedOperationFromBodyHandler(w http.ResponseWriter, r 
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to handle an operation: %v", err))
 		return
 	}
+
+	successResponse(w, "ok")
 }
