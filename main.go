@@ -6,7 +6,9 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"github.com/depools/dc4bc/client/types"
 	_ "image/jpeg"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"sync"
@@ -20,18 +22,67 @@ import (
 )
 
 type node struct {
-	client  *client.Client
-	keyPair *client.KeyPair
-	air     *airgapped.AirgappedMachine
+	client     *client.Client
+	keyPair    *client.KeyPair
+	air        *airgapped.AirgappedMachine
+	listenAddr string
+}
+
+type OperationsResponse struct {
+	Result map[string]*types.Operation `json:"result"`
+}
+
+func getOperations(url string) (*OperationsResponse, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get operations for node %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("failed to read body %v", err)
+	}
+
+	var response OperationsResponse
+	if err = json.Unmarshal(responseBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+	return &response, nil
+}
+
+func handleProcessedOperation(url string, operation types.Operation) error {
+	operationBz, err := json.Marshal(operation)
+	if err != nil {
+		return fmt.Errorf("failed to marshal operation: %w", err)
+	}
+	resp, err := http.Post(url, "application/json", bytes.NewReader(operationBz))
+	if err != nil {
+		return fmt.Errorf("failed to handle processed operation %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("failed to read body %v", err)
+	}
+
+	var response client.Response
+	if err = json.Unmarshal(responseBody, &response); err != nil {
+		return fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	if response.ErrorMessage != "" {
+		return fmt.Errorf("failed to handle processed operation: %s", response.ErrorMessage)
+	}
+	return nil
 }
 
 func (n *node) run() {
 	for {
-		operations, err := n.client.GetOperations()
+		operationsResponse, err := getOperations(fmt.Sprintf("http://%s/getOperations", n.listenAddr))
 		if err != nil {
-			n.client.Logger.Log("Failed to get operations: %v", err)
+			log.Fatalf("failed to get operations: %v", err)
 		}
 
+		operations := operationsResponse.Result
 		if len(operations) == 0 {
 			time.Sleep(1 * time.Second)
 			continue
@@ -48,11 +99,14 @@ func (n *node) run() {
 			n.client.Logger.Log("Got %d Processed Operations from Airgapped", len(operations))
 			n.client.Logger.Log("Operation %s handled in airgapped, result event is %s",
 				operation.Event, processedOperation.Event)
-			if err = n.client.HandleProcessedOperation(processedOperation); err != nil {
+
+			if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
+				processedOperation); err != nil {
 				n.client.Logger.Log("Failed to handle processed operation: %v", err)
 			} else {
 				n.client.Logger.Log("Successfully handled processed operation %s", processedOperation.Event)
 			}
+
 		}
 	}
 }
@@ -105,20 +159,21 @@ func main() {
 		airgappedMachine.SetAddress(clt.GetAddr())
 
 		nodes[nodeID] = &node{
-			client:  clt,
-			keyPair: keyPair,
-			air:     airgappedMachine,
+			client:     clt,
+			keyPair:    keyPair,
+			air:        airgappedMachine,
+			listenAddr: fmt.Sprintf("localhost:%d", startingPort),
 		}
+		startingPort++
 	}
 
 	// Each node starts to Poll().
 	for nodeID, n := range nodes {
-		go func(nodeID int, node *node, port int) {
-			if err := node.client.StartHTTPServer(fmt.Sprintf(":%d", port)); err != nil {
+		go func(nodeID int, node *node) {
+			if err := node.client.StartHTTPServer(node.listenAddr); err != nil {
 				log.Fatalf("failed to start HTTP server for nodeID #%d: %v\n", nodeID, err)
 			}
-		}(nodeID, n, startingPort)
-		startingPort++
+		}(nodeID, n)
 		go nodes[nodeID].run()
 
 		go func(nodeID int, node *client.Client) {

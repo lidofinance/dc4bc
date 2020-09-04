@@ -264,10 +264,10 @@ func (c *Client) ReadProcessedOperation() error {
 		return fmt.Errorf("failed to unmarshal processed operation")
 	}
 
-	return c.HandleProcessedOperation(operation)
+	return c.handleProcessedOperation(operation)
 }
 
-func (c *Client) HandleProcessedOperation(operation types.Operation) error {
+func (c *Client) handleProcessedOperation(operation types.Operation) error {
 	storedOperation, err := c.state.GetOperationByID(operation.ID)
 	if err != nil {
 		return fmt.Errorf("failed to find matching operation: %w", err)

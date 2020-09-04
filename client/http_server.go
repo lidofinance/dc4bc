@@ -66,6 +66,7 @@ func (c *Client) StartHTTPServer(listenAddr string) error {
 
 	mux.HandleFunc("/readProcessedOperation", c.readProcessedOperationFromBodyHandler)
 	mux.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
+	mux.HandleFunc("/handleProcessedOperationJSON", c.handleJSONOperationHandler)
 
 	mux.HandleFunc("/startDKG", c.startDKGHandler)
 	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
@@ -204,7 +205,7 @@ func (c *Client) readProcessedOperationFromBodyHandler(w http.ResponseWriter, r 
 			fmt.Sprintf("failed to unmarshal processed operation: %v", err))
 		return
 	}
-	if err := c.HandleProcessedOperation(operation); err != nil {
+	if err := c.handleProcessedOperation(operation); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to handle an operation: %v", err))
 		return
 	}
@@ -263,6 +264,32 @@ func (c *Client) proposeSignDataHandler(w http.ResponseWriter, r *http.Request) 
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))
 		return
 	}
+	successResponse(w, "ok")
+}
+
+func (c *Client) handleJSONOperationHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to read body: %v", err))
+		return
+	}
+	defer r.Body.Close()
+
+	var req types.Operation
+	if err = json.Unmarshal(reqBody, &req); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
+		return
+	}
+
+	if err = c.handleProcessedOperation(req); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to handle processed operation: %v", err))
+		return
+	}
+
 	successResponse(w, "ok")
 }
 
