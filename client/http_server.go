@@ -1,9 +1,15 @@
 package client
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/depools/dc4bc/client/types"
+	"github.com/depools/dc4bc/fsm/fsm"
+	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/google/uuid"
 	"image"
 	"io/ioutil"
 	"log"
@@ -14,8 +20,8 @@ import (
 )
 
 type Response struct {
-	ErrorMessage string `json:"error_message,omitempty"`
-	Result interface{} `json:"result"`
+	ErrorMessage string      `json:"error_message,omitempty"`
+	Result       interface{} `json:"result"`
 }
 
 func rawResponse(w http.ResponseWriter, response []byte) {
@@ -61,6 +67,10 @@ func (c *Client) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/readProcessedOperation", c.readProcessedOperationFromBodyHandler)
 	mux.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
 
+	mux.HandleFunc("/startDKG", c.startDKGHandler)
+	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
+
+	c.Logger.Log("Starting HTTP server on address: %s", listenAddr)
 	return http.ListenAndServe(listenAddr, mux)
 }
 
@@ -74,6 +84,7 @@ func (c *Client) sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusBadRequest, fmt.Sprintf("failed to read request body: %v", err))
 		return
 	}
+	defer r.Body.Close()
 
 	var msg storage.Message
 	if err = json.Unmarshal(reqBytes, &msg); err != nil {
@@ -193,10 +204,80 @@ func (c *Client) readProcessedOperationFromBodyHandler(w http.ResponseWriter, r 
 			fmt.Sprintf("failed to unmarshal processed operation: %v", err))
 		return
 	}
-	if err := c.handleProcessedOperation(operation); err != nil {
+	if err := c.HandleProcessedOperation(operation); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to handle an operation: %v", err))
 		return
 	}
 
 	successResponse(w, "ok")
+}
+
+func (c *Client) startDKGHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to read body: %v", err))
+		return
+	}
+	defer r.Body.Close()
+
+	dkgRoundID := md5.Sum(reqBody)
+	message, err := c.buildMessage(hex.EncodeToString(dkgRoundID[:]), spf.EventInitProposal, reqBody)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
+		return
+	}
+	if err = c.SendMessage(*message); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))
+		return
+	}
+	successResponse(w, "ok")
+}
+
+func (c *Client) proposeSignDataHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to read body: %v", err))
+		return
+	}
+	defer r.Body.Close()
+
+	var req map[string][]byte
+	if err = json.Unmarshal(reqBody, &req); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
+		return
+	}
+
+	message, err := c.buildMessage(hex.EncodeToString(req["dkgID"]), sif.EventSigningStart, req["data"])
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
+	}
+	if err = c.SendMessage(*message); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))
+		return
+	}
+	successResponse(w, "ok")
+}
+
+func (c *Client) buildMessage(dkgRoundID string, event fsm.Event, data []byte) (*storage.Message, error) {
+	message := storage.Message{
+		ID:         uuid.New().String(),
+		DkgRoundID: dkgRoundID,
+		Event:      string(event),
+		Data:       data,
+		SenderAddr: c.GetAddr(),
+	}
+	signature, err := c.signMessage(message.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign message: %w", err)
+	}
+	message.Signature = signature
+	return &message, nil
 }

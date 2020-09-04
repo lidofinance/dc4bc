@@ -49,7 +49,6 @@ func TestClient_ProcessMessage(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
-		nil,
 	)
 	req.NoError(err)
 
@@ -132,7 +131,6 @@ func TestClient_GetOperationsList(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
-		nil,
 	)
 	req.NoError(err)
 
@@ -180,7 +178,6 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
-		nil,
 	)
 	req.NoError(err)
 
@@ -232,7 +229,6 @@ func TestClient_ReadProcessedOperation(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
-		nil,
 	)
 	req.NoError(err)
 
