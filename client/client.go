@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	sipf "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"log"
 	"path/filepath"
 	"sync"
 	"time"
+
+	sipf "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
 	"github.com/depools/dc4bc/airgapped"
 	"github.com/depools/dc4bc/client/types"

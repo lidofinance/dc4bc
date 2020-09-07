@@ -134,8 +134,6 @@ func (s *LevelDBState) SaveFSM(dkgRoundID string, dump []byte) error {
 		return fmt.Errorf("failed to save fsm state: %w", err)
 	}
 
-	//fmt.Println("State saved: ", string(fsmInstancesBz))
-
 	return nil
 }
 

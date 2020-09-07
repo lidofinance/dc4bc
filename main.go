@@ -34,7 +34,7 @@ type node struct {
 func main() {
 	var numNodes = 4
 	var threshold = 3
-	var storagePath = "/tmp/dc4bc_storage"
+	//var storagePath = "/tmp/dc4bc_storage"
 	var nodes = make([]*node, 4)
 	for nodeID := 0; nodeID < numNodes; nodeID++ {
 		var ctx = context.Background()
@@ -44,7 +44,7 @@ func main() {
 			log.Fatalf("node %d failed to init state: %v\n", nodeID, err)
 		}
 
-		stg, err := storage.NewFileStorage(storagePath)
+		stg, err := storage.NewKafkaStorage(ctx, "localhost:9092")
 		if err != nil {
 			log.Fatalf("node %d failed to init storage: %v\n", nodeID, err)
 		}
@@ -95,7 +95,7 @@ func main() {
 		log.Printf("client %d started...\n", nodeID)
 	}
 
-	stg, err := storage.NewFileStorage(storagePath)
+	stg, err := storage.NewKafkaStorage(context.Background(), "localhost:9092")
 	if err != nil {
 		log.Fatalf("main namespace failed to init storage: %v\n", err)
 	}
@@ -137,7 +137,6 @@ func main() {
 		log.Fatalf("Failed to send %+v to storage: %v\n", message, err)
 	}
 
-	// i haven't a better idea to test signing without big changes in the client code
 	time.Sleep(10 * time.Second)
 	log.Println("Propose message to sign")
 
