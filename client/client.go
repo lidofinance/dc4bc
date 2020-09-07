@@ -32,6 +32,19 @@ const (
 	QrCodesDir    = "/tmp"
 )
 
+type Poller interface {
+	GetAddr() string
+	GetPubKey() ed25519.PublicKey
+	Poll() error
+	SendMessage(message storage.Message) error
+	ProcessMessage(message storage.Message) error
+	GetOperations() (map[string]*types.Operation, error)
+	GetOperationQRPath(operationID string) (string, error)
+	ReadProcessedOperation() error
+	StartHTTPServer(listenAddr string) error
+	GetLogger() *logger
+}
+
 type Client struct {
 	sync.Mutex
 	Logger      *logger
@@ -52,7 +65,7 @@ func NewClient(
 	storage storage.Storage,
 	keyStore KeyStore,
 	qrProcessor qr.Processor,
-) (*Client, error) {
+) (Poller, error) {
 	keyPair, err := keyStore.LoadKeys(userName, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
@@ -69,6 +82,10 @@ func NewClient(
 		keyStore:    keyStore,
 		qrProcessor: qrProcessor,
 	}, nil
+}
+
+func (c *Client) GetLogger() *logger {
+	return c.Logger
 }
 
 func (c *Client) GetAddr() string {

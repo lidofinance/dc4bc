@@ -22,7 +22,7 @@ import (
 )
 
 type node struct {
-	client     *client.Client
+	client     client.Poller
 	keyPair    *client.KeyPair
 	air        *airgapped.AirgappedMachine
 	listenAddr string
@@ -88,23 +88,23 @@ func (n *node) run() {
 			continue
 		}
 
-		n.client.Logger.Log("Got %d Operations from pool", len(operations))
+		n.client.GetLogger().Log("Got %d Operations from pool", len(operations))
 		for _, operation := range operations {
-			n.client.Logger.Log("Handling operation %s in airgapped", operation.Type)
+			n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
 			processedOperation, err := n.air.HandleOperation(*operation)
 			if err != nil {
-				n.client.Logger.Log("Failed to handle operation: %v", err)
+				n.client.GetLogger().Log("Failed to handle operation: %v", err)
 			}
 
-			n.client.Logger.Log("Got %d Processed Operations from Airgapped", len(operations))
-			n.client.Logger.Log("Operation %s handled in airgapped, result event is %s",
+			n.client.GetLogger().Log("Got %d Processed Operations from Airgapped", len(operations))
+			n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
 				operation.Event, processedOperation.Event)
 
 			if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
 				processedOperation); err != nil {
-				n.client.Logger.Log("Failed to handle processed operation: %v", err)
+				n.client.GetLogger().Log("Failed to handle processed operation: %v", err)
 			} else {
-				n.client.Logger.Log("Successfully handled processed operation %s", processedOperation.Event)
+				n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
 			}
 
 		}
@@ -176,7 +176,7 @@ func main() {
 		}(nodeID, n)
 		go nodes[nodeID].run()
 
-		go func(nodeID int, node *client.Client) {
+		go func(nodeID int, node client.Poller) {
 			if err := node.Poll(); err != nil {
 				log.Fatalf("client %d poller failed: %v\n", nodeID, err)
 			}
