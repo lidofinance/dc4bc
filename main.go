@@ -29,7 +29,8 @@ type node struct {
 }
 
 type OperationsResponse struct {
-	Result map[string]*types.Operation `json:"result"`
+	ErrorMessage string                      `json:"error_message,omitempty"`
+	Result       map[string]*types.Operation `json:"result"`
 }
 
 func getOperations(url string) (*OperationsResponse, error) {
