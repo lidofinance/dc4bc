@@ -6,11 +6,12 @@ import (
 	"log"
 	"time"
 
+	"gocv.io/x/gocv"
+
 	encoder "github.com/skip2/go-qrcode"
 
 	"github.com/makiuchi-d/gozxing"
 	"github.com/makiuchi-d/gozxing/qrcode"
-	"gocv.io/x/gocv"
 )
 
 const (

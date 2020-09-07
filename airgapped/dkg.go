@@ -3,6 +3,9 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/corestario/kyber"
+	dkgPedersen "github.com/corestario/kyber/share/dkg/pedersen"
 	client "github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/dkg"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -10,9 +13,7 @@ import (
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
 	"github.com/depools/dc4bc/storage"
-	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/pairing/bn256"
-	dkgPedersen "go.dedis.ch/kyber/v3/share/dkg/pedersen"
+	bls12381 "github.com/depools/kyber-bls12381"
 )
 
 func createMessage(o client.Operation, data []byte) storage.Message {
@@ -92,7 +93,7 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 	}
 
 	for _, entry := range payload {
-		pubKey := bn256.NewSuiteG2().Point()
+		pubKey := bls12381.NewBLS12381Suite().Point()
 		if err = pubKey.UnmarshalBinary(entry.DkgPubKey); err != nil {
 			return fmt.Errorf("failed to unmarshal pubkey: %w", err)
 		}

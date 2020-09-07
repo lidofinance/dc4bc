@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"sync"
+	"testing"
+	"time"
+
 	client "github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -13,9 +17,6 @@ import (
 	"github.com/depools/dc4bc/fsm/types/responses"
 	"github.com/depools/dc4bc/storage"
 	"github.com/google/uuid"
-	"sync"
-	"testing"
-	"time"
 )
 
 const (

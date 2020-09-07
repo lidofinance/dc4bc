@@ -33,8 +33,18 @@ func (m *MockKeyStore) EXPECT() *MockKeyStoreMockRecorder {
 	return m.recorder
 }
 
-func (mr *MockKeyStore) PutKeys(userName string, keyPair *client.KeyPair) error {
-	return nil
+// PutKeys mocks base method
+func (m *MockKeyStore) PutKeys(username string, keyPair *client.KeyPair) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PutKeys", username, keyPair)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PutKeys indicates an expected call of PutKeys
+func (mr *MockKeyStoreMockRecorder) PutKeys(username, keyPair interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutKeys", reflect.TypeOf((*MockKeyStore)(nil).PutKeys), username, keyPair)
 }
 
 // LoadKeys mocks base method

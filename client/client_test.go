@@ -5,13 +5,13 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"errors"
-	"github.com/depools/dc4bc/client/types"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/depools/dc4bc/client"
+	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/state_machines"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
@@ -49,7 +49,6 @@ func TestClient_ProcessMessage(t *testing.T) {
 		stg,
 		keyStore,
 		qrProcessor,
-		nil,
 	)
 	req.NoError(err)
 
@@ -98,7 +97,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 		}
 		message.Signature = ed25519.Sign(senderKeyPair.Priv, message.Bytes())
 
-		state.EXPECT().SaveOffset(uint64(1)).Times(1).Return(nil)
+		state.EXPECT().SaveOffset(gomock.Any()).Times(1).Return(nil)
 		state.EXPECT().SaveFSM(gomock.Any(), gomock.Any()).Times(1).Return(nil)
 		state.EXPECT().PutOperation(gomock.Any()).Times(1).Return(nil)
 
@@ -115,19 +114,23 @@ func TestClient_GetOperationsList(t *testing.T) {
 	)
 	defer ctrl.Finish()
 
-	state := clientMocks.NewMockState(ctrl)
+	userName := "test_client"
+
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
+	testClientKeyPair := client.NewKeyPair()
+	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
+
+	state := clientMocks.NewMockState(ctrl)
 	stg := storageMocks.NewMockStorage(ctrl)
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 
 	clt, err := client.NewClient(
 		ctx,
-		"test_client",
+		userName,
 		state,
 		stg,
 		keyStore,
 		qrProcessor,
-		nil,
 	)
 	req.NoError(err)
 
@@ -158,19 +161,23 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 	)
 	defer ctrl.Finish()
 
-	state := clientMocks.NewMockState(ctrl)
+	userName := "test_client"
+
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
+	testClientKeyPair := client.NewKeyPair()
+	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
+
+	state := clientMocks.NewMockState(ctrl)
 	stg := storageMocks.NewMockStorage(ctrl)
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 
 	clt, err := client.NewClient(
 		ctx,
-		"test_client",
+		userName,
 		state,
 		stg,
 		keyStore,
 		qrProcessor,
-		nil,
 	)
 	req.NoError(err)
 
@@ -205,19 +212,23 @@ func TestClient_ReadProcessedOperation(t *testing.T) {
 	)
 	defer ctrl.Finish()
 
-	state := clientMocks.NewMockState(ctrl)
+	userName := "test_client"
+
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
+	testClientKeyPair := client.NewKeyPair()
+	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
+
+	state := clientMocks.NewMockState(ctrl)
 	stg := storageMocks.NewMockStorage(ctrl)
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 
 	clt, err := client.NewClient(
 		ctx,
-		"test_client",
+		userName,
 		state,
 		stg,
 		keyStore,
 		qrProcessor,
-		nil,
 	)
 	req.NoError(err)
 
@@ -225,14 +236,12 @@ func TestClient_ReadProcessedOperation(t *testing.T) {
 		ID:        "operation_id",
 		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
-		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),
 	}
 	processedOperation := &types.Operation{
 		ID:        "operation_id",
 		Type:      types.DKGCommits,
 		Payload:   []byte("operation_payload"),
-		Result:    []byte("operation_result"),
 		CreatedAt: time.Now(),
 	}
 	processedOperationBz, err := json.Marshal(processedOperation)
@@ -241,10 +250,6 @@ func TestClient_ReadProcessedOperation(t *testing.T) {
 	qrProcessor.EXPECT().ReadQR().Return(processedOperationBz, nil).Times(1)
 	state.EXPECT().GetOperationByID(processedOperation.ID).Times(1).Return(operation, nil)
 	state.EXPECT().DeleteOperation(processedOperation.ID).Times(1)
-	stg.EXPECT().Send(gomock.Any()).Times(1)
-
-	keyPair := client.NewKeyPair()
-	keyStore.EXPECT().LoadKeys("test_client", "").Times(1).Return(keyPair, nil)
 
 	err = clt.ReadProcessedOperation()
 	req.NoError(err)

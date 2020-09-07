@@ -3,12 +3,15 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
+
+	"github.com/corestario/kyber/pairing"
+
+	"github.com/corestario/kyber/sign/bls"
+	"github.com/corestario/kyber/sign/tbls"
 	client "github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
-	"go.dedis.ch/kyber/v3/sign/bls"
-	"go.dedis.ch/kyber/v3/sign/tbls"
 )
 
 func (am *AirgappedMachine) handleStateSigningAwaitConfirmations(o *client.Operation) error {
@@ -110,7 +113,7 @@ func (am *AirgappedMachine) createPartialSign(msg []byte, dkgIdentifier string) 
 		return nil, fmt.Errorf("failed to load blsKeyring: %w", err)
 	}
 
-	return tbls.Sign(am.suite, blsKeyring.Share, msg)
+	return tbls.Sign(am.suite.(pairing.Suite), blsKeyring.Share, msg)
 }
 
 func (am *AirgappedMachine) recoverFullSign(msg []byte, sigShares [][]byte, t, n int, dkgIdentifier string) ([]byte, error) {
@@ -119,7 +122,7 @@ func (am *AirgappedMachine) recoverFullSign(msg []byte, sigShares [][]byte, t, n
 		return nil, fmt.Errorf("failed to load blsKeyring: %w", err)
 	}
 
-	return tbls.Recover(am.suite, blsKeyring.PubPoly, msg, sigShares, t, n)
+	return tbls.Recover(am.suite.(pairing.Suite), blsKeyring.PubPoly, msg, sigShares, t, n)
 }
 
 func (am *AirgappedMachine) verifySign(msg []byte, fullSignature []byte, dkgIdentifier string) error {
@@ -128,5 +131,5 @@ func (am *AirgappedMachine) verifySign(msg []byte, fullSignature []byte, dkgIden
 		return fmt.Errorf("failed to load blsKeyring: %w", err)
 	}
 
-	return bls.Verify(am.suite, blsKeyring.PubPoly.Commit(), msg, fullSignature)
+	return bls.Verify(am.suite.(pairing.Suite), blsKeyring.PubPoly.Commit(), msg, fullSignature)
 }

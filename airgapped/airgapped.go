@@ -3,21 +3,23 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"log"
 	"sync"
 
+	vss "github.com/corestario/kyber/share/vss/rabin"
+
+	"github.com/corestario/kyber"
+	"github.com/corestario/kyber/encrypt/ecies"
 	client "github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/dkg"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/qr"
+	bls12381 "github.com/depools/kyber-bls12381"
 	"github.com/syndtr/goleveldb/leveldb"
-	"go.dedis.ch/kyber/v3"
-	"go.dedis.ch/kyber/v3/encrypt/ecies"
-	"go.dedis.ch/kyber/v3/pairing/bn256"
 )
 
 const (
@@ -36,7 +38,7 @@ type AirgappedMachine struct {
 
 	pubKey kyber.Point
 	secKey kyber.Scalar
-	suite  *bn256.Suite
+	suite  vss.Suite
 
 	db *leveldb.DB
 }
@@ -51,7 +53,7 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 		qrProcessor:  qr.NewCameraProcessor(),
 	}
 
-	am.suite = bn256.NewSuiteG2()
+	am.suite = bls12381.NewBLS12381Suite()
 
 	if am.db, err = leveldb.OpenFile(dbPath, nil); err != nil {
 		return nil, fmt.Errorf("failed to open db file %s for keys: %w", dbPath, err)

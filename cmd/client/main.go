@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/depools/dc4bc/airgapped"
+
 	"github.com/depools/dc4bc/client"
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
@@ -79,9 +81,12 @@ var rootCmd = &cobra.Command{
 
 		processor := qr.NewCameraProcessor()
 
-		// TODO: create state machine.
+		airgappedMachine, err := airgapped.NewAirgappedMachine("/tmp/dc4bc_node_%d_airgapped_db")
+		if err != nil {
+			log.Fatalf("Failed to create airgapped machine: %v", err)
+		}
 
-		cli, err := client.NewClient(ctx, userName, state, stg, keyStore, processor)
+		cli, err := client.NewClient(ctx, userName, state, stg, keyStore, processor, airgappedMachine)
 		if err != nil {
 			log.Fatalf("Failed to init client: %v", err)
 		}
