@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/depools/dc4bc/airgapped"
 	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/google/uuid"
@@ -33,9 +32,22 @@ const (
 	QrCodesDir    = "/tmp"
 )
 
+type Poller interface {
+	GetAddr() string
+	GetPubKey() ed25519.PublicKey
+	Poll() error
+	SendMessage(message storage.Message) error
+	ProcessMessage(message storage.Message) error
+	GetOperations() (map[string]*types.Operation, error)
+	GetOperationQRPath(operationID string) (string, error)
+	ReadProcessedOperation() error
+	StartHTTPServer(listenAddr string) error
+	GetLogger() *logger
+}
+
 type Client struct {
 	sync.Mutex
-	logger      *logger
+	Logger      *logger
 	userName    string
 	address     string
 	pubKey      ed25519.PublicKey
@@ -44,7 +56,6 @@ type Client struct {
 	storage     storage.Storage
 	keyStore    KeyStore
 	qrProcessor qr.Processor
-	Airgapped   *airgapped.AirgappedMachine
 }
 
 func NewClient(
@@ -54,8 +65,7 @@ func NewClient(
 	storage storage.Storage,
 	keyStore KeyStore,
 	qrProcessor qr.Processor,
-	airgappedMachine *airgapped.AirgappedMachine,
-) (*Client, error) {
+) (Poller, error) {
 	keyPair, err := keyStore.LoadKeys(userName, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
@@ -63,7 +73,7 @@ func NewClient(
 
 	return &Client{
 		ctx:         ctx,
-		logger:      newLogger(userName),
+		Logger:      newLogger(userName),
 		userName:    userName,
 		address:     keyPair.GetAddr(),
 		pubKey:      keyPair.Pub,
@@ -71,8 +81,11 @@ func NewClient(
 		storage:     storage,
 		keyStore:    keyStore,
 		qrProcessor: qrProcessor,
-		Airgapped:   airgappedMachine,
 	}, nil
+}
+
+func (c *Client) GetLogger() *logger {
+	return c.Logger
 }
 
 func (c *Client) GetAddr() string {
@@ -100,36 +113,13 @@ func (c *Client) Poll() error {
 
 			for _, message := range messages {
 				if message.RecipientAddr == "" || message.RecipientAddr == c.GetAddr() {
-					c.logger.Log("Handling message with offset %d, type %s", message.Offset, message.Event)
+					c.Logger.Log("Handling message with offset %d, type %s", message.Offset, message.Event)
 					if err := c.ProcessMessage(message); err != nil {
-						c.logger.Log("Failed to process message: %v", err)
+						c.Logger.Log("Failed to process message: %v", err)
 					} else {
-						c.logger.Log("Successfully processed message with offset %d, type %s",
+						c.Logger.Log("Successfully processed message with offset %d, type %s",
 							message.Offset, message.Event)
 					}
-				}
-			}
-
-			operations, err := c.GetOperations()
-			if err != nil {
-				c.logger.Log("Failed to get operations: %v", err)
-			}
-
-			c.logger.Log("Got %d Operations from pool", len(operations))
-			for _, operation := range operations {
-				c.logger.Log("Handling operation %s in airgapped", operation.Type)
-				processedOperation, err := c.Airgapped.HandleOperation(*operation)
-				if err != nil {
-					c.logger.Log("Failed to handle operation: %v", err)
-				}
-
-				c.logger.Log("Got %d Processed Operations from Airgapped", len(operations))
-				c.logger.Log("Operation %s handled in airgapped, result event is %s",
-					operation.Event, processedOperation.Event)
-				if err = c.handleProcessedOperation(processedOperation); err != nil {
-					c.logger.Log("Failed to handle processed operation: %v", err)
-				} else {
-					c.logger.Log("Successfully handled processed operation %s", processedOperation.Event)
 				}
 			}
 		case <-c.ctx.Done():
@@ -169,7 +159,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		return fmt.Errorf("failed to Do operation in FSM: %w", err)
 	}
 
-	c.logger.Log("message %s done successfully from %s", message.Event, message.SenderAddr)
+	c.Logger.Log("message %s done successfully from %s", message.Event, message.SenderAddr)
 
 	if resp.State == spf.StateSignatureProposalCollected {
 		fsmInstance, err = state_machines.FromDump(fsmDump)
@@ -223,7 +213,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 			}
 		}
 	default:
-		c.logger.Log("State %s does not require an operation", resp.State)
+		c.Logger.Log("State %s does not require an operation", resp.State)
 	}
 
 	if operation != nil {
