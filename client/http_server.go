@@ -62,7 +62,6 @@ func (c *Client) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/sendMessage", c.sendMessageHandler)
 	mux.HandleFunc("/getOperations", c.getOperationsHandler)
 	mux.HandleFunc("/getOperationQRPath", c.getOperationQRPathHandler)
-	mux.HandleFunc("/readProcessedOperationFromCamera", c.readProcessedOperationFromCameraHandler)
 
 	mux.HandleFunc("/readProcessedOperation", c.readProcessedOperationFromBodyHandler)
 	mux.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
@@ -154,21 +153,6 @@ func (c *Client) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(encodedData)))
 	rawResponse(w, encodedData)
-}
-
-func (c *Client) readProcessedOperationFromCameraHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
-		return
-	}
-
-	if err := c.ReadProcessedOperation(); err != nil {
-		errorResponse(w, http.StatusInternalServerError,
-			fmt.Sprintf("failed to handle processed operation from camera path: %v", err))
-		return
-	}
-
-	successResponse(w, "ok")
 }
 
 func (c *Client) readProcessedOperationFromBodyHandler(w http.ResponseWriter, r *http.Request) {

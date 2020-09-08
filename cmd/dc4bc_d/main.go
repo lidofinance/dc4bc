@@ -140,15 +140,14 @@ func startClientCommand() *cobra.Command {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "dc4bc_client",
-	Short: "dc4bc client implementation",
+	Use:   "dc4bc_d",
+	Short: "dc4bc client daemon implementation",
 }
 
 func main() {
 	rootCmd.AddCommand(
 		startClientCommand(),
 		genKeyPairCommand(),
-		getOperationsCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
