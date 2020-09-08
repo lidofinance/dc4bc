@@ -175,6 +175,7 @@ func main() {
 				log.Fatalf("failed to start HTTP server for nodeID #%d: %v\n", nodeID, err)
 			}
 		}(nodeID, n)
+		time.Sleep(1 * time.Second)
 		go nodes[nodeID].run()
 
 		go func(nodeID int, node client.Poller) {
