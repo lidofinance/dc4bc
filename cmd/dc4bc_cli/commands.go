@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/depools/dc4bc/client"
 	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/types/requests"
+	"github.com/depools/dc4bc/qr"
 	"github.com/spf13/cobra"
 	"io/ioutil"
 	"net/http"
@@ -166,12 +168,19 @@ func readOperationFromCameraCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
-			response, err := rawGetRequest(fmt.Sprintf("http://%s/readProcessedOperationFromCamera", listenAddr))
+
+			processor := qr.NewCameraProcessor()
+			data, err := qr.ReadDataFromQRChunks(processor)
 			if err != nil {
-				return fmt.Errorf("failed to get operations: %w", err)
+				return fmt.Errorf("failed to read data from QR: %w", err)
 			}
-			if response.ErrorMessage != "" {
-				return fmt.Errorf("failed to read operation from camera: %s", response.ErrorMessage)
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/handleProcessedOperationJSON", listenAddr),
+				"application/json", data)
+			if err != nil {
+				return fmt.Errorf("failed to handle processed operation: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to handle processed operation: %w", resp.ErrorMessage)
 			}
 			return nil
 		},
@@ -180,7 +189,7 @@ func readOperationFromCameraCommand() *cobra.Command {
 
 func startDKGCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "startDKG [participants count] [threshold]",
+		Use:   "start_dkg [participants count] [threshold]",
 		Args:  cobra.ExactArgs(2),
 		Short: "sends a propose message to start a DKG process",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -188,6 +197,7 @@ func startDKGCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
+
 			participantsCount, err := strconv.Atoi(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to get participants count: %w", err)
@@ -252,7 +262,57 @@ func startDKGCommand() *cobra.Command {
 				return fmt.Errorf("failed to make HTTP request to start DKG: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to make HTTP request to start DKG: %w", err)
+				return fmt.Errorf("failed to make HTTP request to start DKG: %w", resp.ErrorMessage)
+			}
+			return nil
+		},
+	}
+}
+
+func proposeSignMessageCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "sign_data [dkg_id] [data]",
+		Args:  cobra.ExactArgs(2),
+		Short: "sends a propose message to sign the data",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			dkgID, err := hex.DecodeString(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to decode dkgID: %w", err)
+			}
+
+			data, err := base64.StdEncoding.DecodeString(args[1])
+			if err != nil {
+				return fmt.Errorf("failed to decode data")
+			}
+
+			messageDataSign := requests.SigningProposalStartRequest{
+				ParticipantId: 0, //TODO: determine participantID
+				SrcPayload:    data,
+				CreatedAt:     time.Now(),
+			}
+			messageDataSignBz, err := json.Marshal(messageDataSign)
+			if err != nil {
+				return fmt.Errorf("failed to marshal SigningProposalStartRequest: %v\n", err)
+			}
+
+			messageDataBz, err := json.Marshal(map[string][]byte{"data": messageDataSignBz,
+				"dkgID": dkgID})
+			if err != nil {
+				return fmt.Errorf("failed to marshal SigningProposalStartRequest: %v\n", err)
+			}
+
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/proposeSignMessage", listenAddr),
+				"application/json", messageDataBz)
+			if err != nil {
+				return fmt.Errorf("failed to make HTTP request to propose message to sign: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to make HTTP request to propose message to sign: %w", resp.ErrorMessage)
 			}
 			return nil
 		},
