@@ -6,13 +6,14 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"github.com/depools/dc4bc/client/types"
 	_ "image/jpeg"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/depools/dc4bc/client/types"
 
 	"github.com/depools/dc4bc/airgapped"
 	"github.com/depools/dc4bc/client"
@@ -184,11 +185,6 @@ func main() {
 		}(nodeID, n.client)
 
 		log.Printf("client %d started...\n", nodeID)
-	}
-
-	stg, err := storage.NewKafkaStorage(context.Background(), "localhost:9092")
-	if err != nil {
-		log.Fatalf("main namespace failed to init storage: %v\n", err)
 	}
 
 	// Node1 tells other participants to start DKG.
