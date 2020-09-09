@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"github.com/depools/dc4bc/airgapped"
 	"github.com/depools/dc4bc/client/types"
+	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
+	bls12381 "github.com/depools/kyber-bls12381"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -96,6 +98,22 @@ func (n *node) run(t *testing.T) {
 			n.client.GetLogger().Log("Got %d Processed Operations from Airgapped", len(operations))
 			n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
 				operation.Event, processedOperation.Event)
+
+			// for integration tests
+			if processedOperation.Event == dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived {
+				msg := processedOperation.ResultMsgs[0]
+				var pubKeyReq requests.DKGProposalMasterKeyConfirmationRequest
+				if err = json.Unmarshal(msg.Data, &pubKeyReq); err != nil {
+					t.Fatalf("failed to unmarshal pubKey request: %v", err)
+				}
+				pubKey := bls12381.NewBLS12381Suite().Point()
+				if err = pubKey.UnmarshalBinary(pubKeyReq.MasterKey); err != nil {
+					t.Fatalf("failed to unmarshal pubkey: %v", err)
+				}
+				if err = ioutil.WriteFile(fmt.Sprintf("/tmp/dc4bc_participant_%d.pubkey", pubKeyReq.ParticipantId), []byte(pubKey.String()), 666); err != nil {
+					t.Fatalf("failed to write pubkey to temp file: %v", err)
+				}
+			}
 
 			if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
 				processedOperation); err != nil {
