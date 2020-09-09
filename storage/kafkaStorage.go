@@ -52,7 +52,7 @@ func (s *KafkaStorage) Send(m Message) (Message, error) {
 		return Message{}, fmt.Errorf("failed to WriteMessages: %w", err)
 	}
 
-	return Message{}, nil
+	return m, nil
 }
 
 func (s *KafkaStorage) GetMessages(offset uint64) ([]Message, error) {
