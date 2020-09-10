@@ -59,6 +59,10 @@ func successResponse(w http.ResponseWriter, response interface{}) {
 
 func (c *Client) StartHTTPServer(listenAddr string) error {
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("/getAddress", c.getAddressHandler)
+	mux.HandleFunc("/getPubKey", c.getPubkeyHandler)
+
 	mux.HandleFunc("/sendMessage", c.sendMessageHandler)
 	mux.HandleFunc("/getOperations", c.getOperationsHandler)
 	mux.HandleFunc("/getOperationQRPath", c.getOperationQRPathHandler)
@@ -72,6 +76,22 @@ func (c *Client) StartHTTPServer(listenAddr string) error {
 
 	c.Logger.Log("Starting HTTP server on address: %s", listenAddr)
 	return http.ListenAndServe(listenAddr, mux)
+}
+
+func (c *Client) getAddressHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	successResponse(w, c.GetAddr())
+}
+
+func (c *Client) getPubkeyHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	successResponse(w, c.GetPubKey())
 }
 
 func (c *Client) sendMessageHandler(w http.ResponseWriter, r *http.Request) {

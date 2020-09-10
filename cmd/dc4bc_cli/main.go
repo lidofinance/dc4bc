@@ -33,6 +33,8 @@ func main() {
 		readOperationFromCameraCommand(),
 		startDKGCommand(),
 		proposeSignMessageCommand(),
+		getAddressCommand(),
+		getPubKeyCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
