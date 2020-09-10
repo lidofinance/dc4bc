@@ -6,6 +6,14 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
 	"github.com/depools/dc4bc/airgapped"
 	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -13,11 +21,6 @@ import (
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
 	bls12381 "github.com/depools/kyber-bls12381"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"testing"
-	"time"
 )
 
 type node struct {
@@ -127,9 +130,26 @@ func (n *node) run(t *testing.T) {
 	}
 }
 
+func RemoveContents(dir, mask string) error {
+	files, err := filepath.Glob(filepath.Join(dir, mask))
+	if err != nil {
+		return err
+	}
+	for _, file := range files {
+		err = os.RemoveAll(file)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func TestFullFlow(t *testing.T) {
-	var numNodes = 4
-	var threshold = 3
+	_ = RemoveContents("/tmp", "dc4bc_*")
+	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
+
+	var numNodes = 2
+	var threshold = 2
 	var storagePath = "/tmp/dc4bc_storage"
 	var nodes = make([]*node, numNodes)
 	startingPort := 8080
