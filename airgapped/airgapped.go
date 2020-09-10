@@ -23,9 +23,10 @@ import (
 )
 
 const (
-	resultQRFolder  = "result_qr_codes"
-	pubKeyDBKey     = "public_key"
-	privateKeyDBKey = "private_key"
+	resultQRFolder        = "result_qr_codes"
+	pubKeyDBKey           = "public_key"
+	privateKeyDBKey       = "private_key"
+	participantAddressKey = "participant_address"
 )
 
 type AirgappedMachine struct {
@@ -71,11 +72,20 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 		return am, am.saveKeysToDB(dbPath)
 	}
 
+	if err = am.loadAddressFromDB(dbPath); err != nil {
+		return nil, fmt.Errorf("failed to load address from db")
+	}
+
 	return am, nil
 }
 
-func (am *AirgappedMachine) SetAddress(address string) {
+func (am *AirgappedMachine) SetAddress(address string) error {
 	am.ParticipantAddress = address
+	return am.saveAddressToDB(address)
+}
+
+func (am *AirgappedMachine) GetAddress() string {
+	return am.ParticipantAddress
 }
 
 func (am *AirgappedMachine) loadKeysFromDB(dbPath string) error {
@@ -105,6 +115,22 @@ func (am *AirgappedMachine) loadKeysFromDB(dbPath string) error {
 		return fmt.Errorf("failed to unmarshal private key: %w", err)
 	}
 	return nil
+}
+
+func (am *AirgappedMachine) loadAddressFromDB(dbPath string) error {
+	address, err := am.db.Get([]byte(participantAddressKey), nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return nil
+		}
+		return fmt.Errorf("failed to get address from db %s: %w", dbPath, err)
+	}
+	am.ParticipantAddress = string(address)
+	return nil
+}
+
+func (am *AirgappedMachine) saveAddressToDB(address string) error {
+	return am.db.Put([]byte(participantAddressKey), []byte(address), nil)
 }
 
 func (am *AirgappedMachine) saveKeysToDB(dbPath string) error {
