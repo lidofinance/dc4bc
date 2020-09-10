@@ -6,6 +6,12 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"testing"
+	"time"
+
 	"github.com/depools/dc4bc/airgapped"
 	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -13,11 +19,6 @@ import (
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
 	bls12381 "github.com/depools/kyber-bls12381"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"testing"
-	"time"
 )
 
 type node struct {
@@ -129,7 +130,7 @@ func (n *node) run(t *testing.T) {
 func TestFullFlow(t *testing.T) {
 	var numNodes = 4
 	var threshold = 3
-	//var storagePath = "/tmp/dc4bc_storage"
+	var storagePath = "/tmp/dc4bc_storage"
 	var nodes = make([]*node, numNodes)
 	startingPort := 8080
 	for nodeID := 0; nodeID < numNodes; nodeID++ {
@@ -140,7 +141,7 @@ func TestFullFlow(t *testing.T) {
 			t.Fatalf("node %d failed to init state: %v\n", nodeID, err)
 		}
 
-		stg, err := storage.NewKafkaStorage(ctx, "localhost:9092")
+		stg, err := storage.NewFileStorage(storagePath)
 		if err != nil {
 			t.Fatalf("node %d failed to init storage: %v\n", nodeID, err)
 		}
@@ -254,4 +255,5 @@ func TestFullFlow(t *testing.T) {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
 	time.Sleep(5 * time.Second)
+
 }
