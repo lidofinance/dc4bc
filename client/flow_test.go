@@ -9,6 +9,8 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -128,6 +130,11 @@ func (n *node) run(t *testing.T) {
 }
 
 func TestFullFlow(t *testing.T) {
+	files, _ := filepath.Glob("/tmp/dc4bc_*")
+	for _, f := range files {
+		_ = os.Remove(f)
+	}
+
 	var numNodes = 4
 	var threshold = 3
 	var storagePath = "/tmp/dc4bc_storage"
