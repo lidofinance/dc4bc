@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	sipf "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"log"
 	"path/filepath"
 	"sync"
 	"time"
+
+	sipf "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
 	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/types/requests"
@@ -115,7 +116,7 @@ func (c *Client) Poll() error {
 				if message.RecipientAddr == "" || message.RecipientAddr == c.GetAddr() {
 					c.Logger.Log("Handling message with offset %d, type %s", message.Offset, message.Event)
 					if err := c.ProcessMessage(message); err != nil {
-						c.Logger.Log("Failed to process message: %v", err)
+						c.Logger.Log("Failed to process message with offset %d: %v", message.Offset, err)
 					} else {
 						c.Logger.Log("Successfully processed message with offset %d, type %s",
 							message.Offset, message.Event)
