@@ -108,7 +108,7 @@ func (t *terminal) run() error {
 	reader := bufio.NewReader(os.Stdin)
 
 	if t.airgapped.GetAddress() == "" {
-		fmt.Println("At first, you need to set address (name)" +
+		fmt.Println("At first, you need to set address" +
 			" of your airgapped machine (should be equal to the client address)")
 		if err := t.setAddressCommand(); err != nil {
 			return err
