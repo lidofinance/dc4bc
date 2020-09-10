@@ -250,7 +250,6 @@ func TestFullFlow(t *testing.T) {
 		t.Fatalf("failed to send HTTP request to start DKG: %v\n", err)
 	}
 
-	// i haven't a better idea to test signing without big changes in the client code
 	time.Sleep(10 * time.Second)
 	log.Println("Propose message to sign")
 
@@ -276,4 +275,5 @@ func TestFullFlow(t *testing.T) {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
 	time.Sleep(5 * time.Second)
+
 }

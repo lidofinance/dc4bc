@@ -48,6 +48,8 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 	}()
 
 	img := gocv.NewMat()
+	defer img.Close()
+
 	tk := time.NewTimer(timeToScan)
 
 	// This loop reads an image from the webcam every millisecond
