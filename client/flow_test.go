@@ -31,7 +31,8 @@ type node struct {
 }
 
 type OperationsResponse struct {
-	Result map[string]*types.Operation `json:"result"`
+	ErrorMessage string                      `json:"error_message,omitempty"`
+	Result       map[string]*types.Operation `json:"result"`
 }
 
 func getOperations(url string) (*OperationsResponse, error) {
@@ -129,14 +130,26 @@ func (n *node) run(t *testing.T) {
 	}
 }
 
-func TestFullFlow(t *testing.T) {
-	files, _ := filepath.Glob("/tmp/dc4bc_*")
-	for _, f := range files {
-		_ = os.Remove(f)
+func RemoveContents(dir, mask string) error {
+	files, err := filepath.Glob(filepath.Join(dir, mask))
+	if err != nil {
+		return err
 	}
+	for _, file := range files {
+		err = os.RemoveAll(file)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
-	var numNodes = 4
-	var threshold = 3
+func TestFullFlow(t *testing.T) {
+	_ = RemoveContents("/tmp", "dc4bc_*")
+	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
+
+	var numNodes = 2
+	var threshold = 2
 	var storagePath = "/tmp/dc4bc_storage"
 	var nodes = make([]*node, numNodes)
 	startingPort := 8080

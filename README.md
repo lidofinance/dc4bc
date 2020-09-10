@@ -132,5 +132,32 @@ The expected DKG workflow goes as follows:
 6. Airgapped machine communication via QR codes
 7. Integration with the production DKG library
 8. E2E test harness with full eth1->beacon chain scenario
-9. Final clean-up and documanetation 
+9. Final clean-up and documentation 
 
+## Step-by-step guide
+
+#### Initialize and run 2 nodes 
+
+Node 1:
+
+1. go run cmd/dc4bc_d/main.go gen_keys --username node_1 --key_store_dbdsn /tmp/dc4bc_node_1_key_store
+2. go run cmd/dc4bc_d/main.go start --username node_1 --key_store_dbdsn /tmp/dc4bc_node_1_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_node_1_state --storage_dbdsn /tmp/dc4bc_storage
+3. go run cmd/dc4bc_cli/main.go get_address --listen_addr localhost:8080
+4. go run cmd/airgapped/main.go /tmp/dc4bc_node_1_airgapped_state
+
+Node 2:
+
+1. go run cmd/dc4bc_d/main.go gen_keys --username node_2 --key_store_dbdsn /tmp/dc4bc_node_2_key_store
+2. go run cmd/dc4bc_d/main.go start --username node_2 --key_store_dbdsn /tmp/dc4bc_node_2_key_store --listen_addr localhost:8081 --state_dbdsn /tmp/dc4bc_node_2_state --storage_dbdsn /tmp/dc4bc_storage
+3. go run cmd/dc4bc_cli/main.go get_address --listen_addr localhost:8080
+4. go run cmd/airgapped/main.go /tmp/dc4bc_node_2_airgapped_state
+
+#### Start the DKG
+
+1. go run cmd/dc4bc_cli/main.go get_address --listen_addr localhost:8080
+2. go run cmd/dc4bc_cli/main.go get_address --listen_addr localhost:8081
+3. go run cmd/dc4bc_cli/main.go start_dkg 2 2 --listen_addr localhost:8080
+
+#### Perform required operations for both nodes
+
+1. go run cmd/dc4bc_cli/main.go get_operations --listen_addr localhost:8080

@@ -77,7 +77,7 @@ func (s *LevelDBKeyStore) LoadKeys(userName, password string) (*KeyPair, error) 
 
 	var keyPairs = map[string]*KeyPair{}
 	if err := json.Unmarshal(bz, &keyPairs); err != nil {
-		return nil, fmt.Errorf("failed to unmarshak key pairs: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal key pairs: %w", err)
 	}
 
 	keyPair, ok := keyPairs[userName]

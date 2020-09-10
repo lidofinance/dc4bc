@@ -3,8 +3,7 @@ package config
 import "time"
 
 const (
-	// TODO: Move to machine level configs?
-	ParticipantsMinCount                  = 3
+	ParticipantsMinCount                  = 2
 	SignatureProposalConfirmationDeadline = time.Hour * 24
 	DkgConfirmationDeadline               = time.Hour * 24
 	SigningConfirmationDeadline           = time.Hour * 24

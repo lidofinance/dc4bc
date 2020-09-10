@@ -41,7 +41,6 @@ type Poller interface {
 	ProcessMessage(message storage.Message) error
 	GetOperations() (map[string]*types.Operation, error)
 	GetOperationQRPath(operationID string) ([]string, error)
-	ReadProcessedOperation() error
 	StartHTTPServer(listenAddr string) error
 	GetLogger() *logger
 }
@@ -260,7 +259,7 @@ func (c *Client) GetOperationQRPath(operationID string) ([]string, error) {
 		return nil, fmt.Errorf("failed to get operation in JSON: %w", err)
 	}
 
-	operationQRPath := filepath.Join(QrCodesDir, operationID)
+	operationQRPath := filepath.Join(QrCodesDir, fmt.Sprintf("qr_dc4bc_%s", operationID))
 	chunks, err := qr.DataToChunks(operationJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to divide a data on chunks: %w", err)
@@ -277,23 +276,6 @@ func (c *Client) GetOperationQRPath(operationID string) ([]string, error) {
 	}
 
 	return qrs, nil
-}
-
-// ReadProcessedOperation reads the processed operation from camera, checks that
-// the processed operation has its unprocessed counterpart in our state,
-// posts a Message to the storage and deletes the operation from our state.
-func (c *Client) ReadProcessedOperation() error {
-	bz, err := qr.ReadDataFromQRChunks(c.qrProcessor)
-	if err != nil {
-		return fmt.Errorf("failed to ReadQR: %s", err)
-	}
-
-	var operation types.Operation
-	if err = json.Unmarshal(bz, &operation); err != nil {
-		return fmt.Errorf("failed to unmarshal processed operation")
-	}
-
-	return c.handleProcessedOperation(operation)
 }
 
 func (c *Client) handleProcessedOperation(operation types.Operation) error {
