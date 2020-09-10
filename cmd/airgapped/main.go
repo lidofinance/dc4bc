@@ -7,8 +7,13 @@ import (
 	"github.com/depools/dc4bc/airgapped"
 	"log"
 	"os"
+	"runtime"
 	"strings"
 )
+
+func init() {
+	runtime.LockOSThread()
+}
 
 type terminalCommand struct {
 	commandHandler func() error
