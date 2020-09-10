@@ -259,7 +259,7 @@ func (c *Client) GetOperationQRPath(operationID string) ([]string, error) {
 		return nil, fmt.Errorf("failed to get operation in JSON: %w", err)
 	}
 
-	operationQRPath := filepath.Join(QrCodesDir, operationID)
+	operationQRPath := filepath.Join(QrCodesDir, fmt.Sprintf("qr_dc4bc_%s", operationID))
 	chunks, err := qr.DataToChunks(operationJSON)
 	if err != nil {
 		return nil, fmt.Errorf("failed to divide a data on chunks: %w", err)
