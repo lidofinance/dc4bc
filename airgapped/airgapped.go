@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"sync"
 
 	vss "github.com/corestario/kyber/share/vss/rabin"
@@ -48,6 +49,12 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 	var (
 		err error
 	)
+
+	if err := os.MkdirAll(resultQRFolder, 0777); err != nil {
+		if err != os.ErrExist {
+			return nil, fmt.Errorf("failed to create folder %s: %w", resultQRFolder, err)
+		}
+	}
 
 	am := &AirgappedMachine{
 		dkgInstances: make(map[string]*dkg.DKG),
