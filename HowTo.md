@@ -18,9 +18,12 @@ $ ./dc4bc_airgapped /tmp/dc4bc_john_doe_airgapped_state
 Print your address, communication public key and encryption public key and save it somewhere for later use:
 ``` 
 $ ./dc4bc_cli get_address --listen_addr localhost:8080
+e0d8083f8a2d18f310bfbdc9649a83664470f46053ab53c105a054b08f9eff85
 $ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
+EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 # Inside the airgapped shell:
-show_dkg_pub_key
+>>> show_dkg_pub_key
+sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq
 ```
 
 Now you want to start the DKG procedure. Some participant (possibly you) will execute this command:
@@ -74,7 +77,7 @@ open /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0
 Now go to `dc4bc_airgapped` prompt and enter:
 
 ```
-read_qr
+>>> read_qr
 ```
 
 A new window will be opened showing what your laptop's camera sees. Place the photo of QR from the previous step in fron of the camera and wait for the airgapped machine to scan it. You will have to scan all operation QR codes that were produced by the node.  
