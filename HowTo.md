@@ -100,7 +100,7 @@ Further actions are repetitive. Check for new pending operations:
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
 ```
 
-Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that DKG is finished:
+Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that DKG is finished (`event_dkg_master_key_confirm_received`):
 ```
 [john_doe] State stage_signing_idle does not require an operation
 [john_doe] Successfully processed message with offset 10, type event_dkg_master_key_confirm_received
