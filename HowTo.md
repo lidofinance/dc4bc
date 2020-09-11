@@ -76,3 +76,33 @@ Now go to `dc4bc_airgapped` prompt and enter:
 ```
 
 A new window will be opened showing what your laptop's camera sees. Place the photo of the QR from the previous step in front of the camera and wait for the airgapped machine to scan it. You will have to scan all operation QR codes that were produced by the node.
+
+After you've scanned all QR codes, you will be shown the path to the QR code that contains the response of `dc4bc_airgapped`. Note that it may be split into several chunks:
+```
+
+```
+Open the first response QR code in your default image viewer and take a photo of it. Then go to the node and run:
+```
+$ ./dc4bc_cli read_from_camera  --listen_addr localhost:8080
+```
+
+The procedure is the same as with `dc4bc_airgapped`: scan all QR codes until you see a success message:
+```
+
+```
+
+After scanning the response, a message is send to the message board. When all participants perform the necessary operations, the node will proceed to the next step:
+```
+
+```
+Further actions are repetitive. Check for new pending operations:
+```
+$ ./dc4bc_cli get_operations --listen_addr localhost:8080
+```
+
+Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that DKG is finished:
+```
+[john_doe] State stage_signing_idle does not require an operation
+[john_doe] Successfully processed message with offset 10, type event_dkg_master_key_confirm_received
+``` 
+
