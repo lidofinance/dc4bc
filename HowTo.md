@@ -31,11 +31,8 @@ make build-linux
 
 First install the Go toolchain:
 ```
-curl -O https://golang.org/dl/go1.15.2.darwin-amd64.pkg
-open go1.15.2.darwin-amd64.pkg
+brew install go
 ```
-
-Follow the instructions in the dialogue window (this is a standard installation package).
 
 When Go is set up, install OpenCV:
 ```
