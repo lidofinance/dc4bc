@@ -7,7 +7,7 @@ import (
 	"math"
 )
 
-const chunkSize = 512
+const chunkSize = 256
 
 type chunk struct {
 	Data    []byte

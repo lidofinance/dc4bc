@@ -49,6 +49,10 @@ func NewTerminal(machine *airgapped.AirgappedMachine) *terminal {
 		commandHandler: t.setAddressCommand,
 		description:    "set an airgapped address",
 	})
+	t.addCommand("show_finished_dkg", &terminalCommand{
+		commandHandler: t.showFinishedDKGCommand,
+		description:    "shows a list of finished dkg rounds",
+	})
 	return &t
 }
 
@@ -101,6 +105,19 @@ func (t *terminal) helpCommand() error {
 	fmt.Println("Available commands:")
 	for commandName, command := range t.commands {
 		fmt.Printf("* %s - %s\n", commandName, command.description)
+	}
+	return nil
+}
+
+func (t *terminal) showFinishedDKGCommand() error {
+	keyrings, err := t.airgapped.GetBLSKeyrings()
+	if err != nil {
+		return fmt.Errorf("failed to get a list of finished dkgs: %w", err)
+	}
+	for dkgID, keyring := range keyrings {
+		fmt.Printf("DKG identifier: %s\n", dkgID)
+		fmt.Printf("PubKey: %s\n", keyring.PubPoly.Commit().String())
+		fmt.Println("-----------------------------------------------------")
 	}
 	return nil
 }
