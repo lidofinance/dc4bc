@@ -143,7 +143,14 @@ A new window will be opened showing what your laptop's camera sees. Place the ph
 
 After you've scanned all QR codes, you will be shown the path to the QR code that contains the response of `dc4bc_airgapped`. Note that it may be split into several chunks:
 ```
-
+An operation in the readed QR code handled successfully, a result operation saved by chunks in following qr codes:
+Operation's chunk #0: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-0.png
+Operation's chunk #1: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-1.png
+Operation's chunk #2: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-2.png
+Operation's chunk #3: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-3.png
+Operation's chunk #4: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-4.png
+Operation's chunk #5: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-5.png
+Operation's chunk #6: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-6.png
 ```
 Open the first response QR code in your default image viewer and take a photo of it. Then go to the node and run:
 ```
@@ -152,12 +159,12 @@ $ ./dc4bc_cli read_from_camera  --listen_addr localhost:8080
 
 The procedure is the same as with `dc4bc_airgapped`: scan all QR codes until you see a success message:
 ```
-
+Operation successfully scanned
 ```
 
 After scanning the response, a message is send to the message board. When all participants perform the necessary operations, the node will proceed to the next step:
 ```
-
+[john_doe] message event_sig_proposal_confirm_by_participant done successfully from b8c083cd717b9958e141be5956bab1e463a7a0d85e4fe8924833601d43d671c4
 ```
 Further actions are repetitive. Check for new pending operations:
 ```
