@@ -1,5 +1,39 @@
 # Step-by-step guide
 
+#### Installation (Linux)
+
+First install OpenCV:
+```
+git clone https://github.com/hybridgroup/gocv.git
+cd gocv
+make install
+```
+
+If it works correctly, at the end of the entire process, the following message should be displayed:
+```
+gocv version: 0.22.0
+opencv lib version: 4.4.0
+```
+
+Then build the project binaries:
+```
+make build-linux
+```
+
+#### Installation (Darwin)
+
+First install OpenCV:
+```
+brew uninstall opencv
+brew install opencv
+brew install pkgconfig
+```
+
+Then build the project binaries:
+```
+make build-darwin
+``` 
+
 #### DKG
 
 Generate keys for your node:
