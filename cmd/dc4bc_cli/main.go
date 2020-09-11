@@ -296,27 +296,28 @@ func startDKGCommand() *cobra.Command {
 				p := &requests.SignatureProposalParticipantsEntry{}
 				fmt.Printf("Enter a necessary data for participant %d:\n", i)
 				fmt.Printf("Enter address: ")
-				p.Addr, err = reader.ReadString('\n')
+				addr, _, err := reader.ReadLine()
 				if err != nil {
 					return fmt.Errorf("failed to read addr: %w", err)
 				}
+				p.Addr = string(addr)
 
 				fmt.Printf("Enter pubkey (base64): ")
-				pubKeyStr, err := reader.ReadString('\n')
+				pubKey, _, err := reader.ReadLine()
 				if err != nil {
 					return fmt.Errorf("failed to read pubKey: %w", err)
 				}
-				p.PubKey, err = base64.StdEncoding.DecodeString(pubKeyStr)
+				p.PubKey, err = base64.StdEncoding.DecodeString(string(pubKey))
 				if err != nil {
 					return fmt.Errorf("failed to decode pubKey: %w", err)
 				}
 
 				fmt.Printf("Enter DKGPubKey (base64): ")
-				DKGPubKeyStr, err := reader.ReadString('\n')
+				DKGPubKey, _, err := reader.ReadLine()
 				if err != nil {
 					return fmt.Errorf("failed to read DKGPubKey: %w", err)
 				}
-				p.DkgPubKey, err = base64.StdEncoding.DecodeString(DKGPubKeyStr)
+				p.DkgPubKey, err = base64.StdEncoding.DecodeString(string(DKGPubKey))
 				if err != nil {
 					return fmt.Errorf("failed to decode DKGPubKey: %w", err)
 				}

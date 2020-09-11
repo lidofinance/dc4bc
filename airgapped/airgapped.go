@@ -279,7 +279,7 @@ func (am *AirgappedMachine) HandleQR() ([]string, error) {
 		qrPath := fmt.Sprintf("%s/%s_%s_%s-%d.png", resultQRFolder, resultOperation.Type, resultOperation.ID,
 			resultOperation.To, idx)
 		if err = am.qrProcessor.WriteQR(qrPath, chunk); err != nil {
-			return nil, fmt.Errorf("failed to write QR")
+			return nil, fmt.Errorf("failed to write QR: %w", err)
 		}
 		qrPaths = append(qrPaths, qrPath)
 	}
