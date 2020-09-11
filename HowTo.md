@@ -1,4 +1,6 @@
-## Step-by-step guide
+# Step-by-step guide
+
+#### DKG
 
 Generate keys for your node:
 ```
@@ -106,3 +108,22 @@ Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then
 [john_doe] Successfully processed message with offset 10, type event_dkg_master_key_confirm_received
 ``` 
 
+#### Signature
+
+Now we have to collectively sign a message. Some participant will run the command that sends an invitation to the message board:
+
+```
+# Inside dc4bc_airgapped prompt:
+$ >>> show_finished_dkg
+AABB10CABB10
+$ echo "the message to sign" | base64
+dGhlIG1lc3NhZ2UgdG8gc2lnbgo=
+$ ./dc4bc_cli sign_data AABB10CABB10 dGhlIG1lc3NhZ2UgdG8gc2lnbgo= --listen_addr localhost:8080
+```  
+Further actions are repetitive and are similar to the DKG procedure. Check for new pending operations, feed them to `dc4bc_airgapped`, pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that the signature is ready:
+```
+[john_doe] Handling operation state_signing_partial_signs_collected in airgapped
+[176 141 250 6 188 93 29 163 218 11 179 113 24 74 95 62 89 163 219 249 135 53 26 212 55 134 143 107 117 216 112 85 163 6 117 153 161 171 235 145 198 253 60 53 22 3 36 84]
+```
+
+Now you have the full reconstructed signature. 
