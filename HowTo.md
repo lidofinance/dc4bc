@@ -51,6 +51,7 @@ make build-darwin
 
 If you see unexpected output like this:
 ```
+ld: warning: directory not found for option '-L/usr/local/Cellar/opencv/4.4.0/lib'
 ```
 
 Try to run:
