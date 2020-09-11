@@ -150,7 +150,7 @@ func TestFullFlow(t *testing.T) {
 
 	var numNodes = 2
 	var threshold = 2
-	var storagePath = "/tmp/dc4bc_storage"
+	// var storagePath = "/tmp/dc4bc_storage"
 	var nodes = make([]*node, numNodes)
 	startingPort := 8080
 	for nodeID := 0; nodeID < numNodes; nodeID++ {
@@ -161,7 +161,8 @@ func TestFullFlow(t *testing.T) {
 			t.Fatalf("node %d failed to init state: %v\n", nodeID, err)
 		}
 
-		stg, err := storage.NewFileStorage(storagePath)
+		// stg, err := storage.NewFileStorage(storagePath)
+		stg, err := storage.NewKafkaStorage(context.Background(), "94.130.57.249:9092")
 		if err != nil {
 			t.Fatalf("node %d failed to init storage: %v\n", nodeID, err)
 		}

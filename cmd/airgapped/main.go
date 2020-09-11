@@ -4,11 +4,12 @@ import (
 	"bufio"
 	"encoding/base64"
 	"fmt"
-	"github.com/depools/dc4bc/airgapped"
 	"log"
 	"os"
 	"runtime"
 	"strings"
+
+	"github.com/depools/dc4bc/airgapped"
 )
 
 func init() {
