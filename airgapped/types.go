@@ -3,6 +3,8 @@ package airgapped
 import (
 	"fmt"
 	"github.com/depools/dc4bc/dkg"
+	"github.com/syndtr/goleveldb/leveldb/util"
+	"strings"
 )
 
 const (
@@ -38,4 +40,25 @@ func (am *AirgappedMachine) loadBLSKeyring(dkgID string) (*dkg.BLSKeyring, error
 		return nil, fmt.Errorf("failed to decode bls keyring")
 	}
 	return blsKeyring, nil
+}
+
+func (am *AirgappedMachine) GetBLSKeyrings() (map[string]*dkg.BLSKeyring, error) {
+	var (
+		blsKeyring *dkg.BLSKeyring
+		err        error
+	)
+
+	keyrings := make(map[string]*dkg.BLSKeyring)
+	iter := am.db.NewIterator(util.BytesPrefix([]byte(blsKeyringPrefix)), nil)
+	defer iter.Release()
+
+	for iter.Next() {
+		key := iter.Key()
+		value := iter.Value()
+		if blsKeyring, err = dkg.LoadBLSKeyringFromBytes(value); err != nil {
+			return nil, fmt.Errorf("failed to decode bls keyring: %w", err)
+		}
+		keyrings[strings.TrimLeft(string(key), blsKeyringPrefix)] = blsKeyring
+	}
+	return keyrings, iter.Error()
 }

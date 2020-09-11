@@ -34,7 +34,7 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to OpenVideoCapture: %w", err)
 	}
-	window := gocv.NewWindow("Hello")
+	window := gocv.NewWindow("Please, show a qr code")
 
 	defer func() {
 		if err := webcam.Close(); err != nil {
@@ -50,29 +50,24 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 	img := gocv.NewMat()
 	defer img.Close()
 
-	tk := time.NewTimer(timeToScan)
-
-	// This loop reads an image from the webcam every millisecond
-	// for 5 seconds. The last image taken will be used as the final
-	//one.
-loop:
 	for {
-		select {
-		case <-tk.C:
-			break loop
-		default:
-			webcam.Read(&img)
-			window.IMShow(img)
-			window.WaitKey(1)
+		webcam.Read(&img)
+		window.IMShow(img)
+		window.WaitKey(1)
+
+		imgObject, err := img.ToImage()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get image object: %w", err)
 		}
+		data, err := ReadDataFromQR(imgObject)
+		if err != nil {
+			if _, ok := err.(gozxing.NotFoundException); ok {
+				continue
+			}
+			return nil, err
+		}
+		return data, nil
 	}
-
-	imgObject, err := img.ToImage()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get image object: %w", err)
-	}
-
-	return ReadDataFromQR(imgObject)
 }
 
 func (p *CameraProcessor) WriteQR(path string, data []byte) error {
@@ -93,6 +88,9 @@ func ReadDataFromQR(img image.Image) ([]byte, error) {
 	qrReader := qrcode.NewQRCodeReader()
 	result, err := qrReader.Decode(bmp, nil)
 	if err != nil {
+		if _, ok := err.(gozxing.NotFoundException); ok {
+			return nil, err
+		}
 		return nil, fmt.Errorf("failed to decode the QR-code contents: %w", err)
 	}
 	return []byte(result.String()), nil
