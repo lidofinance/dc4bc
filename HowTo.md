@@ -31,6 +31,11 @@ make build-linux
 
 First install the Go toolchain:
 ```
+mkdir $HOME/Go
+export GOPATH=$HOME/Go
+export GOROOT=/usr/local/opt/go/libexec
+export PATH=$PATH:$GOPATH/bin
+export PATH=$PATH:$GOROOT/bin
 brew install go
 ```
 
