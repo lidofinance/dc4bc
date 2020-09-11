@@ -80,4 +80,6 @@ Now go to `dc4bc_airgapped` prompt and enter:
 >>> read_qr
 ```
 
-A new window will be opened showing what your laptop's camera sees. Place the photo of QR from the previous step in fron of the camera and wait for the airgapped machine to scan it. You will have to scan all operation QR codes that were produced by the node.  
+A new window will be opened showing what your laptop's camera sees. Place the photo of the QR from the previous step in front of the camera and wait for the airgapped machine to scan it. You will have to scan all operation QR codes that were produced by the node.
+
+  
