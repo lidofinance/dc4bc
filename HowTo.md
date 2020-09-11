@@ -31,7 +31,7 @@ Now you want to start the DKG procedure. Some participant (possibly you) will ex
 $ ./dc4bc_cli start_dkg 3 2 --listen_addr localhost:8080
 ```
 
-This tells the node to send an InitDKG message that proposes to run DKG for 3 participants with `threshold=2`. You will be prompted to enter some required information about the suggested participants:
+This tells the node to send an InitDKG message that proposes to run DKG for 2 participants with `threshold=2`. You will be prompted to enter some required information about the suggested participants:
 ```
 $ ./dc4bc_cli start_dkg 2 2 --listen_addr localhost:8080
 Enter a necessary data for participant 0:
