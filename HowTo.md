@@ -1,5 +1,10 @@
 # Step-by-step guide
 
+Clone the project repository:
+```
+git clone git@github.com:depools/dc4bc.git
+```
+
 #### Installation (Linux)
 
 First install the Go toolchain:
@@ -24,6 +29,8 @@ opencv lib version: 4.4.0
 
 Then build the project binaries:
 ```
+# Go to the cloned repository.
+cd dc4bc
 make build-linux
 ```
 
@@ -48,6 +55,8 @@ brew install pkgconfig
 
 Then build the project binaries:
 ```
+# Go to the cloned repository.
+cd dc4bc
 make build-darwin
 ```
 
