@@ -26,12 +26,7 @@ EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq
 ```
 
-Now you want to start the DKG procedure. Some participant (possibly you) will execute this command:
-```
-$ ./dc4bc_cli start_dkg 3 2 --listen_addr localhost:8080
-```
-
-This tells the node to send an InitDKG message that proposes to run DKG for 2 participants with `threshold=2`. You will be prompted to enter some required information about the suggested participants:
+Now you want to start the DKG procedure. This tells the node to send an InitDKG message that proposes to run DKG for 2 participants with `threshold=2`. You will be prompted to enter some required information about the suggested participants:
 ```
 $ ./dc4bc_cli start_dkg 2 2 --listen_addr localhost:8080
 Enter a necessary data for participant 0:
@@ -81,5 +76,3 @@ Now go to `dc4bc_airgapped` prompt and enter:
 ```
 
 A new window will be opened showing what your laptop's camera sees. Place the photo of the QR from the previous step in front of the camera and wait for the airgapped machine to scan it. You will have to scan all operation QR codes that were produced by the node.
-
-  
