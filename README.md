@@ -142,29 +142,32 @@ Node 1:
 
 Generate keys for your node:
 ```
-go run cmd/dc4bc_d/main.go gen_keys --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store
+./dc4bc_d gen_keys --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store
 ```
 Start the node:
 ```
-go run cmd/dc4bc_d/main.go start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn /tmp/dc4bc_storage
+./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn /tmp/dc4bc_storage
 ```
 Start the airgapped machine:
 ```
-go run cmd/airgapped/main.go /tmp/dc4bc_john_doe_airgapped_state
+./dc4bc_airgapped /tmp/dc4bc_john_doe_airgapped_state
 ```
 Print your address, communication public key and encryption public key and save it somewhere for later use:
 ``` 
-go run cmd/dc4bc_cli/main.go get_address --listen_addr localhost:8080
-go run cmd/dc4bc_cli/main.go get_pubkey --listen_addr localhost:8080
+./dc4bc_cli get_address --listen_addr localhost:8080
+./dc4bc_cli get_pubkey --listen_addr localhost:8080
 # Inside the airgapped shell:
 show_dkg_pub_key
 ```
 
 Now you want to start the DKG procedure. Some participant (possibly you) will execute this command:
 ```
-go run cmd/dc4bc_cli/main.go start_dkg 3 2 --listen_addr localhost:8080
+./dc4bc_cli start_dkg 3 2 --listen_addr localhost:8080
 ```
 
-This tells the node to send an InitDKG message that proposes to run DKG for 3 participants with `threshold=2`. You will be prompted to enter some required information about the suggested participants:    
+This tells the node to send an InitDKG message that proposes to run DKG for 3 participants with `threshold=2`. You will be prompted to enter some required information about the suggested participants:
 
-go run cmd/dc4bc_cli/main.go get_operations --listen_addr localhost:8080
+```
+```
+
+./dc4bc_cli get_operations --listen_addr localhost:8080
