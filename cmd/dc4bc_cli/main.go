@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
@@ -10,8 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/depools/dc4bc/client"
@@ -265,8 +262,8 @@ func readOperationFromCameraCommand() *cobra.Command {
 
 func startDKGCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "start_dkg [participants count] [threshold]",
-		Args:  cobra.ExactArgs(2),
+		Use:   "start_dkg [proposing_file]",
+		Args:  cobra.ExactArgs(1),
 		Short: "sends a propose message to start a DKG process",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
@@ -274,61 +271,21 @@ func startDKGCommand() *cobra.Command {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 
-			participantsCount, err := strconv.Atoi(args[0])
+			dkgProposeFileData, err := ioutil.ReadFile(args[0])
 			if err != nil {
-				return fmt.Errorf("failed to get participants count: %w", err)
+				return fmt.Errorf("failed to read file: %w", err)
 			}
-			if participantsCount < 0 {
-				return fmt.Errorf("invalid number of participants: %d", participantsCount)
-			}
-
-			threshold, err := strconv.Atoi(args[1])
-			if err != nil {
-				return fmt.Errorf("failed to get threshold: %w", err)
-			}
-			if participantsCount < 0 || threshold > participantsCount {
-				return fmt.Errorf("invalid threshold: %d", threshold)
+			var req requests.SignatureProposalParticipantsListRequest
+			if err = json.Unmarshal(dkgProposeFileData, &req); err != nil {
+				return fmt.Errorf("failed to unmarshal dkg proposing file: %w", err)
 			}
 
-			reader := bufio.NewReader(os.Stdin)
-			var participants []*requests.SignatureProposalParticipantsEntry
-			for i := 0; i < participantsCount; i++ {
-				p := &requests.SignatureProposalParticipantsEntry{}
-				fmt.Printf("Enter a necessary data for participant %d:\n", i)
-				fmt.Printf("Enter address: ")
-				addr, _, err := reader.ReadLine()
-				if err != nil {
-					return fmt.Errorf("failed to read addr: %w", err)
-				}
-				p.Addr = string(addr)
-
-				fmt.Printf("Enter pubkey (base64): ")
-				pubKey, _, err := reader.ReadLine()
-				if err != nil {
-					return fmt.Errorf("failed to read pubKey: %w", err)
-				}
-				p.PubKey, err = base64.StdEncoding.DecodeString(string(pubKey))
-				if err != nil {
-					return fmt.Errorf("failed to decode pubKey: %w", err)
-				}
-
-				fmt.Printf("Enter DKGPubKey (base64): ")
-				DKGPubKey, _, err := reader.ReadLine()
-				if err != nil {
-					return fmt.Errorf("failed to read DKGPubKey: %w", err)
-				}
-				p.DkgPubKey, err = base64.StdEncoding.DecodeString(string(DKGPubKey))
-				if err != nil {
-					return fmt.Errorf("failed to decode DKGPubKey: %w", err)
-				}
-				participants = append(participants, p)
+			if len(req.Participants) == 0 || req.SigningThreshold > len(req.Participants) {
+				return fmt.Errorf("invalid threshold: %d", req.SigningThreshold)
 			}
+			req.CreatedAt = time.Now()
 
-			messageData := requests.SignatureProposalParticipantsListRequest{
-				Participants:     participants,
-				SigningThreshold: threshold,
-				CreatedAt:        time.Now(),
-			}
+			messageData := req
 			messageDataBz, err := json.Marshal(messageData)
 			if err != nil {
 				return fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)

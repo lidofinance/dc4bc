@@ -101,17 +101,27 @@ EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq
 ```
 
-Now you want to start the DKG procedure. This tells the node to send an InitDKG message that proposes to run DKG for 2 participants with `threshold=2`. You will be prompted to enter some required information about the suggested participants:
+Now you want to start the DKG procedure. This tells the node to send an InitDKG message that proposes to run DKG with parameters which locate in a start_dkg_propose.json file.
 ```
-$ ./dc4bc_cli start_dkg 2 2 --listen_addr localhost:8080
-Enter a necessary data for participant 0:
-Enter address: e0d8083f8a2d18f310bfbdc9649a83664470f46053ab53c105a054b08f9eff85
-Enter pubkey (base64): 4NgIP4otGPMQv73JZJqDZkRw9GBTq1PBBaBUsI+e/4U=
-Enter DKGPubKey (base64): sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq
-Enter a necessary data for participant 1:
-Enter address: 11c56cfa74e2e221444557811d43de3c39af927071f79728edcb0a8f4b1936ea
-Enter pubkey (base64): EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
-Enter DKGPubKey (base64): kJbOTZSwOKWYfg1KD/VxfRDEfk7kSgMzYiALJaLn2HJ08x5kIJWqkzFi/Z0B3ZEgBJROOybWPMVnQOpQ/DQwxYbxa6kgOPPBnY5WshX14vkgAtv+gE062rWLtFVBqZI+
+$ ./dc4bc_cli start_dkg /path/to/start_dkg_propose.json --listen_addr localhost:8080
+```
+Example of start_dkg_propose.json file structure:
+```
+{
+  "SigningThreshold": 2,
+  "Participants": [
+    {
+    "Addr": "e0d8083f8a2d18f310bfbdc9649a83664470f46053ab53c105a054b08f9eff85",
+    "PubKey": "EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=",
+    "DkgPubKey": "sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq"
+    },
+    {
+      "Addr": "addr2",
+      "PubKey": "cHVia2V5Mg==",
+      "DkgPubKey": "ZGtnX3B1YmtleV8y"
+    }
+  ]
+}
 ```
 
 The message will be consumed by your node:
