@@ -41,14 +41,6 @@ func NewTerminal(machine *airgapped.AirgappedMachine) *terminal {
 		commandHandler: t.showDKGPubKeyCommand,
 		description:    "shows a dkg pub key",
 	})
-	t.addCommand("show_address", &terminalCommand{
-		commandHandler: t.showAddressCommand,
-		description:    "shows an airgapped address",
-	})
-	t.addCommand("set_address", &terminalCommand{
-		commandHandler: t.setAddressCommand,
-		description:    "set an airgapped address",
-	})
 	t.addCommand("show_finished_dkg", &terminalCommand{
 		commandHandler: t.showFinishedDKGCommand,
 		description:    "shows a list of finished dkg rounds",
@@ -84,23 +76,6 @@ func (t *terminal) showDKGPubKeyCommand() error {
 	return nil
 }
 
-func (t *terminal) showAddressCommand() error {
-	fmt.Println(t.airgapped.GetAddress())
-	return nil
-}
-
-func (t *terminal) setAddressCommand() error {
-	fmt.Printf("Enter your client's address: ")
-	address, err := t.reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("failed to read address from stdin: %w", err)
-	}
-	if err = t.airgapped.SetAddress(strings.Trim(address, "\n")); err != nil {
-		return fmt.Errorf("failed to save address")
-	}
-	return nil
-}
-
 func (t *terminal) helpCommand() error {
 	fmt.Println("Available commands:")
 	for commandName, command := range t.commands {
@@ -125,13 +100,6 @@ func (t *terminal) showFinishedDKGCommand() error {
 func (t *terminal) run() error {
 	reader := bufio.NewReader(os.Stdin)
 
-	if t.airgapped.GetAddress() == "" {
-		fmt.Println("At first, you need to set address" +
-			" of your airgapped machine (should be equal to the client address)")
-		if err := t.setAddressCommand(); err != nil {
-			return err
-		}
-	}
 	if err := t.helpCommand(); err != nil {
 		return err
 	}

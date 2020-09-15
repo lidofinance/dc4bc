@@ -68,6 +68,7 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 			ParticipantId: participantId,
 			Addr:          participant.Addr,
 			Threshold:     participant.Threshold,
+			DkgPubKey:     participant.DkgPubKey,
 		}
 		responseData = append(responseData, responseEntry)
 	}

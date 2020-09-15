@@ -161,8 +161,8 @@ func TestFullFlow(t *testing.T) {
 			t.Fatalf("node %d failed to init state: %v\n", nodeID, err)
 		}
 
-		// stg, err := storage.NewFileStorage(storagePath)
-		stg, err := storage.NewKafkaStorage(context.Background(), "94.130.57.249:9092")
+		stg, err := storage.NewFileStorage("/tmp/dc4bc_airgapped_storage")
+		//stg, err := storage.NewKafkaStorage(context.Background(), "94.130.57.249:9092")
 		if err != nil {
 			t.Fatalf("node %d failed to init storage: %v\n", nodeID, err)
 		}
@@ -193,7 +193,6 @@ func TestFullFlow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("node %d failed to init client: %v\n", nodeID, err)
 		}
-		airgappedMachine.SetAddress(clt.GetAddr())
 
 		nodes[nodeID] = &node{
 			client:     clt,
@@ -231,7 +230,7 @@ func TestFullFlow(t *testing.T) {
 			log.Fatalln("failed to get DKG pubKey:", err.Error())
 		}
 		participants = append(participants, &requests.SignatureProposalParticipantsEntry{
-			Addr:      node.client.GetAddr(),
+			Addr:      node.client.GetUsername(),
 			PubKey:    node.client.GetPubKey(),
 			DkgPubKey: dkgPubKey,
 		})
