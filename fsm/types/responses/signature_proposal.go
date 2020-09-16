@@ -11,6 +11,8 @@ type SignatureProposalParticipantInvitationEntry struct {
 	// Public title for address, such as name, nickname, organization
 	Addr      string
 	Threshold int
+	DkgPubKey []byte
+	PubKey    []byte
 }
 
 // Public lists for proposal confirmation process

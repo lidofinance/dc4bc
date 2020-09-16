@@ -136,10 +136,19 @@ The message will be consumed by your node:
 Now you have a pending operation in your operation pool. Get the list of pending operations:
 ```
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
-Operation ID: 6d98f39d-1b24-49ce-8473-4f5d934ab2dc
-Operation: {"ID":"6d98f39d-1b24-49ce-8473-4f5d934ab2dc","Type":"state_sig_proposal_await_participants_confirmations","Payload":"W3siUGFydGljaXBhbnRJZCI6MCwiQWRkciI6ImUwZDgwODNmOGEyZDE4ZjMxMGJmYmRjOTY0OWE4MzY2NDQ3MGY0NjA1M2FiNTNjMTA1YTA1NGIwOGY5ZWZmODVcbiIsIlRocmVzaG9sZCI6Mn0seyJQYXJ0aWNpcGFudElkIjoxLCJBZGRyIjoiMTFjNTZjZmE3NGUyZTIyMTQ0NDU1NzgxMWQ0M2RlM2MzOWFmOTI3MDcxZjc5NzI4ZWRjYjBhOGY0YjE5MzZlYVxuIiwiVGhyZXNob2xkIjoyfV0=","ResultMsgs":null,"CreatedAt":"2020-09-11T14:28:54.343122+03:00","DKGIdentifier":"191fb020fd30edd891b066f72e5a5e3a","To":"","Event":""}
+DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
+Operation ID: 30fa9c21-b79f-4a53-a84b-e7ad574c1a51
+Description: confirm participation in the new DKG round
+Hash of the proposing DKG message - a60bd47a831cd58a96bdd4381ee15afc
 -----------------------------------------------------
 ```
+
+You can check the hash of the proposing DKG message:
+```
+./dc4bc_cli get_start_dkg_file_hash start_dkg_propose.json
+a60bd47a831cd58a96bdd4381ee15afc
+```
+The command returns a hash of the proposing message. If it is not equal to the hash from the list of pending operations, that means the person who proposed to start the DKG round changed the parameters that you agreed on the Conferce Call.
 
 Copy the Operation ID and make the node produce a QR-code for it:
 ```
