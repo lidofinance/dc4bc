@@ -61,10 +61,7 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 		}
 		data, err := ReadDataFromQR(imgObject)
 		if err != nil {
-			if _, ok := err.(gozxing.NotFoundException); ok {
-				continue
-			}
-			return nil, err
+			continue
 		}
 		return data, nil
 	}
@@ -88,9 +85,6 @@ func ReadDataFromQR(img image.Image) ([]byte, error) {
 	qrReader := qrcode.NewQRCodeReader()
 	result, err := qrReader.Decode(bmp, nil)
 	if err != nil {
-		if _, ok := err.(gozxing.NotFoundException); ok {
-			return nil, err
-		}
 		return nil, fmt.Errorf("failed to decode the QR-code contents: %w", err)
 	}
 	return []byte(result.String()), nil
