@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/types/responses"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -94,6 +96,14 @@ func getOperationsCommand() *cobra.Command {
 						return fmt.Errorf("failed to get hash of start DKG message: %w", err)
 					}
 					fmt.Printf("Hash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
+				}
+				if fsm.State(operation.Type) == signing_proposal_fsm.StateSigningAwaitConfirmations {
+					var payload responses.SigningProposalParticipantInvitationsResponse
+					if err := json.Unmarshal(operation.Payload, &payload); err != nil {
+						return fmt.Errorf("failed to unmarshal operation payload")
+					}
+					msgHash := md5.Sum(payload.SrcPayload)
+					fmt.Printf("Hash of the message to sign - %s\n", hex.EncodeToString(msgHash[:]))
 				}
 				fmt.Println("-----------------------------------------------------")
 			}
