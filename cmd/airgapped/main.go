@@ -141,11 +141,9 @@ func (t *terminal) enterEncryptionPasswordIfNeeded() error {
 		if err != nil {
 			return fmt.Errorf("failed to read password: %w", err)
 		}
+		fmt.Println()
 		t.airgapped.SetEncryptionKey(password)
 		if err = t.airgapped.InitKeys(); err != nil {
-			if _, ok := err.(airgapped.DecryptionError); ok {
-				continue
-			}
 			fmt.Printf("Failed to init keys: %v\n", err)
 			continue
 		}
