@@ -9,42 +9,70 @@ import (
 	"io"
 )
 
+type EncryptionError string
+
+func (e EncryptionError) Error() string {
+	return fmt.Sprintf("failed to encrypt data: %v", e)
+}
+
+type DecryptionError string
+
+func (e DecryptionError) Error() string {
+	return fmt.Sprintf("failed to decrypt data: %v", e)
+}
+
 func encrypt(key, data []byte) ([]byte, error) {
 	//TODO: salt
 	derivedKey, err := scrypt.Key(key, nil, 32768, 8, 1, 32)
-	block, err := aes.NewCipher(derivedKey)
 	if err != nil {
-		return nil, err
+		return nil, EncryptionError(err.Error())
 	}
 
-	cipherData := make([]byte, aes.BlockSize+len(data))
-	iv := cipherData[:aes.BlockSize]
-	if _, err = io.ReadFull(rand.Reader, iv); err != nil {
-		return nil, err
+	c, err := aes.NewCipher(derivedKey)
+	if err != nil {
+		return nil, EncryptionError(err.Error())
 	}
 
-	stream := cipher.NewCFBEncrypter(block, iv)
-	stream.XORKeyStream(cipherData[aes.BlockSize:], data)
-	return cipherData, nil
+	gcm, err := cipher.NewGCM(c)
+	if err != nil {
+		return nil, EncryptionError(err.Error())
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, EncryptionError(err.Error())
+	}
+
+	return gcm.Seal(nonce, nonce, data, nil), nil
 }
 
 func decrypt(key, data []byte) ([]byte, error) {
 	//TODO: salt
 	derivedKey, err := scrypt.Key(key, nil, 32768, 8, 1, 32)
-	block, err := aes.NewCipher(derivedKey)
 	if err != nil {
-		return nil, err
+		return nil, DecryptionError(err.Error())
 	}
 
-	if len(data) < aes.BlockSize {
-		return nil, fmt.Errorf("ciphertext block size is too short")
+	c, err := aes.NewCipher(derivedKey)
+	if err != nil {
+		return nil, DecryptionError(err.Error())
 	}
 
-	iv := data[:aes.BlockSize]
-	data = data[aes.BlockSize:]
+	gcm, err := cipher.NewGCM(c)
+	if err != nil {
+		return nil, DecryptionError(err.Error())
+	}
 
-	stream := cipher.NewCFBDecrypter(block, iv)
-	stream.XORKeyStream(data, data)
+	nonceSize := gcm.NonceSize()
+	if len(data) < nonceSize {
+		return nil, DecryptionError("invalid data length")
+	}
 
-	return data, nil
+	nonce, ciphertext := data[:nonceSize], data[nonceSize:]
+	decryptedData, err := gcm.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return nil, DecryptionError(err.Error())
+	}
+
+	return decryptedData, nil
 }

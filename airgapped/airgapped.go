@@ -38,9 +38,10 @@ type AirgappedMachine struct {
 	dkgInstances map[string]*dkg.DKG
 	qrProcessor  qr.Processor
 
-	pubKey kyber.Point
-	secKey kyber.Scalar
-	suite  vss.Suite
+	encryptionKey []byte
+	pubKey        kyber.Point
+	secKey        kyber.Scalar
+	suite         vss.Suite
 
 	db *leveldb.DB
 }
@@ -67,23 +68,26 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 		return nil, fmt.Errorf("failed to open db file %s for keys: %w", dbPath, err)
 	}
 
-	err = am.LoadKeysFromDB()
+	if err = am.loadAddressFromDB(dbPath); err != nil {
+		return nil, fmt.Errorf("failed to load address from db")
+	}
+
+	return am, nil
+}
+
+func (am *AirgappedMachine) InitKeys() error {
+	err := am.LoadKeysFromDB()
 	if err != nil && err != leveldb.ErrNotFound {
-		return nil, fmt.Errorf("failed to load keys from db %s: %w", dbPath, err)
+		return fmt.Errorf("failed to load keys from db: %w", err)
 	}
 	// if keys were not generated yet
 	if err == leveldb.ErrNotFound {
 		am.secKey = am.suite.Scalar().Pick(am.suite.RandomStream())
 		am.pubKey = am.suite.Point().Mul(am.secKey, nil)
 
-		return am, am.SaveKeysToDB()
+		return am.SaveKeysToDB()
 	}
-
-	if err = am.loadAddressFromDB(dbPath); err != nil {
-		return nil, fmt.Errorf("failed to load address from db")
-	}
-
-	return am, nil
+	return nil
 }
 
 func (am *AirgappedMachine) SetAddress(address string) error {
@@ -93,6 +97,23 @@ func (am *AirgappedMachine) SetAddress(address string) error {
 
 func (am *AirgappedMachine) GetAddress() string {
 	return am.ParticipantAddress
+}
+
+func (am *AirgappedMachine) SetEncryptionKey(key []byte) {
+	am.encryptionKey = key
+}
+
+func (am *AirgappedMachine) SensitiveDataRemoved() bool {
+	return len(am.encryptionKey) == 0
+}
+
+func (am *AirgappedMachine) DropSensitiveData() {
+	am.Lock()
+	defer am.Unlock()
+
+	am.secKey = nil
+	am.pubKey = nil
+	am.encryptionKey = nil
 }
 
 func (am *AirgappedMachine) LoadKeysFromDB() error {
@@ -112,13 +133,22 @@ func (am *AirgappedMachine) LoadKeysFromDB() error {
 		return fmt.Errorf("failed to get private key from db: %w", err)
 	}
 
+	decryptedPubKey, err := decrypt(am.encryptionKey, pubKeyBz)
+	if err != nil {
+		return err
+	}
+	decryptedPrivateKey, err := decrypt(am.encryptionKey, privateKeyBz)
+	if err != nil {
+		return err
+	}
+
 	am.pubKey = am.suite.Point()
-	if err = am.pubKey.UnmarshalBinary(pubKeyBz); err != nil {
+	if err = am.pubKey.UnmarshalBinary(decryptedPubKey); err != nil {
 		return fmt.Errorf("failed to unmarshal public key: %w", err)
 	}
 
 	am.secKey = am.suite.Scalar()
-	if err = am.secKey.UnmarshalBinary(privateKeyBz); err != nil {
+	if err = am.secKey.UnmarshalBinary(decryptedPrivateKey); err != nil {
 		return fmt.Errorf("failed to unmarshal private key: %w", err)
 	}
 	return nil
@@ -141,7 +171,6 @@ func (am *AirgappedMachine) saveAddressToDB(address string) error {
 }
 
 func (am *AirgappedMachine) SaveKeysToDB() error {
-
 	pubKeyBz, err := am.pubKey.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal pub key: %w", err)
@@ -151,17 +180,26 @@ func (am *AirgappedMachine) SaveKeysToDB() error {
 		return fmt.Errorf("failed to marshal private key: %w", err)
 	}
 
+	encryptedPubKey, err := encrypt(am.encryptionKey, pubKeyBz)
+	if err != nil {
+		return err
+	}
+	encryptedPrivateKey, err := encrypt(am.encryptionKey, privateKeyBz)
+	if err != nil {
+		return err
+	}
+
 	tx, err := am.db.OpenTransaction()
 	if err != nil {
 		return fmt.Errorf("failed to open transcation for db: %w", err)
 	}
 	defer tx.Discard()
 
-	if err = tx.Put([]byte(pubKeyDBKey), pubKeyBz, nil); err != nil {
+	if err = tx.Put([]byte(pubKeyDBKey), encryptedPubKey, nil); err != nil {
 		return fmt.Errorf("failed to put pub key into db: %w", err)
 	}
 
-	if err = tx.Put([]byte(privateKeyDBKey), privateKeyBz, nil); err != nil {
+	if err = tx.Put([]byte(privateKeyDBKey), encryptedPrivateKey, nil); err != nil {
 		return fmt.Errorf("failed to put private key into db: %w", err)
 	}
 
@@ -209,9 +247,6 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.
 	var (
 		err error
 	)
-
-	am.Lock()
-	defer am.Unlock()
 
 	// handler gets a pointer to an operation, do necessary things
 	// and write a result (or an error) to .Result field of operation
