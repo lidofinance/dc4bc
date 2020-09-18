@@ -283,7 +283,6 @@ func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.
 	if err != nil {
 		return fmt.Errorf("failed to get master pub key: %w", err)
 	}
-	fmt.Println(pubKey.String())
 
 	masterPubKeyBz, err := pubKey.MarshalBinary()
 	if err != nil {
