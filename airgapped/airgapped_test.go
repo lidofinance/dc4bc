@@ -115,6 +115,10 @@ func TestAirgappedAllSteps(t *testing.T) {
 			t.Fatalf("failed to create airgapped machine: %v", err)
 		}
 		am.SetAddress(participants[i])
+		am.SetEncryptionKey([]byte(fmt.Sprintf(testDB+"%d", i)))
+		if err = am.InitKeys(); err != nil {
+			t.Fatalf(err.Error())
+		}
 		node := Node{
 			ParticipantID: i,
 			Participant:   participants[i],

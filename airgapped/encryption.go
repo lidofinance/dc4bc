@@ -9,9 +9,8 @@ import (
 	"io"
 )
 
-func encrypt(key, data []byte) ([]byte, error) {
-	//TODO: salt
-	derivedKey, err := scrypt.Key(key, nil, 32768, 8, 1, 32)
+func encrypt(key, salt, data []byte) ([]byte, error) {
+	derivedKey, err := scrypt.Key(key, salt, 32768, 8, 1, 32)
 	if err != nil {
 		return nil, err
 	}
@@ -34,9 +33,8 @@ func encrypt(key, data []byte) ([]byte, error) {
 	return gcm.Seal(nonce, nonce, data, nil), nil
 }
 
-func decrypt(key, data []byte) ([]byte, error) {
-	//TODO: salt
-	derivedKey, err := scrypt.Key(key, nil, 32768, 8, 1, 32)
+func decrypt(key, salt, data []byte) ([]byte, error) {
+	derivedKey, err := scrypt.Key(key, salt, 32768, 8, 1, 32)
 	if err != nil {
 		return nil, err
 	}

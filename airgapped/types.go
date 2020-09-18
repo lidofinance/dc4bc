@@ -16,11 +16,21 @@ func makeBLSKeyKeyringDBKey(key string) string {
 }
 
 func (am *AirgappedMachine) saveBLSKeyring(dkgID string, blsKeyring *dkg.BLSKeyring) error {
+	salt, err := am.db.Get([]byte(saltKey), nil)
+	if err != nil {
+		return fmt.Errorf("failed to read salt from db: %w", err)
+	}
+
 	blsKeyringBz, err := blsKeyring.Bytes()
 	if err != nil {
 		return fmt.Errorf("failed to encode bls keyring: %w", err)
 	}
-	if err := am.db.Put([]byte(makeBLSKeyKeyringDBKey(dkgID)), blsKeyringBz, nil); err != nil {
+
+	encryptedKeyring, err := encrypt(am.encryptionKey, salt, blsKeyringBz)
+	if err != nil {
+		return fmt.Errorf("failed to encrypt BLS keyring: %w", err)
+	}
+	if err := am.db.Put([]byte(makeBLSKeyKeyringDBKey(dkgID)), encryptedKeyring, nil); err != nil {
 		return fmt.Errorf("failed to save BLSKeyring into db: %w", err)
 	}
 	return nil
@@ -33,10 +43,21 @@ func (am *AirgappedMachine) loadBLSKeyring(dkgID string) (*dkg.BLSKeyring, error
 		err          error
 	)
 
+	salt, err := am.db.Get([]byte(saltKey), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read salt from db: %w", err)
+	}
+
 	if blsKeyringBz, err = am.db.Get([]byte(makeBLSKeyKeyringDBKey(dkgID)), nil); err != nil {
 		return nil, fmt.Errorf("failed to get bls keyring with dkg id %s: %w", dkgID, err)
 	}
-	if blsKeyring, err = dkg.LoadBLSKeyringFromBytes(blsKeyringBz); err != nil {
+
+	decryptedKeyring, err := decrypt(am.encryptionKey, salt, blsKeyringBz)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt BLS keyring: %w", err)
+	}
+
+	if blsKeyring, err = dkg.LoadBLSKeyringFromBytes(decryptedKeyring); err != nil {
 		return nil, fmt.Errorf("failed to decode bls keyring")
 	}
 	return blsKeyring, nil
@@ -48,6 +69,11 @@ func (am *AirgappedMachine) GetBLSKeyrings() (map[string]*dkg.BLSKeyring, error)
 		err        error
 	)
 
+	salt, err := am.db.Get([]byte(saltKey), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read salt from db: %w", err)
+	}
+
 	keyrings := make(map[string]*dkg.BLSKeyring)
 	iter := am.db.NewIterator(util.BytesPrefix([]byte(blsKeyringPrefix)), nil)
 	defer iter.Release()
@@ -55,7 +81,11 @@ func (am *AirgappedMachine) GetBLSKeyrings() (map[string]*dkg.BLSKeyring, error)
 	for iter.Next() {
 		key := iter.Key()
 		value := iter.Value()
-		if blsKeyring, err = dkg.LoadBLSKeyringFromBytes(value); err != nil {
+		decryptedKeyring, err := decrypt(am.encryptionKey, salt, value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decrypt BLS keyring: %w", err)
+		}
+		if blsKeyring, err = dkg.LoadBLSKeyringFromBytes(decryptedKeyring); err != nil {
 			return nil, fmt.Errorf("failed to decode bls keyring: %w", err)
 		}
 		keyrings[strings.TrimLeft(string(key), blsKeyringPrefix)] = blsKeyring

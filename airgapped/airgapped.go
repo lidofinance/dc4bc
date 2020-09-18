@@ -1,6 +1,7 @@
 package airgapped
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -28,6 +29,7 @@ const (
 	pubKeyDBKey           = "public_key"
 	privateKeyDBKey       = "private_key"
 	participantAddressKey = "participant_address"
+	saltKey               = "salt_key"
 )
 
 type AirgappedMachine struct {
@@ -133,11 +135,19 @@ func (am *AirgappedMachine) LoadKeysFromDB() error {
 		return fmt.Errorf("failed to get private key from db: %w", err)
 	}
 
-	decryptedPubKey, err := decrypt(am.encryptionKey, pubKeyBz)
+	salt, err := am.db.Get([]byte(saltKey), nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return err
+		}
+		return fmt.Errorf("failed to read salt from db: %w", err)
+	}
+
+	decryptedPubKey, err := decrypt(am.encryptionKey, salt, pubKeyBz)
 	if err != nil {
 		return err
 	}
-	decryptedPrivateKey, err := decrypt(am.encryptionKey, privateKeyBz)
+	decryptedPrivateKey, err := decrypt(am.encryptionKey, salt, privateKeyBz)
 	if err != nil {
 		return err
 	}
@@ -180,11 +190,16 @@ func (am *AirgappedMachine) SaveKeysToDB() error {
 		return fmt.Errorf("failed to marshal private key: %w", err)
 	}
 
-	encryptedPubKey, err := encrypt(am.encryptionKey, pubKeyBz)
+	salt := make([]byte, 32)
+	if _, err := rand.Read(salt); err != nil {
+		return fmt.Errorf("failed to generate salt: %w", err)
+	}
+
+	encryptedPubKey, err := encrypt(am.encryptionKey, salt, pubKeyBz)
 	if err != nil {
 		return err
 	}
-	encryptedPrivateKey, err := encrypt(am.encryptionKey, privateKeyBz)
+	encryptedPrivateKey, err := encrypt(am.encryptionKey, salt, privateKeyBz)
 	if err != nil {
 		return err
 	}
@@ -201,6 +216,10 @@ func (am *AirgappedMachine) SaveKeysToDB() error {
 
 	if err = tx.Put([]byte(privateKeyDBKey), encryptedPrivateKey, nil); err != nil {
 		return fmt.Errorf("failed to put private key into db: %w", err)
+	}
+
+	if err = tx.Put([]byte(saltKey), salt, nil); err != nil {
+		return fmt.Errorf("failed to put salt into db: %w", err)
 	}
 
 	if err = tx.Commit(); err != nil {
