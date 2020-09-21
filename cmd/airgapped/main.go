@@ -191,7 +191,7 @@ func (t *terminal) run() error {
 	}
 }
 
-func (t *terminal) sensitiveDataDrop(passExpiration time.Duration) {
+func (t *terminal) dropSensitiveData(passExpiration time.Duration) {
 	ticker := time.NewTicker(passExpiration)
 	for {
 		select {
@@ -225,7 +225,7 @@ func main() {
 	}
 
 	t := NewTerminal(air)
-	go t.sensitiveDataDrop(passwordLifeDuration)
+	go t.dropSensitiveData(passwordLifeDuration)
 	if err = t.run(); err != nil {
 		log.Fatalf(err.Error())
 	}
