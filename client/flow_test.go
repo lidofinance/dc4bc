@@ -193,7 +193,6 @@ func TestFullFlow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("node %d failed to init client: %v\n", nodeID, err)
 		}
-		airgappedMachine.SetAddress(clt.GetAddr())
 		airgappedMachine.SetEncryptionKey(clt.GetPubKey()) //just for testing
 		if err = airgappedMachine.InitKeys(); err != nil {
 			t.Errorf(err.Error())
@@ -235,7 +234,7 @@ func TestFullFlow(t *testing.T) {
 			log.Fatalln("failed to get DKG pubKey:", err.Error())
 		}
 		participants = append(participants, &requests.SignatureProposalParticipantsEntry{
-			Addr:      node.client.GetAddr(),
+			Addr:      node.client.GetUsername(),
 			PubKey:    node.client.GetPubKey(),
 			DkgPubKey: dkgPubKey,
 		})

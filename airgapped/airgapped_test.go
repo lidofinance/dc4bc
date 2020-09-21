@@ -132,10 +132,15 @@ func TestAirgappedAllSteps(t *testing.T) {
 
 	var initReq responses.SignatureProposalParticipantInvitationsResponse
 	for _, n := range tr.nodes {
+		pubKey, err := n.Machine.pubKey.MarshalBinary()
+		if err != nil {
+			t.Fatalf("failed to marshal dkg pubkey: %v", err)
+		}
 		entry := &responses.SignatureProposalParticipantInvitationEntry{
 			ParticipantId: n.ParticipantID,
 			Addr:          n.Participant,
 			Threshold:     threshold,
+			DkgPubKey:     pubKey,
 		}
 		initReq = append(initReq, entry)
 	}

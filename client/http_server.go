@@ -60,7 +60,7 @@ func successResponse(w http.ResponseWriter, response interface{}) {
 func (c *Client) StartHTTPServer(listenAddr string) error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/getAddress", c.getAddressHandler)
+	mux.HandleFunc("/getUsername", c.getUsernameHandler)
 	mux.HandleFunc("/getPubKey", c.getPubkeyHandler)
 
 	mux.HandleFunc("/sendMessage", c.sendMessageHandler)
@@ -78,12 +78,12 @@ func (c *Client) StartHTTPServer(listenAddr string) error {
 	return http.ListenAndServe(listenAddr, mux)
 }
 
-func (c *Client) getAddressHandler(w http.ResponseWriter, r *http.Request) {
+func (c *Client) getUsernameHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
-	successResponse(w, c.GetAddr())
+	successResponse(w, c.GetUsername())
 }
 
 func (c *Client) getPubkeyHandler(w http.ResponseWriter, r *http.Request) {
@@ -303,7 +303,7 @@ func (c *Client) buildMessage(dkgRoundID string, event fsm.Event, data []byte) (
 		DkgRoundID: dkgRoundID,
 		Event:      string(event),
 		Data:       data,
-		SenderAddr: c.GetAddr(),
+		SenderAddr: c.GetUsername(),
 	}
 	signature, err := c.signMessage(message.Bytes())
 	if err != nil {

@@ -20,6 +20,14 @@ func (r *SignatureProposalParticipantsListRequest) Validate() error {
 		return errors.New("{SigningThreshold} cannot be higher than {ParticipantsCount}")
 	}
 
+	uniqueAddresses := make(map[string]bool)
+	for _, participant := range r.Participants {
+		if _, ok := uniqueAddresses[participant.Addr]; ok {
+			return errors.New("{Addr} must be unique")
+		}
+		uniqueAddresses[participant.Addr] = true
+	}
+
 	for _, participant := range r.Participants {
 		if len(participant.Addr) < 3 {
 			return errors.New("{Addr} minimum length is {3}")

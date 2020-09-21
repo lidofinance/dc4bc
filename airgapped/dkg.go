@@ -41,13 +41,17 @@ func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.
 
 	pid := -1
 	for _, r := range payload {
-		if r.Addr == am.ParticipantAddress {
+		pubkey := am.suite.Point()
+		if err := pubkey.UnmarshalBinary(r.DkgPubKey); err != nil {
+			return fmt.Errorf("failed to unmarshal dkg pubkey: %w", err)
+		}
+		if am.pubKey.Equal(pubkey) {
 			pid = r.ParticipantId
 			break
 		}
 	}
 	if pid < 0 {
-		return fmt.Errorf("failed to determine participant id for DKG with participant address %s", am.ParticipantAddress)
+		return fmt.Errorf("failed to determine participant id for DKG #%s", o.DKGIdentifier)
 	}
 
 	if _, ok := am.dkgInstances[o.DKGIdentifier]; ok {
