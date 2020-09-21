@@ -34,7 +34,7 @@ const (
 )
 
 type Poller interface {
-	GetAddr() string
+	GetUsername() string
 	GetPubKey() ed25519.PublicKey
 	Poll() error
 	SendMessage(message storage.Message) error
@@ -49,7 +49,6 @@ type Client struct {
 	sync.Mutex
 	Logger      *logger
 	userName    string
-	address     string
 	pubKey      ed25519.PublicKey
 	ctx         context.Context
 	state       State
@@ -75,7 +74,6 @@ func NewClient(
 		ctx:         ctx,
 		Logger:      newLogger(userName),
 		userName:    userName,
-		address:     keyPair.GetAddr(),
 		pubKey:      keyPair.Pub,
 		state:       state,
 		storage:     storage,
@@ -88,8 +86,8 @@ func (c *Client) GetLogger() *logger {
 	return c.Logger
 }
 
-func (c *Client) GetAddr() string {
-	return c.address
+func (c *Client) GetUsername() string {
+	return c.userName
 }
 
 func (c *Client) GetPubKey() ed25519.PublicKey {
@@ -112,7 +110,7 @@ func (c *Client) Poll() error {
 			}
 
 			for _, message := range messages {
-				if message.RecipientAddr == "" || message.RecipientAddr == c.GetAddr() {
+				if message.RecipientAddr == "" || message.RecipientAddr == c.GetUsername() {
 					c.Logger.Log("Handling message with offset %d, type %s", message.Offset, message.Event)
 					if err := c.ProcessMessage(message); err != nil {
 						c.Logger.Log("Failed to process message with offset %d: %v", message.Offset, err)
@@ -289,7 +287,7 @@ func (c *Client) handleProcessedOperation(operation types.Operation) error {
 	}
 
 	for _, message := range operation.ResultMsgs {
-		message.SenderAddr = c.GetAddr()
+		message.SenderAddr = c.GetUsername()
 
 		sig, err := c.signMessage(message.Bytes())
 		if err != nil {

@@ -85,15 +85,10 @@ $ ./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_
 ```
 Start the airgapped machine:
 ```
-# First print your node's address; you will be prompted to enter it.
-$ ./dc4bc_cli get_address --listen_addr localhost:8080
-e0d8083f8a2d18f310bfbdc9649a83664470f46053ab53c105a054b08f9eff85
 $ ./dc4bc_airgapped /tmp/dc4bc_john_doe_airgapped_state
 ```
-Print your address, communication public key and encryption public key and save it somewhere for later use:
+Print your communication public key and encryption public key and save it somewhere for later use:
 ``` 
-$ ./dc4bc_cli get_address --listen_addr localhost:8080
-e0d8083f8a2d18f310bfbdc9649a83664470f46053ab53c105a054b08f9eff85
 $ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
 EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 # Inside the airgapped shell:

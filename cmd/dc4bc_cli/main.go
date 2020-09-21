@@ -43,7 +43,7 @@ func main() {
 		readOperationFromCameraCommand(),
 		startDKGCommand(),
 		proposeSignMessageCommand(),
-		getAddressCommand(),
+		getUsernameCommand(),
 		getPubKeyCommand(),
 		getHashOfStartDKGCommand(),
 	)
@@ -198,22 +198,22 @@ func getPubKeyCommand() *cobra.Command {
 	}
 }
 
-func getAddressCommand() *cobra.Command {
+func getUsernameCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get_address",
-		Short: "returns client's address",
+		Use:   "get_username",
+		Short: "returns client's username",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 
-			resp, err := rawGetRequest(fmt.Sprintf("http://%s//getAddress", listenAddr))
+			resp, err := rawGetRequest(fmt.Sprintf("http://%s//getUsername", listenAddr))
 			if err != nil {
-				return fmt.Errorf("failed to get client's address: %w", err)
+				return fmt.Errorf("failed to get client's username: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to get client's address: %w", resp.ErrorMessage)
+				return fmt.Errorf("failed to get client's username: %w", resp.ErrorMessage)
 			}
 			fmt.Println(resp.Result.(string))
 			return nil
