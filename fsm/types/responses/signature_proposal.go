@@ -12,6 +12,7 @@ type SignatureProposalParticipantInvitationEntry struct {
 	Addr      string
 	Threshold int
 	DkgPubKey []byte
+	PubKey    []byte
 }
 
 // Public lists for proposal confirmation process

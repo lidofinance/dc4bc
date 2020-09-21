@@ -1,21 +1,23 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
+	"crypto/md5"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/types/responses"
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
+	"sort"
 	"time"
 
 	"github.com/depools/dc4bc/client"
-	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/qr"
 	"github.com/spf13/cobra"
@@ -43,15 +45,11 @@ func main() {
 		proposeSignMessageCommand(),
 		getUsernameCommand(),
 		getPubKeyCommand(),
+		getHashOfStartDKGCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
 	}
-}
-
-type OperationsResponse struct {
-	ErrorMessage string                      `json:"error_message,omitempty"`
-	Result       map[string]*types.Operation `json:"result"`
 }
 
 func getOperationsRequest(host string) (*OperationsResponse, error) {
@@ -89,22 +87,29 @@ func getOperationsCommand() *cobra.Command {
 				return fmt.Errorf("failed to get operations: %s", operations.ErrorMessage)
 			}
 			for _, operation := range operations.Result {
+				fmt.Printf("DKG round ID: %s\n", operation.DKGIdentifier)
 				fmt.Printf("Operation ID: %s\n", operation.ID)
-				operationBz, err := json.Marshal(operation)
-				if err != nil {
-					return fmt.Errorf("failed to marshal operation: %w", err)
+				fmt.Printf("Description: %s\n", getShortOperationDescription(operation.Type))
+				if fsm.State(operation.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
+					payloadHash, err := calcStartDKGMessageHash(operation.Payload)
+					if err != nil {
+						return fmt.Errorf("failed to get hash of start DKG message: %w", err)
+					}
+					fmt.Printf("Hash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
 				}
-				fmt.Printf("Operation: %s\n", string(operationBz))
+				if fsm.State(operation.Type) == signing_proposal_fsm.StateSigningAwaitConfirmations {
+					var payload responses.SigningProposalParticipantInvitationsResponse
+					if err := json.Unmarshal(operation.Payload, &payload); err != nil {
+						return fmt.Errorf("failed to unmarshal operation payload")
+					}
+					msgHash := md5.Sum(payload.SrcPayload)
+					fmt.Printf("Hash of the message to sign - %s\n", hex.EncodeToString(msgHash[:]))
+				}
 				fmt.Println("-----------------------------------------------------")
 			}
 			return nil
 		},
 	}
-}
-
-type OperationQRPathsResponse struct {
-	ErrorMessage string   `json:"error_message,omitempty"`
-	Result       []string `json:"result"`
 }
 
 func getOperationsQRPathsRequest(host string, operationID string) (*OperationQRPathsResponse, error) {
@@ -265,8 +270,8 @@ func readOperationFromCameraCommand() *cobra.Command {
 
 func startDKGCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "start_dkg [participants count] [threshold]",
-		Args:  cobra.ExactArgs(2),
+		Use:   "start_dkg [proposing_file]",
+		Args:  cobra.ExactArgs(1),
 		Short: "sends a propose message to start a DKG process",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
@@ -274,61 +279,21 @@ func startDKGCommand() *cobra.Command {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 
-			participantsCount, err := strconv.Atoi(args[0])
+			dkgProposeFileData, err := ioutil.ReadFile(args[0])
 			if err != nil {
-				return fmt.Errorf("failed to get participants count: %w", err)
+				return fmt.Errorf("failed to read file: %w", err)
 			}
-			if participantsCount < 0 {
-				return fmt.Errorf("invalid number of participants: %d", participantsCount)
-			}
-
-			threshold, err := strconv.Atoi(args[1])
-			if err != nil {
-				return fmt.Errorf("failed to get threshold: %w", err)
-			}
-			if participantsCount < 0 || threshold > participantsCount {
-				return fmt.Errorf("invalid threshold: %d", threshold)
+			var req requests.SignatureProposalParticipantsListRequest
+			if err = json.Unmarshal(dkgProposeFileData, &req); err != nil {
+				return fmt.Errorf("failed to unmarshal dkg proposing file: %w", err)
 			}
 
-			reader := bufio.NewReader(os.Stdin)
-			var participants []*requests.SignatureProposalParticipantsEntry
-			for i := 0; i < participantsCount; i++ {
-				p := &requests.SignatureProposalParticipantsEntry{}
-				fmt.Printf("Enter a necessary data for participant %d:\n", i)
-				fmt.Printf("Enter address: ")
-				addr, _, err := reader.ReadLine()
-				if err != nil {
-					return fmt.Errorf("failed to read addr: %w", err)
-				}
-				p.Addr = string(addr)
-
-				fmt.Printf("Enter pubkey (base64): ")
-				pubKey, _, err := reader.ReadLine()
-				if err != nil {
-					return fmt.Errorf("failed to read pubKey: %w", err)
-				}
-				p.PubKey, err = base64.StdEncoding.DecodeString(string(pubKey))
-				if err != nil {
-					return fmt.Errorf("failed to decode pubKey: %w", err)
-				}
-
-				fmt.Printf("Enter DKGPubKey (base64): ")
-				DKGPubKey, _, err := reader.ReadLine()
-				if err != nil {
-					return fmt.Errorf("failed to read DKGPubKey: %w", err)
-				}
-				p.DkgPubKey, err = base64.StdEncoding.DecodeString(string(DKGPubKey))
-				if err != nil {
-					return fmt.Errorf("failed to decode DKGPubKey: %w", err)
-				}
-				participants = append(participants, p)
+			if len(req.Participants) == 0 || req.SigningThreshold > len(req.Participants) {
+				return fmt.Errorf("invalid threshold: %d", req.SigningThreshold)
 			}
+			req.CreatedAt = time.Now()
 
-			messageData := requests.SignatureProposalParticipantsListRequest{
-				Participants:     participants,
-				SigningThreshold: threshold,
-				CreatedAt:        time.Now(),
-			}
+			messageData := req
 			messageDataBz, err := json.Marshal(messageData)
 			if err != nil {
 				return fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)
@@ -341,6 +306,47 @@ func startDKGCommand() *cobra.Command {
 			if resp.ErrorMessage != "" {
 				return fmt.Errorf("failed to make HTTP request to start DKG: %w", resp.ErrorMessage)
 			}
+			return nil
+		},
+	}
+}
+
+func getHashOfStartDKGCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_start_dkg_file_hash [proposing_file]",
+		Args:  cobra.ExactArgs(1),
+		Short: "returns hash of proposing message for DKG start to verify correctness",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			dkgProposeFileData, err := ioutil.ReadFile(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to read file: %w", err)
+			}
+			var req requests.SignatureProposalParticipantsListRequest
+			if err = json.Unmarshal(dkgProposeFileData, &req); err != nil {
+				return fmt.Errorf("failed to unmarshal dkg proposing file: %w", err)
+			}
+
+			participants := DKGParticipants(req.Participants)
+			sort.Sort(participants)
+
+			hashPayload := bytes.NewBuffer(nil)
+			if _, err := hashPayload.Write([]byte(fmt.Sprintf("%d", req.SigningThreshold))); err != nil {
+				return err
+			}
+			for _, p := range participants {
+				if _, err := hashPayload.Write(p.PubKey); err != nil {
+					return err
+				}
+				if _, err := hashPayload.Write(p.DkgPubKey); err != nil {
+					return err
+				}
+				if _, err := hashPayload.Write([]byte(p.Addr)); err != nil {
+					return err
+				}
+			}
+			hash := md5.Sum(hashPayload.Bytes())
+			fmt.Println(hex.EncodeToString(hash[:]))
 			return nil
 		},
 	}
