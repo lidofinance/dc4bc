@@ -141,6 +141,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		return fmt.Errorf("failed to getFSMInstance: %w", err)
 	}
 
+	// we can't verify a message at this moment, cause we don't have public keys of participantss
 	if fsm.Event(message.Event) != signature_proposal_fsm.EventInitProposal {
 		if err := c.verifyMessage(fsmInstance, message); err != nil {
 			return fmt.Errorf("failed to verifyMessage %+v: %w", message, err)
@@ -159,6 +160,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 
 	c.Logger.Log("message %s done successfully from %s", message.Event, message.SenderAddr)
 
+	// switch FSM state by hand due to implementation specifics
 	if resp.State == spf.StateSignatureProposalCollected {
 		fsmInstance, err = state_machines.FromDump(fsmDump)
 		if err != nil {
@@ -276,6 +278,9 @@ func (c *Client) GetOperationQRPath(operationID string) ([]string, error) {
 	return qrs, nil
 }
 
+// handleProcessedOperation handles an operation which was processed by the airgapped machine
+// It checks that the operation exists in an operation pool, signs the operation, sends it to an append-only log and
+// deletes it from the pool.
 func (c *Client) handleProcessedOperation(operation types.Operation) error {
 	storedOperation, err := c.state.GetOperationByID(operation.ID)
 	if err != nil {
@@ -307,6 +312,7 @@ func (c *Client) handleProcessedOperation(operation types.Operation) error {
 	return nil
 }
 
+// getFSMInstance returns a FSM for a necessary DKG round.
 func (c *Client) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error) {
 	var err error
 	fsmInstance, ok, err := c.state.LoadFSM(dkgRoundID)

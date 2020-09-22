@@ -16,11 +16,13 @@ func init() {
 	runtime.LockOSThread()
 }
 
+// terminalCommand holds a description of a command and its handler
 type terminalCommand struct {
 	commandHandler func() error
 	description    string
 }
 
+// terminal a basic implementation of a prompt
 type terminal struct {
 	reader    *bufio.Reader
 	airgapped *airgapped.AirgappedMachine
