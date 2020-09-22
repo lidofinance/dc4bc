@@ -114,7 +114,6 @@ func TestAirgappedAllSteps(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create airgapped machine: %v", err)
 		}
-		am.SetAddress(participants[i])
 		node := Node{
 			ParticipantID: i,
 			Participant:   participants[i],

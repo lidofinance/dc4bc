@@ -33,8 +33,6 @@ const (
 type AirgappedMachine struct {
 	sync.Mutex
 
-	ParticipantAddress string
-
 	dkgInstances map[string]*dkg.DKG
 	qrProcessor  qr.Processor
 
@@ -79,20 +77,7 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 		return am, am.saveKeysToDB(dbPath)
 	}
 
-	if err = am.loadAddressFromDB(dbPath); err != nil {
-		return nil, fmt.Errorf("failed to load address from db")
-	}
-
 	return am, nil
-}
-
-func (am *AirgappedMachine) SetAddress(address string) error {
-	am.ParticipantAddress = address
-	return am.saveAddressToDB(address)
-}
-
-func (am *AirgappedMachine) GetAddress() string {
-	return am.ParticipantAddress
 }
 
 func (am *AirgappedMachine) loadKeysFromDB(dbPath string) error {
@@ -121,18 +106,6 @@ func (am *AirgappedMachine) loadKeysFromDB(dbPath string) error {
 	if err = am.secKey.UnmarshalBinary(privateKeyBz); err != nil {
 		return fmt.Errorf("failed to unmarshal private key: %w", err)
 	}
-	return nil
-}
-
-func (am *AirgappedMachine) loadAddressFromDB(dbPath string) error {
-	address, err := am.db.Get([]byte(participantAddressKey), nil)
-	if err != nil {
-		if err == leveldb.ErrNotFound {
-			return nil
-		}
-		return fmt.Errorf("failed to get address from db %s: %w", dbPath, err)
-	}
-	am.ParticipantAddress = string(address)
 	return nil
 }
 
