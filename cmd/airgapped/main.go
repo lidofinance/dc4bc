@@ -3,11 +3,16 @@ package main
 import (
 	"bufio"
 	"encoding/base64"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"runtime"
 	"strings"
+	"syscall"
+	"time"
+
+	passwordTerminal "golang.org/x/crypto/ssh/terminal"
 
 	"github.com/depools/dc4bc/airgapped"
 )
@@ -97,16 +102,42 @@ func (t *terminal) showFinishedDKGCommand() error {
 	return nil
 }
 
-func (t *terminal) run() error {
-	reader := bufio.NewReader(os.Stdin)
+func (t *terminal) enterEncryptionPasswordIfNeeded() error {
+	t.airgapped.Lock()
+	defer t.airgapped.Unlock()
 
+	if !t.airgapped.SensitiveDataRemoved() {
+		return nil
+	}
+
+	for {
+		fmt.Print("Enter encryption password: ")
+		password, err := passwordTerminal.ReadPassword(syscall.Stdin)
+		if err != nil {
+			return fmt.Errorf("failed to read password: %w", err)
+		}
+		fmt.Println()
+		t.airgapped.SetEncryptionKey(password)
+		if err = t.airgapped.InitKeys(); err != nil {
+			fmt.Printf("Failed to init keys: %v\n", err)
+			continue
+		}
+		break
+	}
+	return nil
+}
+
+func (t *terminal) run() error {
+	if err := t.enterEncryptionPasswordIfNeeded(); err != nil {
+		return err
+	}
 	if err := t.helpCommand(); err != nil {
 		return err
 	}
 	fmt.Println("Waiting for command...")
 	for {
 		fmt.Print(">>> ")
-		command, err := reader.ReadString('\n')
+		command, err := t.reader.ReadString('\n')
 		if err != nil {
 			return fmt.Errorf("failed to read command: %w", err)
 		}
@@ -115,23 +146,54 @@ func (t *terminal) run() error {
 			fmt.Printf("unknown command: %s\n", command)
 			continue
 		}
+		if err = t.enterEncryptionPasswordIfNeeded(); err != nil {
+			return err
+		}
+		t.airgapped.Lock()
 		if err := handler.commandHandler(); err != nil {
 			fmt.Printf("failled to execute command %s: %v, \n", command, err)
+			t.airgapped.Unlock()
 			continue
+		}
+		t.airgapped.Unlock()
+	}
+}
+
+func (t *terminal) dropSensitiveData(passExpiration time.Duration) {
+	ticker := time.NewTicker(passExpiration)
+	for {
+		select {
+		case <-ticker.C:
+			t.airgapped.DropSensitiveData()
 		}
 	}
 }
 
+var (
+	passwordExpiration string
+	dbPath             string
+)
+
+func init() {
+	flag.StringVar(&passwordExpiration, "password_expiration", "10m", "Expiration of the encryption password")
+	flag.StringVar(&dbPath, "db_path", "airgapped_db", "Path to airgapped levelDB storage")
+}
+
 func main() {
-	if len(os.Args) < 2 {
-		log.Fatalf("missed path to DB, example: ./airgapped path_to_db")
+	flag.Parse()
+
+	passwordLifeDuration, err := time.ParseDuration(passwordExpiration)
+	if err != nil {
+		log.Fatalf("invalid password expiration syntax: %v", err)
 	}
-	air, err := airgapped.NewAirgappedMachine(os.Args[1])
+
+	air, err := airgapped.NewAirgappedMachine(dbPath)
 	if err != nil {
 		log.Fatalf("failed to init airgapped machine %v", err)
 	}
 
 	t := NewTerminal(air)
+	go t.dropSensitiveData(passwordLifeDuration)
 	if err = t.run(); err != nil {
 		log.Fatalf(err.Error())
 	}

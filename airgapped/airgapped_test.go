@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -101,6 +102,7 @@ func createOperation(t *testing.T, opType string, to string, req interface{}) cl
 }
 
 func TestAirgappedAllSteps(t *testing.T) {
+	testDir := "/tmp/airgapped_test"
 	nodesCount := 10
 	threshold := 3
 	participants := make([]string, nodesCount)
@@ -110,11 +112,15 @@ func TestAirgappedAllSteps(t *testing.T) {
 
 	tr := &Transport{}
 	for i := 0; i < nodesCount; i++ {
-		am, err := NewAirgappedMachine(fmt.Sprintf(testDB+"%d", i))
+		am, err := NewAirgappedMachine(fmt.Sprintf("%s/%s-%d", testDir, testDB, i))
 		if err != nil {
 			t.Fatalf("failed to create airgapped machine: %v", err)
 		}
 		am.SetAddress(participants[i])
+		am.SetEncryptionKey([]byte(fmt.Sprintf(testDB+"%d", i)))
+		if err = am.InitKeys(); err != nil {
+			t.Fatalf(err.Error())
+		}
 		node := Node{
 			ParticipantID: i,
 			Participant:   participants[i],
@@ -122,6 +128,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		tr.nodes = append(tr.nodes, &node)
 	}
+	defer os.RemoveAll(testDir)
 
 	var initReq responses.SignatureProposalParticipantInvitationsResponse
 	for _, n := range tr.nodes {
