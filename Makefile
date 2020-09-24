@@ -1,3 +1,5 @@
+.ONESHELL:
+
 TMP_DIR?=/tmp/
 
 OPENCV_VERSION?=4.4.0
@@ -38,8 +40,8 @@ deps_debian:
 	sudo apt-get -y install $(DEBS)
 
 download:
-	sudo rm -rf $(TMP_DIR)opencv
-	sudo mkdir $(TMP_DIR)opencv
+	rm -rf $(TMP_DIR)opencv
+	mkdir $(TMP_DIR)opencv
 	cd $(TMP_DIR)opencv
 	curl -Lo opencv.zip https://github.com/opencv/opencv/archive/$(OPENCV_VERSION).zip
 	unzip -q opencv.zip
@@ -95,7 +97,7 @@ build-linux-static: deps sudo_pre_install_clean download
 	$(MAKE) -j $(shell nproc --all)
 	$(MAKE) preinstall
 
-	cd ${PROJECT_DIR}
+	cd $(PROJECT_DIR)
 
 	export CGO_CPPFLAGS="-I/usr/local/include/opencv4"
 	export CGO_LDFLAGS="-L/usr/local/lib -L/usr/local/lib/opencv4/3rdparty -L/tmp/opencv/opencv-4.4.0/build/lib -lopencv_gapi -lopencv_stitching -lopencv_aruco -lopencv_bgsegm -lopencv_bioinspired -lopencv_ccalib -lopencv_dnn_objdetect -lopencv_dnn_superres -lopencv_dpm -lopencv_highgui -lopencv_face -lopencv_freetype -lopencv_fuzzy -lopencv_hfs -lopencv_img_hash -lopencv_intensity_transform -lopencv_line_descriptor -lopencv_quality -lopencv_rapid -lopencv_reg -lopencv_rgbd -lopencv_saliency -lopencv_stereo -lopencv_structured_light -lopencv_phase_unwrapping -lopencv_superres -lopencv_optflow -lopencv_surface_matching -lopencv_tracking -lopencv_datasets -lopencv_text -lopencv_dnn -lopencv_plot -lopencv_videostab -lopencv_videoio -lopencv_xfeatures2d -lopencv_shape -lopencv_ml -lopencv_ximgproc -lopencv_video -lopencv_xobjdetect -lopencv_objdetect -lopencv_calib3d -lopencv_imgcodecs -lopencv_features2d -lopencv_flann -lopencv_xphoto -lopencv_photo -lopencv_imgproc -lopencv_core -littnotify -llibprotobuf -lIlmImf -lquirc -lippiw -lippicv -lade -lgtk-x11-2.0 -lgdk-x11-2.0 -lpangocairo-1.0 -lcairo -lgio-2.0 -lpangoft2-1.0 -lpango-1.0 -lgobject-2.0 -lglib-2.0 -lfontconfig -lgthread-2.0 -lz -ljpeg -lfreetype -lharfbuzz -ldl -lm -lpthread -lrt"
