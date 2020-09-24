@@ -13,7 +13,6 @@ import (
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
 	"github.com/depools/dc4bc/storage"
-	bls12381 "github.com/depools/kyber-bls12381"
 )
 
 func createMessage(o client.Operation, data []byte) storage.Message {
@@ -97,14 +96,14 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 	}
 
 	for _, entry := range payload {
-		pubKey := bls12381.NewBLS12381Suite().Point()
+		pubKey := am.suite.Point()
 		if err = pubKey.UnmarshalBinary(entry.DkgPubKey); err != nil {
 			return fmt.Errorf("failed to unmarshal pubkey: %w", err)
 		}
 		dkgInstance.StorePubKey(entry.Addr, entry.ParticipantId, pubKey)
 	}
 
-	if err = dkgInstance.InitDKGInstance(); err != nil {
+	if err = dkgInstance.InitDKGInstance(am.seed); err != nil {
 		return fmt.Errorf("failed to init dkg instance: %w", err)
 	}
 

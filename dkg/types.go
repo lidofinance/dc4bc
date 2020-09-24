@@ -7,10 +7,10 @@ import (
 	"fmt"
 
 	"github.com/corestario/kyber/pairing"
+	vss "github.com/corestario/kyber/share/vss/pedersen"
 
 	"github.com/corestario/kyber"
 	"github.com/corestario/kyber/share"
-	bls12381 "github.com/depools/kyber-bls12381"
 )
 
 type PK2Participant struct {
@@ -143,7 +143,7 @@ func (b *BLSKeyring) Bytes() ([]byte, error) {
 	return json.Marshal(blsKeyringJSON)
 }
 
-func LoadBLSKeyringFromBytes(data []byte) (*BLSKeyring, error) {
+func LoadBLSKeyringFromBytes(suite vss.Suite, data []byte) (*BLSKeyring, error) {
 	var (
 		err            error
 		blsKeyringJson blsKeyringJSON
@@ -154,20 +154,20 @@ func LoadBLSKeyringFromBytes(data []byte) (*BLSKeyring, error) {
 
 	commitments := make([]kyber.Point, 0, len(blsKeyringJson.Commitments))
 	for _, commitmentBz := range blsKeyringJson.Commitments {
-		commitment := bls12381.NewBLS12381Suite().Point()
+		commitment := suite.Point()
 		if err := commitment.UnmarshalBinary(commitmentBz); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal commitment: %w", err)
 		}
 		commitments = append(commitments, commitment)
 	}
 
-	priShare, privDec := &share.PriShare{V: bls12381.NewBLS12381Suite().(pairing.Suite).G1().Scalar()}, gob.NewDecoder(bytes.NewBuffer(blsKeyringJson.Share))
+	priShare, privDec := &share.PriShare{V: suite.(pairing.Suite).G1().Scalar()}, gob.NewDecoder(bytes.NewBuffer(blsKeyringJson.Share))
 	if err := privDec.Decode(priShare); err != nil {
 		return nil, fmt.Errorf("failed to share: %v", err)
 	}
 
 	return &BLSKeyring{
-		PubPoly: share.NewPubPoly(bls12381.NewBLS12381Suite(), nil, commitments),
+		PubPoly: share.NewPubPoly(suite, nil, commitments),
 		Share:   priShare,
 	}, nil
 }

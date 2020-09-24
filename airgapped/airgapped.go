@@ -8,6 +8,8 @@ import (
 	"os"
 	"sync"
 
+	bls12381 "github.com/depools/kyber-bls12381"
+
 	vss "github.com/corestario/kyber/share/vss/rabin"
 
 	"github.com/corestario/kyber"
@@ -20,7 +22,6 @@ import (
 	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/qr"
-	bls12381 "github.com/depools/kyber-bls12381"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -28,6 +29,7 @@ const (
 	resultQRFolder        = "result_qr_codes"
 	pubKeyDBKey           = "public_key"
 	privateKeyDBKey       = "private_key"
+	operationsLogDBKey    = "operations_log"
 	participantAddressKey = "participant_address"
 	saltKey               = "salt_key"
 )
@@ -44,6 +46,7 @@ type AirgappedMachine struct {
 	pubKey        kyber.Point
 	secKey        kyber.Scalar
 	suite         vss.Suite
+	seed          []byte
 
 	db *leveldb.DB
 }
@@ -64,17 +67,118 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 		qrProcessor:  qr.NewCameraProcessor(),
 	}
 
-	am.suite = bls12381.NewBLS12381Suite()
-
 	if am.db, err = leveldb.OpenFile(dbPath, nil); err != nil {
 		return nil, fmt.Errorf("failed to open db file %s for keys: %w", dbPath, err)
 	}
+
+	seed, err := am.getSeed()
+	if err != nil {
+		seed = make([]byte, 32)
+		_, _ = rand.Read(seed)
+		if err := am.storeSeed(seed); err != nil {
+			panic(err)
+		}
+	}
+	am.seed = seed
+	am.suite = bls12381.NewBLS12381Suite(am.seed)
 
 	if err = am.loadAddressFromDB(dbPath); err != nil {
 		return nil, fmt.Errorf("failed to load address from db")
 	}
 
+	if _, err = am.db.Get([]byte(operationsLogDBKey), nil); err != nil {
+		if err == leveldb.ErrNotFound {
+			operationsLogBz, _ := json.Marshal([]client.Operation{})
+			if err := am.db.Put([]byte(operationsLogDBKey), operationsLogBz, nil); err != nil {
+				return nil, fmt.Errorf("failed to init Operation log: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to init Operation log (fatal): %w", err)
+		}
+	}
+
 	return am, nil
+}
+
+func (am *AirgappedMachine) storeSeed(seed []byte) error {
+	if err := am.db.Put([]byte("seedKey"), seed, nil); err != nil {
+		return fmt.Errorf("failed to put seed: %w", err)
+	}
+
+	return nil
+}
+
+func (am *AirgappedMachine) getSeed() ([]byte, error) {
+	seed, err := am.db.Get([]byte("seedKey"), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get seed: %w", err)
+	}
+
+	return seed, nil
+}
+
+func (am *AirgappedMachine) storeOperation(o client.Operation) error {
+	operationsLogBz, err := am.db.Get([]byte(operationsLogDBKey), nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return err
+		}
+		return fmt.Errorf("failed to get operationsLogBz from db: %w", err)
+	}
+
+	var operationsLog []client.Operation
+	if err := json.Unmarshal(operationsLogBz, &operationsLog); err != nil {
+		return fmt.Errorf("failed to unmarshal stored operationsLog: %w", err)
+	}
+
+	operationsLog = append(operationsLog, o)
+
+	operationsLogBz, err = json.Marshal(operationsLog)
+	if err != nil {
+		return fmt.Errorf("failed to marshal operationsLog: %w", err)
+	}
+
+	if err := am.db.Put([]byte(operationsLogDBKey), operationsLogBz, nil); err != nil {
+		return fmt.Errorf("failed to put updated operationsLog: %w", err)
+	}
+
+	return nil
+}
+
+func (am *AirgappedMachine) getOperationsLog() ([]client.Operation, error) {
+	operationsLogBz, err := am.db.Get([]byte(operationsLogDBKey), nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return nil, err
+		}
+		return nil, fmt.Errorf("failed to get public key from db: %w", err)
+	}
+
+	var operationsLog []client.Operation
+	if err := json.Unmarshal(operationsLogBz, &operationsLog); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal stored operationsLog: %w", err)
+	}
+
+	return operationsLog, nil
+}
+
+func (am *AirgappedMachine) ReplayOperationsLog() error {
+	operationsLog, err := am.getOperationsLog()
+	if err != nil {
+		return fmt.Errorf("failed to getOperationsLog: %w", err)
+	}
+
+	for _, operation := range operationsLog {
+		if _, err := am.HandleOperation(operation); err != nil {
+			return fmt.Errorf(
+				"failed to HandleOperation %s (this error is fatal, the state can not be recovered): %w",
+				operation.ID, err)
+		}
+	}
+
+	log.Println("Successfully replayed Operation log")
+
+	return nil
 }
 
 func (am *AirgappedMachine) InitKeys() error {
@@ -147,6 +251,7 @@ func (am *AirgappedMachine) LoadKeysFromDB() error {
 	if err != nil {
 		return err
 	}
+
 	decryptedPrivateKey, err := decrypt(am.encryptionKey, salt, privateKeyBz)
 	if err != nil {
 		return err
@@ -263,6 +368,14 @@ func (am *AirgappedMachine) decryptDataFromParticipant(data []byte) ([]byte, err
 }
 
 func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.Operation, error) {
+	if err := am.storeOperation(operation); err != nil {
+		return client.Operation{}, fmt.Errorf("failed to storeOperation: %w", err)
+	}
+
+	return am.handleOperation(operation)
+}
+
+func (am *AirgappedMachine) handleOperation(operation client.Operation) (client.Operation, error) {
 	var (
 		err error
 	)
