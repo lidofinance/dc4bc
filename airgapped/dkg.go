@@ -188,7 +188,7 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Oper
 			return fmt.Errorf("failed to marshal deal: %w", err)
 		}
 		toParticipant := dkgInstance.GetParticipantByIndex(index)
-		encryptedDeal, err := am.encryptData(o.DKGIdentifier, toParticipant, dealBz)
+		encryptedDeal, err := am.encryptDataForParticipant(o.DKGIdentifier, toParticipant, dealBz)
 		if err != nil {
 			return fmt.Errorf("failed to encrypt deal: %w", err)
 		}
@@ -226,7 +226,7 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 	}
 
 	for _, entry := range payload {
-		decryptedDealBz, err := am.decryptData(entry.DkgDeal)
+		decryptedDealBz, err := am.decryptDataFromParticipant(entry.DkgDeal)
 		if err != nil {
 			return fmt.Errorf("failed to decrypt deal: %w", err)
 		}

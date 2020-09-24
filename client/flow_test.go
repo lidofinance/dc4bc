@@ -148,9 +148,9 @@ func TestFullFlow(t *testing.T) {
 	_ = RemoveContents("/tmp", "dc4bc_*")
 	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
 
-	var numNodes = 2
+	var numNodes = 4
 	var threshold = 2
-	// var storagePath = "/tmp/dc4bc_storage"
+	var storagePath = "/tmp/dc4bc_storage"
 	var nodes = make([]*node, numNodes)
 	startingPort := 8080
 	for nodeID := 0; nodeID < numNodes; nodeID++ {
@@ -161,7 +161,7 @@ func TestFullFlow(t *testing.T) {
 			t.Fatalf("node %d failed to init state: %v\n", nodeID, err)
 		}
 
-		stg, err := storage.NewFileStorage("/tmp/dc4bc_airgapped_storage")
+		stg, err := storage.NewFileStorage(storagePath)
 		//stg, err := storage.NewKafkaStorage(context.Background(), "94.130.57.249:9092")
 		if err != nil {
 			t.Fatalf("node %d failed to init storage: %v\n", nodeID, err)
@@ -192,6 +192,10 @@ func TestFullFlow(t *testing.T) {
 		)
 		if err != nil {
 			t.Fatalf("node %d failed to init client: %v\n", nodeID, err)
+		}
+		airgappedMachine.SetEncryptionKey(clt.GetPubKey()) //just for testing
+		if err = airgappedMachine.InitKeys(); err != nil {
+			t.Errorf(err.Error())
 		}
 
 		nodes[nodeID] = &node{

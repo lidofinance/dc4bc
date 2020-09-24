@@ -85,7 +85,7 @@ $ ./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_
 ```
 Start the airgapped machine:
 ```
-$ ./dc4bc_airgapped /tmp/dc4bc_john_doe_airgapped_state
+$ ./dc4bc_airgapped --db_path /tmp/dc4bc_john_doe_airgapped_state --password_expiration 10m
 ```
 Print your communication public key and encryption public key and save it somewhere for later use:
 ``` 
