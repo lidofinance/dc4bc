@@ -65,7 +65,7 @@ func (t *terminal) readQRCommand() error {
 		return err
 	}
 
-	fmt.Println("An operation in the readed QR code handled successfully, a result operation saved by chunks in following qr codes:")
+	fmt.Println("An operation in the read QR code handled successfully, a result operation saved by chunks in following qr codes:")
 	for idx, qrPath := range qrPaths {
 		fmt.Printf("Operation's chunk #%d: %s\n", idx, qrPath)
 	}

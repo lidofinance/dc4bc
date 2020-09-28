@@ -94,6 +94,7 @@ func (c *Client) GetPubKey() ed25519.PublicKey {
 	return c.pubKey
 }
 
+// Poll is a main client loop, which gets new messages from an append-only log and processes them
 func (c *Client) Poll() error {
 	tk := time.NewTicker(pollingPeriod)
 	for {
@@ -237,6 +238,7 @@ func (c *Client) GetOperations() (map[string]*types.Operation, error) {
 	return c.state.GetOperations()
 }
 
+// getOperationJSON returns a specific JSON-encoded operation
 func (c *Client) getOperationJSON(operationID string) ([]byte, error) {
 	operation, err := c.state.GetOperationByID(operationID)
 	if err != nil {
