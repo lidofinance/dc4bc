@@ -19,8 +19,6 @@ github.com/cpuguy83/go-md2man/v2 v2.0.0/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsr
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
-github.com/depools/go-jabcode v0.0.0-20200925125506-839a91e92af5 h1:N/QU5Qk6VdPhjPMGLBikYcp8e5kvzOu5CpRLANPSvRI=
-github.com/depools/go-jabcode v0.0.0-20200925125506-839a91e92af5/go.mod h1:fY63KowI4w9awx9lmBLi9YqJLMXER6Wl6vLYpbQd2gA=
 github.com/depools/kyber-bls12381 v0.0.0-20200831104422-978ac58f592e h1:pi/Oli1/ryp6wx4vbGM9qEBd6LDqFN5xH+FG72x2H8I=
 github.com/depools/kyber-bls12381 v0.0.0-20200831104422-978ac58f592e/go.mod h1:4sthQ2LjQIoysUBx/d+QbtjXksr3L0mgKf/Wuzy1M/4=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=

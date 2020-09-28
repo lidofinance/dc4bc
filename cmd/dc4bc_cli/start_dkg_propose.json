@@ -3,23 +3,23 @@
   "Participants": [
     {
     "Addr": "addr1",
-    "PubKey": "cpdsooUuAZxZ5vTWfxhYNIfcKyDlx99rPi5ZT8Ycv6g=",
-    "DkgPubKey": "gEyiWfaVqmGNuFcMNR217wN1w5nKCRpcMhTkKpsNgTx2fp7Zjm9IlePZ3iqei5KJCFR8GAeZnmbOLcDzyJCKUGk9U6bKpwe/kdH012EpmdOHSm3fLQqfA8zdNGda3Qs0"
+    "PubKey": "cHVia2V5MQ==",
+    "DkgPubKey": "ZGtnX3B1YmtleV8x"
     },
     {
       "Addr": "addr2",
-      "PubKey": "cpdsooUuAZxZ5vTWfxhYNIfcKyDlx99rPi5ZT8Ycv6g=",
-      "DkgPubKey": "gEyiWfaVqmGNuFcMNR217wN1w5nKCRpcMhTkKpsNgTx2fp7Zjm9IlePZ3iqei5KJCFR8GAeZnmbOLcDzyJCKUGk9U6bKpwe/kdH012EpmdOHSm3fLQqfA8zdNGda3Qs0"
+      "PubKey": "cHVia2V5Mg==",
+      "DkgPubKey": "ZGtnX3B1YmtleV8y"
     },
     {
       "Addr": "addr3",
-      "PubKey": "cpdsooUuAZxZ5vTWfxhYNIfcKyDlx99rPi5ZT8Ycv6g=",
-      "DkgPubKey": "gEyiWfaVqmGNuFcMNR217wN1w5nKCRpcMhTkKpsNgTx2fp7Zjm9IlePZ3iqei5KJCFR8GAeZnmbOLcDzyJCKUGk9U6bKpwe/kdH012EpmdOHSm3fLQqfA8zdNGda3Qs0"
+      "PubKey": "cHVia2V5Mw==",
+      "DkgPubKey": "ZGtnX3B1YmtleV8z"
     },
     {
       "Addr": "addr4",
-      "PubKey": "cpdsooUuAZxZ5vTWfxhYNIfcKyDlx99rPi5ZT8Ycv6g=",
-      "DkgPubKey": "gEyiWfaVqmGNuFcMNR217wN1w5nKCRpcMhTkKpsNgTx2fp7Zjm9IlePZ3iqei5KJCFR8GAeZnmbOLcDzyJCKUGk9U6bKpwe/kdH012EpmdOHSm3fLQqfA8zdNGda3Qs0"
+      "PubKey": "cHVia2V5NA==",
+      "DkgPubKey": "ZGtnX3B1YmtleV80"
     }
   ]
 }
