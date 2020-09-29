@@ -47,6 +47,7 @@ func (o *Operation) Check(o2 *Operation) error {
 	return nil
 }
 
+// FSMRequestFromMessage converts a message data to a necessary FSM struct
 func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 	var resolvedValue interface{}
 	switch fsm.Event(message.Event) {

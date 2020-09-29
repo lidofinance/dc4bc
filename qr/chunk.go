@@ -14,6 +14,7 @@ type chunk struct {
 	IsFinal bool
 }
 
+// ReadDataFromQRChunks reads a chunk-encoded data from QR codes by a given processor
 func ReadDataFromQRChunks(p Processor) ([]byte, error) {
 	var (
 		fullData, chunkBz []byte
@@ -35,6 +36,7 @@ func ReadDataFromQRChunks(p Processor) ([]byte, error) {
 	}
 }
 
+// DataToChunks divides a data on chunks with a size chunkSize
 func DataToChunks(data []byte) ([][]byte, error) {
 	chunksCount := int(math.Ceil(float64(len(data)) / chunkSize))
 	chunks := make([][]byte, 0, chunksCount)

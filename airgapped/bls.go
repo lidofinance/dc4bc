@@ -14,6 +14,7 @@ import (
 	"github.com/depools/dc4bc/fsm/types/responses"
 )
 
+// handleStateSigningAwaitConfirmations returns a confirmation of participation to create a threshold signature for a data
 func (am *AirgappedMachine) handleStateSigningAwaitConfirmations(o *client.Operation) error {
 	var (
 		payload responses.SigningProposalParticipantInvitationsResponse
@@ -43,6 +44,7 @@ func (am *AirgappedMachine) handleStateSigningAwaitConfirmations(o *client.Opera
 	return nil
 }
 
+// handleStateSigningAwaitPartialSigns takes a data to sign as payload and returns a partial sign for the data to broadcast
 func (am *AirgappedMachine) handleStateSigningAwaitPartialSigns(o *client.Operation) error {
 	var (
 		payload responses.SigningPartialSignsParticipantInvitationsResponse
@@ -78,6 +80,7 @@ func (am *AirgappedMachine) handleStateSigningAwaitPartialSigns(o *client.Operat
 	return nil
 }
 
+// reconstructThresholdSignature takes broadcasted partial signs from the previous step and reconstructs a full signature
 func (am *AirgappedMachine) reconstructThresholdSignature(o *client.Operation) error {
 	var (
 		payload responses.SigningProcessParticipantResponse
@@ -107,6 +110,8 @@ func (am *AirgappedMachine) reconstructThresholdSignature(o *client.Operation) e
 	return nil
 }
 
+// createPartialSign returns a partial sign of a given message
+// with using of a private part of the reconstructed DKG key of a given DKG round
 func (am *AirgappedMachine) createPartialSign(msg []byte, dkgIdentifier string) ([]byte, error) {
 	blsKeyring, err := am.loadBLSKeyring(dkgIdentifier)
 	if err != nil {
@@ -116,6 +121,8 @@ func (am *AirgappedMachine) createPartialSign(msg []byte, dkgIdentifier string) 
 	return tbls.Sign(am.suite.(pairing.Suite), blsKeyring.Share, msg)
 }
 
+// recoverFullSign recovers full threshold signature for a message
+// with using of a reconstructed public DKG key of a given DKG round
 func (am *AirgappedMachine) recoverFullSign(msg []byte, sigShares [][]byte, t, n int, dkgIdentifier string) ([]byte, error) {
 	blsKeyring, err := am.loadBLSKeyring(dkgIdentifier)
 	if err != nil {
@@ -125,6 +132,7 @@ func (am *AirgappedMachine) recoverFullSign(msg []byte, sigShares [][]byte, t, n
 	return tbls.Recover(am.suite.(pairing.Suite), blsKeyring.PubPoly, msg, sigShares, t, n)
 }
 
+// verifySign verifies a signature of a message
 func (am *AirgappedMachine) verifySign(msg []byte, fullSignature []byte, dkgIdentifier string) error {
 	blsKeyring, err := am.loadBLSKeyring(dkgIdentifier)
 	if err != nil {

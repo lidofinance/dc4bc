@@ -50,6 +50,7 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 	img := gocv.NewMat()
 	defer img.Close()
 
+	// detects and scans QR-cods from camera until we scan successfully
 	for {
 		webcam.Read(&img)
 		window.IMShow(img)
