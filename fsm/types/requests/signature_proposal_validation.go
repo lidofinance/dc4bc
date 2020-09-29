@@ -9,7 +9,7 @@ import (
 
 func (r *SignatureProposalParticipantsListRequest) Validate() error {
 	if len(r.Participants) < config.ParticipantsMinCount {
-		return errors.New(fmt.Sprintf("too few participants, minimum is {%d}", config.ParticipantsMinCount))
+		return fmt.Errorf("too few participants, minimum is {%d}", config.ParticipantsMinCount)
 	}
 
 	if r.SigningThreshold < 2 {

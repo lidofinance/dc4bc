@@ -110,7 +110,7 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 	}
 
 	if signatureProposalParticipant.Status != internal.SigConfirmationAwaitConfirmation {
-		err = errors.New(fmt.Sprintf("cannot apply reply participant with {Status} = {\"%s\"}", signatureProposalParticipant.Status))
+		err = fmt.Errorf("cannot apply reply participant with {Status} = {\"%s\"}", signatureProposalParticipant.Status)
 		return
 	}
 
@@ -120,7 +120,7 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 	case EventDeclineProposal:
 		signatureProposalParticipant.Status = internal.SigConfirmationDeclined
 	default:
-		err = errors.New(fmt.Sprintf("unsupported event for action {inEvent} = {\"%s\"}", inEvent))
+		err = fmt.Errorf("unsupported event for action {inEvent} = {\"%s\"}", inEvent)
 		return
 	}
 
@@ -132,7 +132,7 @@ func (m *SignatureProposalFSM) actionProposalResponseByParticipant(inEvent fsm.E
 	return
 }
 
-func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+func (m *SignatureProposalFSM) actionValidateSignatureProposal(fsm.Event, ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	var (
 		isContainsDecline bool
 	)
@@ -177,23 +177,4 @@ func (m *SignatureProposalFSM) actionValidateSignatureProposal(inEvent fsm.Event
 	}
 
 	return eventSetProposalValidatedInternal, responseData, nil
-}
-
-func (m *SignatureProposalFSM) actionSignatureProposalCanceledByTimeout(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
-	m.payloadMu.Lock()
-	defer m.payloadMu.Unlock()
-
-	responseData := make(responses.SignatureProposalParticipantStatusResponse, 0)
-
-	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
-		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
-			ParticipantId: participantId,
-			Addr:          participant.Addr,
-			Status:        uint8(participant.Status),
-		}
-		responseData = append(responseData, responseEntry)
-	}
-
-	return inEvent, responseData, nil
-
 }

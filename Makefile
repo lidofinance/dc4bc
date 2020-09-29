@@ -4,7 +4,7 @@ test:
 
 test-short:
 	@echo "Testing Go packages..."
-	@go test ./app/... -cover -short
+	@go test ./... -cover -short
 
 mocks:
 	@echo "Regenerate mocks..."

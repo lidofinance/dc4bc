@@ -386,7 +386,7 @@ func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err err
 	resp.State = f.State()
 
 	// Process auto event
-	isAutoEventExecuted, outEvent, data, err = f.processAutoEvent(EventRunAfter, args...)
+	isAutoEventExecuted, _, data, err = f.processAutoEvent(EventRunAfter, args...)
 
 	if isAutoEventExecuted {
 		resp.State = f.State()
@@ -419,7 +419,7 @@ func (f *FSM) SetState(event Event) error {
 
 	trEvent, ok := f.transitions[trKey{f.currentState, event}]
 	if !ok {
-		return errors.New(fmt.Sprintf("cannot set state by event \"%s\" for state \"%s\"", event, f.currentState))
+		return fmt.Errorf("cannot set state by event \"%s\" for state \"%s\"", event, f.currentState)
 	}
 
 	f.currentState = trEvent.dstState
@@ -480,7 +480,7 @@ func (f *FSM) EventsList() (events []Event) {
 func (f *FSM) StatesList() (states []State) {
 	var allStates = map[State]bool{}
 	if len(f.transitions) > 0 {
-		for trKey, _ := range f.transitions {
+		for trKey := range f.transitions {
 			allStates[trKey.source] = true
 		}
 	}
@@ -500,7 +500,7 @@ func (f *FSM) isCallbackExists(event Event) bool {
 }
 
 func (f *FSM) execCallback(event Event, args ...interface{}) (Event, interface{}, error) {
-	callback, _ := f.callbacks[event]
+	callback := f.callbacks[event]
 	return callback(event, args...)
 }
 
