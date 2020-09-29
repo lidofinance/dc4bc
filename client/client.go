@@ -40,7 +40,7 @@ type Poller interface {
 	SendMessage(message storage.Message) error
 	ProcessMessage(message storage.Message) error
 	GetOperations() (map[string]*types.Operation, error)
-	GetOperationQRPath(operationID string) ([]string, error)
+	GetOperationQRPath(operationID string) (string, error)
 	StartHTTPServer(listenAddr string) error
 	GetLogger() *logger
 }
@@ -255,29 +255,20 @@ func (c *Client) getOperationJSON(operationID string) ([]byte, error) {
 // GetOperationQRPath returns a path to the image with the QR generated
 // for the specified operation. It is supposed that the user will open
 // this file herself.
-func (c *Client) GetOperationQRPath(operationID string) ([]string, error) {
+func (c *Client) GetOperationQRPath(operationID string) (string, error) {
 	operationJSON, err := c.getOperationJSON(operationID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get operation in JSON: %w", err)
+		return "", fmt.Errorf("failed to get operation in JSON: %w", err)
 	}
 
 	operationQRPath := filepath.Join(QrCodesDir, fmt.Sprintf("dc4bc_qr_%s", operationID))
-	chunks, err := qr.DataToChunks(operationJSON)
-	if err != nil {
-		return nil, fmt.Errorf("failed to divide a data on chunks: %w", err)
+
+	qrPath := fmt.Sprintf("%s.gif", operationQRPath)
+	if err = c.qrProcessor.WriteQR(qrPath, operationJSON); err != nil {
+		return "", err
 	}
 
-	qrs := make([]string, 0, len(chunks))
-
-	for idx, chunk := range chunks {
-		qrPath := fmt.Sprintf("%s-%d", operationQRPath, idx)
-		if err = c.qrProcessor.WriteQR(qrPath, chunk); err != nil {
-			return nil, err
-		}
-		qrs = append(qrs, qrPath)
-	}
-
-	return qrs, nil
+	return qrPath, nil
 }
 
 // handleProcessedOperation handles an operation which was processed by the airgapped machine

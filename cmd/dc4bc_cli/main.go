@@ -141,17 +141,15 @@ func getOperationQRPathCommand() *cobra.Command {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 			operationID := args[0]
-			operations, err := getOperationsQRPathsRequest(listenAddr, operationID)
+			operation, err := getOperationsQRPathsRequest(listenAddr, operationID)
 			if err != nil {
 				return fmt.Errorf("failed to get operations: %w", err)
 			}
-			if operations.ErrorMessage != "" {
-				return fmt.Errorf("failed to get operations: %s", operations.ErrorMessage)
+			if operation.ErrorMessage != "" {
+				return fmt.Errorf("failed to get operations: %s", operation.ErrorMessage)
 			}
 			fmt.Printf("List of paths to QR codes for operation %s:\n", operationID)
-			for idx, path := range operations.Result {
-				fmt.Printf("%d) QR code: %s\n", idx, path)
-			}
+			fmt.Printf("QR code: %s\n", operation.Result)
 			return nil
 		},
 	}
@@ -251,7 +249,7 @@ func readOperationFromCameraCommand() *cobra.Command {
 			}
 
 			processor := qr.NewCameraProcessor()
-			data, err := qr.ReadDataFromQRChunks(processor)
+			data, err := processor.ReadQR()
 			if err != nil {
 				return fmt.Errorf("failed to read data from QR: %w", err)
 			}

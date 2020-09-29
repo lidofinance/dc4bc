@@ -10,7 +10,6 @@ import (
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/google/uuid"
-	"image"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -67,7 +66,6 @@ func (c *Client) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/getOperations", c.getOperationsHandler)
 	mux.HandleFunc("/getOperationQRPath", c.getOperationQRPathHandler)
 
-	mux.HandleFunc("/readProcessedOperation", c.readProcessedOperationFromBodyHandler)
 	mux.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
 	mux.HandleFunc("/handleProcessedOperationJSON", c.handleJSONOperationHandler)
 
@@ -173,48 +171,6 @@ func (c *Client) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Requ
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(encodedData)))
 	rawResponse(w, encodedData)
-}
-
-func (c *Client) readProcessedOperationFromBodyHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
-		return
-	}
-
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
-		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to parse multipat form: %v", err))
-		return
-	}
-
-	file, _, err := r.FormFile("qr")
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to retrieve a file: %v", err))
-		return
-	}
-	defer file.Close()
-	img, _, err := image.Decode(file)
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to decode an image: %v", err))
-		return
-	}
-
-	qrData, err := qr.ReadDataFromQR(img)
-	if err != nil {
-		return
-	}
-
-	var operation types.Operation
-	if err = json.Unmarshal(qrData, &operation); err != nil {
-		errorResponse(w, http.StatusInternalServerError,
-			fmt.Sprintf("failed to unmarshal processed operation: %v", err))
-		return
-	}
-	if err := c.handleProcessedOperation(operation); err != nil {
-		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to handle an operation: %v", err))
-		return
-	}
-
-	successResponse(w, "ok")
 }
 
 func (c *Client) startDKGHandler(w http.ResponseWriter, r *http.Request) {

@@ -21,6 +21,8 @@ const (
 	flagStateDBDSN   = "state_dbdsn"
 	flagStorageDBDSN = "storage_dbdsn"
 	flagStoreDBDSN   = "key_store_dbdsn"
+	flagFramesDelay  = "frames_delay"
+	flagChunkSize    = "chunk_size"
 )
 
 func init() {
@@ -29,6 +31,8 @@ func init() {
 	rootCmd.PersistentFlags().String(flagStateDBDSN, "./dc4bc_client_state", "State DBDSN")
 	rootCmd.PersistentFlags().String(flagStorageDBDSN, "./dc4bc_file_storage", "Storage DBDSN")
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
+	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
+	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
 }
 
 func genKeyPairCommand() *cobra.Command {
@@ -78,10 +82,20 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("failed to read configuration: %v", err)
 			}
 
-			storageDBDSN, err := cmd.Flags().GetString(flagStorageDBDSN)
+			framesDelay, err := cmd.Flags().GetInt(flagFramesDelay)
 			if err != nil {
 				log.Fatalf("failed to read configuration: %v", err)
 			}
+
+			chunkSize, err := cmd.Flags().GetInt(flagChunkSize)
+			if err != nil {
+				log.Fatalf("failed to read configuration: %v", err)
+			}
+
+			//storageDBDSN, err := cmd.Flags().GetString(flagStorageDBDSN)
+			//if err != nil {
+			//	log.Fatalf("failed to read configuration: %v", err)
+			//}
 
 			keyStoreDBDSN, err := cmd.Flags().GetString(flagStoreDBDSN)
 			if err != nil {
@@ -96,7 +110,7 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("Failed to init state client: %v", err)
 			}
 
-			stg, err := storage.NewKafkaStorage(context.Background(), storageDBDSN)
+			stg, err := storage.NewFileStorage("st")
 			if err != nil {
 				log.Fatalf("Failed to init storage client: %v", err)
 			}
@@ -107,6 +121,8 @@ func startClientCommand() *cobra.Command {
 			}
 
 			processor := qr.NewCameraProcessor()
+			processor.SetDelay(framesDelay)
+			processor.SetChunkSize(chunkSize)
 
 			cli, err := client.NewClient(ctx, userName, state, stg, keyStore, processor)
 			if err != nil {

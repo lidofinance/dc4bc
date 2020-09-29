@@ -33,8 +33,8 @@ type OperationsResponse struct {
 }
 
 type OperationQRPathsResponse struct {
-	ErrorMessage string   `json:"error_message,omitempty"`
-	Result       []string `json:"result"`
+	ErrorMessage string `json:"error_message,omitempty"`
+	Result       string `json:"result"`
 }
 
 // calcStartDKGMessageHash returns hash of a StartDKGMessage to verify its correctness later

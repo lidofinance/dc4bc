@@ -3,8 +3,11 @@ package qr
 import (
 	"fmt"
 	"image"
+	"image/color"
+	"image/draw"
+	"image/gif"
 	"log"
-	"time"
+	"os"
 
 	"gocv.io/x/gocv"
 
@@ -14,19 +17,36 @@ import (
 	"github.com/makiuchi-d/gozxing/qrcode"
 )
 
-const (
-	timeToScan = time.Second * 5
-)
+var palette = color.Palette{
+	image.Transparent,
+	image.Black,
+	image.White,
+	color.RGBA{G: 255, A: 255},
+	color.RGBA{G: 100, A: 255},
+}
 
 type Processor interface {
 	ReadQR() ([]byte, error)
 	WriteQR(path string, data []byte) error
+	SetDelay(delay int)
+	SetChunkSize(chunkSize int)
 }
 
-type CameraProcessor struct{}
+type CameraProcessor struct {
+	gifFramesDelay int
+	chunkSize      int
+}
 
 func NewCameraProcessor() *CameraProcessor {
 	return &CameraProcessor{}
+}
+
+func (p *CameraProcessor) SetDelay(delay int) {
+	p.gifFramesDelay = delay
+}
+
+func (p *CameraProcessor) SetChunkSize(chunkSize int) {
+	p.chunkSize = chunkSize
 }
 
 func (p *CameraProcessor) ReadQR() ([]byte, error) {
@@ -50,6 +70,8 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 	img := gocv.NewMat()
 	defer img.Close()
 
+	chunks := make([]*chunk, 0)
+	decodedChunksCount := uint(0)
 	// detects and scans QR-cods from camera until we scan successfully
 	for {
 		webcam.Read(&img)
@@ -64,16 +86,56 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 		if err != nil {
 			continue
 		}
-		return data, nil
+		decodedChunk, err := decodeChunk(data)
+		if err != nil {
+			return nil, err
+		}
+		if cap(chunks) == 0 {
+			chunks = make([]*chunk, decodedChunk.Total)
+		}
+		if chunks[decodedChunk.Index] != nil {
+			continue
+		}
+		chunks[decodedChunk.Index] = decodedChunk
+		decodedChunksCount++
+		if decodedChunksCount == decodedChunk.Total {
+			break
+		}
 	}
+	data := make([]byte, 0)
+	for _, c := range chunks {
+		data = append(data, c.Data...)
+	}
+	return data, nil
 }
 
 func (p *CameraProcessor) WriteQR(path string, data []byte) error {
-	err := encoder.WriteFile(string(data), encoder.Medium, 512, path)
+	chunks, err := DataToChunks(data, p.chunkSize)
 	if err != nil {
-		return fmt.Errorf("failed to encode the data: %w", err)
+		return fmt.Errorf("failed to divide data on chunks: %w", err)
 	}
+	outGif := &gif.GIF{}
+	for _, c := range chunks {
+		code, err := encoder.New(string(c), encoder.Medium)
+		if err != nil {
+			return fmt.Errorf("failed to create a QR code: %w", err)
+		}
+		frame := code.Image(512)
+		bounds := frame.Bounds()
+		palettedImage := image.NewPaletted(bounds, palette)
+		draw.Draw(palettedImage, palettedImage.Rect, frame, bounds.Min, draw.Src)
 
+		outGif.Image = append(outGif.Image, palettedImage)
+		outGif.Delay = append(outGif.Delay, p.gifFramesDelay)
+	}
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
+	}
+	defer f.Close()
+	if err := gif.EncodeAll(f, outGif); err != nil {
+		return fmt.Errorf("failed to encode qr gif: %w", err)
+	}
 	return nil
 }
 

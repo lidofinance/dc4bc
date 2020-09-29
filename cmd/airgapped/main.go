@@ -60,15 +60,13 @@ func (t *terminal) addCommand(name string, command *terminalCommand) {
 }
 
 func (t *terminal) readQRCommand() error {
-	qrPaths, err := t.airgapped.HandleQR()
+	qrPath, err := t.airgapped.HandleQR()
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("An operation in the read QR code handled successfully, a result operation saved by chunks in following qr codes:")
-	for idx, qrPath := range qrPaths {
-		fmt.Printf("Operation's chunk #%d: %s\n", idx, qrPath)
-	}
+	fmt.Printf("Operation's chunk: %s\n", qrPath)
 	return nil
 }
 
@@ -174,11 +172,15 @@ func (t *terminal) dropSensitiveData(passExpiration time.Duration) {
 var (
 	passwordExpiration string
 	dbPath             string
+	framesDelay        int
+	chunkSize          int
 )
 
 func init() {
 	flag.StringVar(&passwordExpiration, "password_expiration", "10m", "Expiration of the encryption password")
 	flag.StringVar(&dbPath, "db_path", "airgapped_db", "Path to airgapped levelDB storage")
+	flag.IntVar(&framesDelay, "frames_delay", 10, "Delay times between frames in 100ths of a second")
+	flag.IntVar(&chunkSize, "chunk_size", 10, "QR-code's chunk size")
 }
 
 func main() {
@@ -193,6 +195,8 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init airgapped machine %v", err)
 	}
+	air.SetQRProcessorFramesDelay(framesDelay)
+	air.SetQRProcessorChunkSize(chunkSize)
 
 	t := NewTerminal(air)
 	go t.dropSensitiveData(passwordLifeDuration)

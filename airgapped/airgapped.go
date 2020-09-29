@@ -70,6 +70,14 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 	return am, nil
 }
 
+func (am *AirgappedMachine) SetQRProcessorFramesDelay(delay int) {
+	am.qrProcessor.SetDelay(delay)
+}
+
+func (am *AirgappedMachine) SetQRProcessorChunkSize(chunkSize int) {
+	am.qrProcessor.SetChunkSize(chunkSize)
+}
+
 // InitKeys load keys public and private keys for DKG from LevelDB. If keys does not exist, creates them.
 func (am *AirgappedMachine) InitKeys() error {
 	err := am.LoadKeysFromDB()
@@ -282,7 +290,7 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.
 }
 
 // HandleQR - gets an operation from a QR code, do necessary things for the operation and returns paths to QR-code images
-func (am *AirgappedMachine) HandleQR() ([]string, error) {
+func (am *AirgappedMachine) HandleQR() (string, error) {
 	var (
 		err error
 
@@ -293,38 +301,29 @@ func (am *AirgappedMachine) HandleQR() ([]string, error) {
 		resultOperation client.Operation
 	)
 
-	if qrData, err = qr.ReadDataFromQRChunks(am.qrProcessor); err != nil {
-		return nil, fmt.Errorf("failed to read QR: %w", err)
+	if qrData, err = am.qrProcessor.ReadQR(); err != nil {
+		return "", fmt.Errorf("failed to read QR: %w", err)
 	}
 	if err = json.Unmarshal(qrData, &operation); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal operation: %w", err)
+		return "", fmt.Errorf("failed to unmarshal operation: %w", err)
 	}
 
 	if resultOperation, err = am.HandleOperation(operation); err != nil {
-		return nil, err
+		return "", err
 	}
 
 	operationBz, err := json.Marshal(resultOperation)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal operation: %w", err)
+		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	chunks, err := qr.DataToChunks(operationBz)
-	if err != nil {
-		return nil, fmt.Errorf("failed to divide a data on chunks: %w", err)
-	}
-	qrPaths := make([]string, 0, len(chunks))
-
-	for idx, chunk := range chunks {
-		qrPath := fmt.Sprintf("%s/%s_%s_%s-%d.png", resultQRFolder, resultOperation.Type, resultOperation.ID,
-			resultOperation.To, idx)
-		if err = am.qrProcessor.WriteQR(qrPath, chunk); err != nil {
-			return nil, fmt.Errorf("failed to write QR: %w", err)
-		}
-		qrPaths = append(qrPaths, qrPath)
+	qrPath := fmt.Sprintf("%s/%s_%s_%s.gif", resultQRFolder, resultOperation.Type, resultOperation.ID,
+		resultOperation.To)
+	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
+		return "", fmt.Errorf("failed to write QR: %w", err)
 	}
 
-	return qrPaths, nil
+	return qrPath, nil
 }
 
 // writeErrorRequestToOperation writes error to a operation if some bad things happened
