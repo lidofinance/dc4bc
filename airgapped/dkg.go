@@ -1,8 +1,11 @@
 package airgapped
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+
+	bls "github.com/depools/kyber-bls12381"
 
 	"github.com/corestario/kyber"
 	dkgPedersen "github.com/corestario/kyber/share/dkg/pedersen"
@@ -42,7 +45,7 @@ func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.
 
 	pid := -1
 	for _, r := range payload {
-		pubkey := am.suite.Point()
+		pubkey := am.baseSuite.Point()
 		if err := pubkey.UnmarshalBinary(r.DkgPubKey); err != nil {
 			return fmt.Errorf("failed to unmarshal dkg pubkey: %w", err)
 		}
@@ -59,11 +62,17 @@ func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.
 		return fmt.Errorf("dkg instance %s already exists", o.DKGIdentifier)
 	}
 
-	dkgInstance := dkg.Init(am.suite, am.pubKey, am.secKey)
+	// Here we create a new seeded suite for the new DKG round with seed =
+	// sha256.Sum256(baseSeed + DKGIdentifier). We need this to avoid identical
+	// DKG rounds.
+	var (
+		dkgSeed = sha256.Sum256(append([]byte(o.DKGIdentifier), am.baseSeed...))
+		suite   = bls.NewBLS12381Suite(dkgSeed[:])
+	)
+	dkgInstance := dkg.Init(suite, am.pubKey, am.secKey)
 	dkgInstance.Threshold = payload[0].Threshold //same for everyone
 	dkgInstance.N = len(payload)
 	am.dkgInstances[o.DKGIdentifier] = dkgInstance
-
 	req := requests.SignatureProposalParticipantRequest{
 		ParticipantId: pid,
 		CreatedAt:     o.CreatedAt,
@@ -100,14 +109,14 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 	}
 
 	for _, entry := range payload {
-		pubKey := am.suite.Point()
+		pubKey := am.baseSuite.Point()
 		if err = pubKey.UnmarshalBinary(entry.DkgPubKey); err != nil {
 			return fmt.Errorf("failed to unmarshal pubkey: %w", err)
 		}
 		dkgInstance.StorePubKey(entry.Addr, entry.ParticipantId, pubKey)
 	}
 
-	if err = dkgInstance.InitDKGInstance(am.seed); err != nil {
+	if err = dkgInstance.InitDKGInstance(am.baseSeed); err != nil {
 		return fmt.Errorf("failed to init dkg instance: %w", err)
 	}
 
@@ -164,7 +173,7 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Oper
 		}
 		dkgCommits := make([]kyber.Point, 0, len(commitsBz))
 		for _, commitBz := range commitsBz {
-			commit := am.suite.Point()
+			commit := am.baseSuite.Point()
 			if err = commit.UnmarshalBinary(commitBz); err != nil {
 				return fmt.Errorf("failed to unmarshal commit: %w", err)
 			}

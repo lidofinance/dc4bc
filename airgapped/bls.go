@@ -118,7 +118,7 @@ func (am *AirgappedMachine) createPartialSign(msg []byte, dkgIdentifier string) 
 		return nil, fmt.Errorf("failed to load blsKeyring: %w", err)
 	}
 
-	return tbls.Sign(am.suite.(pairing.Suite), blsKeyring.Share, msg)
+	return tbls.Sign(am.baseSuite.(pairing.Suite), blsKeyring.Share, msg)
 }
 
 // recoverFullSign recovers full threshold signature for a message
@@ -129,7 +129,7 @@ func (am *AirgappedMachine) recoverFullSign(msg []byte, sigShares [][]byte, t, n
 		return nil, fmt.Errorf("failed to load blsKeyring: %w", err)
 	}
 
-	return tbls.Recover(am.suite.(pairing.Suite), blsKeyring.PubPoly, msg, sigShares, t, n)
+	return tbls.Recover(am.baseSuite.(pairing.Suite), blsKeyring.PubPoly, msg, sigShares, t, n)
 }
 
 // verifySign verifies a signature of a message
@@ -139,5 +139,5 @@ func (am *AirgappedMachine) verifySign(msg []byte, fullSignature []byte, dkgIden
 		return fmt.Errorf("failed to load blsKeyring: %w", err)
 	}
 
-	return bls.Verify(am.suite.(pairing.Suite), blsKeyring.PubPoly.Commit(), msg, fullSignature)
+	return bls.Verify(am.baseSuite.(pairing.Suite), blsKeyring.PubPoly.Commit(), msg, fullSignature)
 }

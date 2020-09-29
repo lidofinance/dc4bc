@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"runtime"
 	"strings"
 	"syscall"
@@ -51,6 +52,21 @@ func NewTerminal(machine *airgapped.AirgappedMachine) *terminal {
 	t.addCommand("show_finished_dkg", &terminalCommand{
 		commandHandler: t.showFinishedDKGCommand,
 		description:    "shows a list of finished dkg rounds",
+	})
+	t.addCommand("replay_operations_log", &terminalCommand{
+		commandHandler: t.replayOperationLogCommand,
+		description:    "replays the operation log for a given dkg round",
+	})
+	t.addCommand("drop_operations_log", &terminalCommand{
+		commandHandler: t.dropOperationLogCommand,
+		description:    "drops the operation log for a given dkg round",
+	})
+	t.addCommand("exit", &terminalCommand{
+		commandHandler: func() error {
+			log.Fatal("interrupted")
+			return nil
+		},
+		description: "stops the machine",
 	})
 	return &t
 }
@@ -104,6 +120,32 @@ func (t *terminal) showFinishedDKGCommand() error {
 	return nil
 }
 
+func (t *terminal) replayOperationLogCommand() error {
+	fmt.Print("> Enter the DKGRoundIdentifier: ")
+	dkgRoundIdentifier, err := t.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
+	}
+
+	if err := t.airgapped.ReplayOperationsLog(dkgRoundIdentifier); err != nil {
+		return fmt.Errorf("failed to ReplayOperationsLog: %w", err)
+	}
+	return nil
+}
+
+func (t *terminal) dropOperationLogCommand() error {
+	fmt.Print("> Enter the DKGRoundIdentifier: ")
+	dkgRoundIdentifier, err := t.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
+	}
+
+	if err := t.airgapped.DropOperationsLog(dkgRoundIdentifier); err != nil {
+		return fmt.Errorf("failed to DropOperationsLog: %w", err)
+	}
+	return nil
+}
+
 func (t *terminal) enterEncryptionPasswordIfNeeded() error {
 	t.airgapped.Lock()
 	defer t.airgapped.Unlock()
@@ -153,7 +195,7 @@ func (t *terminal) run() error {
 		}
 		t.airgapped.Lock()
 		if err := handler.commandHandler(); err != nil {
-			fmt.Printf("failled to execute command %s: %v, \n", command, err)
+			fmt.Printf("failled to execute command %s: %v \n", command, err)
 			t.airgapped.Unlock()
 			continue
 		}
@@ -193,6 +235,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init airgapped machine %v", err)
 	}
+
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		for _ = range c {
+			fmt.Printf("Intercepting SIGINT, please type `exit` to stop the machine\n>>> ")
+		}
+	}()
 
 	t := NewTerminal(air)
 	go t.dropSensitiveData(passwordLifeDuration)

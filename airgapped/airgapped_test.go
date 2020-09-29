@@ -327,7 +327,6 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create airgapped machine: %v", err)
 		}
-		am.SetAddress(participants[i])
 		am.SetEncryptionKey([]byte(fmt.Sprintf(testDB+"%d", i)))
 		if err = am.InitKeys(); err != nil {
 			t.Fatalf(err.Error())
@@ -432,7 +431,6 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create airgapped machine: %v", err)
 		}
-		_ = am.SetAddress(participants[i])
 		am.SetEncryptionKey([]byte(fmt.Sprintf(testDB+"%d", i)))
 		if err = am.InitKeys(); err != nil {
 			t.Fatalf(err.Error())
@@ -448,7 +446,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 	defer os.RemoveAll(testDir)
 
 	for _, node := range newTr.nodes {
-		err := node.Machine.ReplayOperationsLog()
+		err := node.Machine.ReplayOperationsLog(DKGIdentifier)
 		require.NoError(t, err)
 	}
 
