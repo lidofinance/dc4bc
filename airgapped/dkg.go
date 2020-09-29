@@ -130,6 +130,9 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 		marshaledCommits = append(marshaledCommits, commitBz)
 	}
 	commitsBz, err := json.Marshal(marshaledCommits)
+	if err != nil {
+		return fmt.Errorf("failed to marshal marshaledCommits: %w", err)
+	}
 
 	am.dkgInstances[o.DKGIdentifier] = dkgInstance
 

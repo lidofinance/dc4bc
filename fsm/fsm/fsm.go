@@ -75,8 +75,6 @@ type FSM struct {
 
 	// stateMu guards access to the currentState state.
 	stateMu sync.RWMutex
-	// eventMu guards access to State() and Transition().
-	eventMu sync.Mutex
 }
 
 // Transition key source + dst
@@ -299,7 +297,8 @@ func (f *FSM) MustCopyWithState(state State) *FSM {
 func (f *FSM) DoInternal(event Event, args ...interface{}) (resp *Response, err error) {
 	trEvent, ok := f.transitions[trKey{f.currentState, event}]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("cannot execute internal event \"%s\" for state \"%s\"", event, f.currentState))
+		return nil, fmt.Errorf("cannot execute internal event \"%s\" for state \"%s\"",
+			event, f.currentState)
 	}
 
 	return f.do(trEvent, args...)
@@ -308,7 +307,7 @@ func (f *FSM) DoInternal(event Event, args ...interface{}) (resp *Response, err 
 func (f *FSM) Do(event Event, args ...interface{}) (resp *Response, err error) {
 	trEvent, ok := f.transitions[trKey{f.currentState, event}]
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("cannot execute event \"%s\" for state \"%s\"", event, f.currentState))
+		return nil, fmt.Errorf("cannot execute event \"%s\" for state \"%s\"", event, f.currentState)
 	}
 	if trEvent.isInternal {
 		return nil, errors.New("event is internal")
