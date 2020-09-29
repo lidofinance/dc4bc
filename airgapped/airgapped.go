@@ -25,17 +25,14 @@ import (
 )
 
 const (
-	resultQRFolder        = "result_qr_codes"
-	pubKeyDBKey           = "public_key"
-	privateKeyDBKey       = "private_key"
-	participantAddressKey = "participant_address"
-	saltKey               = "salt_key"
+	resultQRFolder  = "result_qr_codes"
+	pubKeyDBKey     = "public_key"
+	privateKeyDBKey = "private_key"
+	saltKey         = "salt_key"
 )
 
 type AirgappedMachine struct {
 	sync.Mutex
-
-	ParticipantAddress string
 
 	dkgInstances map[string]*dkg.DKG
 	qrProcessor  qr.Processor
@@ -70,13 +67,10 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 		return nil, fmt.Errorf("failed to open db file %s for keys: %w", dbPath, err)
 	}
 
-	if err = am.loadAddressFromDB(dbPath); err != nil {
-		return nil, fmt.Errorf("failed to load address from db")
-	}
-
 	return am, nil
 }
 
+// InitKeys load keys public and private keys for DKG from LevelDB. If keys does not exist, creates them.
 func (am *AirgappedMachine) InitKeys() error {
 	err := am.LoadKeysFromDB()
 	if err != nil && err != leveldb.ErrNotFound {
@@ -86,38 +80,34 @@ func (am *AirgappedMachine) InitKeys() error {
 	if err == leveldb.ErrNotFound {
 		am.secKey = am.suite.Scalar().Pick(am.suite.RandomStream())
 		am.pubKey = am.suite.Point().Mul(am.secKey, nil)
-
 		return am.SaveKeysToDB()
 	}
+
 	return nil
 }
 
-func (am *AirgappedMachine) SetAddress(address string) error {
-	am.ParticipantAddress = address
-	return am.saveAddressToDB(address)
-}
-
-func (am *AirgappedMachine) GetAddress() string {
-	return am.ParticipantAddress
-}
-
+// SetEncryptionKey set a key to encrypt and decrypt a sensitive data
 func (am *AirgappedMachine) SetEncryptionKey(key []byte) {
 	am.encryptionKey = key
 }
 
+// SensitiveDataRemoved indicates whether sensitive information has been cleared
 func (am *AirgappedMachine) SensitiveDataRemoved() bool {
 	return len(am.encryptionKey) == 0
 }
 
+// DropSensitiveData remove sensitive data from memory
 func (am *AirgappedMachine) DropSensitiveData() {
 	am.Lock()
 	defer am.Unlock()
 
+	// There is no guarantee that GC actually deleted a data from memory, but that's ok at this moment
 	am.secKey = nil
 	am.pubKey = nil
 	am.encryptionKey = nil
 }
 
+// LoadKeysFromDB load DKG keys from LevelDB
 func (am *AirgappedMachine) LoadKeysFromDB() error {
 	pubKeyBz, err := am.db.Get([]byte(pubKeyDBKey), nil)
 	if err != nil {
@@ -164,22 +154,7 @@ func (am *AirgappedMachine) LoadKeysFromDB() error {
 	return nil
 }
 
-func (am *AirgappedMachine) loadAddressFromDB(dbPath string) error {
-	address, err := am.db.Get([]byte(participantAddressKey), nil)
-	if err != nil {
-		if err == leveldb.ErrNotFound {
-			return nil
-		}
-		return fmt.Errorf("failed to get address from db %s: %w", dbPath, err)
-	}
-	am.ParticipantAddress = string(address)
-	return nil
-}
-
-func (am *AirgappedMachine) saveAddressToDB(address string) error {
-	return am.db.Put([]byte(participantAddressKey), []byte(address), nil)
-}
-
+// SaveKeysToDB save DKG keys to LevelDB
 func (am *AirgappedMachine) SaveKeysToDB() error {
 	pubKeyBz, err := am.pubKey.MarshalBinary()
 	if err != nil {
@@ -228,6 +203,7 @@ func (am *AirgappedMachine) SaveKeysToDB() error {
 	return nil
 }
 
+// getParticipantID returns our own participant id for the given DKG round
 func (am *AirgappedMachine) getParticipantID(dkgIdentifier string) (int, error) {
 	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
 	if !ok {
@@ -236,6 +212,7 @@ func (am *AirgappedMachine) getParticipantID(dkgIdentifier string) (int, error) 
 	return dkgInstance.ParticipantID, nil
 }
 
+// encryptDataForParticipant encrypts a data using the public key of the participant to whom the data is sent
 func (am *AirgappedMachine) encryptDataForParticipant(dkgIdentifier, to string, data []byte) ([]byte, error) {
 	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
 	if !ok {
@@ -254,6 +231,7 @@ func (am *AirgappedMachine) encryptDataForParticipant(dkgIdentifier, to string, 
 	return encryptedData, nil
 }
 
+// decryptDataFromParticipant decrypts the data that was sent to us
 func (am *AirgappedMachine) decryptDataFromParticipant(data []byte) ([]byte, error) {
 	decryptedData, err := ecies.Decrypt(am.suite, am.secKey, data, am.suite.Hash)
 	if err != nil {
@@ -262,6 +240,7 @@ func (am *AirgappedMachine) decryptDataFromParticipant(data []byte) ([]byte, err
 	return decryptedData, nil
 }
 
+// HandleOperation handles and processes an operation
 func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.Operation, error) {
 	var (
 		err error
@@ -348,6 +327,7 @@ func (am *AirgappedMachine) HandleQR() ([]string, error) {
 	return qrPaths, nil
 }
 
+// writeErrorRequestToOperation writes error to a operation if some bad things happened
 func (am *AirgappedMachine) writeErrorRequestToOperation(o *client.Operation, handlerError error) error {
 	// each type of request should have a required event even error
 	// maybe should be global?

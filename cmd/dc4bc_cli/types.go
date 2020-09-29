@@ -37,6 +37,7 @@ type OperationQRPathsResponse struct {
 	Result       []string `json:"result"`
 }
 
+// calcStartDKGMessageHash returns hash of a StartDKGMessage to verify its correctness later
 func calcStartDKGMessageHash(payload []byte) ([]byte, error) {
 	var msg DKGInvitationResponse
 	if err := json.Unmarshal(payload, &msg); err != nil {

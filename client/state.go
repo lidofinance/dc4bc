@@ -189,6 +189,7 @@ func (s *LevelDBState) PutOperation(operation *types.Operation) error {
 	return nil
 }
 
+// DeleteOperation deletes operation from an operation pool
 func (s *LevelDBState) DeleteOperation(operationID string) error {
 	s.Lock()
 	defer s.Unlock()
@@ -212,6 +213,7 @@ func (s *LevelDBState) DeleteOperation(operationID string) error {
 	return nil
 }
 
+// GetOperations returns all operations from an operation pool
 func (s *LevelDBState) GetOperations() (map[string]*types.Operation, error) {
 	s.Lock()
 	defer s.Unlock()

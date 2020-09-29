@@ -21,11 +21,13 @@ func init() {
 	runtime.LockOSThread()
 }
 
+// terminalCommand holds a description of a command and its handler
 type terminalCommand struct {
 	commandHandler func() error
 	description    string
 }
 
+// terminal a basic implementation of a prompt
 type terminal struct {
 	reader    *bufio.Reader
 	airgapped *airgapped.AirgappedMachine
@@ -63,7 +65,7 @@ func (t *terminal) readQRCommand() error {
 		return err
 	}
 
-	fmt.Println("An operation in the readed QR code handled successfully, a result operation saved by chunks in following qr codes:")
+	fmt.Println("An operation in the read QR code handled successfully, a result operation saved by chunks in following qr codes:")
 	for idx, qrPath := range qrPaths {
 		fmt.Printf("Operation's chunk #%d: %s\n", idx, qrPath)
 	}
