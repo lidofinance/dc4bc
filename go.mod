@@ -3,8 +3,8 @@ module github.com/depools/dc4bc
 go 1.13
 
 require (
-	github.com/corestario/kyber v1.3.0
-	github.com/depools/kyber-bls12381 v0.0.0-20200831104422-978ac58f592e
+	github.com/corestario/kyber v1.4.0
+	github.com/depools/kyber-bls12381 v0.0.0-20200929134032-c24859b7d890
 	github.com/golang/mock v1.4.4
 	github.com/google/go-cmp v0.2.0
 	github.com/google/uuid v1.1.1
@@ -26,5 +26,3 @@ require (
 replace golang.org/x/crypto => github.com/tendermint/crypto v0.0.0-20180820045704-3764759f34a5
 
 replace github.com/corestario/kyber => ../kyber
-
-replace github.com/depools/kyber-bls12381 => ../kyber-bls12381
