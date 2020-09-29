@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -110,7 +111,9 @@ func (n *node) run(t *testing.T) {
 				if err = json.Unmarshal(msg.Data, &pubKeyReq); err != nil {
 					t.Fatalf("failed to unmarshal pubKey request: %v", err)
 				}
-				pubKey := bls12381.NewBLS12381Suite().Point()
+				seed := make([]byte, 32)
+				_, _ = rand.Read(seed)
+				pubKey := bls12381.NewBLS12381Suite(seed).Point()
 				if err = pubKey.UnmarshalBinary(pubKeyReq.MasterKey); err != nil {
 					t.Fatalf("failed to unmarshal pubkey: %v", err)
 				}

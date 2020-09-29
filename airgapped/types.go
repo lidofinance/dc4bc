@@ -2,9 +2,10 @@ package airgapped
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/depools/dc4bc/dkg"
 	"github.com/syndtr/goleveldb/leveldb/util"
-	"strings"
 )
 
 const (
@@ -16,7 +17,7 @@ func makeBLSKeyKeyringDBKey(key string) string {
 }
 
 func (am *AirgappedMachine) saveBLSKeyring(dkgID string, blsKeyring *dkg.BLSKeyring) error {
-	salt, err := am.db.Get([]byte(saltKey), nil)
+	salt, err := am.db.Get([]byte(saltDBKey), nil)
 	if err != nil {
 		return fmt.Errorf("failed to read salt from db: %w", err)
 	}
@@ -43,7 +44,7 @@ func (am *AirgappedMachine) loadBLSKeyring(dkgID string) (*dkg.BLSKeyring, error
 		err          error
 	)
 
-	salt, err := am.db.Get([]byte(saltKey), nil)
+	salt, err := am.db.Get([]byte(saltDBKey), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read salt from db: %w", err)
 	}
@@ -57,7 +58,7 @@ func (am *AirgappedMachine) loadBLSKeyring(dkgID string) (*dkg.BLSKeyring, error
 		return nil, fmt.Errorf("failed to decrypt BLS keyring: %w", err)
 	}
 
-	if blsKeyring, err = dkg.LoadBLSKeyringFromBytes(decryptedKeyring); err != nil {
+	if blsKeyring, err = dkg.LoadBLSKeyringFromBytes(am.baseSuite, decryptedKeyring); err != nil {
 		return nil, fmt.Errorf("failed to decode bls keyring")
 	}
 	return blsKeyring, nil
@@ -69,7 +70,7 @@ func (am *AirgappedMachine) GetBLSKeyrings() (map[string]*dkg.BLSKeyring, error)
 		err        error
 	)
 
-	salt, err := am.db.Get([]byte(saltKey), nil)
+	salt, err := am.db.Get([]byte(saltDBKey), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read salt from db: %w", err)
 	}
@@ -85,7 +86,7 @@ func (am *AirgappedMachine) GetBLSKeyrings() (map[string]*dkg.BLSKeyring, error)
 		if err != nil {
 			return nil, fmt.Errorf("failed to decrypt BLS keyring: %w", err)
 		}
-		if blsKeyring, err = dkg.LoadBLSKeyringFromBytes(decryptedKeyring); err != nil {
+		if blsKeyring, err = dkg.LoadBLSKeyringFromBytes(am.baseSuite, decryptedKeyring); err != nil {
 			return nil, fmt.Errorf("failed to decode bls keyring: %w", err)
 		}
 		keyrings[strings.TrimLeft(string(key), blsKeyringPrefix)] = blsKeyring
