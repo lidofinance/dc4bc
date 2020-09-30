@@ -102,10 +102,7 @@ func compareStatesArr(src, dst []State) bool {
 			delete(diff, _y)
 		}
 	}
-	if len(diff) == 0 {
-		return true
-	}
-	return false
+	return len(diff) == 0
 }
 
 func compareEventsArr(src, dst []Event) bool {
@@ -128,10 +125,7 @@ func compareEventsArr(src, dst []Event) bool {
 			delete(diff, _y)
 		}
 	}
-	if len(diff) == 0 {
-		return true
-	}
-	return false
+	return len(diff) == 0
 }
 
 func TestMustNewFSM_Empty_Name_Panic(t *testing.T) {

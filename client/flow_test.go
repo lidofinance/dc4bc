@@ -117,7 +117,8 @@ func (n *node) run(t *testing.T) {
 				if err = pubKey.UnmarshalBinary(pubKeyReq.MasterKey); err != nil {
 					t.Fatalf("failed to unmarshal pubkey: %v", err)
 				}
-				if err = ioutil.WriteFile(fmt.Sprintf("/tmp/dc4bc_participant_%d.pubkey", pubKeyReq.ParticipantId), []byte(pubKey.String()), 666); err != nil {
+				if err = ioutil.WriteFile(fmt.Sprintf("/tmp/dc4bc_participant_%d.pubkey",
+					pubKeyReq.ParticipantId), []byte(pubKey.String()), 0666); err != nil {
 					t.Fatalf("failed to write pubkey to temp file: %v", err)
 				}
 			}

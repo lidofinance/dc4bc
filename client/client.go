@@ -17,7 +17,6 @@ import (
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/google/uuid"
 
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 
 	"github.com/depools/dc4bc/fsm/state_machines"
@@ -143,7 +142,7 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 	}
 
 	// we can't verify a message at this moment, cause we don't have public keys of participantss
-	if fsm.Event(message.Event) != signature_proposal_fsm.EventInitProposal {
+	if fsm.Event(message.Event) != spf.EventInitProposal {
 		if err := c.verifyMessage(fsmInstance, message); err != nil {
 			return fmt.Errorf("failed to verifyMessage %+v: %w", message, err)
 		}
