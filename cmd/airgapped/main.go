@@ -68,6 +68,10 @@ func NewTerminal(machine *airgapped.AirgappedMachine) *terminal {
 		},
 		description: "stops the machine",
 	})
+	t.addCommand("verify_signature", &terminalCommand{
+		commandHandler: t.verifySignCommand,
+		description:    "verifies a BLS signature of a message",
+	})
 	return &t
 }
 
@@ -140,6 +144,43 @@ func (t *terminal) dropOperationLogCommand() error {
 
 	if err := t.airgapped.DropOperationsLog(dkgRoundIdentifier); err != nil {
 		return fmt.Errorf("failed to DropOperationsLog: %w", err)
+	}
+	return nil
+}
+
+func (t *terminal) verifySignCommand() error {
+	fmt.Print("> Enter the DKGRoundIdentifier: ")
+	dkgRoundIdentifier, err := t.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
+	}
+
+	fmt.Print("> Enter the BLS signature: ")
+	signature, err := t.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read BLS signature (base64): %w", err)
+	}
+
+	signatureDecoded, err := base64.StdEncoding.DecodeString(strings.Trim(signature, "\n"))
+	if err != nil {
+		return fmt.Errorf("failed to decode BLS signature: %w", err)
+	}
+
+	fmt.Print("> Enter the message which was signed (base64): ")
+	message, err := t.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
+	}
+
+	messageDecoded, err := base64.StdEncoding.DecodeString(strings.Trim(message, "\n"))
+	if err != nil {
+		return fmt.Errorf("failed to decode message: %w", err)
+	}
+
+	if err := t.airgapped.VerifySign(messageDecoded, signatureDecoded, strings.Trim(dkgRoundIdentifier, "\n")); err != nil {
+		fmt.Printf("Signature is invalid: %v\n", err)
+	} else {
+		fmt.Println("Signature is correct!")
 	}
 	return nil
 }
