@@ -93,6 +93,9 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 		if cap(chunks) == 0 {
 			chunks = make([]*chunk, decodedChunk.Total)
 		}
+		if decodedChunk.Index > decodedChunk.Total {
+			return nil, fmt.Errorf("invalid QR-code chunk")
+		}
 		if chunks[decodedChunk.Index] != nil {
 			continue
 		}
@@ -103,6 +106,7 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 			break
 		}
 	}
+	window.SetWindowTitle("QR-code chunks successfully read!")
 	data := make([]byte, 0)
 	for _, c := range chunks {
 		data = append(data, c.Data...)
