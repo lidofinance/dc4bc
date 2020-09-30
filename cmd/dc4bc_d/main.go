@@ -92,10 +92,10 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("failed to read configuration: %v", err)
 			}
 
-			//storageDBDSN, err := cmd.Flags().GetString(flagStorageDBDSN)
-			//if err != nil {
-			//	log.Fatalf("failed to read configuration: %v", err)
-			//}
+			storageDBDSN, err := cmd.Flags().GetString(flagStorageDBDSN)
+			if err != nil {
+				log.Fatalf("failed to read configuration: %v", err)
+			}
 
 			keyStoreDBDSN, err := cmd.Flags().GetString(flagStoreDBDSN)
 			if err != nil {
@@ -110,7 +110,7 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("Failed to init state client: %v", err)
 			}
 
-			stg, err := storage.NewFileStorage("st")
+			stg, err := storage.NewKafkaStorage(ctx, storageDBDSN)
 			if err != nil {
 				log.Fatalf("Failed to init storage client: %v", err)
 			}

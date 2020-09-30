@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"os"
+	"path/filepath"
 	"sync"
 
 	vss "github.com/corestario/kyber/share/vss/rabin"
@@ -25,7 +25,6 @@ import (
 )
 
 const (
-	resultQRFolder  = "result_qr_codes"
 	pubKeyDBKey     = "public_key"
 	privateKeyDBKey = "private_key"
 	saltKey         = "salt_key"
@@ -42,19 +41,14 @@ type AirgappedMachine struct {
 	secKey        kyber.Scalar
 	suite         vss.Suite
 
-	db *leveldb.DB
+	db             *leveldb.DB
+	resultQRFolder string
 }
 
 func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 	var (
 		err error
 	)
-
-	if err := os.MkdirAll(resultQRFolder, 0777); err != nil {
-		if err != os.ErrExist {
-			return nil, fmt.Errorf("failed to create folder %s: %w", resultQRFolder, err)
-		}
-	}
 
 	am := &AirgappedMachine{
 		dkgInstances: make(map[string]*dkg.DKG),
@@ -76,6 +70,10 @@ func (am *AirgappedMachine) SetQRProcessorFramesDelay(delay int) {
 
 func (am *AirgappedMachine) SetQRProcessorChunkSize(chunkSize int) {
 	am.qrProcessor.SetChunkSize(chunkSize)
+}
+
+func (am *AirgappedMachine) SetResultQRFolder(resultQRFolder string) {
+	am.resultQRFolder = resultQRFolder
 }
 
 // InitKeys load keys public and private keys for DKG from LevelDB. If keys does not exist, creates them.
@@ -317,8 +315,8 @@ func (am *AirgappedMachine) HandleQR() (string, error) {
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	qrPath := fmt.Sprintf("%s/%s_%s_%s.gif", resultQRFolder, resultOperation.Type, resultOperation.ID,
-		resultOperation.To)
+	qrPath := filepath.Join(am.resultQRFolder, fmt.Sprintf("%s_%s_%s.gif", resultOperation.Type, resultOperation.ID,
+		resultOperation.To))
 	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
 		return "", fmt.Errorf("failed to write QR: %w", err)
 	}

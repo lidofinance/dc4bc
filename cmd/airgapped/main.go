@@ -174,13 +174,15 @@ var (
 	dbPath             string
 	framesDelay        int
 	chunkSize          int
+	qrCodesFolder      string
 )
 
 func init() {
 	flag.StringVar(&passwordExpiration, "password_expiration", "10m", "Expiration of the encryption password")
 	flag.StringVar(&dbPath, "db_path", "airgapped_db", "Path to airgapped levelDB storage")
 	flag.IntVar(&framesDelay, "frames_delay", 10, "Delay times between frames in 100ths of a second")
-	flag.IntVar(&chunkSize, "chunk_size", 10, "QR-code's chunk size")
+	flag.IntVar(&chunkSize, "chunk_size", 256, "QR-code's chunk size")
+	flag.StringVar(&qrCodesFolder, "qr_codes_folder", "/tmp/", "Folder to save result QR codes")
 }
 
 func main() {
@@ -197,6 +199,7 @@ func main() {
 	}
 	air.SetQRProcessorFramesDelay(framesDelay)
 	air.SetQRProcessorChunkSize(chunkSize)
+	air.SetResultQRFolder(qrCodesFolder)
 
 	t := NewTerminal(air)
 	go t.dropSensitiveData(passwordLifeDuration)

@@ -68,6 +68,7 @@ func (c *Client) StartHTTPServer(listenAddr string) error {
 
 	mux.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
 	mux.HandleFunc("/handleProcessedOperationJSON", c.handleJSONOperationHandler)
+	mux.HandleFunc("/getOperation", c.getOperationHandler)
 
 	mux.HandleFunc("/startDKG", c.startDKGHandler)
 	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
@@ -147,6 +148,22 @@ func (c *Client) getOperationQRPathHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	successResponse(w, qrPaths)
+}
+
+func (c *Client) getOperationHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	operationID := r.URL.Query().Get("operationID")
+
+	operation, err := c.getOperationJSON(operationID)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operation: %v", err))
+		return
+	}
+
+	successResponse(w, operation)
 }
 
 func (c *Client) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Request) {

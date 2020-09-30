@@ -54,7 +54,7 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to OpenVideoCapture: %w", err)
 	}
-	window := gocv.NewWindow("Please, show a qr code")
+	window := gocv.NewWindow("Please, show a gif with QR codes")
 
 	defer func() {
 		if err := webcam.Close(); err != nil {
@@ -98,6 +98,7 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 		}
 		chunks[decodedChunk.Index] = decodedChunk
 		decodedChunksCount++
+		window.SetWindowTitle(fmt.Sprintf("Read %d/%d chunks", decodedChunksCount, decodedChunk.Total))
 		if decodedChunksCount == decodedChunk.Total {
 			break
 		}
