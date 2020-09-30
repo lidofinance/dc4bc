@@ -7,11 +7,12 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/corestario/kyber/share"
-
 	"github.com/corestario/kyber"
+	"github.com/corestario/kyber/share"
 	dkg "github.com/corestario/kyber/share/dkg/pedersen"
 	vss "github.com/corestario/kyber/share/vss/pedersen"
+	"github.com/google/go-cmp/cmp"
+	"lukechampine.com/frand"
 )
 
 // TODO: dump necessary data on disk
@@ -44,6 +45,26 @@ func Init(suite vss.Suite, pubKey kyber.Point, secKey kyber.Scalar) *DKG {
 	d.commits = make(map[string][]kyber.Point)
 
 	return &d
+}
+
+func (d *DKG) Equals(other *DKG) error {
+	for addr, commits := range d.commits {
+		otherCommits := other.commits[addr]
+		for idx := range commits {
+			if !commits[idx].Equal(otherCommits[idx]) {
+				return fmt.Errorf("commits from %s are not equal (idx %d): %v != %v", addr, idx, commits[idx], otherCommits[idx])
+			}
+		}
+	}
+
+	for addr, deal := range d.deals {
+		otherDeal := other.deals[addr]
+		if !cmp.Equal(deal.Deal, otherDeal.Deal) {
+			return fmt.Errorf("deals from %s are not equal: %+v != %+v", addr, deal.Deal, otherDeal.Deal)
+		}
+	}
+
+	return nil
 }
 
 func (d *DKG) GetPubKey() kyber.Point {
@@ -90,7 +111,7 @@ func (d *DKG) calcParticipantID() int {
 	return -1
 }
 
-func (d *DKG) InitDKGInstance() (err error) {
+func (d *DKG) InitDKGInstance(seed []byte) (err error) {
 	sort.Sort(d.pubkeys)
 
 	publicKeys := d.pubkeys.GetPKs()
@@ -107,7 +128,9 @@ func (d *DKG) InitDKGInstance() (err error) {
 
 	d.responses = newMessageStore(int(math.Pow(float64(participantsCount)-1, 2)))
 
-	d.instance, err = dkg.NewDistKeyGenerator(d.suite, d.secKey, publicKeys, d.Threshold)
+	reader := frand.NewCustom(seed, 32, 20)
+
+	d.instance, err = dkg.NewDistKeyGenerator(d.suite, d.secKey, publicKeys, d.Threshold, reader)
 	if err != nil {
 		return err
 	}

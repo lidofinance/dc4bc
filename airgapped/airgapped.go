@@ -1,7 +1,6 @@
 package airgapped
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -20,14 +19,11 @@ import (
 	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/qr"
-	bls12381 "github.com/depools/kyber-bls12381"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
 const (
-	pubKeyDBKey     = "public_key"
-	privateKeyDBKey = "private_key"
-	saltKey         = "salt_key"
+	seedSize       = 32
 )
 
 type AirgappedMachine struct {
@@ -39,7 +35,8 @@ type AirgappedMachine struct {
 	encryptionKey []byte
 	pubKey        kyber.Point
 	secKey        kyber.Scalar
-	suite         vss.Suite
+	baseSuite     vss.Suite
+	baseSeed      []byte
 
 	db             *leveldb.DB
 	resultQRFolder string
@@ -55,10 +52,23 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 		qrProcessor:  qr.NewCameraProcessor(),
 	}
 
-	am.suite = bls12381.NewBLS12381Suite()
-
 	if am.db, err = leveldb.OpenFile(dbPath, nil); err != nil {
 		return nil, fmt.Errorf("failed to open db file %s for keys: %w", dbPath, err)
+	}
+
+	if err := am.loadBaseSeed(); err != nil {
+		return nil, fmt.Errorf("failed to loadBaseSeed: %w", err)
+	}
+
+	if _, err = am.db.Get([]byte(operationsLogDBKey), nil); err != nil {
+		if err == leveldb.ErrNotFound {
+			operationsLogBz, _ := json.Marshal(RoundOperationLog{})
+			if err := am.db.Put([]byte(operationsLogDBKey), operationsLogBz, nil); err != nil {
+				return nil, fmt.Errorf("failed to init Operation log: %w", err)
+			}
+		} else {
+			return nil, fmt.Errorf("failed to init Operation log (fatal): %w", err)
+		}
 	}
 
 	return am, nil
@@ -84,8 +94,8 @@ func (am *AirgappedMachine) InitKeys() error {
 	}
 	// if keys were not generated yet
 	if err == leveldb.ErrNotFound {
-		am.secKey = am.suite.Scalar().Pick(am.suite.RandomStream())
-		am.pubKey = am.suite.Point().Mul(am.secKey, nil)
+		am.secKey = am.baseSuite.Scalar().Pick(am.baseSuite.RandomStream())
+		am.pubKey = am.baseSuite.Point().Mul(am.secKey, nil)
 		return am.SaveKeysToDB()
 	}
 
@@ -113,100 +123,27 @@ func (am *AirgappedMachine) DropSensitiveData() {
 	am.encryptionKey = nil
 }
 
-// LoadKeysFromDB load DKG keys from LevelDB
-func (am *AirgappedMachine) LoadKeysFromDB() error {
-	pubKeyBz, err := am.db.Get([]byte(pubKeyDBKey), nil)
+func (am *AirgappedMachine) ReplayOperationsLog(dkgIdentifier string) error {
+	operationsLog, err := am.getOperationsLog(dkgIdentifier)
 	if err != nil {
-		if err == leveldb.ErrNotFound {
-			return err
+		return fmt.Errorf("failed to getOperationsLog: %w", err)
+	}
+
+	for _, operation := range operationsLog {
+		if _, err := am.HandleOperation(operation); err != nil {
+			return fmt.Errorf(
+				"failed to HandleOperation %s (this error is fatal, the state can not be recovered): %w",
+				operation.ID, err)
 		}
-		return fmt.Errorf("failed to get public key from db: %w", err)
 	}
 
-	privateKeyBz, err := am.db.Get([]byte(privateKeyDBKey), nil)
-	if err != nil {
-		if err == leveldb.ErrNotFound {
-			return err
-		}
-		return fmt.Errorf("failed to get private key from db: %w", err)
-	}
+	log.Println("Successfully replayed Operation log")
 
-	salt, err := am.db.Get([]byte(saltKey), nil)
-	if err != nil {
-		if err == leveldb.ErrNotFound {
-			return err
-		}
-		return fmt.Errorf("failed to read salt from db: %w", err)
-	}
-
-	decryptedPubKey, err := decrypt(am.encryptionKey, salt, pubKeyBz)
-	if err != nil {
-		return err
-	}
-	decryptedPrivateKey, err := decrypt(am.encryptionKey, salt, privateKeyBz)
-	if err != nil {
-		return err
-	}
-
-	am.pubKey = am.suite.Point()
-	if err = am.pubKey.UnmarshalBinary(decryptedPubKey); err != nil {
-		return fmt.Errorf("failed to unmarshal public key: %w", err)
-	}
-
-	am.secKey = am.suite.Scalar()
-	if err = am.secKey.UnmarshalBinary(decryptedPrivateKey); err != nil {
-		return fmt.Errorf("failed to unmarshal private key: %w", err)
-	}
 	return nil
 }
 
-// SaveKeysToDB save DKG keys to LevelDB
-func (am *AirgappedMachine) SaveKeysToDB() error {
-	pubKeyBz, err := am.pubKey.MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("failed to marshal pub key: %w", err)
-	}
-	privateKeyBz, err := am.secKey.MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("failed to marshal private key: %w", err)
-	}
-
-	salt := make([]byte, 32)
-	if _, err := rand.Read(salt); err != nil {
-		return fmt.Errorf("failed to generate salt: %w", err)
-	}
-
-	encryptedPubKey, err := encrypt(am.encryptionKey, salt, pubKeyBz)
-	if err != nil {
-		return err
-	}
-	encryptedPrivateKey, err := encrypt(am.encryptionKey, salt, privateKeyBz)
-	if err != nil {
-		return err
-	}
-
-	tx, err := am.db.OpenTransaction()
-	if err != nil {
-		return fmt.Errorf("failed to open transcation for db: %w", err)
-	}
-	defer tx.Discard()
-
-	if err = tx.Put([]byte(pubKeyDBKey), encryptedPubKey, nil); err != nil {
-		return fmt.Errorf("failed to put pub key into db: %w", err)
-	}
-
-	if err = tx.Put([]byte(privateKeyDBKey), encryptedPrivateKey, nil); err != nil {
-		return fmt.Errorf("failed to put private key into db: %w", err)
-	}
-
-	if err = tx.Put([]byte(saltKey), salt, nil); err != nil {
-		return fmt.Errorf("failed to put salt into db: %w", err)
-	}
-
-	if err = tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit tx for saving keys into db: %w", err)
-	}
-	return nil
+func (am *AirgappedMachine) DropOperationsLog(dkgIdentifier string) error {
+	return am.dropRoundOperationLog(dkgIdentifier)
 }
 
 // getParticipantID returns our own participant id for the given DKG round
@@ -230,7 +167,7 @@ func (am *AirgappedMachine) encryptDataForParticipant(dkgIdentifier, to string, 
 		return nil, fmt.Errorf("failed to get pk for participant %s: %w", to, err)
 	}
 
-	encryptedData, err := ecies.Encrypt(am.suite, pk, data, am.suite.Hash)
+	encryptedData, err := ecies.Encrypt(am.baseSuite, pk, data, am.baseSuite.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt data: %w", err)
 	}
@@ -239,7 +176,7 @@ func (am *AirgappedMachine) encryptDataForParticipant(dkgIdentifier, to string, 
 
 // decryptDataFromParticipant decrypts the data that was sent to us
 func (am *AirgappedMachine) decryptDataFromParticipant(data []byte) ([]byte, error) {
-	decryptedData, err := ecies.Decrypt(am.suite, am.secKey, data, am.suite.Hash)
+	decryptedData, err := ecies.Decrypt(am.baseSuite, am.secKey, data, am.baseSuite.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt data: %w", err)
 	}
@@ -248,6 +185,14 @@ func (am *AirgappedMachine) decryptDataFromParticipant(data []byte) ([]byte, err
 
 // HandleOperation handles and processes an operation
 func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.Operation, error) {
+	if err := am.storeOperation(operation); err != nil {
+		return client.Operation{}, fmt.Errorf("failed to storeOperation: %w", err)
+	}
+
+	return am.handleOperation(operation)
+}
+
+func (am *AirgappedMachine) handleOperation(operation client.Operation) (client.Operation, error) {
 	var (
 		err error
 	)
