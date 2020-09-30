@@ -1,9 +1,10 @@
 package signature_proposal_fsm
 
 import (
+	"sync"
+
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
-	"sync"
 )
 
 const (
@@ -19,14 +20,11 @@ const (
 
 	// Out state
 
-	EventInitProposal                 = fsm.Event("event_sig_proposal_init")
-	EventConfirmSignatureProposal     = fsm.Event("event_sig_proposal_confirm_by_participant")
-	EventDeclineProposal              = fsm.Event("event_sig_proposal_decline_by_participant")
-	eventAutoValidateProposalInternal = fsm.Event("event_sig_proposal_validate")
-	eventSetProposalValidatedInternal = fsm.Event("event_sig_proposal_set_validated")
-
-	eventDoneInternal = fsm.Event("event_sig_proposal_done")
-
+	EventInitProposal                       = fsm.Event("event_sig_proposal_init")
+	EventConfirmSignatureProposal           = fsm.Event("event_sig_proposal_confirm_by_participant")
+	EventDeclineProposal                    = fsm.Event("event_sig_proposal_decline_by_participant")
+	eventAutoValidateProposalInternal       = fsm.Event("event_sig_proposal_validate")
+	eventSetProposalValidatedInternal       = fsm.Event("event_sig_proposal_set_validated")
 	eventSetValidationCanceledByTimeout     = fsm.Event("event_sig_proposal_canceled_timeout")
 	eventSetValidationCanceledByParticipant = fsm.Event("event_sig_proposal_canceled_participant")
 

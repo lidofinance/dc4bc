@@ -1,8 +1,11 @@
 package fsm_pool
 
 import (
-	"github.com/depools/dc4bc/fsm/fsm"
 	"testing"
+
+	"github.com/stretchr/testify/require"
+
+	"github.com/depools/dc4bc/fsm/fsm"
 )
 
 type testMachineFSM1 struct {
@@ -73,13 +76,13 @@ func NewFSM1() MachineProvider {
 	return machine
 }
 
-func (m *testMachineFSM1) actionFSM1SetUpData(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+func (m *testMachineFSM1) actionFSM1SetUpData(fsm.Event, ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.data = testVal1
 	outEvent = eventFSM1Internal
 	return
 }
 
-func (m *testMachineFSM1) actionFSM1ProcessData(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+func (m *testMachineFSM1) actionFSM1ProcessData(event fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	if len(args) == 1 {
 		if val, ok := args[0].(int); ok {
 			m.data -= val
@@ -90,7 +93,7 @@ func (m *testMachineFSM1) actionFSM1ProcessData(inEvent fsm.Event, args ...inter
 	return
 }
 
-func (m *testMachineFSM1) actionFSM1EmitOut2(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
+func (m *testMachineFSM1) actionFSM1EmitOut2(fsm.Event, ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	return
 }
 
@@ -110,9 +113,6 @@ const (
 	fsm2StateStage2 = fsm.State("state_fsm2_stage2")
 	// Canceled with internal event
 	fsm2StateCanceledByInternal = fsm.State("state_fsm2_canceled")
-	// Out endpoint to switch
-	fsm2StateOutToFSM3 = fsm.State("state_fsm2_out_to_fsm3")
-
 	// Events
 	eventFSM2Init    = fsm.Event("event_fsm2_init")
 	eventFSM2Process = fsm.Event("event_fsm2_process")
@@ -152,15 +152,15 @@ func NewFSM2() MachineProvider {
 	return machine
 }
 
-func (m *testMachineFSM2) actionFSM2SetUpData(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *testMachineFSM2) actionFSM2SetUpData(fsm.Event, ...interface{}) (response interface{}, err error) {
 	return
 }
 
-func (m *testMachineFSM2) actionFSM2ProcessData(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *testMachineFSM2) actionFSM2ProcessData(fsm.Event, ...interface{}) (response interface{}, err error) {
 	return
 }
 
-func (m *testMachineFSM2) actionFSM2EmitOut2(event fsm.Event, args ...interface{}) (response interface{}, err error) {
+func (m *testMachineFSM2) actionFSM2EmitOut2(fsm.Event, ...interface{}) (response interface{}, err error) {
 	return
 }
 
@@ -274,6 +274,7 @@ func TestFSMPool_WorkFlow(t *testing.T) {
 	}
 
 	resp, err = machine.Do(eventFSM1Process, testVal2)
+	require.NoError(t, err)
 
 	data, ok := resp.Data.(int)
 

@@ -3,6 +3,7 @@ package internal
 import (
 	"crypto/ed25519"
 	"errors"
+
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/fsm_pool"
 )
@@ -42,16 +43,15 @@ func (p *DumpedMachineStatePayload) SigQuorumExists(id int) bool {
 
 func (p *DumpedMachineStatePayload) SigQuorumGet(id int) (participant *SignatureProposalParticipant) {
 	if p.SignatureProposalPayload.Quorum != nil {
-		participant, _ = p.SignatureProposalPayload.Quorum[id]
+		participant = p.SignatureProposalPayload.Quorum[id]
 	}
-	return
+	return participant
 }
 
 func (p *DumpedMachineStatePayload) SigQuorumUpdate(id int, participant *SignatureProposalParticipant) {
 	if p.SignatureProposalPayload.Quorum != nil {
 		p.SignatureProposalPayload.Quorum[id] = participant
 	}
-	return
 }
 
 // DKG quorum
@@ -74,16 +74,15 @@ func (p *DumpedMachineStatePayload) DKGQuorumExists(id int) bool {
 
 func (p *DumpedMachineStatePayload) DKGQuorumGet(id int) (participant *DKGProposalParticipant) {
 	if p.DKGProposalPayload.Quorum != nil {
-		participant, _ = p.DKGProposalPayload.Quorum[id]
+		participant = p.DKGProposalPayload.Quorum[id]
 	}
-	return
+	return participant
 }
 
 func (p *DumpedMachineStatePayload) DKGQuorumUpdate(id int, participant *DKGProposalParticipant) {
 	if p.DKGProposalPayload.Quorum != nil {
 		p.DKGProposalPayload.Quorum[id] = participant
 	}
-	return
 }
 
 // Signing quorum
@@ -106,7 +105,7 @@ func (p *DumpedMachineStatePayload) SigningQuorumExists(id int) bool {
 
 func (p *DumpedMachineStatePayload) SigningQuorumGet(id int) (participant *SigningProposalParticipant) {
 	if p.SigningProposalPayload.Quorum != nil {
-		participant, _ = p.SigningProposalPayload.Quorum[id]
+		participant = p.SigningProposalPayload.Quorum[id]
 	}
 	return
 }
@@ -115,7 +114,6 @@ func (p *DumpedMachineStatePayload) SigningQuorumUpdate(id int, participant *Sig
 	if p.SigningProposalPayload.Quorum != nil {
 		p.SigningProposalPayload.Quorum[id] = participant
 	}
-	return
 }
 
 func (p *DumpedMachineStatePayload) SetPubKeyAddr(addr string, pubKey ed25519.PublicKey) {
@@ -123,7 +121,6 @@ func (p *DumpedMachineStatePayload) SetPubKeyAddr(addr string, pubKey ed25519.Pu
 		p.PubKeys = make(map[string]ed25519.PublicKey)
 	}
 	p.PubKeys[addr] = pubKey
-	return
 }
 
 func (p *DumpedMachineStatePayload) GetPubKeyByAddr(addr string) (ed25519.PublicKey, error) {

@@ -3,6 +3,7 @@ package signing_proposal_fsm
 import (
 	"errors"
 	"fmt"
+
 	"github.com/depools/dc4bc/fsm/config"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
@@ -131,7 +132,7 @@ func (m *SigningProposalFSM) actionProposalResponseByParticipant(inEvent fsm.Eve
 	signingProposalParticipant := m.payload.SigningQuorumGet(request.ParticipantId)
 
 	if signingProposalParticipant.Status != internal.SigningAwaitConfirmation {
-		err = errors.New(fmt.Sprintf("cannot confirm participant with {Status} = {\"%s\"}", signingProposalParticipant.Status))
+		err = fmt.Errorf("cannot confirm participant with {Status} = {\"%s\"}", signingProposalParticipant.Status)
 		return
 	}
 
@@ -141,7 +142,7 @@ func (m *SigningProposalFSM) actionProposalResponseByParticipant(inEvent fsm.Eve
 	case EventDeclineSigningConfirmation:
 		signingProposalParticipant.Status = internal.SigningDeclined
 	default:
-		err = errors.New(fmt.Sprintf("unsupported event for action {inEvent} = {\"%s\"}", inEvent))
+		err = fmt.Errorf("unsupported event for action {inEvent} = {\"%s\"}", inEvent)
 		return
 	}
 
@@ -231,7 +232,7 @@ func (m *SigningProposalFSM) actionPartialSignConfirmationReceived(inEvent fsm.E
 	signingProposalParticipant := m.payload.SigningQuorumGet(request.ParticipantId)
 
 	if signingProposalParticipant.Status != internal.SigningAwaitPartialSigns {
-		err = errors.New(fmt.Sprintf("cannot confirm response with {Status} = {\"%s\"}", signingProposalParticipant.Status))
+		err = fmt.Errorf("cannot confirm response with {Status} = {\"%s\"}", signingProposalParticipant.Status)
 		return
 	}
 
@@ -348,16 +349,16 @@ func (m *SigningProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...
 		case internal.SigningPartialSignsConfirmed:
 			err = errors.New("{Status} already confirmed")
 		case internal.SigningError:
-			err = errors.New(fmt.Sprintf("{Status} already has {\"%s\"}", internal.SigningError))
+			err = fmt.Errorf("{Status} already has {\"%s\"}", internal.SigningError)
 		default:
-			err = errors.New(fmt.Sprintf(
+			err = fmt.Errorf(
 				"{Status} now is \"%s\" and cannot set to {\"%s\"}",
 				signingProposalParticipant.Status,
 				internal.SigningError,
-			))
+			)
 		}
 	default:
-		err = errors.New(fmt.Sprintf("{%s} event cannot be used for action {actionConfirmationError}", inEvent))
+		err = fmt.Errorf("{%s} event cannot be used for action {actionConfirmationError}", inEvent)
 	}
 
 	if err != nil {

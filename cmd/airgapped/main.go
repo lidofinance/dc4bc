@@ -205,11 +205,8 @@ func (t *terminal) run() error {
 
 func (t *terminal) dropSensitiveData(passExpiration time.Duration) {
 	ticker := time.NewTicker(passExpiration)
-	for {
-		select {
-		case <-ticker.C:
-			t.airgapped.DropSensitiveData()
-		}
+	for range ticker.C {
+		t.airgapped.DropSensitiveData()
 	}
 }
 
@@ -239,7 +236,7 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
-		for _ = range c {
+		for range c {
 			fmt.Printf("Intercepting SIGINT, please type `exit` to stop the machine\n>>> ")
 		}
 	}()

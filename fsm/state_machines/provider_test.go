@@ -5,10 +5,13 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+
+	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
 	"github.com/depools/dc4bc/fsm/fsm"
 	dpf "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -139,6 +142,7 @@ func Test_SignatureProposal_Init(t *testing.T) {
 	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance.machine.State())
 
 	testFSMDump[spf.StateParticipantsConfirmationsInit], err = testFSMInstance.Dump()
+	require.NoError(t, err)
 
 	compareDumpNotZero(t, testFSMDump[spf.StateParticipantsConfirmationsInit])
 }
@@ -222,7 +226,7 @@ func Test_SignatureProposal_EventConfirmSignatureProposal_Positive(t *testing.T)
 	// testFSMDumpLocal = make([]b)
 	testFSMDumpLocal = testFSMDump[spf.StateAwaitParticipantsConfirmations]
 
-	for participantId, _ := range testIdMapParticipants {
+	for participantId := range testIdMapParticipants {
 		participantCounter--
 		testFSMInstance, err := FromDump(testFSMDumpLocal)
 
@@ -271,6 +275,7 @@ func Test_SignatureProposal_EventConfirmSignatureProposal_Canceled_Participant(t
 		ParticipantId: 0,
 		CreatedAt:     time.Now(),
 	})
+	require.NoError(t, err)
 
 	compareErrNil(t, err)
 
@@ -729,7 +734,7 @@ func Test_DkgProposal_EventDKGMasterKeyConfirmationReceived_Positive(t *testing.
 
 	masterKeyMockup := genDataMock(keysMockLen)
 
-	for participantId, _ := range testIdMapParticipants {
+	for participantId := range testIdMapParticipants {
 		testFSMInstance, err := FromDump(testFSMDumpLocal)
 
 		compareErrNil(t, err)
@@ -757,8 +762,6 @@ func Test_DkgProposal_EventDKGMasterKeyConfirmationReceived_Positive(t *testing.
 	testFSMDump[dpf.StateDkgMasterKeyCollected] = testFSMDumpLocal
 
 	compareDumpNotZero(t, testFSMDump[dpf.StateDkgMasterKeyCollected])
-
-	return
 }
 
 func Test_DkgProposal_EventDKGMasterKeyConfirmationError_Canceled_Error(t *testing.T) {
@@ -941,7 +944,7 @@ func Test_SigningProposal_EventConfirmSigningConfirmation_Positive(t *testing.T)
 
 	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitConfirmations]
 
-	for participantId, _ := range testIdMapParticipants {
+	for participantId := range testIdMapParticipants {
 		participantCounter--
 
 		if testSigningInitiator == participantId {
@@ -1179,12 +1182,14 @@ func Test_Parallel(t *testing.T) {
 	compareErrNil(t, err)
 
 	_, _, err = testFSMInstance1.Do(spf.EventInitProposal, testParticipantsListRequest)
+	require.NoError(t, err)
 
 	s1, err := testFSMInstance1.State()
 
 	compareErrNil(t, err)
 
 	s2, err := testFSMInstance2.State()
+	require.NoError(t, err)
 
 	if s1 == s2 {
 		t.Fatalf("MATCH STATES {%s}", s1)

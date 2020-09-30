@@ -7,15 +7,16 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/responses"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"sort"
 	"time"
+
+	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/types/responses"
 
 	"github.com/depools/dc4bc/client"
 	"github.com/depools/dc4bc/fsm/types/requests"
@@ -296,7 +297,7 @@ func startDKGCommand() *cobra.Command {
 			messageData := req
 			messageDataBz, err := json.Marshal(messageData)
 			if err != nil {
-				return fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)
+				return fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest: %v", err)
 			}
 			resp, err := rawPostRequest(fmt.Sprintf("http://%s/startDKG", listenAddr),
 				"application/json", messageDataBz)
@@ -380,13 +381,13 @@ func proposeSignMessageCommand() *cobra.Command {
 			}
 			messageDataSignBz, err := json.Marshal(messageDataSign)
 			if err != nil {
-				return fmt.Errorf("failed to marshal SigningProposalStartRequest: %v\n", err)
+				return fmt.Errorf("failed to marshal SigningProposalStartRequest: %v", err)
 			}
 
 			messageDataBz, err := json.Marshal(map[string][]byte{"data": messageDataSignBz,
 				"dkgID": dkgID})
 			if err != nil {
-				return fmt.Errorf("failed to marshal SigningProposalStartRequest: %v\n", err)
+				return fmt.Errorf("failed to marshal SigningProposalStartRequest: %v", err)
 			}
 
 			resp, err := rawPostRequest(fmt.Sprintf("http://%s/proposeSignMessage", listenAddr),

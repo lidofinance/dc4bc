@@ -3,12 +3,13 @@ package dkg_proposal_fsm
 import (
 	"errors"
 	"fmt"
+	"reflect"
+
 	"github.com/depools/dc4bc/fsm/config"
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/internal"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/fsm/types/responses"
-	"reflect"
 )
 
 // Init
@@ -96,7 +97,7 @@ func (m *DKGProposalFSM) actionCommitConfirmationReceived(inEvent fsm.Event, arg
 	dkgProposalParticipant := m.payload.DKGQuorumGet(request.ParticipantId)
 
 	if dkgProposalParticipant.Status != internal.CommitAwaitConfirmation {
-		err = errors.New(fmt.Sprintf("cannot confirm commit with {Status} = {\"%s\"}", dkgProposalParticipant.Status))
+		err = fmt.Errorf("cannot confirm commit with {Status} = {\"%s\"}", dkgProposalParticipant.Status)
 		return
 	}
 
@@ -198,7 +199,7 @@ func (m *DKGProposalFSM) actionDealConfirmationReceived(inEvent fsm.Event, args 
 	dkgProposalParticipant := m.payload.DKGQuorumGet(request.ParticipantId)
 
 	if dkgProposalParticipant.Status != internal.DealAwaitConfirmation {
-		err = errors.New(fmt.Sprintf("cannot confirm deal with {Status} = {\"%s\"}", dkgProposalParticipant.Status))
+		err = fmt.Errorf("cannot confirm deal with {Status} = {\"%s\"}", dkgProposalParticipant.Status)
 		return
 	}
 
@@ -303,7 +304,7 @@ func (m *DKGProposalFSM) actionResponseConfirmationReceived(inEvent fsm.Event, a
 	dkgProposalParticipant := m.payload.DKGQuorumGet(request.ParticipantId)
 
 	if dkgProposalParticipant.Status != internal.ResponseAwaitConfirmation {
-		err = errors.New(fmt.Sprintf("cannot confirm response with {Status} = {\"%s\"}", dkgProposalParticipant.Status))
+		err = fmt.Errorf("cannot confirm response with {Status} = {\"%s\"}", dkgProposalParticipant.Status)
 		return
 	}
 
@@ -405,7 +406,7 @@ func (m *DKGProposalFSM) actionMasterKeyConfirmationReceived(inEvent fsm.Event, 
 	dkgProposalParticipant := m.payload.DKGQuorumGet(request.ParticipantId)
 
 	if dkgProposalParticipant.Status != internal.MasterKeyAwaitConfirmation {
-		err = errors.New(fmt.Sprintf("cannot confirm response with {Status} = {\"%s\"}", dkgProposalParticipant.Status))
+		err = fmt.Errorf("cannot confirm response with {Status} = {\"%s\"}", dkgProposalParticipant.Status)
 		return
 	}
 
@@ -517,13 +518,13 @@ func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...inte
 		case internal.CommitConfirmed:
 			err = errors.New("{Status} already confirmed")
 		case internal.CommitConfirmationError:
-			err = errors.New(fmt.Sprintf("{Status} already has {\"%s\"}", internal.CommitConfirmationError))
+			err = fmt.Errorf("{Status} already has {\"%s\"}", internal.CommitConfirmationError)
 		default:
-			err = errors.New(fmt.Sprintf(
+			err = fmt.Errorf(
 				"{Status} now is \"%s\" and cannot set to {\"%s\"}",
 				dkgProposalParticipant.Status,
 				internal.CommitConfirmationError,
-			))
+			)
 		}
 	case EventDKGDealConfirmationError:
 		switch dkgProposalParticipant.Status {
@@ -532,13 +533,13 @@ func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...inte
 		case internal.DealConfirmed:
 			err = errors.New("{Status} already confirmed")
 		case internal.DealConfirmationError:
-			err = errors.New(fmt.Sprintf("{Status} already has {\"%s\"}", internal.DealConfirmationError))
+			err = fmt.Errorf("{Status} already has {\"%s\"}", internal.DealConfirmationError)
 		default:
-			err = errors.New(fmt.Sprintf(
+			err = fmt.Errorf(
 				"{Status} now is \"%s\" and cannot set to {\"%s\"}",
 				dkgProposalParticipant.Status,
 				internal.DealConfirmationError,
-			))
+			)
 		}
 	case EventDKGResponseConfirmationError:
 		switch dkgProposalParticipant.Status {
@@ -547,13 +548,13 @@ func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...inte
 		case internal.ResponseConfirmed:
 			err = errors.New("{Status} already confirmed")
 		case internal.ResponseConfirmationError:
-			err = errors.New(fmt.Sprintf("{Status} already has {\"%s\"}", internal.ResponseConfirmationError))
+			err = fmt.Errorf("{Status} already has {\"%s\"}", internal.ResponseConfirmationError)
 		default:
-			err = errors.New(fmt.Sprintf(
+			err = fmt.Errorf(
 				"{Status} now is \"%s\" and cannot set to {\"%s\"}",
 				dkgProposalParticipant.Status,
 				internal.ResponseConfirmationError,
-			))
+			)
 		}
 	case EventDKGMasterKeyConfirmationError:
 		switch dkgProposalParticipant.Status {
@@ -562,16 +563,16 @@ func (m *DKGProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...inte
 		case internal.MasterKeyConfirmed:
 			err = errors.New("{Status} already confirmed")
 		case internal.MasterKeyConfirmationError:
-			err = errors.New(fmt.Sprintf("{Status} already has {\"%s\"}", internal.MasterKeyConfirmationError))
+			err = fmt.Errorf("{Status} already has {\"%s\"}", internal.MasterKeyConfirmationError)
 		default:
-			err = errors.New(fmt.Sprintf(
+			err = fmt.Errorf(
 				"{Status} now is \"%s\" and cannot set to {\"%s\"}",
 				dkgProposalParticipant.Status,
 				internal.MasterKeyConfirmationError,
-			))
+			)
 		}
 	default:
-		err = errors.New(fmt.Sprintf("{%s} event cannot be used for action {actionConfirmationError}", inEvent))
+		err = fmt.Errorf("{%s} event cannot be used for action {actionConfirmationError}", inEvent)
 	}
 
 	if err != nil {
