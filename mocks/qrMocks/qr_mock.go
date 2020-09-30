@@ -32,6 +32,12 @@ func (m *MockProcessor) EXPECT() *MockProcessorMockRecorder {
 	return m.recorder
 }
 
+func (m *MockProcessor) SetDelay(int) {
+}
+
+func (m *MockProcessor) SetChunkSize(int) {
+}
+
 // ReadQR mocks base method
 func (m *MockProcessor) ReadQR() ([]byte, error) {
 	m.ctrl.T.Helper()

@@ -221,7 +221,7 @@ func getPubKeyCommand() *cobra.Command {
 				return fmt.Errorf("failed to get client's pubkey: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to get client's pubkey: %w", resp.ErrorMessage)
+				return fmt.Errorf("failed to get client's pubkey: %v", resp.ErrorMessage)
 			}
 			fmt.Println(resp.Result.(string))
 			return nil
@@ -244,7 +244,7 @@ func getUsernameCommand() *cobra.Command {
 				return fmt.Errorf("failed to get client's username: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to get client's username: %w", resp.ErrorMessage)
+				return fmt.Errorf("failed to get client's username: %v", resp.ErrorMessage)
 			}
 			fmt.Println(resp.Result.(string))
 			return nil
@@ -292,7 +292,7 @@ func readOperationFromCameraCommand() *cobra.Command {
 				return fmt.Errorf("failed to handle processed operation: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to handle processed operation: %w", resp.ErrorMessage)
+				return fmt.Errorf("failed to handle processed operation: %v", resp.ErrorMessage)
 			}
 			return nil
 		},
@@ -335,7 +335,7 @@ func startDKGCommand() *cobra.Command {
 				return fmt.Errorf("failed to make HTTP request to start DKG: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to make HTTP request to start DKG: %w", resp.ErrorMessage)
+				return fmt.Errorf("failed to make HTTP request to start DKG: %v", resp.ErrorMessage)
 			}
 			return nil
 		},
@@ -426,7 +426,7 @@ func proposeSignMessageCommand() *cobra.Command {
 				return fmt.Errorf("failed to make HTTP request to propose message to sign: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to make HTTP request to propose message to sign: %w", resp.ErrorMessage)
+				return fmt.Errorf("failed to make HTTP request to propose message to sign: %v", resp.ErrorMessage)
 			}
 			return nil
 		},
