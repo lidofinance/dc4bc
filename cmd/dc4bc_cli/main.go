@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"path/filepath"
 	"sort"
 	"time"
 
@@ -25,11 +26,17 @@ import (
 )
 
 const (
-	flagListenAddr = "listen_addr"
+	flagListenAddr    = "listen_addr"
+	flagFramesDelay   = "frames_delay"
+	flagChunkSize     = "chunk_size"
+	flagQRCodesFolder = "qr_codes_folder"
 )
 
 func init() {
 	rootCmd.PersistentFlags().String(flagListenAddr, "localhost:8080", "Listen Address")
+	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
+	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
+	rootCmd.PersistentFlags().String(flagQRCodesFolder, "/tmp", "Folder to save QR codes")
 }
 
 var rootCmd = &cobra.Command{
@@ -113,8 +120,8 @@ func getOperationsCommand() *cobra.Command {
 	}
 }
 
-func getOperationsQRPathsRequest(host string, operationID string) (*OperationQRPathsResponse, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/getOperationQRPath?operationID=%s", host, operationID))
+func getOperationRequest(host string, operationID string) (*OperationResponse, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/getOperation?operationID=%s", host, operationID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operation: %w", err)
 	}
@@ -124,7 +131,7 @@ func getOperationsQRPathsRequest(host string, operationID string) (*OperationQRP
 		return nil, fmt.Errorf("failed to read body: %w", err)
 	}
 
-	var response OperationQRPathsResponse
+	var response OperationResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
@@ -141,18 +148,41 @@ func getOperationQRPathCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
+			framesDelay, err := cmd.Flags().GetInt(flagFramesDelay)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %w", err)
+			}
+			chunkSize, err := cmd.Flags().GetInt(flagChunkSize)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %w", err)
+			}
+			qrCodeFolder, err := cmd.Flags().GetString(flagQRCodesFolder)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %w", err)
+			}
+
 			operationID := args[0]
-			operations, err := getOperationsQRPathsRequest(listenAddr, operationID)
+			operation, err := getOperationRequest(listenAddr, operationID)
 			if err != nil {
 				return fmt.Errorf("failed to get operations: %w", err)
 			}
-			if operations.ErrorMessage != "" {
-				return fmt.Errorf("failed to get operations: %s", operations.ErrorMessage)
+			if operation.ErrorMessage != "" {
+				return fmt.Errorf("failed to get operations: %s", operation.ErrorMessage)
 			}
-			fmt.Printf("List of paths to QR codes for operation %s:\n", operationID)
-			for idx, path := range operations.Result {
-				fmt.Printf("%d) QR code: %s\n", idx, path)
+
+			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_%s", operationID))
+
+			qrPath := fmt.Sprintf("%s.gif", operationQRPath)
+
+			processor := qr.NewCameraProcessor()
+			processor.SetChunkSize(chunkSize)
+			processor.SetDelay(framesDelay)
+
+			if err = processor.WriteQR(qrPath, operation.Result); err != nil {
+				return fmt.Errorf("failed to save QR gif: %w", err)
 			}
+
+			fmt.Printf("QR code was saved to: %s\n", qrPath)
 			return nil
 		},
 	}
@@ -191,7 +221,7 @@ func getPubKeyCommand() *cobra.Command {
 				return fmt.Errorf("failed to get client's pubkey: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to get client's pubkey: %w", resp.ErrorMessage)
+				return fmt.Errorf("failed to get client's pubkey: %v", resp.ErrorMessage)
 			}
 			fmt.Println(resp.Result.(string))
 			return nil
@@ -214,7 +244,7 @@ func getUsernameCommand() *cobra.Command {
 				return fmt.Errorf("failed to get client's username: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to get client's username: %w", resp.ErrorMessage)
+				return fmt.Errorf("failed to get client's username: %v", resp.ErrorMessage)
 			}
 			fmt.Println(resp.Result.(string))
 			return nil
@@ -252,7 +282,7 @@ func readOperationFromCameraCommand() *cobra.Command {
 			}
 
 			processor := qr.NewCameraProcessor()
-			data, err := qr.ReadDataFromQRChunks(processor)
+			data, err := processor.ReadQR()
 			if err != nil {
 				return fmt.Errorf("failed to read data from QR: %w", err)
 			}
@@ -262,7 +292,7 @@ func readOperationFromCameraCommand() *cobra.Command {
 				return fmt.Errorf("failed to handle processed operation: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to handle processed operation: %w", resp.ErrorMessage)
+				return fmt.Errorf("failed to handle processed operation: %v", resp.ErrorMessage)
 			}
 			return nil
 		},
@@ -305,7 +335,7 @@ func startDKGCommand() *cobra.Command {
 				return fmt.Errorf("failed to make HTTP request to start DKG: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to make HTTP request to start DKG: %w", resp.ErrorMessage)
+				return fmt.Errorf("failed to make HTTP request to start DKG: %v", resp.ErrorMessage)
 			}
 			return nil
 		},
@@ -396,7 +426,7 @@ func proposeSignMessageCommand() *cobra.Command {
 				return fmt.Errorf("failed to make HTTP request to propose message to sign: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to make HTTP request to propose message to sign: %w", resp.ErrorMessage)
+				return fmt.Errorf("failed to make HTTP request to propose message to sign: %v", resp.ErrorMessage)
 			}
 			return nil
 		},

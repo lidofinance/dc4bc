@@ -1,6 +1,7 @@
 package airgapped
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -106,7 +107,7 @@ func (am *AirgappedMachine) reconstructThresholdSignature(o *client.Operation) e
 	if err != nil {
 		return fmt.Errorf("failed to reconsruct full signature for msg: %w", err)
 	}
-	fmt.Println(reconstructedSignature)
+	fmt.Println(base64.StdEncoding.EncodeToString(reconstructedSignature))
 	return nil
 }
 
@@ -133,7 +134,7 @@ func (am *AirgappedMachine) recoverFullSign(msg []byte, sigShares [][]byte, t, n
 }
 
 // verifySign verifies a signature of a message
-func (am *AirgappedMachine) verifySign(msg []byte, fullSignature []byte, dkgIdentifier string) error {
+func (am *AirgappedMachine) VerifySign(msg []byte, fullSignature []byte, dkgIdentifier string) error {
 	blsKeyring, err := am.loadBLSKeyring(dkgIdentifier)
 	if err != nil {
 		return fmt.Errorf("failed to load blsKeyring: %w", err)

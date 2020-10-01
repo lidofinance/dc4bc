@@ -68,6 +68,10 @@ func NewTerminal(machine *airgapped.AirgappedMachine) *terminal {
 		},
 		description: "stops the machine",
 	})
+	t.addCommand("verify_signature", &terminalCommand{
+		commandHandler: t.verifySignCommand,
+		description:    "verifies a BLS signature of a message",
+	})
 	return &t
 }
 
@@ -76,15 +80,13 @@ func (t *terminal) addCommand(name string, command *terminalCommand) {
 }
 
 func (t *terminal) readQRCommand() error {
-	qrPaths, err := t.airgapped.HandleQR()
+	qrPath, err := t.airgapped.HandleQR()
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("An operation in the read QR code handled successfully, a result operation saved by chunks in following qr codes:")
-	for idx, qrPath := range qrPaths {
-		fmt.Printf("Operation's chunk #%d: %s\n", idx, qrPath)
-	}
+	fmt.Printf("Operation's chunk: %s\n", qrPath)
 	return nil
 }
 
@@ -142,6 +144,43 @@ func (t *terminal) dropOperationLogCommand() error {
 
 	if err := t.airgapped.DropOperationsLog(dkgRoundIdentifier); err != nil {
 		return fmt.Errorf("failed to DropOperationsLog: %w", err)
+	}
+	return nil
+}
+
+func (t *terminal) verifySignCommand() error {
+	fmt.Print("> Enter the DKGRoundIdentifier: ")
+	dkgRoundIdentifier, err := t.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
+	}
+
+	fmt.Print("> Enter the BLS signature: ")
+	signature, err := t.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read BLS signature (base64): %w", err)
+	}
+
+	signatureDecoded, err := base64.StdEncoding.DecodeString(strings.Trim(signature, "\n"))
+	if err != nil {
+		return fmt.Errorf("failed to decode BLS signature: %w", err)
+	}
+
+	fmt.Print("> Enter the message which was signed (base64): ")
+	message, err := t.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
+	}
+
+	messageDecoded, err := base64.StdEncoding.DecodeString(strings.Trim(message, "\n"))
+	if err != nil {
+		return fmt.Errorf("failed to decode message: %w", err)
+	}
+
+	if err := t.airgapped.VerifySign(messageDecoded, signatureDecoded, strings.Trim(dkgRoundIdentifier, "\n")); err != nil {
+		fmt.Printf("Signature is invalid: %v\n", err)
+	} else {
+		fmt.Println("Signature is correct!")
 	}
 	return nil
 }
@@ -213,11 +252,17 @@ func (t *terminal) dropSensitiveData(passExpiration time.Duration) {
 var (
 	passwordExpiration string
 	dbPath             string
+	framesDelay        int
+	chunkSize          int
+	qrCodesFolder      string
 )
 
 func init() {
 	flag.StringVar(&passwordExpiration, "password_expiration", "10m", "Expiration of the encryption password")
 	flag.StringVar(&dbPath, "db_path", "airgapped_db", "Path to airgapped levelDB storage")
+	flag.IntVar(&framesDelay, "frames_delay", 10, "Delay times between frames in 100ths of a second")
+	flag.IntVar(&chunkSize, "chunk_size", 256, "QR-code's chunk size")
+	flag.StringVar(&qrCodesFolder, "qr_codes_folder", "/tmp/", "Folder to save result QR codes")
 }
 
 func main() {
@@ -232,6 +277,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init airgapped machine %v", err)
 	}
+	air.SetQRProcessorFramesDelay(framesDelay)
+	air.SetQRProcessorChunkSize(chunkSize)
+	air.SetResultQRFolder(qrCodesFolder)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

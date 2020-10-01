@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -189,7 +190,7 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	var expectedQrPath = filepath.Join(client.QrCodesDir, operation.ID)
+	var expectedQrPath = filepath.Join(client.QrCodesDir, fmt.Sprintf("dc4bc_qr_%s.gif", operation.ID))
 	defer os.Remove(expectedQrPath)
 
 	state.EXPECT().GetOperationByID(operation.ID).Times(1).Return(
