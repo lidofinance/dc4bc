@@ -137,3 +137,14 @@ func (p *DumpedMachineStatePayload) GetPubKeyByAddr(addr string) (ed25519.Public
 
 	return pubKey, nil
 }
+
+func (p *DumpedMachineStatePayload) GetIDByAddr(addr string) int {
+	if p.DKGProposalPayload.Quorum != nil {
+		for id, p := range p.DKGProposalPayload.Quorum {
+			if p.Addr == addr {
+				return id
+			}
+		}
+	}
+	return -1
+}

@@ -102,6 +102,18 @@ func (i *FSMInstance) SigningQuorumGetParticipant(id int) (*internal.SigningProp
 	return i.dump.Payload.SigningQuorumGet(id), nil
 }
 
+func (i *FSMInstance) GetIDByAddr(addr string) (int, error) {
+	if i.dump == nil {
+		return -1, errors.New("dump not initialized")
+	}
+
+	id := i.dump.Payload.GetIDByAddr(addr)
+	if id < 0 {
+		return -1, errors.New("participant with addr not found")
+	}
+	return id, nil
+}
+
 func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, err error) {
 	var dumpErr error
 

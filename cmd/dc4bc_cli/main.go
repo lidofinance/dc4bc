@@ -403,17 +403,7 @@ func proposeSignMessageCommand() *cobra.Command {
 				return fmt.Errorf("failed to read the file")
 			}
 
-			messageDataSign := requests.SigningProposalStartRequest{
-				ParticipantId: 0, //TODO: determine participantID
-				SrcPayload:    data,
-				CreatedAt:     time.Now(),
-			}
-			messageDataSignBz, err := json.Marshal(messageDataSign)
-			if err != nil {
-				return fmt.Errorf("failed to marshal SigningProposalStartRequest: %v", err)
-			}
-
-			messageDataBz, err := json.Marshal(map[string][]byte{"data": messageDataSignBz,
+			messageDataBz, err := json.Marshal(map[string][]byte{"data": data,
 				"dkgID": dkgID})
 			if err != nil {
 				return fmt.Errorf("failed to marshal SigningProposalStartRequest: %v", err)

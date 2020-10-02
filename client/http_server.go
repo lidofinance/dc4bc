@@ -9,10 +9,12 @@ import (
 	"github.com/depools/dc4bc/fsm/fsm"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
@@ -233,9 +235,32 @@ func (c *Client) proposeSignDataHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	message, err := c.buildMessage(hex.EncodeToString(req["dkgID"]), sif.EventSigningStart, req["data"])
+	fsmInstance, err := c.getFSMInstance(hex.EncodeToString(req["dkgID"]))
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get FSM instance: %v", err))
+		return
+	}
+	participantID, err := fsmInstance.GetIDByAddr(c.GetUsername())
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get participantID: %v", err))
+		return
+	}
+
+	messageDataSign := requests.SigningProposalStartRequest{
+		ParticipantId: participantID,
+		SrcPayload:    req["data"],
+		CreatedAt:     time.Now(),
+	}
+	messageDataSignBz, err := json.Marshal(messageDataSign)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to marshal SigningProposalStartRequest: %v", err))
+		return
+	}
+
+	message, err := c.buildMessage(hex.EncodeToString(req["dkgID"]), sif.EventSigningStart, messageDataSignBz)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
+		return
 	}
 	if err = c.SendMessage(*message); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))

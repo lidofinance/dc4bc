@@ -186,9 +186,6 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 			return fmt.Errorf("failed to Do operation in FSM: %w", err)
 		}
 	}
-	if resp.State == sipf.StateSigningAwaitConfirmations {
-
-	}
 
 	var operation *types.Operation
 	switch resp.State {

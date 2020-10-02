@@ -262,17 +262,7 @@ func TestFullFlow(t *testing.T) {
 	log.Println("Propose message to sign")
 
 	dkgRoundID := md5.Sum(messageDataBz)
-	messageDataSign := requests.SigningProposalStartRequest{
-		ParticipantId: len(nodes) - 1,
-		SrcPayload:    []byte("message to sign"),
-		CreatedAt:     time.Now(),
-	}
-	messageDataSignBz, err := json.Marshal(messageDataSign)
-	if err != nil {
-		t.Fatalf("failed to marshal SigningProposalStartRequest: %v\n", err)
-	}
-
-	messageDataBz, err = json.Marshal(map[string][]byte{"data": messageDataSignBz,
+	messageDataBz, err = json.Marshal(map[string][]byte{"data": []byte("message to sign"),
 		"dkgID": dkgRoundID[:]})
 	if err != nil {
 		t.Fatalf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)
