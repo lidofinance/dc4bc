@@ -81,6 +81,7 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 		}
 	}
 
+	m.payload.SigningProposalPayload.Quorum[request.ParticipantId].Status = internal.SigningConfirmed
 	m.payload.SigningProposalPayload.CreatedAt = request.CreatedAt
 
 	// Make response

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/depools/dc4bc/fsm/types/responses"
 	"log"
 	"path/filepath"
 	"sync"
@@ -185,6 +186,9 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 			return fmt.Errorf("failed to Do operation in FSM: %w", err)
 		}
 	}
+	if resp.State == sipf.StateSigningAwaitConfirmations {
+
+	}
 
 	var operation *types.Operation
 	switch resp.State {
@@ -199,6 +203,18 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		sipf.StateSigningPartialSignsCollected,
 		sipf.StateSigningAwaitConfirmations:
 		if resp.Data != nil {
+
+			// if we are initiator of signing, then we don't need to confirm our participation
+			if data, ok := resp.Data.(responses.SigningProposalParticipantInvitationsResponse); ok {
+				initiator, err := fsmInstance.SigningQuorumGetParticipant(data.InitiatorId)
+				if err != nil {
+					return fmt.Errorf("failed to get SigningQuorumParticipant: %w", err)
+				}
+				if initiator.Addr == c.GetUsername() {
+					break
+				}
+			}
+
 			bz, err := json.Marshal(resp.Data)
 			if err != nil {
 				return fmt.Errorf("failed to marshal FSM response: %w", err)
