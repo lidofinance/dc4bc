@@ -216,6 +216,20 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		c.Logger.Log("State %s does not require an operation", resp.State)
 	}
 
+	// switch FSM state by hand due to implementation specifics
+	if resp.State == sipf.StateSigningPartialSignsCollected {
+		fsmInstance, err = state_machines.FromDump(fsmDump)
+		if err != nil {
+			return fmt.Errorf("failed get state_machines from dump: %w", err)
+		}
+		resp, fsmDump, err = fsmInstance.Do(sipf.EventSigningRestart, requests.DefaultRequest{
+			CreatedAt: time.Now(),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to Do operation in FSM: %w", err)
+		}
+	}
+
 	if operation != nil {
 		if err := c.state.PutOperation(operation); err != nil {
 			return fmt.Errorf("failed to PutOperation: %w", err)

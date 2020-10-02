@@ -117,7 +117,7 @@ func (n *node) run(t *testing.T) {
 				if err = pubKey.UnmarshalBinary(pubKeyReq.MasterKey); err != nil {
 					t.Fatalf("failed to unmarshal pubkey: %v", err)
 				}
-				if err = ioutil.WriteFile(fmt.Sprintf("/tmp/dc4bc_participant_%d.pubkey",
+				if err = ioutil.WriteFile(fmt.Sprintf("/tmp/participant_%d.pubkey",
 					pubKeyReq.ParticipantId), []byte(pubKey.String()), 0666); err != nil {
 					t.Fatalf("failed to write pubkey to temp file: %v", err)
 				}
@@ -197,7 +197,7 @@ func TestFullFlow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("node %d failed to init client: %v\n", nodeID, err)
 		}
-		airgappedMachine.SetEncryptionKey(clt.GetPubKey()) //just for testing
+		airgappedMachine.SetEncryptionKey([]byte("very_strong_password")) //just for testing
 		if err = airgappedMachine.InitKeys(); err != nil {
 			t.Errorf(err.Error())
 		}

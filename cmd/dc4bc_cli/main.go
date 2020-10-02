@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"crypto/md5"
-	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -385,9 +384,9 @@ func getHashOfStartDKGCommand() *cobra.Command {
 
 func proposeSignMessageCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "sign_data [dkg_id] [data]",
+		Use:   "sign_data [dkg_id] [file_path]",
 		Args:  cobra.ExactArgs(2),
-		Short: "sends a propose message to sign the data",
+		Short: "sends a propose message to sign the data in the file",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
@@ -399,9 +398,9 @@ func proposeSignMessageCommand() *cobra.Command {
 				return fmt.Errorf("failed to decode dkgID: %w", err)
 			}
 
-			data, err := base64.StdEncoding.DecodeString(args[1])
+			data, err := ioutil.ReadFile(args[1])
 			if err != nil {
-				return fmt.Errorf("failed to decode data")
+				return fmt.Errorf("failed to read the file")
 			}
 
 			messageDataSign := requests.SigningProposalStartRequest{
