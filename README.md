@@ -2,10 +2,31 @@
 
 The goal of ths project is to make a simple, secure framework to generate and use threshold signatures for infrequent financial transactions over Ethereum 2.0 Beacon Chain (BLS on BLS12-381 curve). dc4bc only deals with key generation and the signature process with all the user-side logic offloaded to applications using dc4bc as a service or an API.
 
-For a better key management, we presume that, when used in production, private encryption keys and threshold siganture related secrets reside in an airgapped machine or an HSM. For a better auditablity and testability, network protocol logic is implemented as a set of finite state machines that change state deterministically in response to a a stream of outside events. 
+For a better key management, we presume that, when used in production, private encryption keys and threshold signature related secrets reside in an airgapped machine or an HSM. For a better auditablity and testability, network protocol logic is implemented as a set of finite state machines that change state deterministically in response to a a stream of outside events. 
 
-The main and, for now, only network communication primitive we use is a shared bulletin board in form of an authetnicated append-only log. Different implementations of that log could be a shared file (for local development or testing), a trusted network service (e.g. Amazon S3 bucket), a federated blockchain between protocol participants or a public blockchain. 
+The main and, for now, only network communication primitive we use is a shared bulletin board in form of an authenticated append-only log. Different implementations of that log could be a shared file (for local development or testing), a trusted network service (e.g. Amazon S3 bucket), a federated blockchain between protocol participants or a public blockchain. 
 
+# How to test this code?
+
+Run the command below to run unit-tests:
+
+```
+make test-short
+```
+
+# How to run this code?
+
+Please refer to [this page](HowTo.md) for a complete guide for running the minimal application testnet.
+
+# Repository description
+
+* `./airgapped` The Airgapped machine source code. All encryption- and DKG-related code can be found in this package;
+* `./client` The Client source code. The Client can poll messages from the message board. It also sets up a local http-server to process incoming requests (e.g., "please start a new DKG round");
+* `./cmd` Command line interfaces for the Airgapped machine and the Client. All entry points to dc4bc apps can be found here;
+* `./dkg` This package is more of a library for maintaining all active DKG instances and data;
+* `./fsm` The FSM source code. The FSM decides when we are ready to move to the next step during DKG and signing;
+* `./qr` A library for reading QR codes that encode pending Operations (which are used for communication between The Client, and the Airgapped machine); 
+* `./storage` Two Bulletin Board implementations: File storage for local debugging and Kafka storage for real-world scenarios.
 
 ## Moving parts
 
@@ -120,16 +141,3 @@ The expected DKG workflow goes as follows:
 7. After the participants successfully finish DKG, their shares of BLS private key are stored safely on the airgapped machine.
 
 8. When the participants decide to distribute profits, they get their partial signature from the airgapped machine and send it to the storage; after the required number of partial signatures is supplied, the collective signarute can be recovered.
-
-
-## Roadmap
-
-1. DKG prototype using a kyber lib for cryptography and modified dkglib from Arcade project for DKG, and a local file for append log.
-2. Unit test harness and overall architecture documentation 
-3. Threshold signature FSM along with tests and docs
-4. Integration test harness, happy path scenario, CI pipeline
-5. Network-based append log
-6. Airgapped machine communication via QR codes
-7. Integration with the production DKG library
-8. E2E test harness with full eth1->beacon chain scenario
-9. Final clean-up and documentation 
