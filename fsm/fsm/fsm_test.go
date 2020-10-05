@@ -225,7 +225,7 @@ func TestMustNewFSM_States_Min_Panic(t *testing.T) {
 
 func TestMustNewFSM_State_Entry_Conflict_Panic(t *testing.T) {
 	defer func() {
-		compareRecoverStr(t, recover(), "machine entry event already exist")
+		compareRecoverStr(t, recover(), "machine must contain at least two states")
 	}()
 
 	testingFSM = MustNewFSM(
