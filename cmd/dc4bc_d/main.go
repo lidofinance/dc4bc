@@ -20,6 +20,7 @@ const (
 	flagListenAddr   = "listen_addr"
 	flagStateDBDSN   = "state_dbdsn"
 	flagStorageDBDSN = "storage_dbdsn"
+	flagStorageTopic = "storage_topic"
 	flagStoreDBDSN   = "key_store_dbdsn"
 	flagFramesDelay  = "frames_delay"
 	flagChunkSize    = "chunk_size"
@@ -30,6 +31,7 @@ func init() {
 	rootCmd.PersistentFlags().String(flagListenAddr, "localhost:8080", "Listen Address")
 	rootCmd.PersistentFlags().String(flagStateDBDSN, "./dc4bc_client_state", "State DBDSN")
 	rootCmd.PersistentFlags().String(flagStorageDBDSN, "./dc4bc_file_storage", "Storage DBDSN")
+	rootCmd.PersistentFlags().String(flagStorageTopic, "messages", "Storage Topic (Kafka)")
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
@@ -97,6 +99,11 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("failed to read configuration: %v", err)
 			}
 
+			storageTopic, err := cmd.Flags().GetString(flagStorageTopic)
+			if err != nil {
+				log.Fatalf("failed to read configuration: %v", err)
+			}
+
 			keyStoreDBDSN, err := cmd.Flags().GetString(flagStoreDBDSN)
 			if err != nil {
 				log.Fatalf("failed to read configuration: %v", err)
@@ -110,7 +117,7 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("Failed to init state client: %v", err)
 			}
 
-			stg, err := storage.NewKafkaStorage(ctx, storageDBDSN)
+			stg, err := storage.NewKafkaStorage(ctx, storageDBDSN, storageTopic)
 			if err != nil {
 				log.Fatalf("Failed to init storage client: %v", err)
 			}

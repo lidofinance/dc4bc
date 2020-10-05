@@ -10,7 +10,6 @@ import (
 )
 
 const (
-	kafkaTopic     = "messages"
 	kafkaPartition = 0
 )
 
@@ -19,7 +18,7 @@ type KafkaStorage struct {
 	reader *kafka.Reader
 }
 
-func NewKafkaStorage(ctx context.Context, kafkaEndpoint string) (Storage, error) {
+func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string) (Storage, error) {
 	conn, err := kafka.DialLeader(ctx, "tcp", kafkaEndpoint, kafkaTopic, kafkaPartition)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Kafka client: %w", err)
