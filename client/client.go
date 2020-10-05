@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/depools/dc4bc/fsm/types/responses"
 	"log"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/depools/dc4bc/fsm/types/responses"
 
 	sipf "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
@@ -137,7 +138,7 @@ func (c *BaseClient) SendMessage(message storage.Message) error {
 }
 
 // processSignature saves a broadcasted reconstructed signature to a LevelDB
-func (c *Client) processSignature(message storage.Message) error {
+func (c *BaseClient) processSignature(message storage.Message) error {
 	var (
 		signature types.ReconstructedSignature
 		err       error
@@ -288,12 +289,12 @@ func (c *BaseClient) GetOperations() (map[string]*types.Operation, error) {
 
 //GetSignatures returns all signatures for the given DKG round that were reconstructed on the airgapped machine and
 // broadcasted by users
-func (c *Client) GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
+func (c *BaseClient) GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
 	return c.state.GetSignatures(dkgID)
 }
 
 //GetSignatureByDataHash returns a list of reconstructed signatures of the signed data broadcasted by users
-func (c *Client) GetSignatureByDataHash(dkgID, sigID string) ([]types.ReconstructedSignature, error) {
+func (c *BaseClient) GetSignatureByDataHash(dkgID, sigID string) ([]types.ReconstructedSignature, error) {
 	return c.state.GetSignatureByDataHash(dkgID, sigID)
 }
 

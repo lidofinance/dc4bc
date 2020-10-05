@@ -9,16 +9,14 @@ import (
 	"log"
 	"net/http"
 
+	"time"
+
 	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/fsm"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/google/uuid"
-	"io/ioutil"
-	"log"
-	"net/http"
-	"time"
 
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
@@ -143,7 +141,7 @@ func (c *BaseClient) getOperationsHandler(w http.ResponseWriter, r *http.Request
 	successResponse(w, operations)
 }
 
-func (c *Client) getSignaturesHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) getSignaturesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -158,7 +156,7 @@ func (c *Client) getSignaturesHandler(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, signatures)
 }
 
-func (c *Client) getSignatureByDataHashHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) getSignatureByDataHashHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
