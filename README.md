@@ -28,12 +28,18 @@ Please refer to [this page](HowTo.md) for a complete guide for running the minim
 * `./qr` A library for handling QR codes that encode pending Operations (which are used for communication between The Client, and the Airgapped machine); 
 * `./storage` Two Bulletin Board implementations: File storage for local debugging and Kafka storage for real-world scenarios.
 
+# Related repositories
+
+* [kyber-bls12381](https://github.com/depools/kyber-bls12381) BLS threshold signature library based on kyber's BLS threshold signatures library
+* (bls12-381)[https://github.com/depools/bls12-381] high speed BLS12-381 implementation in go, based on kyber's one
+* (kyber)[https://github.com/corestario/kyber/] dkg library, fork of DEDIS' kyber library
+
 ## Moving parts
 
 ### Participants 
-N participants, having a hot (connected to the network) node and a cold (airgapped) node. Participants all have two pair of keys: auth keys and encryption keys. PubAuthKey_i, PrivAuthKey_i, PubEncKey_i, PrivEncKey_i respectively Participant_i. Each participant also have a secret seed used to generate DKG messages.
+N participants, having a hot (connected to the network) node and a cold (airgapped) node. Participants all have two pair of keys for digital signatures: one for hot node and one for airgapped. PubHotKey_i, PrivHotKey_i, PubColdKey_i, PrivColdKey_i respectively for Participant_i. Each participant also have a secret seed used to generate DKG messages: given the same seed and the same inbound DKG messages participant's outbound messages are deterministic.
 
-Auth keys are stored on the hot node, encryption keys and a seed are stored on a cold node.
+Hot keys are stored on the network-connected node, cold keys and a seed are stored on an airgapped node.
 
 ### Conference call
 
@@ -52,8 +58,10 @@ This allows us to establish communication primitives:
 - broadcast(message) by Participant_i:
     post(message, signature(message, PrivAuthKey_i))
 - private_message(message, Participant_j):
-    encrypted_message = { "to" : Participant_j, "message": encrypt(message, PubEncKey_j)}
+    encrypted_message = { "to" : Participant_j, "message": encrypt(message, PubColdKey_j)}
     broadcast(encrypted_message)
+    
+Encryption is done using AES526-GCM + AEAD.
 
 Bulletin board can be constructed using a trusted centralized service a-la kafka queue (implemented), using public blockchain, or using a consensus between participants to establish a private blockchain. Anyway, it should be abstracted away in the client and signer both and easily switchable.
 
