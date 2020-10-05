@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/md5"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -53,6 +54,8 @@ func main() {
 		getUsernameCommand(),
 		getPubKeyCommand(),
 		getHashOfStartDKGCommand(),
+		getSignaturesCommand(),
+		getSignatureCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
@@ -113,6 +116,100 @@ func getOperationsCommand() *cobra.Command {
 					fmt.Printf("Hash of the message to sign - %s\n", hex.EncodeToString(msgHash[:]))
 				}
 				fmt.Println("-----------------------------------------------------")
+			}
+			return nil
+		},
+	}
+}
+
+func getSignaturesRequest(host string, dkgID string) (*SignaturesResponse, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/getSignatures?dkgID=%s", host, dkgID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get signatures: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %w", err)
+	}
+
+	var response SignaturesResponse
+	if err = json.Unmarshal(responseBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+	return &response, nil
+}
+
+func getSignaturesCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_signatures [dkgID]",
+		Args:  cobra.ExactArgs(1),
+		Short: "returns all signatures for the given DKG round that were reconstructed on the airgapped machine",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+			signatures, err := getSignaturesRequest(listenAddr, args[0])
+			if err != nil {
+				return fmt.Errorf("failed to get signatures: %w", err)
+			}
+			if signatures.ErrorMessage != "" {
+				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
+			}
+			for dataHash, signature := range signatures.Result {
+				fmt.Printf("Hash of the signing data: %s\n", dataHash)
+				for _, participantSig := range signature {
+					fmt.Printf("\tDKG round ID: %s\n", participantSig.DKGRoundID)
+					fmt.Printf("\tParticipant: %s\n", participantSig.Participant)
+					fmt.Printf("\tReconstructed signature for the data: %s\n", base64.StdEncoding.EncodeToString(participantSig.Signature))
+					fmt.Println()
+				}
+			}
+			return nil
+		},
+	}
+}
+
+func getSignatureRequest(host string, dkgID, dataHash string) (*SignatureResponse, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/getSignatureByDataHash?dkgID=%s&hash=%s", host, dkgID, dataHash))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get signatures: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %w", err)
+	}
+
+	var response SignatureResponse
+	if err = json.Unmarshal(responseBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+	return &response, nil
+}
+
+func getSignatureCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_signature [dkgID] [hash_of_the_signed_data]",
+		Args:  cobra.ExactArgs(2),
+		Short: "returns a list of reconstructed signatures of the signed data broadcasted by users",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+			signatures, err := getSignatureRequest(listenAddr, args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("failed to get signatures: %w", err)
+			}
+			if signatures.ErrorMessage != "" {
+				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
+			}
+			for _, participantSig := range signatures.Result {
+				fmt.Printf("\tParticipant: %s\n", participantSig.Participant)
+				fmt.Printf("\tReconstructed signature for the data: %s\n", base64.StdEncoding.EncodeToString(participantSig.Signature))
+				fmt.Println()
 			}
 			return nil
 		},

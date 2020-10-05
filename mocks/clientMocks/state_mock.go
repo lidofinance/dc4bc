@@ -150,3 +150,47 @@ func (mr *MockStateMockRecorder) GetOperationByID(operationID interface{}) *gomo
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperationByID", reflect.TypeOf((*MockState)(nil).GetOperationByID), operationID)
 }
+
+// SaveSignature mocks base method
+func (m *MockState) SaveSignature(signature types.ReconstructedSignature) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveSignature", signature)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveSignature indicates an expected call of SaveSignature
+func (mr *MockStateMockRecorder) SaveSignature(signature interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSignature", reflect.TypeOf((*MockState)(nil).SaveSignature), signature)
+}
+
+// GetSignatureByDataHash mocks base method
+func (m *MockState) GetSignatureByDataHash(dkgID, signatureID string) ([]types.ReconstructedSignature, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSignatureByDataHash", dkgID, signatureID)
+	ret0, _ := ret[0].([]types.ReconstructedSignature)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSignatureByDataHash indicates an expected call of GetSignatureByDataHash
+func (mr *MockStateMockRecorder) GetSignatureByDataHash(dkgID, signatureID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignatureByDataHash", reflect.TypeOf((*MockState)(nil).GetSignatureByDataHash), dkgID, signatureID)
+}
+
+// GetSignatures mocks base method
+func (m *MockState) GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSignatures", dkgID)
+	ret0, _ := ret[0].(map[string][]types.ReconstructedSignature)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSignatures indicates an expected call of GetSignatures
+func (mr *MockStateMockRecorder) GetSignatures(dkgID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignatures", reflect.TypeOf((*MockState)(nil).GetSignatures), dkgID)
+}
