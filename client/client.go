@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/depools/dc4bc/fsm/types/responses"
 	"log"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/depools/dc4bc/fsm/types/responses"
 
 	sipf "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
@@ -33,19 +34,19 @@ const (
 	QrCodesDir    = "/tmp"
 )
 
-type Poller interface {
-	GetUsername() string
-	GetPubKey() ed25519.PublicKey
+type Client interface {
 	Poll() error
+	GetLogger() *logger
+	GetPubKey() ed25519.PublicKey
+	GetUsername() string
 	SendMessage(message storage.Message) error
 	ProcessMessage(message storage.Message) error
 	GetOperations() (map[string]*types.Operation, error)
 	GetOperationQRPath(operationID string) (string, error)
 	StartHTTPServer(listenAddr string) error
-	GetLogger() *logger
 }
 
-type Client struct {
+type BaseClient struct {
 	sync.Mutex
 	Logger      *logger
 	userName    string
@@ -64,13 +65,13 @@ func NewClient(
 	storage storage.Storage,
 	keyStore KeyStore,
 	qrProcessor qr.Processor,
-) (Poller, error) {
+) (Client, error) {
 	keyPair, err := keyStore.LoadKeys(userName, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
 	}
 
-	return &Client{
+	return &BaseClient{
 		ctx:         ctx,
 		Logger:      newLogger(userName),
 		userName:    userName,
@@ -82,20 +83,20 @@ func NewClient(
 	}, nil
 }
 
-func (c *Client) GetLogger() *logger {
+func (c *BaseClient) GetLogger() *logger {
 	return c.Logger
 }
 
-func (c *Client) GetUsername() string {
+func (c *BaseClient) GetUsername() string {
 	return c.userName
 }
 
-func (c *Client) GetPubKey() ed25519.PublicKey {
+func (c *BaseClient) GetPubKey() ed25519.PublicKey {
 	return c.pubKey
 }
 
 // Poll is a main client loop, which gets new messages from an append-only log and processes them
-func (c *Client) Poll() error {
+func (c *BaseClient) Poll() error {
 	tk := time.NewTicker(pollingPeriod)
 	for {
 		select {
@@ -128,7 +129,7 @@ func (c *Client) Poll() error {
 	}
 }
 
-func (c *Client) SendMessage(message storage.Message) error {
+func (c *BaseClient) SendMessage(message storage.Message) error {
 	if _, err := c.storage.Send(message); err != nil {
 		return fmt.Errorf("failed to post message: %w", err)
 	}
@@ -137,7 +138,7 @@ func (c *Client) SendMessage(message storage.Message) error {
 }
 
 // processSignature saves a broadcasted reconstructed signature to a LevelDB
-func (c *Client) processSignature(message storage.Message) error {
+func (c *BaseClient) processSignature(message storage.Message) error {
 	var (
 		signature types.ReconstructedSignature
 		err       error
@@ -149,7 +150,7 @@ func (c *Client) processSignature(message storage.Message) error {
 	return c.state.SaveSignature(signature)
 }
 
-func (c *Client) ProcessMessage(message storage.Message) error {
+func (c *BaseClient) ProcessMessage(message storage.Message) error {
 	if fsm.Event(message.Event) == types.SignatureReconstructed {
 		if err := c.processSignature(message); err != nil {
 			return fmt.Errorf("failed to process signature: %w", err)
@@ -159,7 +160,6 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 		}
 		return nil
 	}
-
 	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
 	if err != nil {
 		return fmt.Errorf("failed to getFSMInstance: %w", err)
@@ -283,23 +283,23 @@ func (c *Client) ProcessMessage(message storage.Message) error {
 	return nil
 }
 
-func (c *Client) GetOperations() (map[string]*types.Operation, error) {
+func (c *BaseClient) GetOperations() (map[string]*types.Operation, error) {
 	return c.state.GetOperations()
 }
 
 //GetSignatures returns all signatures for the given DKG round that were reconstructed on the airgapped machine and
 // broadcasted by users
-func (c *Client) GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
+func (c *BaseClient) GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
 	return c.state.GetSignatures(dkgID)
 }
 
 //GetSignatureByDataHash returns a list of reconstructed signatures of the signed data broadcasted by users
-func (c *Client) GetSignatureByDataHash(dkgID, sigID string) ([]types.ReconstructedSignature, error) {
+func (c *BaseClient) GetSignatureByDataHash(dkgID, sigID string) ([]types.ReconstructedSignature, error) {
 	return c.state.GetSignatureByDataHash(dkgID, sigID)
 }
 
 // getOperationJSON returns a specific JSON-encoded operation
-func (c *Client) getOperationJSON(operationID string) ([]byte, error) {
+func (c *BaseClient) getOperationJSON(operationID string) ([]byte, error) {
 	operation, err := c.state.GetOperationByID(operationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operation: %w", err)
@@ -315,7 +315,7 @@ func (c *Client) getOperationJSON(operationID string) ([]byte, error) {
 // GetOperationQRPath returns a path to the image with the QR generated
 // for the specified operation. It is supposed that the user will open
 // this file herself.
-func (c *Client) GetOperationQRPath(operationID string) (string, error) {
+func (c *BaseClient) GetOperationQRPath(operationID string) (string, error) {
 	operationJSON, err := c.getOperationJSON(operationID)
 	if err != nil {
 		return "", fmt.Errorf("failed to get operation in JSON: %w", err)
@@ -334,7 +334,7 @@ func (c *Client) GetOperationQRPath(operationID string) (string, error) {
 // handleProcessedOperation handles an operation which was processed by the airgapped machine
 // It checks that the operation exists in an operation pool, signs the operation, sends it to an append-only log and
 // deletes it from the pool.
-func (c *Client) handleProcessedOperation(operation types.Operation) error {
+func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
 	storedOperation, err := c.state.GetOperationByID(operation.ID)
 	if err != nil {
 		return fmt.Errorf("failed to find matching operation: %w", err)
@@ -366,7 +366,7 @@ func (c *Client) handleProcessedOperation(operation types.Operation) error {
 }
 
 // getFSMInstance returns a FSM for a necessary DKG round.
-func (c *Client) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error) {
+func (c *BaseClient) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error) {
 	var err error
 	fsmInstance, ok, err := c.state.LoadFSM(dkgRoundID)
 	if err != nil {
@@ -390,7 +390,7 @@ func (c *Client) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance,
 	return fsmInstance, nil
 }
 
-func (c *Client) signMessage(message []byte) ([]byte, error) {
+func (c *BaseClient) signMessage(message []byte) ([]byte, error) {
 	keyPair, err := c.keyStore.LoadKeys(c.userName, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
@@ -399,7 +399,7 @@ func (c *Client) signMessage(message []byte) ([]byte, error) {
 	return ed25519.Sign(keyPair.Priv, message), nil
 }
 
-func (c *Client) verifyMessage(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
+func (c *BaseClient) verifyMessage(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
 	senderPubKey, err := fsmInstance.GetPubKeyByAddr(message.SenderAddr)
 	if err != nil {
 		return fmt.Errorf("failed to GetPubKeyByAddr: %w", err)

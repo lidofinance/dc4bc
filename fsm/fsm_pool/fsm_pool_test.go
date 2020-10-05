@@ -78,6 +78,7 @@ func NewFSM1() MachineProvider {
 
 func (m *testMachineFSM1) actionFSM1SetUpData(fsm.Event, ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.data = testVal1
+	m.SetState(eventFSM1Init)
 	outEvent = eventFSM1Internal
 	return
 }

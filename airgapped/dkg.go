@@ -29,7 +29,7 @@ func createMessage(o client.Operation, data []byte) storage.Message {
 
 // handleStateAwaitParticipantsConfirmations inits DKG instance for a new DKG round and returns a confirmation of
 // participation in the round
-func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.Operation) error {
+func (am *Machine) handleStateAwaitParticipantsConfirmations(o *client.Operation) error {
 	var (
 		payload responses.SignatureProposalParticipantInvitationsResponse
 		err     error
@@ -87,13 +87,13 @@ func (am *AirgappedMachine) handleStateAwaitParticipantsConfirmations(o *client.
 	return nil
 }
 
-func (am *AirgappedMachine) GetPubKey() kyber.Point {
+func (am *Machine) GetPubKey() kyber.Point {
 	return am.pubKey
 }
 
 // handleStateDkgCommitsAwaitConfirmations takes a list of participants DKG pub keys as payload and
 // returns DKG commits to broadcast
-func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) error {
+func (am *Machine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) error {
 	var (
 		payload responses.DKGProposalPubKeysParticipantResponse
 		err     error
@@ -154,7 +154,7 @@ func (am *AirgappedMachine) handleStateDkgCommitsAwaitConfirmations(o *client.Op
 // handleStateDkgDealsAwaitConfirmations takes broadcasted participants commits as payload and
 // returns a private deal for every participant.
 // Each deal is encrypted with a participant's public key which received on the previous step
-func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Operation) error {
+func (am *Machine) handleStateDkgDealsAwaitConfirmations(o *client.Operation) error {
 	var (
 		payload responses.DKGProposalCommitParticipantResponse
 		err     error
@@ -221,7 +221,7 @@ func (am *AirgappedMachine) handleStateDkgDealsAwaitConfirmations(o *client.Oper
 
 // handleStateDkgResponsesAwaitConfirmations takes deals sent to us as payload, decrypt and process them and
 // returns responses to broadcast
-func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.Operation) error {
+func (am *Machine) handleStateDkgResponsesAwaitConfirmations(o *client.Operation) error {
 	var (
 		payload responses.DKGProposalDealParticipantResponse
 		err     error
@@ -278,7 +278,7 @@ func (am *AirgappedMachine) handleStateDkgResponsesAwaitConfirmations(o *client.
 
 // handleStateDkgMasterKeyAwaitConfirmations takes broadcasted responses from the previous step, process them,
 // reconstructs a distributed DKG public key to broadcast and saves a private part of the key
-func (am *AirgappedMachine) handleStateDkgMasterKeyAwaitConfirmations(o *client.Operation) error {
+func (am *Machine) handleStateDkgMasterKeyAwaitConfirmations(o *client.Operation) error {
 	var (
 		payload responses.DKGProposalResponseParticipantResponse
 		err     error

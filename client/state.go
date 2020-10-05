@@ -23,6 +23,8 @@ const (
 	signaturesKeyPrefix = "signatures"
 )
 
+// State is the client's state (it keeps the offset, the FSM state and
+// the Operation pool.
 type State interface {
 	SaveOffset(uint64) error
 	LoadOffset() (uint64, error)

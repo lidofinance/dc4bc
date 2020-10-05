@@ -137,7 +137,7 @@ func startClientCommand() *cobra.Command {
 				log.Println("Received signal, stopping client...")
 				cancel()
 
-				log.Println("Client stopped, exiting")
+				log.Println("BaseClient stopped, exiting")
 				os.Exit(0)
 			}()
 

@@ -30,7 +30,7 @@ const (
 type Node struct {
 	ParticipantID int
 	Participant   string
-	Machine       *AirgappedMachine
+	Machine       *Machine
 	commits       []requests.DKGProposalCommitConfirmationRequest
 	deals         []requests.DKGProposalDealConfirmationRequest
 	responses     []requests.DKGProposalResponseConfirmationRequest
@@ -116,7 +116,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 
 	tr := &Transport{}
 	for i := 0; i < nodesCount; i++ {
-		am, err := NewAirgappedMachine(fmt.Sprintf("%s/%s-%d", testDir, testDB, i))
+		am, err := NewMachine(fmt.Sprintf("%s/%s-%d", testDir, testDB, i))
 		if err != nil {
 			t.Fatalf("failed to create airgapped machine: %v", err)
 		}
@@ -325,7 +325,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 
 	tr := &Transport{}
 	for i := 0; i < nodesCount; i++ {
-		am, err := NewAirgappedMachine(fmt.Sprintf("%s/%s-%d", testDir, testDB, i))
+		am, err := NewMachine(fmt.Sprintf("%s/%s-%d", testDir, testDB, i))
 		if err != nil {
 			t.Fatalf("failed to create airgapped machine: %v", err)
 		}
@@ -429,7 +429,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 
 	newTr := &Transport{}
 	for i := 0; i < nodesCount; i++ {
-		am, err := NewAirgappedMachine(fmt.Sprintf("%s/%s-%d", testDir, testDB, i))
+		am, err := NewMachine(fmt.Sprintf("%s/%s-%d", testDir, testDB, i))
 		if err != nil {
 			t.Fatalf("failed to create airgapped machine: %v", err)
 		}

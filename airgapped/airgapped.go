@@ -23,10 +23,10 @@ import (
 )
 
 const (
-	seedSize       = 32
+	seedSize = 32
 )
 
-type AirgappedMachine struct {
+type Machine struct {
 	sync.Mutex
 
 	dkgInstances map[string]*dkg.DKG
@@ -42,12 +42,12 @@ type AirgappedMachine struct {
 	resultQRFolder string
 }
 
-func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
+func NewMachine(dbPath string) (*Machine, error) {
 	var (
 		err error
 	)
 
-	am := &AirgappedMachine{
+	am := &Machine{
 		dkgInstances: make(map[string]*dkg.DKG),
 		qrProcessor:  qr.NewCameraProcessor(),
 	}
@@ -74,20 +74,20 @@ func NewAirgappedMachine(dbPath string) (*AirgappedMachine, error) {
 	return am, nil
 }
 
-func (am *AirgappedMachine) SetQRProcessorFramesDelay(delay int) {
+func (am *Machine) SetQRProcessorFramesDelay(delay int) {
 	am.qrProcessor.SetDelay(delay)
 }
 
-func (am *AirgappedMachine) SetQRProcessorChunkSize(chunkSize int) {
+func (am *Machine) SetQRProcessorChunkSize(chunkSize int) {
 	am.qrProcessor.SetChunkSize(chunkSize)
 }
 
-func (am *AirgappedMachine) SetResultQRFolder(resultQRFolder string) {
+func (am *Machine) SetResultQRFolder(resultQRFolder string) {
 	am.resultQRFolder = resultQRFolder
 }
 
 // InitKeys load keys public and private keys for DKG from LevelDB. If keys does not exist, creates them.
-func (am *AirgappedMachine) InitKeys() error {
+func (am *Machine) InitKeys() error {
 	err := am.LoadKeysFromDB()
 	if err != nil && err != leveldb.ErrNotFound {
 		return fmt.Errorf("failed to load keys from db: %w", err)
@@ -103,17 +103,17 @@ func (am *AirgappedMachine) InitKeys() error {
 }
 
 // SetEncryptionKey set a key to encrypt and decrypt a sensitive data
-func (am *AirgappedMachine) SetEncryptionKey(key []byte) {
+func (am *Machine) SetEncryptionKey(key []byte) {
 	am.encryptionKey = key
 }
 
 // SensitiveDataRemoved indicates whether sensitive information has been cleared
-func (am *AirgappedMachine) SensitiveDataRemoved() bool {
+func (am *Machine) SensitiveDataRemoved() bool {
 	return len(am.encryptionKey) == 0
 }
 
 // DropSensitiveData remove sensitive data from memory
-func (am *AirgappedMachine) DropSensitiveData() {
+func (am *Machine) DropSensitiveData() {
 	am.Lock()
 	defer am.Unlock()
 
@@ -123,7 +123,7 @@ func (am *AirgappedMachine) DropSensitiveData() {
 	am.encryptionKey = nil
 }
 
-func (am *AirgappedMachine) ReplayOperationsLog(dkgIdentifier string) error {
+func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	operationsLog, err := am.getOperationsLog(dkgIdentifier)
 	if err != nil {
 		return fmt.Errorf("failed to getOperationsLog: %w", err)
@@ -142,12 +142,12 @@ func (am *AirgappedMachine) ReplayOperationsLog(dkgIdentifier string) error {
 	return nil
 }
 
-func (am *AirgappedMachine) DropOperationsLog(dkgIdentifier string) error {
+func (am *Machine) DropOperationsLog(dkgIdentifier string) error {
 	return am.dropRoundOperationLog(dkgIdentifier)
 }
 
 // getParticipantID returns our own participant id for the given DKG round
-func (am *AirgappedMachine) getParticipantID(dkgIdentifier string) (int, error) {
+func (am *Machine) getParticipantID(dkgIdentifier string) (int, error) {
 	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
 	if !ok {
 		return 0, fmt.Errorf("invalid dkg identifier: %s", dkgIdentifier)
@@ -156,7 +156,7 @@ func (am *AirgappedMachine) getParticipantID(dkgIdentifier string) (int, error) 
 }
 
 // encryptDataForParticipant encrypts a data using the public key of the participant to whom the data is sent
-func (am *AirgappedMachine) encryptDataForParticipant(dkgIdentifier, to string, data []byte) ([]byte, error) {
+func (am *Machine) encryptDataForParticipant(dkgIdentifier, to string, data []byte) ([]byte, error) {
 	dkgInstance, ok := am.dkgInstances[dkgIdentifier]
 	if !ok {
 		return nil, fmt.Errorf("invalid dkg identifier: %s", dkgIdentifier)
@@ -175,7 +175,7 @@ func (am *AirgappedMachine) encryptDataForParticipant(dkgIdentifier, to string, 
 }
 
 // decryptDataFromParticipant decrypts the data that was sent to us
-func (am *AirgappedMachine) decryptDataFromParticipant(data []byte) ([]byte, error) {
+func (am *Machine) decryptDataFromParticipant(data []byte) ([]byte, error) {
 	decryptedData, err := ecies.Decrypt(am.baseSuite, am.secKey, data, am.baseSuite.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt data: %w", err)
@@ -184,7 +184,7 @@ func (am *AirgappedMachine) decryptDataFromParticipant(data []byte) ([]byte, err
 }
 
 // HandleOperation handles and processes an operation
-func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.Operation, error) {
+func (am *Machine) HandleOperation(operation client.Operation) (client.Operation, error) {
 	if err := am.storeOperation(operation); err != nil {
 		return client.Operation{}, fmt.Errorf("failed to storeOperation: %w", err)
 	}
@@ -192,7 +192,7 @@ func (am *AirgappedMachine) HandleOperation(operation client.Operation) (client.
 	return am.handleOperation(operation)
 }
 
-func (am *AirgappedMachine) handleOperation(operation client.Operation) (client.Operation, error) {
+func (am *Machine) handleOperation(operation client.Operation) (client.Operation, error) {
 	var (
 		err error
 	)
@@ -233,7 +233,7 @@ func (am *AirgappedMachine) handleOperation(operation client.Operation) (client.
 }
 
 // HandleQR - gets an operation from a QR code, do necessary things for the operation and returns paths to QR-code images
-func (am *AirgappedMachine) HandleQR() (string, error) {
+func (am *Machine) HandleQR() (string, error) {
 	var (
 		err error
 
@@ -270,7 +270,7 @@ func (am *AirgappedMachine) HandleQR() (string, error) {
 }
 
 // writeErrorRequestToOperation writes error to a operation if some bad things happened
-func (am *AirgappedMachine) writeErrorRequestToOperation(o *client.Operation, handlerError error) error {
+func (am *Machine) writeErrorRequestToOperation(o *client.Operation, handlerError error) error {
 	// each type of request should have a required event even error
 	// maybe should be global?
 	eventToErrorMap := map[fsm.State]fsm.Event{

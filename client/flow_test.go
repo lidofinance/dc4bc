@@ -25,9 +25,9 @@ import (
 )
 
 type node struct {
-	client     Poller
+	client     Client
 	keyPair    *KeyPair
-	air        *airgapped.AirgappedMachine
+	air        *airgapped.Machine
 	listenAddr string
 }
 
@@ -166,7 +166,6 @@ func TestFullFlow(t *testing.T) {
 		}
 
 		stg, err := storage.NewFileStorage(storagePath)
-		//stg, err := storage.NewKafkaStorage(context.Background(), "94.130.57.249:9092")
 		if err != nil {
 			t.Fatalf("node %d failed to init storage: %v\n", nodeID, err)
 		}
@@ -181,7 +180,7 @@ func TestFullFlow(t *testing.T) {
 			t.Fatalf("Failed to PutKeys: %v\n", err)
 		}
 
-		airgappedMachine, err := airgapped.NewAirgappedMachine(fmt.Sprintf("/tmp/dc4bc_node_%d_airgapped_db", nodeID))
+		airgappedMachine, err := airgapped.NewMachine(fmt.Sprintf("/tmp/dc4bc_node_%d_airgapped_db", nodeID))
 		if err != nil {
 			t.Fatalf("Failed to create airgapped machine: %v", err)
 		}
@@ -221,7 +220,7 @@ func TestFullFlow(t *testing.T) {
 		time.Sleep(1 * time.Second)
 		go nodes[nodeID].run(t)
 
-		go func(nodeID int, node Poller) {
+		go func(nodeID int, node Client) {
 			if err := node.Poll(); err != nil {
 				t.Fatalf("client %d poller failed: %v\n", nodeID, err)
 			}

@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"time"
+
+	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
 	"github.com/depools/dc4bc/fsm/fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -28,6 +29,8 @@ type ReconstructedSignature struct {
 	DKGRoundID  string
 }
 
+// Operation is the type for any Operation that might be required for
+// both DKG and signing process (e.g.,
 type Operation struct {
 	ID            string // UUID4
 	Type          OperationType
