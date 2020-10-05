@@ -17,8 +17,16 @@ import (
 type OperationType string
 
 const (
-	DKGCommits OperationType = "dkg_commits"
+	DKGCommits             OperationType = "dkg_commits"
+	SignatureReconstructed fsm.Event     = "signature_reconstructed"
 )
+
+type ReconstructedSignature struct {
+	Data        []byte
+	Signature   []byte
+	Participant string
+	DKGRoundID  string
+}
 
 type Operation struct {
 	ID            string // UUID4

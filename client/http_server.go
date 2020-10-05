@@ -9,10 +9,12 @@ import (
 	"github.com/depools/dc4bc/fsm/fsm"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/google/uuid"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
@@ -65,6 +67,9 @@ func (c *Client) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/sendMessage", c.sendMessageHandler)
 	mux.HandleFunc("/getOperations", c.getOperationsHandler)
 	mux.HandleFunc("/getOperationQRPath", c.getOperationQRPathHandler)
+
+	mux.HandleFunc("/getSignatures", c.getSignaturesHandler)
+	mux.HandleFunc("/getSignatureByDataHash", c.getSignatureByDataHashHandler)
 
 	mux.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
 	mux.HandleFunc("/handleProcessedOperationJSON", c.handleJSONOperationHandler)
@@ -132,6 +137,36 @@ func (c *Client) getOperationsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	successResponse(w, operations)
+}
+
+func (c *Client) getSignaturesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+
+	signatures, err := c.GetSignatures(r.URL.Query().Get("dkgID"))
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get signatures: %v", err))
+		return
+	}
+
+	successResponse(w, signatures)
+}
+
+func (c *Client) getSignatureByDataHashHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+
+	signature, err := c.GetSignatureByDataHash(r.URL.Query().Get("dkgID"), r.URL.Query().Get("hash"))
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get signature: %v", err))
+		return
+	}
+
+	successResponse(w, signature)
 }
 
 func (c *Client) getOperationQRPathHandler(w http.ResponseWriter, r *http.Request) {
@@ -233,9 +268,32 @@ func (c *Client) proposeSignDataHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	message, err := c.buildMessage(hex.EncodeToString(req["dkgID"]), sif.EventSigningStart, req["data"])
+	fsmInstance, err := c.getFSMInstance(hex.EncodeToString(req["dkgID"]))
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get FSM instance: %v", err))
+		return
+	}
+	participantID, err := fsmInstance.GetIDByAddr(c.GetUsername())
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get participantID: %v", err))
+		return
+	}
+
+	messageDataSign := requests.SigningProposalStartRequest{
+		ParticipantId: participantID,
+		SrcPayload:    req["data"],
+		CreatedAt:     time.Now(),
+	}
+	messageDataSignBz, err := json.Marshal(messageDataSign)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to marshal SigningProposalStartRequest: %v", err))
+		return
+	}
+
+	message, err := c.buildMessage(hex.EncodeToString(req["dkgID"]), sif.EventSigningStart, messageDataSignBz)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
+		return
 	}
 	if err = c.SendMessage(*message); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))

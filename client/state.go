@@ -1,7 +1,9 @@
 package client
 
 import (
+	"crypto/md5"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,9 +17,10 @@ import (
 )
 
 const (
-	offsetKey     = "offset"
-	operationsKey = "operations"
-	fsmStateKey   = "fsm_state"
+	offsetKey           = "offset"
+	operationsKey       = "operations"
+	fsmStateKey         = "fsm_state"
+	signaturesKeyPrefix = "signatures"
 )
 
 type State interface {
@@ -31,6 +34,10 @@ type State interface {
 	DeleteOperation(operationID string) error
 	GetOperations() (map[string]*types.Operation, error)
 	GetOperationByID(operationID string) (*types.Operation, error)
+
+	SaveSignature(signature types.ReconstructedSignature) error
+	GetSignatureByDataHash(dkgID, signatureID string) ([]types.ReconstructedSignature, error)
+	GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error)
 }
 
 type LevelDBState struct {
@@ -250,4 +257,80 @@ func (s *LevelDBState) getOperations() (map[string]*types.Operation, error) {
 	}
 
 	return operations, nil
+}
+
+func makeSignatureKey(dkgID string) []byte {
+	return []byte(fmt.Sprintf("%s_%s", signaturesKeyPrefix, dkgID))
+}
+
+func (s *LevelDBState) getSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
+	bz, err := s.stateDb.Get(makeSignatureKey(dkgID), nil)
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get signatures for dkgID %s: %w", dkgID, err)
+	}
+
+	var signatures map[string][]types.ReconstructedSignature
+	if err := json.Unmarshal(bz, &signatures); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal Operations: %w", err)
+	}
+
+	return signatures, nil
+}
+
+func (s *LevelDBState) GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
+	s.Lock()
+	defer s.Unlock()
+
+	return s.getSignatures(dkgID)
+}
+
+func (s *LevelDBState) GetSignatureByDataHash(dkgID, signatureID string) ([]types.ReconstructedSignature, error) {
+	s.Lock()
+	defer s.Unlock()
+
+	signatures, err := s.getSignatures(dkgID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to getSignatures: %w", err)
+	}
+
+	signature, ok := signatures[signatureID]
+	if !ok {
+		return nil, errors.New("signature not found")
+	}
+
+	return signature, nil
+}
+
+func (s *LevelDBState) SaveSignature(signature types.ReconstructedSignature) error {
+	s.Lock()
+	defer s.Unlock()
+
+	signatures, err := s.getSignatures(signature.DKGRoundID)
+	if err != nil {
+		return fmt.Errorf("failed to getSignatures: %w", err)
+	}
+	if signatures == nil {
+		signatures = make(map[string][]types.ReconstructedSignature)
+	}
+
+	dataHash := md5.Sum(signature.Data)
+	dataHashString := hex.EncodeToString(dataHash[:])
+
+	sig := signatures[dataHashString]
+	sig = append(sig, signature)
+	signatures[dataHashString] = sig
+
+	signaturesJSON, err := json.Marshal(signatures)
+	if err != nil {
+		return fmt.Errorf("failed to marshal signatures: %w", err)
+	}
+
+	if err := s.stateDb.Put(makeSignatureKey(signature.DKGRoundID), signaturesJSON, nil); err != nil {
+		return fmt.Errorf("failed to save signatures: %w", err)
+	}
+
+	return nil
 }

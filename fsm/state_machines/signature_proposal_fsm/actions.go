@@ -51,6 +51,7 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 		}
 
 		m.payload.SetPubKeyAddr(participant.Addr, participant.PubKey)
+		m.payload.SetIDAddr(participant.Addr, index)
 	}
 
 	// Checking fo quorum length
