@@ -4,6 +4,7 @@ import (
 	"fmt"
 )
 
+// logger is a glorious logger implementation.
 type logger struct {
 	userName string
 }

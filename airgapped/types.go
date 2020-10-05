@@ -16,7 +16,7 @@ func makeBLSKeyKeyringDBKey(key string) string {
 	return fmt.Sprintf("%s_%s", blsKeyringPrefix, key)
 }
 
-func (am *AirgappedMachine) saveBLSKeyring(dkgID string, blsKeyring *dkg.BLSKeyring) error {
+func (am *Machine) saveBLSKeyring(dkgID string, blsKeyring *dkg.BLSKeyring) error {
 	salt, err := am.db.Get([]byte(saltDBKey), nil)
 	if err != nil {
 		return fmt.Errorf("failed to read salt from db: %w", err)
@@ -37,7 +37,7 @@ func (am *AirgappedMachine) saveBLSKeyring(dkgID string, blsKeyring *dkg.BLSKeyr
 	return nil
 }
 
-func (am *AirgappedMachine) loadBLSKeyring(dkgID string) (*dkg.BLSKeyring, error) {
+func (am *Machine) loadBLSKeyring(dkgID string) (*dkg.BLSKeyring, error) {
 	var (
 		blsKeyring   *dkg.BLSKeyring
 		blsKeyringBz []byte
@@ -64,7 +64,7 @@ func (am *AirgappedMachine) loadBLSKeyring(dkgID string) (*dkg.BLSKeyring, error
 	return blsKeyring, nil
 }
 
-func (am *AirgappedMachine) GetBLSKeyrings() (map[string]*dkg.BLSKeyring, error) {
+func (am *Machine) GetBLSKeyrings() (map[string]*dkg.BLSKeyring, error) {
 	var (
 		blsKeyring *dkg.BLSKeyring
 		err        error

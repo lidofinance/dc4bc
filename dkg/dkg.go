@@ -15,14 +15,16 @@ import (
 	"lukechampine.com/frand"
 )
 
-// TODO: dump necessary data on disk
+// DKG is the type that maintains all active DKG instances and
+// data.
 type DKG struct {
 	sync.Mutex
-	instance      *dkg.DistKeyGenerator
-	deals         map[string]*dkg.Deal
-	commits       map[string][]kyber.Point
-	responses     *messageStore
-	pubkeys       PKStore
+	instance  *dkg.DistKeyGenerator
+	deals     map[string]*dkg.Deal
+	commits   map[string][]kyber.Point
+	responses *messageStore
+	pubKeys   PKStore
+
 	pubKey        kyber.Point
 	secKey        kyber.Scalar
 	suite         vss.Suite
@@ -76,7 +78,7 @@ func (d *DKG) GetSecKey() kyber.Scalar {
 }
 
 func (d *DKG) GetPubKeyByParticipant(participant string) (kyber.Point, error) {
-	pk, err := d.pubkeys.GetPKByParticipant(participant)
+	pk, err := d.pubKeys.GetPKByParticipant(participant)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pk for participant %s: %w", participant, err)
 	}
@@ -84,18 +86,18 @@ func (d *DKG) GetPubKeyByParticipant(participant string) (kyber.Point, error) {
 }
 
 func (d *DKG) GetParticipantByIndex(index int) string {
-	return d.pubkeys.GetParticipantByIndex(index)
+	return d.pubKeys.GetParticipantByIndex(index)
 }
 
 func (d *DKG) GetPKByIndex(index int) kyber.Point {
-	return d.pubkeys.GetPKByIndex(index)
+	return d.pubKeys.GetPKByIndex(index)
 }
 
 func (d *DKG) StorePubKey(participant string, pid int, pk kyber.Point) bool {
 	d.Lock()
 	defer d.Unlock()
 
-	return d.pubkeys.Add(&PK2Participant{
+	return d.pubKeys.Add(&PK2Participant{
 		Participant:   participant,
 		PK:            pk,
 		ParticipantID: pid,
@@ -103,7 +105,7 @@ func (d *DKG) StorePubKey(participant string, pid int, pk kyber.Point) bool {
 }
 
 func (d *DKG) calcParticipantID() int {
-	for idx, p := range d.pubkeys {
+	for idx, p := range d.pubKeys {
 		if p.PK.Equal(d.pubKey) {
 			return idx
 		}
@@ -112,9 +114,9 @@ func (d *DKG) calcParticipantID() int {
 }
 
 func (d *DKG) InitDKGInstance(seed []byte) (err error) {
-	sort.Sort(d.pubkeys)
+	sort.Sort(d.pubKeys)
 
-	publicKeys := d.pubkeys.GetPKs()
+	publicKeys := d.pubKeys.GetPKs()
 
 	participantsCount := len(publicKeys)
 
@@ -228,7 +230,7 @@ func (d *DKG) processDealCommits(verifier *vss.Verifier, deal *dkg.Deal) (bool, 
 		return false, err
 	}
 
-	participant := d.pubkeys.GetParticipantByIndex(int(deal.Index))
+	participant := d.pubKeys.GetParticipantByIndex(int(deal.Index))
 
 	commitsData, ok := d.commits[participant]
 

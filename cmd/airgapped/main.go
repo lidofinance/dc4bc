@@ -31,11 +31,11 @@ type terminalCommand struct {
 // terminal a basic implementation of a prompt
 type terminal struct {
 	reader    *bufio.Reader
-	airgapped *airgapped.AirgappedMachine
+	airgapped *airgapped.Machine
 	commands  map[string]*terminalCommand
 }
 
-func NewTerminal(machine *airgapped.AirgappedMachine) *terminal {
+func NewTerminal(machine *airgapped.Machine) *terminal {
 	t := terminal{bufio.NewReader(os.Stdin), machine, make(map[string]*terminalCommand)}
 	t.addCommand("read_qr", &terminalCommand{
 		commandHandler: t.readQRCommand,
@@ -273,7 +273,7 @@ func main() {
 		log.Fatalf("invalid password expiration syntax: %v", err)
 	}
 
-	air, err := airgapped.NewAirgappedMachine(dbPath)
+	air, err := airgapped.NewMachine(dbPath)
 	if err != nil {
 		log.Fatalf("failed to init airgapped machine %v", err)
 	}

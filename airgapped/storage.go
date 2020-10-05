@@ -23,7 +23,7 @@ const (
 
 type RoundOperationLog map[string][]client.Operation
 
-func (am *AirgappedMachine) loadBaseSeed() error {
+func (am *Machine) loadBaseSeed() error {
 	seed, err := am.getBaseSeed()
 	if errors.Is(err, leveldb.ErrNotFound) {
 		log.Println("Base seed not initialized, generating a new one...")
@@ -48,7 +48,7 @@ func (am *AirgappedMachine) loadBaseSeed() error {
 	return nil
 }
 
-func (am *AirgappedMachine) storeBaseSeed(seed []byte) error {
+func (am *Machine) storeBaseSeed(seed []byte) error {
 	if err := am.db.Put([]byte(baseSeedKey), seed, nil); err != nil {
 		return fmt.Errorf("failed to put baseSeed: %w", err)
 	}
@@ -56,7 +56,7 @@ func (am *AirgappedMachine) storeBaseSeed(seed []byte) error {
 	return nil
 }
 
-func (am *AirgappedMachine) getBaseSeed() ([]byte, error) {
+func (am *Machine) getBaseSeed() ([]byte, error) {
 	seed, err := am.db.Get([]byte(baseSeedKey), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get baseSeed: %w", err)
@@ -65,7 +65,7 @@ func (am *AirgappedMachine) getBaseSeed() ([]byte, error) {
 	return seed, nil
 }
 
-func (am *AirgappedMachine) storeOperation(o client.Operation) error {
+func (am *Machine) storeOperation(o client.Operation) error {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -90,7 +90,7 @@ func (am *AirgappedMachine) storeOperation(o client.Operation) error {
 	return nil
 }
 
-func (am *AirgappedMachine) getOperationsLog(dkgIdentifier string) ([]client.Operation, error) {
+func (am *Machine) getOperationsLog(dkgIdentifier string) ([]client.Operation, error) {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -107,7 +107,7 @@ func (am *AirgappedMachine) getOperationsLog(dkgIdentifier string) ([]client.Ope
 	return operationsLog, nil
 }
 
-func (am *AirgappedMachine) dropRoundOperationLog(dkgIdentifier string) error {
+func (am *Machine) dropRoundOperationLog(dkgIdentifier string) error {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -129,7 +129,7 @@ func (am *AirgappedMachine) dropRoundOperationLog(dkgIdentifier string) error {
 	return nil
 }
 
-func (am *AirgappedMachine) getRoundOperationLog() (RoundOperationLog, error) {
+func (am *Machine) getRoundOperationLog() (RoundOperationLog, error) {
 	operationsLogBz, err := am.db.Get([]byte(operationsLogDBKey), nil)
 	if err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func (am *AirgappedMachine) getRoundOperationLog() (RoundOperationLog, error) {
 }
 
 // LoadKeysFromDB load DKG keys from LevelDB
-func (am *AirgappedMachine) LoadKeysFromDB() error {
+func (am *Machine) LoadKeysFromDB() error {
 	pubKeyBz, err := am.db.Get([]byte(pubKeyDBKey), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -192,7 +192,7 @@ func (am *AirgappedMachine) LoadKeysFromDB() error {
 }
 
 // SaveKeysToDB save DKG keys to LevelDB
-func (am *AirgappedMachine) SaveKeysToDB() error {
+func (am *Machine) SaveKeysToDB() error {
 	pubKeyBz, err := am.pubKey.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal pub key: %w", err)

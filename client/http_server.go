@@ -5,14 +5,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"net/http"
+
 	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/fsm"
 	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/google/uuid"
-	"io/ioutil"
-	"log"
-	"net/http"
 
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
@@ -56,7 +57,7 @@ func successResponse(w http.ResponseWriter, response interface{}) {
 	}
 }
 
-func (c *Client) StartHTTPServer(listenAddr string) error {
+func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/getUsername", c.getUsernameHandler)
@@ -77,7 +78,7 @@ func (c *Client) StartHTTPServer(listenAddr string) error {
 	return http.ListenAndServe(listenAddr, mux)
 }
 
-func (c *Client) getUsernameHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) getUsernameHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -85,7 +86,7 @@ func (c *Client) getUsernameHandler(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, c.GetUsername())
 }
 
-func (c *Client) getPubkeyHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) getPubkeyHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -93,7 +94,7 @@ func (c *Client) getPubkeyHandler(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, c.GetPubKey())
 }
 
-func (c *Client) sendMessageHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -119,7 +120,7 @@ func (c *Client) sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, "ok")
 }
 
-func (c *Client) getOperationsHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) getOperationsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -134,7 +135,7 @@ func (c *Client) getOperationsHandler(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, operations)
 }
 
-func (c *Client) getOperationQRPathHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) getOperationQRPathHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -150,7 +151,7 @@ func (c *Client) getOperationQRPathHandler(w http.ResponseWriter, r *http.Reques
 	successResponse(w, qrPaths)
 }
 
-func (c *Client) getOperationHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) getOperationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -166,7 +167,7 @@ func (c *Client) getOperationHandler(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, operation)
 }
 
-func (c *Client) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -190,7 +191,7 @@ func (c *Client) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Requ
 	rawResponse(w, encodedData)
 }
 
-func (c *Client) startDKGHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) startDKGHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -215,7 +216,7 @@ func (c *Client) startDKGHandler(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, "ok")
 }
 
-func (c *Client) proposeSignDataHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) proposeSignDataHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -244,7 +245,7 @@ func (c *Client) proposeSignDataHandler(w http.ResponseWriter, r *http.Request) 
 	successResponse(w, "ok")
 }
 
-func (c *Client) handleJSONOperationHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) handleJSONOperationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -270,7 +271,7 @@ func (c *Client) handleJSONOperationHandler(w http.ResponseWriter, r *http.Reque
 	successResponse(w, "ok")
 }
 
-func (c *Client) buildMessage(dkgRoundID string, event fsm.Event, data []byte) (*storage.Message, error) {
+func (c *BaseClient) buildMessage(dkgRoundID string, event fsm.Event, data []byte) (*storage.Message, error) {
 	message := storage.Message{
 		ID:         uuid.New().String(),
 		DkgRoundID: dkgRoundID,
