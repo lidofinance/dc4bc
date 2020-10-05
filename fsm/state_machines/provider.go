@@ -107,11 +107,7 @@ func (i *FSMInstance) GetIDByAddr(addr string) (int, error) {
 		return -1, errors.New("dump not initialized")
 	}
 
-	id := i.dump.Payload.GetIDByAddr(addr)
-	if id < 0 {
-		return -1, errors.New("participant with addr not found")
-	}
-	return id, nil
+	return i.dump.Payload.GetIDByAddr(addr)
 }
 
 func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, err error) {
