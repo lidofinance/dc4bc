@@ -32,6 +32,16 @@ type OperationsResponse struct {
 	Result       map[string]*types.Operation `json:"result"`
 }
 
+type SignaturesResponse struct {
+	ErrorMessage string                                    `json:"error_message,omitempty"`
+	Result       map[string][]types.ReconstructedSignature `json:"result"`
+}
+
+type SignatureResponse struct {
+	ErrorMessage string                         `json:"error_message,omitempty"`
+	Result       []types.ReconstructedSignature `json:"result"`
+}
+
 type OperationResponse struct {
 	ErrorMessage string `json:"error_message,omitempty"`
 	Result       []byte `json:"result"`

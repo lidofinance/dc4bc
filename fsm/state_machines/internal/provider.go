@@ -21,6 +21,7 @@ type DumpedMachineStatePayload struct {
 	DKGProposalPayload       *DKGConfirmation
 	SigningProposalPayload   *SigningConfirmation
 	PubKeys                  map[string]ed25519.PublicKey
+	IDs                      map[string]int
 }
 
 // Signature quorum
@@ -123,6 +124,13 @@ func (p *DumpedMachineStatePayload) SetPubKeyAddr(addr string, pubKey ed25519.Pu
 	p.PubKeys[addr] = pubKey
 }
 
+func (p *DumpedMachineStatePayload) SetIDAddr(addr string, id int) {
+	if p.IDs == nil {
+		p.IDs = make(map[string]int)
+	}
+	p.IDs[addr] = id
+}
+
 func (p *DumpedMachineStatePayload) GetPubKeyByAddr(addr string) (ed25519.PublicKey, error) {
 	if p.PubKeys == nil {
 		return nil, errors.New("{PubKeys} not initialized")
@@ -136,4 +144,18 @@ func (p *DumpedMachineStatePayload) GetPubKeyByAddr(addr string) (ed25519.Public
 	}
 
 	return pubKey, nil
+}
+
+func (p *DumpedMachineStatePayload) GetIDByAddr(addr string) (int, error) {
+	if p.IDs == nil {
+		return -1, errors.New("{IDs} not initialized")
+	}
+	if addr == "" {
+		return -1, errors.New("{addr} cannot be empty")
+	}
+	id, ok := p.IDs[addr]
+	if !ok {
+		return -1, errors.New("cannot find id by {addr}")
+	}
+	return id, nil
 }

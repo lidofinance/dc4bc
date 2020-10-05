@@ -18,8 +18,16 @@ import (
 type OperationType string
 
 const (
-	DKGCommits OperationType = "dkg_commits"
+	DKGCommits             OperationType = "dkg_commits"
+	SignatureReconstructed fsm.Event     = "signature_reconstructed"
 )
+
+type ReconstructedSignature struct {
+	Data        []byte
+	Signature   []byte
+	Participant string
+	DKGRoundID  string
+}
 
 // Operation is the type for any Operation that might be required for
 // both DKG and signing process (e.g.,

@@ -117,7 +117,7 @@ func (n *node) run(t *testing.T) {
 				if err = pubKey.UnmarshalBinary(pubKeyReq.MasterKey); err != nil {
 					t.Fatalf("failed to unmarshal pubkey: %v", err)
 				}
-				if err = ioutil.WriteFile(fmt.Sprintf("/tmp/dc4bc_participant_%d.pubkey",
+				if err = ioutil.WriteFile(fmt.Sprintf("/tmp/participant_%d.pubkey",
 					pubKeyReq.ParticipantId), []byte(pubKey.String()), 0666); err != nil {
 					t.Fatalf("failed to write pubkey to temp file: %v", err)
 				}
@@ -196,7 +196,7 @@ func TestFullFlow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("node %d failed to init client: %v\n", nodeID, err)
 		}
-		airgappedMachine.SetEncryptionKey(clt.GetPubKey()) //just for testing
+		airgappedMachine.SetEncryptionKey([]byte("very_strong_password")) //just for testing
 		if err = airgappedMachine.InitKeys(); err != nil {
 			t.Errorf(err.Error())
 		}
@@ -261,17 +261,7 @@ func TestFullFlow(t *testing.T) {
 	log.Println("Propose message to sign")
 
 	dkgRoundID := md5.Sum(messageDataBz)
-	messageDataSign := requests.SigningProposalStartRequest{
-		ParticipantId: len(nodes) - 1,
-		SrcPayload:    []byte("message to sign"),
-		CreatedAt:     time.Now(),
-	}
-	messageDataSignBz, err := json.Marshal(messageDataSign)
-	if err != nil {
-		t.Fatalf("failed to marshal SigningProposalStartRequest: %v\n", err)
-	}
-
-	messageDataBz, err = json.Marshal(map[string][]byte{"data": messageDataSignBz,
+	messageDataBz, err = json.Marshal(map[string][]byte{"data": []byte("message to sign"),
 		"dkgID": dkgRoundID[:]})
 	if err != nil {
 		t.Fatalf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)

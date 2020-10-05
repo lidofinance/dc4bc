@@ -70,6 +70,8 @@ func (n *Node) storeOperation(t *testing.T, msg storage.Message) {
 			t.Fatalf("failed to unmarshal fsm req: %v", err)
 		}
 		n.partialSigns = append(n.partialSigns, req)
+	case client.SignatureReconstructed:
+		return
 	default:
 		t.Fatalf("invalid event: %s", msg.Event)
 	}

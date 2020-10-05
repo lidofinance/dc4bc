@@ -1,7 +1,6 @@
 package airgapped
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 
@@ -107,7 +106,18 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 	if err != nil {
 		return fmt.Errorf("failed to reconsruct full signature for msg: %w", err)
 	}
-	fmt.Println(base64.StdEncoding.EncodeToString(reconstructedSignature))
+
+	response := client.ReconstructedSignature{
+		Data:       payload.SrcPayload,
+		Signature:  reconstructedSignature,
+		DKGRoundID: o.DKGIdentifier,
+	}
+	respBz, err := json.Marshal(response)
+	if err != nil {
+		return fmt.Errorf("failed to generate reconstructed signature response: %w", err)
+	}
+	o.Event = client.SignatureReconstructed
+	o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, respBz))
 	return nil
 }
 

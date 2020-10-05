@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/depools/dc4bc/fsm/types/responses"
 	"log"
 	"path/filepath"
 	"sync"
@@ -135,7 +136,29 @@ func (c *BaseClient) SendMessage(message storage.Message) error {
 	return nil
 }
 
+// processSignature saves a broadcasted reconstructed signature to a LevelDB
+func (c *Client) processSignature(message storage.Message) error {
+	var (
+		signature types.ReconstructedSignature
+		err       error
+	)
+	if err = json.Unmarshal(message.Data, &signature); err != nil {
+		return fmt.Errorf("failed to unmarshal reconstructed signature: %w", err)
+	}
+	signature.Participant = message.SenderAddr
+	return c.state.SaveSignature(signature)
+}
+
 func (c *BaseClient) ProcessMessage(message storage.Message) error {
+	if fsm.Event(message.Event) == types.SignatureReconstructed {
+		if err := c.processSignature(message); err != nil {
+			return fmt.Errorf("failed to process signature: %w", err)
+		}
+		if err := c.state.SaveOffset(message.Offset + 1); err != nil {
+			return fmt.Errorf("failed to SaveOffset: %w", err)
+		}
+		return nil
+	}
 	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
 	if err != nil {
 		return fmt.Errorf("failed to getFSMInstance: %w", err)
@@ -199,6 +222,18 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 		sipf.StateSigningPartialSignsCollected,
 		sipf.StateSigningAwaitConfirmations:
 		if resp.Data != nil {
+
+			// if we are initiator of signing, then we don't need to confirm our participation
+			if data, ok := resp.Data.(responses.SigningProposalParticipantInvitationsResponse); ok {
+				initiator, err := fsmInstance.SigningQuorumGetParticipant(data.InitiatorId)
+				if err != nil {
+					return fmt.Errorf("failed to get SigningQuorumParticipant: %w", err)
+				}
+				if initiator.Addr == c.GetUsername() {
+					break
+				}
+			}
+
 			bz, err := json.Marshal(resp.Data)
 			if err != nil {
 				return fmt.Errorf("failed to marshal FSM response: %w", err)
@@ -214,6 +249,20 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 		}
 	default:
 		c.Logger.Log("State %s does not require an operation", resp.State)
+	}
+
+	// switch FSM state by hand due to implementation specifics
+	if resp.State == sipf.StateSigningPartialSignsCollected {
+		fsmInstance, err = state_machines.FromDump(fsmDump)
+		if err != nil {
+			return fmt.Errorf("failed get state_machines from dump: %w", err)
+		}
+		resp, fsmDump, err = fsmInstance.Do(sipf.EventSigningRestart, requests.DefaultRequest{
+			CreatedAt: time.Now(),
+		})
+		if err != nil {
+			return fmt.Errorf("failed to Do operation in FSM: %w", err)
+		}
 	}
 
 	if operation != nil {
@@ -235,6 +284,17 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 
 func (c *BaseClient) GetOperations() (map[string]*types.Operation, error) {
 	return c.state.GetOperations()
+}
+
+//GetSignatures returns all signatures for the given DKG round that were reconstructed on the airgapped machine and
+// broadcasted by users
+func (c *Client) GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
+	return c.state.GetSignatures(dkgID)
+}
+
+//GetSignatureByDataHash returns a list of reconstructed signatures of the signed data broadcasted by users
+func (c *Client) GetSignatureByDataHash(dkgID, sigID string) ([]types.ReconstructedSignature, error) {
+	return c.state.GetSignatureByDataHash(dkgID, sigID)
 }
 
 // getOperationJSON returns a specific JSON-encoded operation

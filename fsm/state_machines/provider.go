@@ -94,6 +94,22 @@ func (i *FSMInstance) GetPubKeyByAddr(addr string) (ed25519.PublicKey, error) {
 	return i.dump.Payload.GetPubKeyByAddr(addr)
 }
 
+func (i *FSMInstance) SigningQuorumGetParticipant(id int) (*internal.SigningProposalParticipant, error) {
+	if i.dump == nil {
+		return nil, errors.New("dump not initialized")
+	}
+
+	return i.dump.Payload.SigningQuorumGet(id), nil
+}
+
+func (i *FSMInstance) GetIDByAddr(addr string) (int, error) {
+	if i.dump == nil {
+		return -1, errors.New("dump not initialized")
+	}
+
+	return i.dump.Payload.GetIDByAddr(addr)
+}
+
 func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, err error) {
 	var dumpErr error
 
