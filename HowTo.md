@@ -148,14 +148,12 @@ The command returns a hash of the proposing message. If it is not equal to the h
 Copy the Operation ID and make the node produce a QR-code for it:
 ```
 $ ./dc4bc_cli get_operation_qr 6d98f39d-1b24-49ce-8473-4f5d934ab2dc --listen_addr localhost:8080
-List of paths to QR codes for operation 6d98f39d-1b24-49ce-8473-4f5d934ab2dc:
-0) QR code: /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0
-1) QR code: /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-1
+QR code was saved to: /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0.gif
 ```
 
-A single operation might be split into several QR-codes. Open the first QR code in your default image viewer and take a photo of it:
+A single operation might be split into several QR-codes, which will be located in a single GIF file. Open the GIF-animation in any gif viewer and take a video of it:
 ```
-open /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0
+open /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0.gif
 ```
 
 Now go to `dc4bc_airgapped` prompt and enter:
@@ -164,25 +162,19 @@ Now go to `dc4bc_airgapped` prompt and enter:
 >>> read_qr
 ```
 
-A new window will be opened showing what your laptop's camera sees. Place the photo of the QR from the previous step in front of the camera and wait for the airgapped machine to scan it. You will have to scan all operation QR codes that were produced by the node.
+A new window will be opened showing what your laptop's camera sees. Place the animation of the QR-gif from the previous step in front of the camera and wait for the airgapped machine to scan it (progress can be seen in window's title).
 
-After you've scanned all QR codes, you will be shown the path to the QR code that contains the response of `dc4bc_airgapped`. Note that it may be split into several chunks:
+After you've scanned all QR codes, you will be shown the path to the QR code that contains the response of `dc4bc_airgapped`. Note that it may be split into several chunks like on the client:
 ```
 An operation in the readed QR code handled successfully, a result operation saved by chunks in following qr codes:
-Operation's chunk #0: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-0.png
-Operation's chunk #1: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-1.png
-Operation's chunk #2: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-2.png
-Operation's chunk #3: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-3.png
-Operation's chunk #4: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-4.png
-Operation's chunk #5: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-5.png
-Operation's chunk #6: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-6.png
+Operation's chunk: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-0.gif
 ```
-Open the first response QR code in your default image viewer and take a photo of it. Then go to the node and run:
+Open the response QR-gif in any gif viewer and take a video of it. Then go to the node and run:
 ```
 $ ./dc4bc_cli read_from_camera  --listen_addr localhost:8080
 ```
 
-The procedure is the same as with `dc4bc_airgapped`: scan all QR codes until you see a success message:
+The procedure is the same as with `dc4bc_airgapped`: scan QR-gif until you see a success message:
 ```
 Operation successfully scanned
 ```
@@ -216,8 +208,25 @@ $ ./dc4bc_cli sign_data AABB10CABB10 dGhlIG1lc3NhZ2UgdG8gc2lnbgo= --listen_addr 
 ```  
 Further actions are repetitive and are similar to the DKG procedure. Check for new pending operations, feed them to `dc4bc_airgapped`, pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that the signature is ready:
 ```
-[john_doe] Handling operation state_signing_partial_signs_collected in airgapped
-[176 141 250 6 188 93 29 163 218 11 179 113 24 74 95 62 89 163 219 249 135 53 26 212 55 134 143 107 117 216 112 85 163 6 117 153 161 171 235 145 198 253 60 53 22 3 36 84]
+[john_doe] Handling message with offset 40, type signature_reconstructed
+Successfully processed message with offset 40, type signature_reconstructed
 ```
 
 Now you have the full reconstructed signature. 
+```
+./dc4bc_cli get_signatures AABB10CABB10
+Hash of the signing data: b8fbfd0b1ed86412dd15637967788909
+	DKG round ID: AABB10CABB10
+	Participant: john_doe
+	Reconstructed signature for the data: tK+3CV2CI0flgwWLuhrZA5eaFfuJIvpLAc6CbAy5XBuRpzuCkjOZLCU6z1SvlwQIBJp5dAVa2rtbSy1jl98YtidujVWeUDNUz+kRl2C1C1BeLG5JvzQxhgr2dDxq0thu
+```
+It'll show you a list of broadcasted reconstructed signatures for a given DKG round.
+
+You can verify any signature by executing `verify_signature` command inside the airgapped prompt:
+```
+>>> verify_signature
+> Enter the DKGRoundIdentifier: AABB10CABB10
+> Enter the BLS signature: tK+3CV2CI0flgwWLuhrZA5eaFfuJIvpLAc6CbAy5XBuRpzuCkjOZLCU6z1SvlwQIBJp5dAVa2rtbSy1jl98YtidujVWeUDNUz+kRl2C1C1BeLG5JvzQxhgr2dDxq0thu
+> Enter the message which was signed (base64): dGhlIG1lc3NhZ2UgdG8gc2lnbgo=
+Signature is correct!
+```
