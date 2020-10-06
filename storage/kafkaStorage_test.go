@@ -17,7 +17,7 @@ func TestKafkaStorage_GetMessages(t *testing.T) {
 	var offset uint64 = 5
 
 	req := require.New(t)
-	stg, err := NewKafkaStorage(context.Background(), "localhost:9092", "test_topic")
+	stg, err := NewKafkaStorage(context.Background(), "localhost:9093", "test_topic", "producerpass", "consumerpass")
 	req.NoError(err)
 
 	msgs := make([]Message, 0, N)

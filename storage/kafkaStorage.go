@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/segmentio/kafka-go/sasl/plain"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -18,8 +19,21 @@ type KafkaStorage struct {
 	reader *kafka.Reader
 }
 
-func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string) (Storage, error) {
-	conn, err := kafka.DialLeader(ctx, "tcp", kafkaEndpoint, kafkaTopic, kafkaPartition)
+func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string, producerPass, consumerPass string) (Storage, error) {
+	mechanismProducer := plain.Mechanism{"producer", producerPass}
+	mechanismConsumer := plain.Mechanism{"consumer", consumerPass}
+
+	dialerProducer := &kafka.Dialer{
+		Timeout:       10 * time.Second,
+		DualStack:     true,
+		SASLMechanism: mechanismProducer,
+	}
+	dialerConsumer := &kafka.Dialer{
+		Timeout:       10 * time.Second,
+		DualStack:     true,
+		SASLMechanism: mechanismConsumer,
+	}
+	conn, err := dialerProducer.DialLeader(ctx, "tcp", kafkaEndpoint, kafkaTopic, kafkaPartition)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Kafka client: %w", err)
 	}
@@ -29,6 +43,7 @@ func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic strin
 		Topic:     kafkaTopic,
 		Partition: kafkaPartition,
 		MaxWait:   time.Second,
+		Dialer:    dialerConsumer,
 	})
 
 	return &KafkaStorage{
