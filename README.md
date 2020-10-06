@@ -56,7 +56,7 @@ The core communication/storage primitive for dc4bc is a bulletin board - a simpl
 This allows us to establish communication primitives:
 
 - broadcast(message) by Participant_i:
-    post(message, signature(message, PrivAuthKey_i))
+    post(message, signature(message, PrivHotKey_i))
 - private_message(message, Participant_j):
     encrypted_message = { "to" : Participant_j, "message": encrypt(message, PubColdKey_j)}
     broadcast(encrypted_message)
