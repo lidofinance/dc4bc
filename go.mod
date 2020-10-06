@@ -9,7 +9,6 @@ require (
 	github.com/google/go-cmp v0.2.0
 	github.com/google/uuid v1.1.1
 	github.com/juju/fslock v0.0.0-20160525022230-4d5c94c67b4b
-	github.com/looplab/fsm v0.1.0
 	github.com/makiuchi-d/gozxing v0.0.0-20190830103442-eaff64b1ceb7
 	github.com/segmentio/kafka-go v0.4.2
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
