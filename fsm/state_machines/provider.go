@@ -27,6 +27,11 @@ type FSMInstance struct {
 	dump    *FSMDump
 }
 
+type Participant interface {
+	GetStatus() internal.ParticipantStatus
+	GetAddr() string
+}
+
 // Create new fsm with unique id
 // transactionId required for unique identify dump
 func Create(dkgID string) (*FSMInstance, error) {
@@ -174,6 +179,10 @@ func (i *FSMInstance) Dump() ([]byte, error) {
 		return []byte{}, errors.New("dump is not initialized")
 	}
 	return i.dump.Marshal()
+}
+
+func (i *FSMInstance) FSMDump() *FSMDump {
+	return i.dump
 }
 
 // TODO: Add encryption

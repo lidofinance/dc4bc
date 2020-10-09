@@ -7,11 +7,13 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/depools/dc4bc/fsm/state_machines"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/depools/dc4bc/fsm/fsm"
@@ -56,6 +58,7 @@ func main() {
 		getHashOfStartDKGCommand(),
 		getSignaturesCommand(),
 		getSignatureCommand(),
+		getFSMStatusCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
@@ -514,6 +517,80 @@ func proposeSignMessageCommand() *cobra.Command {
 			if resp.ErrorMessage != "" {
 				return fmt.Errorf("failed to make HTTP request to propose message to sign: %v", resp.ErrorMessage)
 			}
+			return nil
+		},
+	}
+}
+
+func getFSMDumpRequest(host string, dkgID string) (*FSMDumpResponse, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/getFSMDump?dkgID=%s", host, dkgID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get FSM dump: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %w", err)
+	}
+
+	var response FSMDumpResponse
+	if err = json.Unmarshal(responseBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+	return &response, nil
+}
+
+func getFSMStatusCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show_fsm_status [dkg_id]",
+		Args:  cobra.ExactArgs(1),
+		Short: "shows the current status of FSM",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			fsmDumpResponse, err := getFSMDumpRequest(listenAddr, args[0])
+			if err != nil {
+				return fmt.Errorf("failed to get FSM dump: %w", err)
+			}
+			if fsmDumpResponse.ErrorMessage != "" {
+				return fmt.Errorf("failed to get FSM dump: %v", fsmDumpResponse.ErrorMessage)
+			}
+			dump := fsmDumpResponse.Result
+
+			fmt.Printf("FMS current status is %s\n", dump.State)
+
+			quorum := make(map[int]state_machines.Participant)
+			if strings.HasPrefix(string(dump.State), "state_signing") {
+				for k, v := range dump.Payload.SigningProposalPayload.Quorum {
+					quorum[k] = v
+				}
+			}
+			if strings.HasPrefix(string(dump.State), "state_dkg") {
+				for k, v := range dump.Payload.DKGProposalPayload.Quorum {
+					quorum[k] = v
+				}
+			}
+			if strings.HasPrefix(string(dump.State), "state_sig") {
+				for k, v := range dump.Payload.SignatureProposalPayload.Quorum {
+					quorum[k] = v
+				}
+			}
+
+			for _, p := range quorum {
+				if strings.Contains(p.GetStatus().String(), "Await") {
+					fmt.Printf("Waiting for a data from \"%s\"\n", p.GetAddr())
+				}
+				if strings.Contains(p.GetStatus().String(), "Error") {
+					fmt.Printf("\"%s\" got an error during the process\n", p.GetAddr())
+				}
+				if strings.Contains(p.GetStatus().String(), "Confirmed") {
+					fmt.Printf("\"%s\" sent a data to us\n n", p.GetAddr())
+				}
+			}
+
 			return nil
 		},
 	}

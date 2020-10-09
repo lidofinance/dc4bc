@@ -80,8 +80,23 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/startDKG", c.startDKGHandler)
 	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
 
+	mux.HandleFunc("/getFSMDump", c.getFSMDumpHandler)
+
 	c.Logger.Log("Starting HTTP server on address: %s", listenAddr)
 	return http.ListenAndServe(listenAddr, mux)
+}
+
+func (c *BaseClient) getFSMDumpHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	dump, err := c.GetFSMDump(r.URL.Query().Get("dkgID"))
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	successResponse(w, dump)
 }
 
 func (c *BaseClient) getUsernameHandler(w http.ResponseWriter, r *http.Request) {
