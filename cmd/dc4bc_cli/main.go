@@ -560,7 +560,7 @@ func getFSMStatusCommand() *cobra.Command {
 			}
 			dump := fsmDumpResponse.Result
 
-			fmt.Printf("FMS current status is %s\n", dump.State)
+			fmt.Printf("FSM current status is %s\n", dump.State)
 
 			quorum := make(map[int]state_machines.Participant)
 			if strings.HasPrefix(string(dump.State), "state_signing") {
@@ -587,7 +587,7 @@ func getFSMStatusCommand() *cobra.Command {
 					fmt.Printf("\"%s\" got an error during the process\n", p.GetAddr())
 				}
 				if strings.Contains(p.GetStatus().String(), "Confirmed") {
-					fmt.Printf("\"%s\" sent a data to us\n n", p.GetAddr())
+					fmt.Printf("\"%s\" sent a data to us\n", p.GetAddr())
 				}
 			}
 
