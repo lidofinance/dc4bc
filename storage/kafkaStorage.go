@@ -19,9 +19,14 @@ type KafkaStorage struct {
 	reader *kafka.Reader
 }
 
-func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string, producerPass, consumerPass string) (Storage, error) {
-	mechanismProducer := plain.Mechanism{"producer", producerPass}
-	mechanismConsumer := plain.Mechanism{"consumer", consumerPass}
+type KafkaAuthCredentials struct {
+	Username string
+	Password string
+}
+
+func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string, producerCreds, ConsumerCreds *KafkaAuthCredentials) (Storage, error) {
+	mechanismProducer := plain.Mechanism{producerCreds.Username, producerCreds.Password}
+	mechanismConsumer := plain.Mechanism{ConsumerCreds.Username, ConsumerCreds.Password}
 
 	dialerProducer := &kafka.Dialer{
 		Timeout:       10 * time.Second,
