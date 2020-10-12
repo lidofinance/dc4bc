@@ -29,9 +29,6 @@ Please refer to [this page](HowTo.md) for a complete guide for running the minim
 * `./storage` Two Bulletin Board implementations: File storage for local debugging and Kafka storage for real-world scenarios.
 
 # Related repositories
-
-* [kyber-bls12381](https://github.com/depools/kyber-bls12381) BLS threshold signature library based on kyber's BLS threshold signatures library
-* [bls12-381](https://github.com/depools/bls12-381) high speed BLS12-381 implementation in go, based on kyber's one
 * [kyber](https://github.com/corestario/kyber/) dkg library, fork of DEDIS' kyber library
 
 ## Moving parts
