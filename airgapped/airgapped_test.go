@@ -28,14 +28,15 @@ const (
 )
 
 type Node struct {
-	ParticipantID int
-	Participant   string
-	Machine       *Machine
-	commits       []requests.DKGProposalCommitConfirmationRequest
-	deals         []requests.DKGProposalDealConfirmationRequest
-	responses     []requests.DKGProposalResponseConfirmationRequest
-	masterKeys    []requests.DKGProposalMasterKeyConfirmationRequest
-	partialSigns  []requests.SigningProposalPartialSignRequest
+	ParticipantID           int
+	Participant             string
+	Machine                 *Machine
+	commits                 []requests.DKGProposalCommitConfirmationRequest
+	deals                   []requests.DKGProposalDealConfirmationRequest
+	responses               []requests.DKGProposalResponseConfirmationRequest
+	masterKeys              []requests.DKGProposalMasterKeyConfirmationRequest
+	partialSigns            []requests.SigningProposalPartialSignRequest
+	reconstructedSignatures []client.ReconstructedSignature
 }
 
 func (n *Node) storeOperation(t *testing.T, msg storage.Message) {
@@ -71,7 +72,11 @@ func (n *Node) storeOperation(t *testing.T, msg storage.Message) {
 		}
 		n.partialSigns = append(n.partialSigns, req)
 	case client.SignatureReconstructed:
-		return
+		var req client.ReconstructedSignature
+		if err := json.Unmarshal(msg.Data, &req); err != nil {
+			t.Fatalf("failed to unmarshal fsm req: %v", err)
+		}
+		n.reconstructedSignatures = append(n.reconstructedSignatures, req)
 	default:
 		t.Fatalf("invalid event: %s", msg.Event)
 	}
@@ -311,7 +316,19 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 	})
 
-	fmt.Println("DKG succeeded, signature recovered")
+	//verify signatures
+	for _, n := range tr.nodes {
+		for i := 0; i < len(n.reconstructedSignatures); i++ {
+			if !bytes.Equal(n.reconstructedSignatures[0].Signature, n.reconstructedSignatures[i].Signature) {
+				t.Fatalf("signatures are not equal!")
+			}
+			if err := n.Machine.VerifySign(msgToSign, n.reconstructedSignatures[i].Signature, DKGIdentifier); err != nil {
+				t.Fatal("signature is not verified!")
+			}
+		}
+	}
+
+	fmt.Println("DKG succeeded, signature recovered and verified")
 }
 
 func TestAirgappedMachine_Replay(t *testing.T) {
@@ -558,7 +575,19 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		}
 	})
 
-	fmt.Println("DKG succeeded, signature recovered")
+	//verify signatures
+	for _, n := range tr.nodes {
+		for i := 0; i < len(n.reconstructedSignatures); i++ {
+			if !bytes.Equal(n.reconstructedSignatures[0].Signature, n.reconstructedSignatures[i].Signature) {
+				t.Fatalf("signatures are not equal!")
+			}
+			if err := n.Machine.VerifySign(msgToSign, n.reconstructedSignatures[i].Signature, DKGIdentifier); err != nil {
+				t.Fatal("signature is not verified!")
+			}
+		}
+	}
+
+	fmt.Println("DKG succeeded, signature recovered and verified")
 }
 
 func runStep(transport *Transport, cb func(n *Node, wg *sync.WaitGroup)) {
