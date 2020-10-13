@@ -16,7 +16,7 @@ make test-short
 
 # How to run this code?
 
-Please refer to [this page](HowTo.md) for a complete guide for running the minimal application testnet.
+Please refer to [this page](HowTo.md) for a complete guide to running the minimal application testnet.
 
 # Repository description
 
