@@ -16,16 +16,13 @@ func TestKafkaStorage_GetMessages(t *testing.T) {
 	N := 10
 	var offset uint64 = 5
 
-	producerCreds := &KafkaAuthCredentials{
-		Username: "producer",
-		Password: "producerpass",
+	tlsConfig, err := GetTLSConfig("../kafka-docker/certs/client.p12", "../kafka-docker/certs/ca.pem", "test1234")
+	if err != nil {
+		t.Fatal(err.Error())
 	}
-	consumerCreds := &KafkaAuthCredentials{
-		Username: "consumer",
-		Password: "consumerpass",
-	}
+
 	req := require.New(t)
-	stg, err := NewKafkaStorage(context.Background(), "localhost:9093", "test", producerCreds, consumerCreds)
+	stg, err := NewKafkaStorage(context.Background(), "localhost:9093", "test", tlsConfig)
 	req.NoError(err)
 
 	msgs := make([]Message, 0, N)

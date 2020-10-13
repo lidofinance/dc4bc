@@ -17,16 +17,17 @@ import (
 )
 
 const (
-	flagUserName                 = "username"
-	flagListenAddr               = "listen_addr"
-	flagStateDBDSN               = "state_dbdsn"
-	flagStorageDBDSN             = "storage_dbdsn"
-	flagStorageTopic             = "storage_topic"
-	flagKafkaProducerCredentials = "producer_credentials"
-	flagKafkaConsumerCredentials = "consumer_credentials"
-	flagStoreDBDSN               = "key_store_dbdsn"
-	flagFramesDelay              = "frames_delay"
-	flagChunkSize                = "chunk_size"
+	flagUserName              = "username"
+	flagListenAddr            = "listen_addr"
+	flagStateDBDSN            = "state_dbdsn"
+	flagStorageDBDSN          = "storage_dbdsn"
+	flagStorageTopic          = "storage_topic"
+	flagKafkaKeyStorePath     = "kafka_keystore_path"
+	flagKafkaTrustStorePath   = "kafka_truststore_path"
+	flagKafkaKeyStorePassword = "kafka_keystore_password"
+	flagStoreDBDSN            = "key_store_dbdsn"
+	flagFramesDelay           = "frames_delay"
+	flagChunkSize             = "chunk_size"
 )
 
 func init() {
@@ -35,8 +36,9 @@ func init() {
 	rootCmd.PersistentFlags().String(flagStateDBDSN, "./dc4bc_client_state", "State DBDSN")
 	rootCmd.PersistentFlags().String(flagStorageDBDSN, "./dc4bc_file_storage", "Storage DBDSN")
 	rootCmd.PersistentFlags().String(flagStorageTopic, "messages", "Storage Topic (Kafka)")
-	rootCmd.PersistentFlags().String(flagKafkaProducerCredentials, "producer:producerpass", "Producer credentials for Kafka: username:password")
-	rootCmd.PersistentFlags().String(flagKafkaConsumerCredentials, "consumer:consumerpass", "Consumer credentials for Kafka: username:password")
+	rootCmd.PersistentFlags().String(flagKafkaKeyStorePath, "certs/client.p12", "Path to kafka keystore")
+	rootCmd.PersistentFlags().String(flagKafkaTrustStorePath, "certs/ca.pem", "Path to kafka truststore")
+	rootCmd.PersistentFlags().String(flagKafkaKeyStorePassword, "test1234", "Kafka keystore's password")
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
@@ -120,24 +122,6 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("failed to read configuration: %v", err)
 			}
 
-			producerCredentialsString, err := cmd.Flags().GetString(flagKafkaProducerCredentials)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
-			producerCreds, err := parseKafkaAuthCredentials(producerCredentialsString)
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-
-			consumerCredentialsString, err := cmd.Flags().GetString(flagKafkaConsumerCredentials)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
-			consumerCreds, err := parseKafkaAuthCredentials(consumerCredentialsString)
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-
 			keyStoreDBDSN, err := cmd.Flags().GetString(flagStoreDBDSN)
 			if err != nil {
 				log.Fatalf("failed to read configuration: %v", err)
@@ -151,7 +135,23 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("Failed to init state client: %v", err)
 			}
 
-			stg, err := storage.NewKafkaStorage(ctx, storageDBDSN, storageTopic, producerCreds, consumerCreds)
+			kafkaKeyStorePath, err := cmd.Flags().GetString(flagKafkaKeyStorePath)
+			if err != nil {
+				log.Fatalf("failed to read configuration: %v", err)
+			}
+			kafkaTrustStorePath, err := cmd.Flags().GetString(flagKafkaTrustStorePath)
+			if err != nil {
+				log.Fatalf("failed to read configuration: %v", err)
+			}
+			kafkaKeyStorePassword, err := cmd.Flags().GetString(flagKafkaKeyStorePassword)
+			if err != nil {
+				log.Fatalf("failed to read configuration: %v", err)
+			}
+			tlsConfig, err := storage.GetTLSConfig(kafkaKeyStorePath, kafkaTrustStorePath, kafkaKeyStorePassword)
+			if err != nil {
+				log.Fatalf("faile to create tls config: %v", err)
+			}
+			stg, err := storage.NewKafkaStorage(ctx, storageDBDSN, storageTopic, tlsConfig)
 			if err != nil {
 				log.Fatalf("Failed to init storage client: %v", err)
 			}

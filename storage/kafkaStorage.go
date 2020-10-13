@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"golang.org/x/crypto/pkcs12"
 	"io/ioutil"
-	"log"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -29,13 +28,16 @@ type KafkaAuthCredentials struct {
 	Password string
 }
 
-func tlsConfig() *tls.Config {
+func GetTLSConfig(keyStorePath, trustStorePath, password string) (*tls.Config, error) {
 
 	// Keystore
-	keys, _ := ioutil.ReadFile("../kafka-docker/certs/client.p12")
-	blocks, err := pkcs12.ToPEM(keys, "test1234")
+	keys, err := ioutil.ReadFile(keyStorePath)
 	if err != nil {
-		log.Fatal(err.Error())
+		return nil, fmt.Errorf("failed to read keyStorePath: %w", err)
+	}
+	blocks, err := pkcs12.ToPEM(keys, password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert PKCS12 key to PEM: %w", err)
 	}
 
 	var pemData []byte
@@ -46,12 +48,12 @@ func tlsConfig() *tls.Config {
 
 	cert, err := tls.X509KeyPair(pemData, pemData)
 	if err != nil {
-		log.Fatal(err.Error())
+		return nil, fmt.Errorf("failed to get X509KeyPair: %w", err)
 	}
 	//Truststore
-	caCert, err := ioutil.ReadFile("../kafka-docker/certs/ca.pem")
+	caCert, err := ioutil.ReadFile(trustStorePath)
 	if err != nil {
-		log.Fatal(err)
+		return nil, fmt.Errorf("failed to read trustStorePath: %w", err)
 	}
 
 	caCertPool := x509.NewCertPool()
@@ -61,20 +63,20 @@ func tlsConfig() *tls.Config {
 		Certificates: []tls.Certificate{cert},
 		RootCAs:      caCertPool,
 	}
-	return config
+	return config, nil
 }
 
-func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string, producerCreds, ConsumerCreds *KafkaAuthCredentials) (Storage, error) {
+func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string, tlsConfig *tls.Config) (Storage, error) {
 
 	dialerProducer := &kafka.Dialer{
 		Timeout:   10 * time.Second,
 		DualStack: true,
-		TLS:       tlsConfig(),
+		TLS:       tlsConfig,
 	}
 	dialerConsumer := &kafka.Dialer{
 		Timeout:   10 * time.Second,
 		DualStack: true,
-		TLS:       tlsConfig(),
+		TLS:       tlsConfig,
 	}
 	conn, err := dialerProducer.DialLeader(ctx, "tcp", kafkaEndpoint, kafkaTopic, kafkaPartition)
 	if err != nil {

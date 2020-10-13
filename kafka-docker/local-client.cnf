@@ -9,7 +9,7 @@ req_extensions = v3_req
 countryName = UK
 organizationName = Confluent
 localityName = London
-commonName=Kiril-Piskunov.local
+commonName=pr0n00gler.local
 
 [ v3_ca ]
 subjectKeyIdentifier=hash
@@ -26,4 +26,4 @@ extendedKeyUsage = clientAuth
 subjectAltName = @alt_names
 
 [ alt_names ]
-DNS.1=Kiril-Piskunov.local
+DNS.1=pr0n00gler.local
