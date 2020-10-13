@@ -2,9 +2,14 @@ package storage
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
-	"github.com/segmentio/kafka-go/sasl/plain"
+	"golang.org/x/crypto/pkcs12"
+	"io/ioutil"
+	"log"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -24,19 +29,52 @@ type KafkaAuthCredentials struct {
 	Password string
 }
 
+func tlsConfig() *tls.Config {
+
+	// Keystore
+	keys, _ := ioutil.ReadFile("../kafka-docker/certs/client.p12")
+	blocks, err := pkcs12.ToPEM(keys, "test1234")
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
+	var pemData []byte
+	for test, b := range blocks {
+		_ = test
+		pemData = append(pemData, pem.EncodeToMemory(b)...)
+	}
+
+	cert, err := tls.X509KeyPair(pemData, pemData)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+	//Truststore
+	caCert, err := ioutil.ReadFile("../kafka-docker/certs/ca.pem")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	caCertPool := x509.NewCertPool()
+	caCertPool.AppendCertsFromPEM(caCert)
+
+	config := &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		RootCAs:      caCertPool,
+	}
+	return config
+}
+
 func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string, producerCreds, ConsumerCreds *KafkaAuthCredentials) (Storage, error) {
-	mechanismProducer := plain.Mechanism{producerCreds.Username, producerCreds.Password}
-	mechanismConsumer := plain.Mechanism{ConsumerCreds.Username, ConsumerCreds.Password}
 
 	dialerProducer := &kafka.Dialer{
-		Timeout:       10 * time.Second,
-		DualStack:     true,
-		SASLMechanism: mechanismProducer,
+		Timeout:   10 * time.Second,
+		DualStack: true,
+		TLS:       tlsConfig(),
 	}
 	dialerConsumer := &kafka.Dialer{
-		Timeout:       10 * time.Second,
-		DualStack:     true,
-		SASLMechanism: mechanismConsumer,
+		Timeout:   10 * time.Second,
+		DualStack: true,
+		TLS:       tlsConfig(),
 	}
 	conn, err := dialerProducer.DialLeader(ctx, "tcp", kafkaEndpoint, kafkaTopic, kafkaPartition)
 	if err != nil {
