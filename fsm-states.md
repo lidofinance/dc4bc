@@ -12,10 +12,10 @@ That means it's time to start a new DKG round to create shared public key. We ca
 
 ## Visual representation of FSMs
 ### SignatureProposalFSM
-![SignatureProposalFSM](sigFSM.svg)
+![SignatureProposalFSM](images/sigFSM.png)
 
 ### DKGProposalFSM
-![DKGProposalFSM](dkgFSM.svg)
+![DKGProposalFSM](images/dkgFSM.png)
 
 ### SigningProposalFSM
-![SigningProposalFSM](signatureFSM.svg)
+![SigningProposalFSM](images/signingFSM.png)
