@@ -31,12 +31,12 @@ jobs:
         echo "Successfully installed gocv!"
     
     - name: Granting private modules access
-	    run: |
-	      git config --global url."https://${{ secrets.GO_MODULES_TOKEN }}:x-oauth-basic@github.com/corestario".insteadOf "https://github.com/corestario"
+      run: |
+        git config --global url."https://${{ secrets.GO_MODULES_TOKEN }}:x-oauth-basic@github.com/corestario".insteadOf "https://github.com/corestario"
 
     - name: Granting private modules access
-        run: |
-          git config --global url."https://${{ secrets.GO_MODULES_TOKEN }}:x-oauth-basic@github.com/depools".insteadOf "https://github.com/depools"	      
+      run: |
+        git config --global url."https://${{ secrets.GO_MODULES_TOKEN }}:x-oauth-basic@github.com/depools".insteadOf "https://github.com/depools"	      
 
     - name: Build
       run: make build-linux
