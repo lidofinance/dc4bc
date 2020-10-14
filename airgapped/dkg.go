@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	bls "github.com/depools/kyber-bls12381"
+	bls "github.com/corestario/kyber/pairing/bls12381"
 
 	"github.com/corestario/kyber"
 	dkgPedersen "github.com/corestario/kyber/share/dkg/pedersen"
