@@ -28,7 +28,11 @@ jobs:
         cd gocv
         make install
         cd ..
-        go get -v -t -d ./...
+        echo "Successfully installed gocv!"
+    
+    - name: Granting private modules access
+	    run: |
+	      git config --global url."https://${{ secrets.GO_MODULES_TOKEN }}:x-oauth-basic@github.com/corestario".insteadOf "https://github.com/corestario"
 
     - name: Build
       run: make build-linux
