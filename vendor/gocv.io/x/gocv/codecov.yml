@@ -1,3 +1,0 @@
-ignore:
-  - "*_string.go"
-  - "*/*_string.go"
