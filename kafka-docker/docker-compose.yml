@@ -25,9 +25,9 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-      KAFKA_LISTENER: INTERNAL://kafka.confluent.local:9092,OUTSIDE://localhost:9093
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka.confluent.local:9092,OUTSIDE://localhost:9093
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SASL_SSL,OUTSIDE:SASL_SSL
+      KAFKA_LISTENER: INTERNAL://kafka.confluent.local:9092,OUTSIDE://${HOST}:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka.confluent.local:9092,OUTSIDE://${HOST}:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SASL_PLAINTEXT,OUTSIDE:SASL_SSL
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
       KAFKA_LISTENER_NAME_INTERNAL_SASL_ENABLED_MECHANISMS: PLAIN
@@ -39,20 +39,21 @@ services:
       KAFKA_SSL_KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD}
       KAFKA_SSL_TRUSTSTORE_LOCATION: /var/lib/secret/truststore.jks
       KAFKA_SSL_TRUSTSTORE_PASSWORD: ${KEYSTORE_PASSWORD}
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "false"
 
       KAFKA_LISTENER_NAME_INTERNAL_PLAIN_SASL_JAAS_CONFIG:    org.apache.kafka.common.security.plain.PlainLoginModule required \
-        username="admin" \
-        password="admin-secret" \
-        user_admin="admin-secret" ;
+        username="${ADMIN_USERNAME}" \
+        password="${ADMIN_PASSWORD}" \
+        user_admin="${ADMIN_PASSWORD}" ;
       KAFKA_LISTENER_NAME_OUTSIDE_PLAIN_SASL_JAAS_CONFIG:   org.apache.kafka.common.security.plain.PlainLoginModule required \
-        username="admin" \
-        password="admin-secret" \
-        user_admin="admin-secret" \
-        user_producer="producerpass" \
-        user_consumer="consumerpass" ;
+        username="${ADMIN_USERNAME}" \
+        password="${ADMIN_PASSWORD}" \
+        user_admin="${ADMIN_PASSWORD}" \
+        user_producer="${PRODUCER_PASSWORD}" \
+        user_consumer="${CONSUMER_PASSWORD}" ;
       KAFKA_SASL_JAAS_CONFIG:                               org.apache.kafka.common.security.plain.PlainLoginModule required \
-        username="admin" \
-        password="admin-secret" ;
+        username="${ADMIN_USERNAME}" \
+        password="${ADMIN_PASSWORD}" ;
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
       - ./certs/:/var/lib/secret
