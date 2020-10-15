@@ -27,9 +27,9 @@ services:
     networks:
       default:
         aliases:
-          - localhost
+          - kafka.confluent.local
     ports:
-      - "9093:9093"
+      - "9092:9092"
     environment:
       SCHEMA_REGISTRY_OPTS: '-Djavax.net.ssl.keyStore=/var/lib/secret/client.keystore.jks -Djavax.net.ssl.trustStore=/var/lib/secret/truststore.jks -Djavax.net.ssl.keyStorePassword=test1234 -Djavax.net.ssl.trustStorePassword=test1234'
 

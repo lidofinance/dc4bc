@@ -9,7 +9,7 @@ req_extensions = v3_req
 countryName = UK
 organizationName = Confluent
 localityName = London
-commonName=pr0n00gler.local
+commonName=MacBook-Pro-Mihail-2.local
 
 [ v3_ca ]
 subjectKeyIdentifier=hash
@@ -26,4 +26,4 @@ extendedKeyUsage = clientAuth
 subjectAltName = @alt_names
 
 [ alt_names ]
-DNS.1=pr0n00gler.local
+DNS.1=MacBook-Pro-Mihail-2.local

@@ -60,8 +60,9 @@ func GetTLSConfig(keyStorePath, trustStorePath, password string) (*tls.Config, e
 	caCertPool.AppendCertsFromPEM(caCert)
 
 	config := &tls.Config{
-		Certificates: []tls.Certificate{cert},
-		RootCAs:      caCertPool,
+		Certificates:       []tls.Certificate{cert},
+		RootCAs:            caCertPool,
+		InsecureSkipVerify: true,
 	}
 	return config, nil
 }

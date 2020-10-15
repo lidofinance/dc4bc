@@ -16,13 +16,13 @@ func TestKafkaStorage_GetMessages(t *testing.T) {
 	N := 10
 	var offset uint64 = 5
 
-	tlsConfig, err := GetTLSConfig("../kafka-docker/certs/client.p12", "../kafka-docker/certs/ca.pem", "test1234")
+	tlsConfig, err := GetTLSConfig("../kafka-docker/certs/local-client.p12", "../kafka-docker/certs/ca.pem", "test1234")
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 
 	req := require.New(t)
-	stg, err := NewKafkaStorage(context.Background(), "localhost:9093", "test", tlsConfig)
+	stg, err := NewKafkaStorage(context.Background(), "localhost:9092", "test", tlsConfig)
 	req.NoError(err)
 
 	msgs := make([]Message, 0, N)

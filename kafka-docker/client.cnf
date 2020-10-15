@@ -9,7 +9,7 @@ req_extensions = v3_req
 countryName = UK
 organizationName = Confluent
 localityName = London
-commonName=localhost
+commonName=kafka.confluent.local
 
 [ v3_ca ]
 subjectKeyIdentifier=hash
@@ -26,4 +26,4 @@ extendedKeyUsage = clientAuth
 subjectAltName = @alt_names
 
 [ alt_names ]
-DNS.1=localhost
+DNS.1=kafka.confluent.local

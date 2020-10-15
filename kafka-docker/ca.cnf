@@ -17,7 +17,7 @@ x509_extensions = v3_ca
 countryName = UK
 organizationName = Confluent
 localityName = London
-commonName = localhost
+commonName = kafka.confluent.local
 
 [ v3_ca ]
 subjectKeyIdentifier=hash
