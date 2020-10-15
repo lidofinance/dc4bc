@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"os"
 	"sync"
 	"testing"
@@ -328,6 +329,9 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 	}
 
+	//keys and signatures are equal, so let's test it on prysm compatibility
+	testKyberPrysm(t, tr.nodes[0].masterKeys[0].MasterKey, tr.nodes[0].reconstructedSignatures[0].Signature, msgToSign)
+
 	fmt.Println("DKG succeeded, signature recovered and verified")
 }
 
@@ -587,7 +591,24 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		}
 	}
 
+	//keys and signatures are equal, so let's test it on prysm compatibility
+	testKyberPrysm(t, tr.nodes[0].masterKeys[0].MasterKey, tr.nodes[0].reconstructedSignatures[0].Signature, msgToSign)
+
 	fmt.Println("DKG succeeded, signature recovered and verified")
+}
+
+func testKyberPrysm(t *testing.T, pubkey, signature, msg []byte) {
+	prysmSig, err := prysmBLS.SignatureFromBytes(signature)
+	if err != nil {
+		t.Fatalf("failed to get prysm sig from bytes: %v", err)
+	}
+	prysmPubKey, err := prysmBLS.PublicKeyFromBytes(pubkey)
+	if err != nil {
+		t.Fatalf("failed to get prysm pubkey from bytes: %v", err)
+	}
+	if !prysmSig.Verify(prysmPubKey, msg) {
+		t.Fatalf("failed to verify prysm signature")
+	}
 }
 
 func runStep(transport *Transport, cb func(n *Node, wg *sync.WaitGroup)) {
