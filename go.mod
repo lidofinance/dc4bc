@@ -8,7 +8,6 @@ require (
 	github.com/google/go-cmp v0.5.0
 	github.com/google/uuid v1.1.1
 	github.com/juju/fslock v0.0.0-20160525022230-4d5c94c67b4b
-	github.com/looplab/fsm v0.1.0
 	github.com/makiuchi-d/gozxing v0.0.0-20190830103442-eaff64b1ceb7
 	github.com/prysmaticlabs/prysm v1.0.0-alpha.29.0.20201014075528-022b6667e5d0
 	github.com/segmentio/kafka-go v0.4.2
