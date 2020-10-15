@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"reflect"
 	"syscall"
 
 	"github.com/depools/dc4bc/client"
@@ -48,7 +49,7 @@ type config struct {
 	StorageDBDSN  string `json:"storage_dbdsn"`
 	StorageTopic  string `json:"storage_topic"`
 	KeyStoreDBDSN string `json:"keystore_dbdsn"`
-	FPS           int    `json:"frames_delay"`
+	FramesDelay   int    `json:"frames_delay"`
 	ChunkSize     int    `json:"chunk_size"`
 }
 
@@ -62,6 +63,25 @@ func readConfig(path string) (config, error) {
 		return cfg, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 	return cfg, nil
+}
+
+func checkConfig(cfg *config) error {
+	v := reflect.ValueOf(cfg)
+	v = v.Elem()
+	t := reflect.TypeOf(*cfg)
+
+	for i := 0; i < v.NumField(); i++ {
+		if v.Field(i).IsZero() {
+			return fmt.Errorf("%s cannot be empty", t.Field(i).Tag.Get("json"))
+		}
+	}
+	if cfg.FramesDelay < 0 {
+		return fmt.Errorf("frames_delay cannot be less than zero")
+	}
+	if cfg.ChunkSize < 0 {
+		return fmt.Errorf("chunk_size cannot be less than zero")
+	}
+	return nil
 }
 
 func loadConfig(cmd *cobra.Command) (*config, error) {
@@ -95,7 +115,7 @@ func loadConfig(cmd *cobra.Command) (*config, error) {
 			return nil, fmt.Errorf("failed to read configuration: %v", err)
 		}
 
-		cfg.FPS, err = cmd.Flags().GetInt(flagFramesDelay)
+		cfg.FramesDelay, err = cmd.Flags().GetInt(flagFramesDelay)
 		if err != nil {
 			return nil, fmt.Errorf("failed to read configuration: %v", err)
 		}
@@ -115,6 +135,9 @@ func loadConfig(cmd *cobra.Command) (*config, error) {
 			return nil, fmt.Errorf("failed to read configuration: %v", err)
 		}
 	}
+	if err = checkConfig(&cfg); err != nil {
+		return nil, err
+	}
 	return &cfg, nil
 }
 
@@ -122,22 +145,21 @@ func genKeyPairCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "gen_keys",
 		Short: "generates a keypair to sign and verify messages",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := loadConfig(cmd)
 			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
+				log.Fatalf("failed to load config: %v", err)
 			}
 
 			keyPair := client.NewKeyPair()
 			keyStore, err := client.NewLevelDBKeyStore(cfg.Username, cfg.KeyStoreDBDSN)
 			if err != nil {
-				return fmt.Errorf("failed to init key store: %w", err)
+				log.Fatalf("failed to init key store: %v", err)
 			}
 			if err = keyStore.PutKeys(cfg.Username, keyPair); err != nil {
-				return fmt.Errorf("failed to save keypair: %w", err)
+				log.Fatalf("failed to save keypair: %v", err)
 			}
 			fmt.Printf("keypair generated for user %s and saved to %s\n", cfg.Username, cfg.KeyStoreDBDSN)
-			return nil
 		},
 	}
 }
@@ -146,10 +168,10 @@ func startClientCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
 		Short: "starts dc4bc client",
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			cfg, err := loadConfig(cmd)
 			if err != nil {
-				return fmt.Errorf("failed to load config: %w", err)
+				log.Fatalf("failed to load config: %v", err)
 			}
 
 			ctx := context.Background()
@@ -171,7 +193,7 @@ func startClientCommand() *cobra.Command {
 			}
 
 			processor := qr.NewCameraProcessor()
-			processor.SetDelay(cfg.FPS)
+			processor.SetDelay(cfg.FramesDelay)
 			processor.SetChunkSize(cfg.ChunkSize)
 
 			cli, err := client.NewClient(ctx, cfg.Username, state, stg, keyStore, processor)
@@ -201,7 +223,6 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("error while handling operations: %v", err)
 			}
 			cli.GetLogger().Log("polling is stopped")
-			return nil
 		},
 	}
 }

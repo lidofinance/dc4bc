@@ -6,5 +6,5 @@
   "storage_topic": "test_topic",
   "keystore_dbdsn": "/tmp/dc4bc_node_0_key_store",
   "frames_delay": 10,
-  "chunk_size": 512
+  "chunk_size": 100
 }
