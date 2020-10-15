@@ -1,58 +1,58 @@
-version: '3'
+version: '3.4'
 services:
+
   zookeeper:
-    build: zookeeper/
+    image: confluentinc/cp-zookeeper:5.3.1
     container_name: zookeeper
     hostname: zookeeper
-    domainname: confluent.local
-    restart: on-failure
-    volumes:
-      - ./certs/:/var/lib/secret
-    networks:
-      default:
-        aliases:
-          - zookeeper.confluent.local
-
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
 
   kafka:
-    build: kafka/
+    image: confluentinc/cp-kafka:5.3.1
     container_name: kafka
     hostname: kafka
     domainname: confluent.local
-    depends_on: 
-      - zookeeper
-    restart: on-failure
-    volumes:
-      - ./certs/:/var/lib/secret
     networks:
       default:
         aliases:
           - kafka.confluent.local
+    depends_on:
+      - zookeeper
     ports:
-      - "9092:9092"
+      - 9093:9093
     environment:
-      SCHEMA_REGISTRY_OPTS: '-Djavax.net.ssl.keyStore=/var/lib/secret/client.keystore.jks -Djavax.net.ssl.trustStore=/var/lib/secret/truststore.jks -Djavax.net.ssl.keyStorePassword=test1234 -Djavax.net.ssl.trustStorePassword=test1234'
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER: INTERNAL://kafka.confluent.local:9092,OUTSIDE://localhost:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka.confluent.local:9092,OUTSIDE://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:SASL_SSL,OUTSIDE:SASL_SSL
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_LISTENER_NAME_INTERNAL_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_LISTENER_NAME_OUTSIDE_SASL_ENABLED_MECHANISMS: PLAIN
 
-  schema-registry:
-    build: schema-registry/
-    container_name: schema-registry
-    hostname: schema-registry
-    domainname: confluent.local
-    depends_on: 
-      - kafka
-    restart: on-failure
+      KAFKA_SSL_ENDPOINT_IDENTIFICATION_ALGORITHM: "HTTPS"
+      KAFKA_SSL_CLIENT_AUTH: requested
+      KAFKA_SSL_KEYSTORE_LOCATION: /var/lib/secret/server.keystore.jks
+      KAFKA_SSL_KEYSTORE_PASSWORD: ${KEYSTORE_PASSWORD}
+      KAFKA_SSL_TRUSTSTORE_LOCATION: /var/lib/secret/truststore.jks
+      KAFKA_SSL_TRUSTSTORE_PASSWORD: ${KEYSTORE_PASSWORD}
+
+      KAFKA_LISTENER_NAME_INTERNAL_PLAIN_SASL_JAAS_CONFIG:    org.apache.kafka.common.security.plain.PlainLoginModule required \
+        username="admin" \
+        password="admin-secret" \
+        user_admin="admin-secret" ;
+      KAFKA_LISTENER_NAME_OUTSIDE_PLAIN_SASL_JAAS_CONFIG:   org.apache.kafka.common.security.plain.PlainLoginModule required \
+        username="admin" \
+        password="admin-secret" \
+        user_admin="admin-secret" \
+        user_producer="producerpass" \
+        user_consumer="consumerpass" ;
+      KAFKA_SASL_JAAS_CONFIG:                               org.apache.kafka.common.security.plain.PlainLoginModule required \
+        username="admin" \
+        password="admin-secret" ;
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     volumes:
       - ./certs/:/var/lib/secret
-      - ./schema-registry/schema-registry.properties:/etc/schema-registry/schema-registry.properties
-    networks:
-      default:
-        aliases:
-          - schema-registry.confluent.local
-    ports:
-      - "8443:8443"
-
-volumes:
-  secret: {}
-
-networks:
-  default:

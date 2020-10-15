@@ -5,9 +5,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
-	"golang.org/x/crypto/pkcs12"
+	"github.com/segmentio/kafka-go/sasl/plain"
 	"io/ioutil"
 	"time"
 
@@ -28,29 +27,7 @@ type KafkaAuthCredentials struct {
 	Password string
 }
 
-func GetTLSConfig(keyStorePath, trustStorePath, password string) (*tls.Config, error) {
-
-	// Keystore
-	keys, err := ioutil.ReadFile(keyStorePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read keyStorePath: %w", err)
-	}
-	blocks, err := pkcs12.ToPEM(keys, password)
-	if err != nil {
-		return nil, fmt.Errorf("failed to convert PKCS12 key to PEM: %w", err)
-	}
-
-	var pemData []byte
-	for test, b := range blocks {
-		_ = test
-		pemData = append(pemData, pem.EncodeToMemory(b)...)
-	}
-
-	cert, err := tls.X509KeyPair(pemData, pemData)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get X509KeyPair: %w", err)
-	}
-	//Truststore
+func GetTLSConfig(trustStorePath string) (*tls.Config, error) {
 	caCert, err := ioutil.ReadFile(trustStorePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read trustStorePath: %w", err)
@@ -60,25 +37,29 @@ func GetTLSConfig(keyStorePath, trustStorePath, password string) (*tls.Config, e
 	caCertPool.AppendCertsFromPEM(caCert)
 
 	config := &tls.Config{
-		Certificates:       []tls.Certificate{cert},
 		RootCAs:            caCertPool,
 		InsecureSkipVerify: true,
 	}
 	return config, nil
 }
 
-func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string, tlsConfig *tls.Config) (Storage, error) {
+func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string, tlsConfig *tls.Config, producerCreds, consumerCreds *KafkaAuthCredentials) (Storage, error) {
+	mechanismProducer := plain.Mechanism{producerCreds.Username, producerCreds.Password}
+	mechanismConsumer := plain.Mechanism{consumerCreds.Username, consumerCreds.Password}
 
 	dialerProducer := &kafka.Dialer{
-		Timeout:   10 * time.Second,
-		DualStack: true,
-		TLS:       tlsConfig,
+		Timeout:       10 * time.Second,
+		DualStack:     true,
+		TLS:           tlsConfig,
+		SASLMechanism: mechanismProducer,
 	}
 	dialerConsumer := &kafka.Dialer{
-		Timeout:   10 * time.Second,
-		DualStack: true,
-		TLS:       tlsConfig,
+		Timeout:       10 * time.Second,
+		DualStack:     true,
+		TLS:           tlsConfig,
+		SASLMechanism: mechanismConsumer,
 	}
+
 	conn, err := dialerProducer.DialLeader(ctx, "tcp", kafkaEndpoint, kafkaTopic, kafkaPartition)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init Kafka client: %w", err)
