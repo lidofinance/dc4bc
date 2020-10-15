@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"log"
 
-	bls12381 "github.com/depools/kyber-bls12381"
+	bls12381 "github.com/corestario/kyber/pairing/bls12381"
 
 	client "github.com/depools/dc4bc/client/types"
 	"github.com/syndtr/goleveldb/leveldb"
