@@ -81,7 +81,7 @@ $ ./dc4bc_d gen_keys --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_k
 ```
 Start the node (note the `--storage_topic` flag — use a fresh topic for cleaner test runs):
 ```
-$ ./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn 94.130.57.249:9092 --storage_topic test_topic
+$ ./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn 94.130.57.249:9092 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path /path/to/ca.crt --storage_topic test_topic
 ```
 Start the airgapped machine:
 ```
