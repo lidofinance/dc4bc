@@ -271,6 +271,134 @@ func TestFullFlow(t *testing.T) {
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
-	time.Sleep(5 * time.Second)
 
+	time.Sleep(5 * time.Second)
+}
+
+func TestSimultaneousDKGRounds(t *testing.T) {
+	_ = RemoveContents("/tmp", "dc4bc_*")
+	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
+
+	var numNodes = 4
+	var threshold = 2
+	var storagePath = "/tmp/dc4bc_storage"
+	var nodes = make([]*node, numNodes)
+	startingPort := 8080
+	for nodeID := 0; nodeID < numNodes; nodeID++ {
+		var ctx = context.Background()
+		var userName = fmt.Sprintf("node_%d", nodeID)
+		var state, err = NewLevelDBState(fmt.Sprintf("/tmp/dc4bc_node_%d_state", nodeID))
+		if err != nil {
+			t.Fatalf("node %d failed to init state: %v\n", nodeID, err)
+		}
+
+		stg, err := storage.NewFileStorage(storagePath)
+		if err != nil {
+			t.Fatalf("node %d failed to init storage: %v\n", nodeID, err)
+		}
+
+		keyStore, err := NewLevelDBKeyStore(userName, fmt.Sprintf("/tmp/dc4bc_node_%d_key_store", nodeID))
+		if err != nil {
+			t.Fatalf("Failed to init key store: %v", err)
+		}
+
+		keyPair := NewKeyPair()
+		if err := keyStore.PutKeys(userName, keyPair); err != nil {
+			t.Fatalf("Failed to PutKeys: %v\n", err)
+		}
+
+		airgappedMachine, err := airgapped.NewMachine(fmt.Sprintf("/tmp/dc4bc_node_%d_airgapped_db", nodeID))
+		if err != nil {
+			t.Fatalf("Failed to create airgapped machine: %v", err)
+		}
+
+		clt, err := NewClient(
+			ctx,
+			userName,
+			state,
+			stg,
+			keyStore,
+			qr.NewCameraProcessor(),
+		)
+		if err != nil {
+			t.Fatalf("node %d failed to init client: %v\n", nodeID, err)
+		}
+		airgappedMachine.SetEncryptionKey([]byte("very_strong_password")) //just for testing
+		if err = airgappedMachine.InitKeys(); err != nil {
+			t.Errorf(err.Error())
+		}
+
+		nodes[nodeID] = &node{
+			client:     clt,
+			keyPair:    keyPair,
+			air:        airgappedMachine,
+			listenAddr: fmt.Sprintf("localhost:%d", startingPort),
+		}
+		startingPort++
+	}
+
+	// Each node starts to Poll().
+	for nodeID, n := range nodes {
+		go func(nodeID int, node *node) {
+			if err := node.client.StartHTTPServer(node.listenAddr); err != nil {
+				t.Fatalf("failed to start HTTP server for nodeID #%d: %v\n", nodeID, err)
+			}
+		}(nodeID, n)
+		time.Sleep(1 * time.Second)
+		go nodes[nodeID].run(t)
+
+		go func(nodeID int, node Client) {
+			if err := node.Poll(); err != nil {
+				t.Fatalf("client %d poller failed: %v\n", nodeID, err)
+			}
+		}(nodeID, n.client)
+
+		log.Printf("client %d started...\n", nodeID)
+	}
+
+	// Node1 tells other participants to start DKG.
+	var participants []*requests.SignatureProposalParticipantsEntry
+	for _, node := range nodes {
+		dkgPubKey, err := node.air.GetPubKey().MarshalBinary()
+		if err != nil {
+			log.Fatalln("failed to get DKG pubKey:", err.Error())
+		}
+		participants = append(participants, &requests.SignatureProposalParticipantsEntry{
+			Addr:      node.client.GetUsername(),
+			PubKey:    node.client.GetPubKey(),
+			DkgPubKey: dkgPubKey,
+		})
+	}
+
+	var numDKGRounds = 5
+	for i := 0; i < numDKGRounds; i++ {
+		messageData := requests.SignatureProposalParticipantsListRequest{
+			Participants:     participants,
+			SigningThreshold: threshold,
+			CreatedAt:        time.Now(),
+		}
+		messageDataBz, err := json.Marshal(messageData)
+		if err != nil {
+			t.Fatalf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)
+		}
+
+		if _, err := http.Post(fmt.Sprintf("http://localhost:%d/startDKG", startingPort-1),
+			"application/json", bytes.NewReader(messageDataBz)); err != nil {
+			t.Fatalf("failed to send HTTP request to start DKG: %v\n", err)
+		}
+	}
+
+	time.Sleep(10 * time.Second)
+
+	for nodeID, node := range nodes {
+		if len(node.air.GetDKGInstances()) != numDKGRounds {
+			t.Fatalf("failed to run 2 simultaneous DKG rounds")
+		}
+
+		for roundID, dkgInstance := range node.air.GetDKGInstances() {
+			if _, err := dkgInstance.GetBLSKeyring(); err != nil {
+				t.Fatalf("failed to get the BLS keyring from dkg round #%s node #%d: %s", roundID, nodeID, err)
+			}
+		}
+	}
 }

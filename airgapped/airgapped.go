@@ -74,6 +74,10 @@ func NewMachine(dbPath string) (*Machine, error) {
 	return am, nil
 }
 
+func (am *Machine) GetDKGInstances() map[string]*dkg.DKG {
+	return am.dkgInstances
+}
+
 func (am *Machine) SetQRProcessorFramesDelay(delay int) {
 	am.qrProcessor.SetDelay(delay)
 }
