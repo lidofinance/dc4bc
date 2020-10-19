@@ -579,16 +579,30 @@ func getFSMStatusCommand() *cobra.Command {
 				}
 			}
 
+			waiting := make([]string, 0)
+			confirmed := make([]string, 0)
+			failed := make([]string, 0)
+
 			for _, p := range quorum {
 				if strings.Contains(p.GetStatus().String(), "Await") {
-					fmt.Printf("Waiting for a data from \"%s\"\n", p.GetAddr())
+					waiting = append(waiting, p.GetAddr())
 				}
 				if strings.Contains(p.GetStatus().String(), "Error") {
-					fmt.Printf("\"%s\" got an error during the process\n", p.GetAddr())
+					failed = append(failed, p.GetAddr())
 				}
 				if strings.Contains(p.GetStatus().String(), "Confirmed") {
-					fmt.Printf("\"%s\" sent a data to us\n", p.GetAddr())
+					confirmed = append(confirmed, p.GetAddr())
 				}
+			}
+
+			if len(waiting) > 0 {
+				fmt.Printf("Waiting for a data from: %s\n", strings.Join(waiting, ", "))
+			}
+			if len(confirmed) > 0 {
+				fmt.Printf("Received a data from: %s\n", strings.Join(confirmed, ", "))
+			}
+			if len(failed) > 0 {
+				fmt.Printf("Participants who got some error during a process: %s\n", strings.Join(waiting, ", "))
 			}
 
 			return nil
