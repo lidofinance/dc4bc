@@ -15,13 +15,13 @@ import (
 	"testing"
 	"time"
 
+	bls12381 "github.com/corestario/kyber/pairing/bls12381"
 	"github.com/depools/dc4bc/airgapped"
 	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/depools/dc4bc/qr"
 	"github.com/depools/dc4bc/storage"
-	bls12381 "github.com/depools/kyber-bls12381"
 )
 
 type node struct {
