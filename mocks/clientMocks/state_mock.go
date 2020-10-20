@@ -93,6 +93,21 @@ func (mr *MockStateMockRecorder) LoadFSM(dkgRoundID interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadFSM", reflect.TypeOf((*MockState)(nil).LoadFSM), dkgRoundID)
 }
 
+// GetAllFSM mocks base method
+func (m *MockState) GetAllFSM() (map[string]*state_machines.FSMInstance, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAllFSM")
+	ret0, _ := ret[0].(map[string]*state_machines.FSMInstance)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAllFSM indicates an expected call of GetAllFSM
+func (mr *MockStateMockRecorder) GetAllFSM() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllFSM", reflect.TypeOf((*MockState)(nil).GetAllFSM))
+}
+
 // PutOperation mocks base method
 func (m *MockState) PutOperation(operation *types.Operation) error {
 	m.ctrl.T.Helper()

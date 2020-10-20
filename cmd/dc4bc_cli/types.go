@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/depools/dc4bc/fsm/state_machines"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
@@ -30,6 +31,11 @@ func (d DKGParticipants) Less(i, j int) bool { return d[i].Addr < d[j].Addr }
 type OperationsResponse struct {
 	ErrorMessage string                      `json:"error_message,omitempty"`
 	Result       map[string]*types.Operation `json:"result"`
+}
+
+type FSMDumpResponse struct {
+	ErrorMessage string                  `json:"error_message,omitempty"`
+	Result       *state_machines.FSMDump `json:"result"`
 }
 
 type SignaturesResponse struct {

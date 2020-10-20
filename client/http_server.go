@@ -80,8 +80,46 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/startDKG", c.startDKGHandler)
 	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
 
+	mux.HandleFunc("/getFSMDump", c.getFSMDumpHandler)
+	mux.HandleFunc("/getFSMList", c.getFSMList)
+
 	c.Logger.Log("Starting HTTP server on address: %s", listenAddr)
 	return http.ListenAndServe(listenAddr, mux)
+}
+
+func (c *BaseClient) getFSMDumpHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	dump, err := c.GetFSMDump(r.URL.Query().Get("dkgID"))
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	successResponse(w, dump)
+}
+
+func (c *BaseClient) getFSMList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	fsmInstances, err := c.state.GetAllFSM()
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get all FSM instances: %v", err))
+		return
+	}
+	fsmInstancesStates := make(map[string]string, len(fsmInstances))
+	for k, v := range fsmInstances {
+		state, err := v.State()
+		if err != nil {
+			errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get FSM state: %v", err))
+			return
+		}
+		fsmInstancesStates[k] = state.String()
+	}
+	successResponse(w, fsmInstancesStates)
 }
 
 func (c *BaseClient) getUsernameHandler(w http.ResponseWriter, r *http.Request) {
