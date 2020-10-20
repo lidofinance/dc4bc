@@ -17,6 +17,8 @@ build-darwin:
 	GOOS=darwin GOARCH=amd64 go build -o dc4bc_cli_darwin ./cmd/dc4bc_cli/
 	@echo "Building dc4bc_airgapped..."
 	GOOS=darwin GOARCH=amd64 go build -o dc4bc_airgapped_darwin ./cmd/airgapped/
+	@echo "Building dc4bc_prysm_compatibility_checker..."
+	GOOS=darwin GOARCH=amd64 go build -o dc4bc_prysm_compatibility_checker_darwin ./cmd/prysm_compatibility_checker/
 
 build-linux:
 	@echo "Building dc4bc_d..."
@@ -25,5 +27,7 @@ build-linux:
 	GOOS=linux GOARCH=amd64 go build -o dc4bc_cli_linux ./cmd/dc4bc_cli/
 	@echo "Building dc4bc_airgapped..."
 	GOOS=linux GOARCH=amd64 go build -o dc4bc_airgapped_linux ./cmd/airgapped/
+	@echo "Building dc4bc_prysm_compatibility_checker..."
+	GOOS=linux GOARCH=amd64 go build -o dc4bc_prysm_compatibility_checker_linux ./cmd/prysm_compatibility_checker/
 
 .PHONY: mocks
