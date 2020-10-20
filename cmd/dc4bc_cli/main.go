@@ -59,6 +59,7 @@ func main() {
 		getSignaturesCommand(),
 		getSignatureCommand(),
 		getFSMStatusCommand(),
+		getFSMListCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
@@ -605,6 +606,32 @@ func getFSMStatusCommand() *cobra.Command {
 				fmt.Printf("Participants who got some error during a process: %s\n", strings.Join(waiting, ", "))
 			}
 
+			return nil
+		},
+	}
+}
+
+func getFSMListCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_fsm_list",
+		Short: "returns a list of all FSMs served by the client",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			resp, err := rawGetRequest(fmt.Sprintf("http://%s/getFSMList", listenAddr))
+			if err != nil {
+				return fmt.Errorf("failed to make HTTP request to get FSM list: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to make HTTP request to get FSM list: %v", resp.ErrorMessage)
+			}
+			fsms := resp.Result.(map[string]interface{})
+			for dkgID, state := range fsms {
+				fmt.Printf("DKG ID: %s - FSM state: %s\n", dkgID, state.(string))
+			}
 			return nil
 		},
 	}
