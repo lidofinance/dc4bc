@@ -1,7 +1,7 @@
 package main
 
 import (
-	"encoding/hex"
+	"encoding/base64"
 	"fmt"
 	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"github.com/spf13/cobra"
@@ -15,7 +15,7 @@ func checkSignature() *cobra.Command {
 		Short: "checks a signature on prysm compatibility",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			sig, err := hex.DecodeString(args[0])
+			sig, err := base64.StdEncoding.DecodeString(args[0])
 			if err != nil {
 				log.Fatalf("failed to decode signature bytes from string: %v", err)
 			}
@@ -33,7 +33,7 @@ func checkPubKey() *cobra.Command {
 		Short: "checks a pubkey on prysm compatibility",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			pubkey, err := hex.DecodeString(args[0])
+			pubkey, err := base64.StdEncoding.DecodeString(args[0])
 			if err != nil {
 				log.Fatalf("failed to decode pubkey bytes from string: %v", err)
 			}
@@ -51,7 +51,7 @@ func verify() *cobra.Command {
 		Short: "verify signature with Prysm",
 		Args:  cobra.ExactArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
-			sig, err := hex.DecodeString(args[0])
+			sig, err := base64.StdEncoding.DecodeString(args[0])
 			if err != nil {
 				log.Fatalf("failed to decode signature bytes from string: %v", err)
 			}
@@ -59,7 +59,7 @@ func verify() *cobra.Command {
 			if err != nil {
 				log.Fatalf("failed to get prysm sig from bytes: %v", err)
 			}
-			pubkey, err := hex.DecodeString(args[1])
+			pubkey, err := base64.StdEncoding.DecodeString(args[1])
 			if err != nil {
 				log.Fatalf("failed to decode pubkey bytes from string: %v", err)
 			}

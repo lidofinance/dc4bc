@@ -116,7 +116,12 @@ func (t *terminal) showFinishedDKGCommand() error {
 	}
 	for dkgID, keyring := range keyrings {
 		fmt.Printf("DKG identifier: %s\n", dkgID)
-		fmt.Printf("PubKey: %s\n", keyring.PubPoly.Commit().String())
+		pubkeyBz, err := keyring.PubPoly.Commit().MarshalBinary()
+		if err != nil {
+			fmt.Println("failed to marshal pubkey: %w", err)
+			continue
+		}
+		fmt.Printf("PubKey: %s\n", base64.StdEncoding.EncodeToString(pubkeyBz))
 		fmt.Println("-----------------------------------------------------")
 	}
 	return nil
