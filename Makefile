@@ -4,7 +4,7 @@ TMP_DIR?=/tmp/
 
 OPENCV_VERSION?=4.4.0
 
-PROJECT_DIR=$(pwd)
+PROJECT_DIR=$(shell pwd)
 
 RPMS=cmake curl wget git gtk2-devel libpng-devel libjpeg-devel libtiff-devel tbb tbb-devel libdc1394-devel unzip
 DEBS=unzip wget build-essential cmake curl git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev libtbb2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev libdc1394-22-dev
@@ -102,11 +102,11 @@ build-linux-static: deps sudo_pre_install_clean download
 	export CGO_CPPFLAGS="-I/usr/local/include/opencv4"
 	export CGO_LDFLAGS="-L/usr/local/lib -L/usr/local/lib/opencv4/3rdparty -L/tmp/opencv/opencv-4.4.0/build/lib -lopencv_gapi -lopencv_stitching -lopencv_aruco -lopencv_bgsegm -lopencv_bioinspired -lopencv_ccalib -lopencv_dnn_objdetect -lopencv_dnn_superres -lopencv_dpm -lopencv_highgui -lopencv_face -lopencv_freetype -lopencv_fuzzy -lopencv_hfs -lopencv_img_hash -lopencv_intensity_transform -lopencv_line_descriptor -lopencv_quality -lopencv_rapid -lopencv_reg -lopencv_rgbd -lopencv_saliency -lopencv_stereo -lopencv_structured_light -lopencv_phase_unwrapping -lopencv_superres -lopencv_optflow -lopencv_surface_matching -lopencv_tracking -lopencv_datasets -lopencv_text -lopencv_dnn -lopencv_plot -lopencv_videostab -lopencv_videoio -lopencv_xfeatures2d -lopencv_shape -lopencv_ml -lopencv_ximgproc -lopencv_video -lopencv_xobjdetect -lopencv_objdetect -lopencv_calib3d -lopencv_imgcodecs -lopencv_features2d -lopencv_flann -lopencv_xphoto -lopencv_photo -lopencv_imgproc -lopencv_core -littnotify -llibprotobuf -lIlmImf -lquirc -lippiw -lippicv -lade -lgtk-x11-2.0 -lgdk-x11-2.0 -lpangocairo-1.0 -lcairo -lgio-2.0 -lpangoft2-1.0 -lpango-1.0 -lgobject-2.0 -lglib-2.0 -lfontconfig -lgthread-2.0 -lz -ljpeg -lfreetype -lharfbuzz -ldl -lm -lpthread -lrt"
 	@echo "Building dc4bc_d..."
-	go build -ldflags "-linkmode 'external' -extldflags '-static'" -o dc4bc_d_linux ./cmd/dc4bc_d/main.go
+	go build -ldflags "-linkmode 'external' -extldflags '-static'" -o dc4bc_d_linux ./cmd/dc4bc_d/*.go
 	@echo "Building dc4bc_cli..."
-	go build -ldflags "-linkmode 'external' -extldflags '-static'" -o dc4bc_cli_linux ./cmd/dc4bc_cli/main.go
+	go build -ldflags "-linkmode 'external' -extldflags '-static'" -o dc4bc_cli_linux ./cmd/dc4bc_cli/*.go
 	@echo "Building dc4bc_airgapped..."
-	go build -ldflags "-linkmode 'external' -extldflags '-static'" -o dc4bc_airgapped_linux ./cmd/airgapped/main.go
+	go build -ldflags "-linkmode 'external' -extldflags '-static'" -o dc4bc_airgapped_linux ./cmd/airgapped/*.go
 
 
 .PHONY: mocks
