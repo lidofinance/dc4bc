@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+type ParticipantStatus interface {
+	String() string
+}
+
 type ConfirmationParticipantStatus uint8
 
 const (
@@ -47,6 +51,14 @@ type SignatureProposalParticipant struct {
 	UpdatedAt        time.Time
 }
 
+func (sigP SignatureProposalParticipant) GetStatus() ParticipantStatus {
+	return sigP.Status
+}
+
+func (sigP SignatureProposalParticipant) GetAddr() string {
+	return sigP.Addr
+}
+
 func (c *SignatureConfirmation) IsExpired() bool {
 	return c.ExpiresAt.Before(c.UpdatedAt)
 }
@@ -84,6 +96,14 @@ type DKGProposalParticipant struct {
 	Status       DKGParticipantStatus
 	Error        error
 	UpdatedAt    time.Time
+}
+
+func (dkgP DKGProposalParticipant) GetStatus() ParticipantStatus {
+	return dkgP.Status
+}
+
+func (dkgP DKGProposalParticipant) GetAddr() string {
+	return dkgP.Addr
 }
 
 type DKGProposalQuorum map[int]*DKGProposalParticipant
@@ -189,4 +209,12 @@ type SigningProposalParticipant struct {
 	PartialSign []byte
 	Error       error
 	UpdatedAt   time.Time
+}
+
+func (signingP SigningProposalParticipant) GetStatus() ParticipantStatus {
+	return signingP.Status
+}
+
+func (signingP SigningProposalParticipant) GetAddr() string {
+	return signingP.Addr
 }

@@ -9,7 +9,7 @@ git clone git@github.com:depools/dc4bc.git
 
 First install the Go toolchain:
 ```
-wget https://golang.org/dl/go1.15.2.linux-amd64.tar.gz
+curl -O https://golang.org/dl/go1.15.2.linux-amd64.tar.gz
 tar -C /usr/local -xzf go1.15.2.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 ```

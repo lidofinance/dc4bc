@@ -7,12 +7,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/depools/dc4bc/fsm/state_machines"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/depools/dc4bc/fsm/fsm"
@@ -59,6 +61,8 @@ func main() {
 		getSignatureCommand(),
 		saveOffsetCommand(),
 		getOffsetCommand(),
+		getFSMStatusCommand(),
+		getFSMListCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
@@ -572,6 +576,120 @@ func proposeSignMessageCommand() *cobra.Command {
 			}
 			if resp.ErrorMessage != "" {
 				return fmt.Errorf("failed to make HTTP request to propose message to sign: %v", resp.ErrorMessage)
+			}
+			return nil
+		},
+	}
+}
+
+func getFSMDumpRequest(host string, dkgID string) (*FSMDumpResponse, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/getFSMDump?dkgID=%s", host, dkgID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get FSM dump: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %w", err)
+	}
+
+	var response FSMDumpResponse
+	if err = json.Unmarshal(responseBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+	return &response, nil
+}
+
+func getFSMStatusCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show_fsm_status [dkg_id]",
+		Args:  cobra.ExactArgs(1),
+		Short: "shows the current status of FSM",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			fsmDumpResponse, err := getFSMDumpRequest(listenAddr, args[0])
+			if err != nil {
+				return fmt.Errorf("failed to get FSM dump: %w", err)
+			}
+			if fsmDumpResponse.ErrorMessage != "" {
+				return fmt.Errorf("failed to get FSM dump: %v", fsmDumpResponse.ErrorMessage)
+			}
+			dump := fsmDumpResponse.Result
+
+			fmt.Printf("FSM current status is %s\n", dump.State)
+
+			quorum := make(map[int]state_machines.Participant)
+			if strings.HasPrefix(string(dump.State), "state_signing") {
+				for k, v := range dump.Payload.SigningProposalPayload.Quorum {
+					quorum[k] = v
+				}
+			}
+			if strings.HasPrefix(string(dump.State), "state_dkg") {
+				for k, v := range dump.Payload.DKGProposalPayload.Quorum {
+					quorum[k] = v
+				}
+			}
+			if strings.HasPrefix(string(dump.State), "state_sig") {
+				for k, v := range dump.Payload.SignatureProposalPayload.Quorum {
+					quorum[k] = v
+				}
+			}
+
+			waiting := make([]string, 0)
+			confirmed := make([]string, 0)
+			failed := make([]string, 0)
+
+			for _, p := range quorum {
+				if strings.Contains(p.GetStatus().String(), "Await") {
+					waiting = append(waiting, p.GetAddr())
+				}
+				if strings.Contains(p.GetStatus().String(), "Error") {
+					failed = append(failed, p.GetAddr())
+				}
+				if strings.Contains(p.GetStatus().String(), "Confirmed") {
+					confirmed = append(confirmed, p.GetAddr())
+				}
+			}
+
+			if len(waiting) > 0 {
+				fmt.Printf("Waiting for a data from: %s\n", strings.Join(waiting, ", "))
+			}
+			if len(confirmed) > 0 {
+				fmt.Printf("Received a data from: %s\n", strings.Join(confirmed, ", "))
+			}
+			if len(failed) > 0 {
+				fmt.Printf("Participants who got some error during a process: %s\n", strings.Join(waiting, ", "))
+			}
+
+			return nil
+		},
+	}
+}
+
+func getFSMListCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_fsm_list",
+		Short: "returns a list of all FSMs served by the client",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			resp, err := rawGetRequest(fmt.Sprintf("http://%s/getFSMList", listenAddr))
+			if err != nil {
+				return fmt.Errorf("failed to make HTTP request to get FSM list: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to make HTTP request to get FSM list: %v", resp.ErrorMessage)
+			}
+			fsms := resp.Result.(map[string]interface{})
+			for dkgID, state := range fsms {
+				fmt.Printf("DKG ID: %s - FSM state: %s\n", dkgID, state.(string))
 			}
 			return nil
 		},
