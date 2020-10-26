@@ -574,7 +574,7 @@ func getFSMStatusCommand() *cobra.Command {
 					quorum[k] = v
 				}
 			}
-			if strings.HasPrefix(string(dump.State), "state_sig") {
+			if strings.HasPrefix(string(dump.State), "state_sig_") {
 				for k, v := range dump.Payload.SignatureProposalPayload.Quorum {
 					quorum[k] = v
 				}
