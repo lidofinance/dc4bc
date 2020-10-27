@@ -218,7 +218,8 @@ func startClientCommand() *cobra.Command {
 					log.Fatalf("HTTP server error: %v", err)
 				}
 			}()
-			cli.GetLogger().Log("starting to poll messages from append-only log...")
+			cli.GetLogger().Log("Client started to poll messages from append-only log")
+			cli.GetLogger().Log("Waiting for messages from append-only log...")
 			if err = cli.Poll(); err != nil {
 				log.Fatalf("error while handling operations: %v", err)
 			}

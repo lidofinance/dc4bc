@@ -83,7 +83,7 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/getFSMDump", c.getFSMDumpHandler)
 	mux.HandleFunc("/getFSMList", c.getFSMList)
 
-	c.Logger.Log("Starting HTTP server on address: %s", listenAddr)
+	c.Logger.Log("HTTP server started on address: %s", listenAddr)
 	return http.ListenAndServe(listenAddr, mux)
 }
 
