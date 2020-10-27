@@ -270,7 +270,7 @@ func getOperationQRPathCommand() *cobra.Command {
 				return fmt.Errorf("failed to get operations: %s", operation.ErrorMessage)
 			}
 
-			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_%s", operationID))
+			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_%s-request", operationID))
 
 			qrPath := fmt.Sprintf("%s.gif", operationQRPath)
 

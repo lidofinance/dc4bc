@@ -260,8 +260,7 @@ func (am *Machine) HandleQR() (string, error) {
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	qrPath := filepath.Join(am.resultQRFolder, fmt.Sprintf("%s_%s_%s.gif", resultOperation.Type, resultOperation.ID,
-		resultOperation.To))
+	qrPath := filepath.Join(am.resultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
 	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
 		return "", fmt.Errorf("failed to write QR: %w", err)
 	}
