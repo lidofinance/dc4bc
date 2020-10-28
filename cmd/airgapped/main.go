@@ -33,10 +33,12 @@ type terminal struct {
 	reader    *bufio.Reader
 	airgapped *airgapped.Machine
 	commands  map[string]*terminalCommand
+
+	currentCommand string
 }
 
 func NewTerminal(machine *airgapped.Machine) *terminal {
-	t := terminal{bufio.NewReader(os.Stdin), machine, make(map[string]*terminalCommand)}
+	t := terminal{bufio.NewReader(os.Stdin), machine, make(map[string]*terminalCommand), ""}
 	t.addCommand("read_qr", &terminalCommand{
 		commandHandler: t.readQRCommand,
 		description:    "Reads QR chunks from camera, handle a decoded operation and returns paths to qr chunks of operation's result",
@@ -229,7 +231,9 @@ func (t *terminal) run() error {
 		if err != nil {
 			return fmt.Errorf("failed to read command: %w", err)
 		}
-		handler, ok := t.commands[strings.Trim(command, "\n")]
+
+		clearCommand := strings.Trim(command, "\n")
+		handler, ok := t.commands[clearCommand]
 		if !ok {
 			fmt.Printf("unknown command: %s\n", command)
 			continue
@@ -238,11 +242,12 @@ func (t *terminal) run() error {
 			return err
 		}
 		t.airgapped.Lock()
+
+		t.currentCommand = clearCommand
 		if err := handler.commandHandler(); err != nil {
 			fmt.Printf("failled to execute command %s: %v \n", command, err)
-			t.airgapped.Unlock()
-			continue
 		}
+		t.currentCommand = ""
 		t.airgapped.Unlock()
 	}
 }
@@ -288,14 +293,19 @@ func main() {
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
+
+	t := NewTerminal(air)
+	go t.dropSensitiveData(passwordLifeDuration)
 	go func() {
 		for range c {
+			if t.currentCommand == "read_qr" {
+				t.airgapped.CloseCameraReader()
+				continue
+			}
 			fmt.Printf("Intercepting SIGINT, please type `exit` to stop the machine\n>>> ")
 		}
 	}()
 
-	t := NewTerminal(air)
-	go t.dropSensitiveData(passwordLifeDuration)
 	if err = t.run(); err != nil {
 		log.Fatalf(err.Error())
 	}
