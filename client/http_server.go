@@ -313,7 +313,7 @@ func (c *BaseClient) proposeSignDataHandler(w http.ResponseWriter, r *http.Reque
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get FSM instance: %v", err))
 		return
 	}
-	participantID, err := fsmInstance.GetIDByAddr(c.GetUsername())
+	participantID, err := fsmInstance.GetIDByUsername(c.GetUsername())
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get participantID: %v", err))
 		return

@@ -117,45 +117,45 @@ func (p *DumpedMachineStatePayload) SigningQuorumUpdate(id int, participant *Sig
 	}
 }
 
-func (p *DumpedMachineStatePayload) SetPubKeyAddr(addr string, pubKey ed25519.PublicKey) {
+func (p *DumpedMachineStatePayload) SetPubKeyUsername(username string, pubKey ed25519.PublicKey) {
 	if p.PubKeys == nil {
 		p.PubKeys = make(map[string]ed25519.PublicKey)
 	}
-	p.PubKeys[addr] = pubKey
+	p.PubKeys[username] = pubKey
 }
 
-func (p *DumpedMachineStatePayload) SetIDAddr(addr string, id int) {
+func (p *DumpedMachineStatePayload) SetIDUsername(username string, id int) {
 	if p.IDs == nil {
 		p.IDs = make(map[string]int)
 	}
-	p.IDs[addr] = id
+	p.IDs[username] = id
 }
 
-func (p *DumpedMachineStatePayload) GetPubKeyByAddr(addr string) (ed25519.PublicKey, error) {
+func (p *DumpedMachineStatePayload) GetPubKeyByUsername(username string) (ed25519.PublicKey, error) {
 	if p.PubKeys == nil {
 		return nil, errors.New("{PubKeys} not initialized")
 	}
-	if addr == "" {
-		return nil, errors.New("{addr} cannot be empty")
+	if username == "" {
+		return nil, errors.New("{username} cannot be empty")
 	}
-	pubKey, ok := p.PubKeys[addr]
+	pubKey, ok := p.PubKeys[username]
 	if !ok {
-		return nil, errors.New("cannot find public key by {addr}")
+		return nil, errors.New("cannot find public key by {username}")
 	}
 
 	return pubKey, nil
 }
 
-func (p *DumpedMachineStatePayload) GetIDByAddr(addr string) (int, error) {
+func (p *DumpedMachineStatePayload) GetIDByUsername(username string) (int, error) {
 	if p.IDs == nil {
 		return -1, errors.New("{IDs} not initialized")
 	}
-	if addr == "" {
-		return -1, errors.New("{addr} cannot be empty")
+	if username == "" {
+		return -1, errors.New("{username} cannot be empty")
 	}
-	id, ok := p.IDs[addr]
+	id, ok := p.IDs[username]
 	if !ok {
-		return -1, errors.New("cannot find id by {addr}")
+		return -1, errors.New("cannot find id by {username}")
 	}
 	return id, nil
 }
