@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -58,6 +59,8 @@ func main() {
 		getHashOfStartDKGCommand(),
 		getSignaturesCommand(),
 		getSignatureCommand(),
+		saveOffsetCommand(),
+		getOffsetCommand(),
 		getFSMStatusCommand(),
 		getFSMListCommand(),
 	)
@@ -324,6 +327,62 @@ func getPubKeyCommand() *cobra.Command {
 				return fmt.Errorf("failed to get client's pubkey: %v", resp.ErrorMessage)
 			}
 			fmt.Println(resp.Result.(string))
+			return nil
+		},
+	}
+}
+
+func saveOffsetCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "save_offset [offset]",
+		Short: "saves a new offset for a storage",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			offset, err := strconv.ParseUint(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse uint: %w", err)
+			}
+			req := map[string]uint64{"offset": offset}
+			data, err := json.Marshal(req)
+			if err != nil {
+				return fmt.Errorf("failed to create request: %w", err)
+			}
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/saveOffset", listenAddr), "application/json", data)
+			if err != nil {
+				return fmt.Errorf("failed to save offset: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to save offset: %v", resp.ErrorMessage)
+			}
+			fmt.Println(resp.Result.(string))
+			return nil
+		},
+	}
+}
+
+func getOffsetCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_offset",
+		Short: "returns a current offset for the storage",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			resp, err := rawGetRequest(fmt.Sprintf("http://%s//getOffset", listenAddr))
+			if err != nil {
+				return fmt.Errorf("failed to get offset: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to get offset: %v", resp.ErrorMessage)
+			}
+			fmt.Println(uint64(resp.Result.(float64)))
 			return nil
 		},
 	}
