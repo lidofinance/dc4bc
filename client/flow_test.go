@@ -230,7 +230,7 @@ func TestFullFlow(t *testing.T) {
 			log.Fatalln("failed to get DKG pubKey:", err.Error())
 		}
 		participants = append(participants, &requests.SignatureProposalParticipantsEntry{
-			Addr:      node.client.GetUsername(),
+			Username:  node.client.GetUsername(),
 			PubKey:    node.client.GetPubKey(),
 			DkgPubKey: dkgPubKey,
 		})

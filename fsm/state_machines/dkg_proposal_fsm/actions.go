@@ -42,7 +42,7 @@ func (m *DKGProposalFSM) actionInitDKGProposal(inEvent fsm.Event, args ...interf
 
 	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
 		m.payload.DKGProposalPayload.Quorum[participantId] = &internal.DKGProposalParticipant{
-			Addr:      participant.Addr,
+			Username:  participant.Username,
 			DkgPubKey: make([]byte, len(participant.DkgPubKey)),
 			Status:    internal.CommitAwaitConfirmation,
 			UpdatedAt: participant.UpdatedAt,
@@ -59,7 +59,7 @@ func (m *DKGProposalFSM) actionInitDKGProposal(inEvent fsm.Event, args ...interf
 	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
 		responseEntry := &responses.DKGProposalPubKeysParticipantEntry{
 			ParticipantId: participantId,
-			Addr:          participant.Addr,
+			Username:      participant.Username,
 			DkgPubKey:     participant.DkgPubKey,
 		}
 		responseData = append(responseData, responseEntry)
@@ -158,7 +158,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitCommits(inEvent fsm.Event
 	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
 		responseEntry := &responses.DKGProposalCommitParticipantEntry{
 			ParticipantId: participantId,
-			Addr:          participant.Addr,
+			Username:      participant.Username,
 			DkgCommit:     participant.DkgCommit,
 		}
 		responseData = append(responseData, responseEntry)
@@ -263,7 +263,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 		}
 		responseEntry := &responses.DKGProposalDealParticipantEntry{
 			ParticipantId: participantId,
-			Addr:          participant.Addr,
+			Username:      participant.Username,
 			DkgDeal:       participant.DkgDeal,
 		}
 		responseData = append(responseData, responseEntry)
@@ -365,7 +365,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitResponses(inEvent fsm.Eve
 	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
 		responseEntry := &responses.DKGProposalResponseParticipantEntry{
 			ParticipantId: participantId,
-			Addr:          participant.Addr,
+			Username:      participant.Username,
 			DkgResponse:   participant.DkgResponse,
 		}
 		responseData = append(responseData, responseEntry)

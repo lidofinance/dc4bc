@@ -432,7 +432,7 @@ func rawPostRequest(url string, contentType string, data []byte) (*client.Respon
 
 func readOperationFromCameraCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "read_from_camera",
+		Use:   "read_qr",
 		Short: "opens the camera and reads QR codes which should contain a processed operation",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
@@ -531,7 +531,7 @@ func getHashOfStartDKGCommand() *cobra.Command {
 				if _, err := hashPayload.Write(p.DkgPubKey); err != nil {
 					return err
 				}
-				if _, err := hashPayload.Write([]byte(p.Addr)); err != nil {
+				if _, err := hashPayload.Write([]byte(p.Username)); err != nil {
 					return err
 				}
 			}
@@ -645,13 +645,13 @@ func getFSMStatusCommand() *cobra.Command {
 
 			for _, p := range quorum {
 				if strings.Contains(p.GetStatus().String(), "Await") {
-					waiting = append(waiting, p.GetAddr())
+					waiting = append(waiting, p.GetUsername())
 				}
 				if strings.Contains(p.GetStatus().String(), "Error") {
-					failed = append(failed, p.GetAddr())
+					failed = append(failed, p.GetUsername())
 				}
 				if strings.Contains(p.GetStatus().String(), "Confirmed") {
-					confirmed = append(confirmed, p.GetAddr())
+					confirmed = append(confirmed, p.GetUsername())
 				}
 			}
 

@@ -12,7 +12,7 @@ type SigningProposalParticipantInvitationsResponse struct {
 
 type SigningProposalParticipantInvitationEntry struct {
 	ParticipantId int
-	Addr          string
+	Username      string
 	Status        uint8
 }
 
@@ -33,7 +33,7 @@ type SigningProposalParticipantStatusResponse struct {
 
 type SigningProposalParticipantStatusEntry struct {
 	ParticipantId int
-	Addr          string
+	Username      string
 	Status        uint8
 }
 
@@ -47,6 +47,6 @@ type SigningProcessParticipantResponse struct {
 
 type SigningProcessParticipantEntry struct {
 	ParticipantId int
-	Addr          string
+	Username      string
 	PartialSign   []byte
 }

@@ -45,7 +45,7 @@ func NewTerminal(machine *airgapped.Machine) *terminal {
 		commandHandler: t.helpCommand,
 		description:    "shows available commands",
 	})
-	t.addCommand("show_dkg_pub_key", &terminalCommand{
+	t.addCommand("show_dkg_pubkey", &terminalCommand{
 		commandHandler: t.showDKGPubKeyCommand,
 		description:    "shows a dkg pub key",
 	})

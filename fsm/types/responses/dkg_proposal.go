@@ -4,7 +4,7 @@ type DKGProposalPubKeysParticipantResponse []*DKGProposalPubKeysParticipantEntry
 
 type DKGProposalPubKeysParticipantEntry struct {
 	ParticipantId int
-	Addr          string
+	Username      string
 	DkgPubKey     []byte
 }
 
@@ -12,7 +12,7 @@ type DKGProposalCommitParticipantResponse []*DKGProposalCommitParticipantEntry
 
 type DKGProposalCommitParticipantEntry struct {
 	ParticipantId int
-	Addr          string
+	Username      string
 	DkgCommit     []byte
 }
 
@@ -20,7 +20,7 @@ type DKGProposalDealParticipantResponse []*DKGProposalDealParticipantEntry
 
 type DKGProposalDealParticipantEntry struct {
 	ParticipantId int
-	Addr          string
+	Username      string
 	DkgDeal       []byte
 }
 
@@ -28,6 +28,6 @@ type DKGProposalResponseParticipantResponse []*DKGProposalResponseParticipantEnt
 
 type DKGProposalResponseParticipantEntry struct {
 	ParticipantId int
-	Addr          string
+	Username      string
 	DkgResponse   []byte
 }
