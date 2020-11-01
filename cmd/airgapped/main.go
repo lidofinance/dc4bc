@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -33,10 +34,17 @@ type terminal struct {
 	reader    *bufio.Reader
 	airgapped *airgapped.Machine
 	commands  map[string]*terminalCommand
+
+	stopDroppingSensitiveData chan bool
 }
 
 func NewTerminal(machine *airgapped.Machine) *terminal {
-	t := terminal{bufio.NewReader(os.Stdin), machine, make(map[string]*terminalCommand)}
+	t := terminal{
+		bufio.NewReader(os.Stdin),
+		machine,
+		make(map[string]*terminalCommand),
+		make(chan bool),
+	}
 	t.addCommand("read_qr", &terminalCommand{
 		commandHandler: t.readQRCommand,
 		description:    "Reads QR chunks from camera, handle a decoded operation and returns paths to qr chunks of operation's result",
@@ -71,6 +79,10 @@ func NewTerminal(machine *airgapped.Machine) *terminal {
 	t.addCommand("verify_signature", &terminalCommand{
 		commandHandler: t.verifySignCommand,
 		description:    "verifies a BLS signature of a message",
+	})
+	t.addCommand("change_configuration", &terminalCommand{
+		commandHandler: t.changeConfigurationCommand,
+		description:    "changes a configuration variables (frames delay, chunk size, etc...)",
 	})
 	return &t
 }
@@ -136,6 +148,62 @@ func (t *terminal) replayOperationLogCommand() error {
 
 	if err := t.airgapped.ReplayOperationsLog(dkgRoundIdentifier); err != nil {
 		return fmt.Errorf("failed to ReplayOperationsLog: %w", err)
+	}
+	return nil
+}
+
+func (t *terminal) changeConfigurationCommand() error {
+	fmt.Print("> Enter a new path to save QR codes (leave empty to avoid changes): ")
+	newQRCodesfolder, _, err := t.reader.ReadLine()
+	if err != nil {
+		return fmt.Errorf("failed to read input: %w", err)
+	}
+	if len(newQRCodesfolder) > 0 {
+		t.airgapped.SetResultQRFolder(string(newQRCodesfolder))
+		fmt.Printf("Folder to save QR codes was changed to: %s\n", string(newQRCodesfolder))
+	}
+
+	fmt.Print("> Enter a new frames delay in 100ths of second (leave empty to avoid changes): ")
+	framesDelayInput, _, err := t.reader.ReadLine()
+	if err != nil {
+		return fmt.Errorf("failed to read input: %w", err)
+	}
+	if len(framesDelayInput) > 0 {
+		framesDelay, err := strconv.Atoi(string(framesDelayInput))
+		if err != nil {
+			return fmt.Errorf("failed to parse new frames delay: %w", err)
+		}
+		t.airgapped.SetQRProcessorFramesDelay(framesDelay)
+		fmt.Printf("Frames delay was changed to: %d\n", framesDelay)
+	}
+
+	fmt.Print("> Enter a new QR chunk size (leave empty to avoid changes): ")
+	chunkSizeInput, _, err := t.reader.ReadLine()
+	if err != nil {
+		return fmt.Errorf("failed to read input: %w", err)
+	}
+	if len(chunkSizeInput) > 0 {
+		chunkSize, err := strconv.Atoi(string(chunkSizeInput))
+		if err != nil {
+			return fmt.Errorf("failed to parse new chunk size: %w", err)
+		}
+		t.airgapped.SetQRProcessorChunkSize(chunkSize)
+		fmt.Printf("Chunk size was changed to: %d\n", chunkSize)
+	}
+
+	fmt.Print("> Enter a password expiration duration (leave empty to avoid changes): ")
+	durationInput, _, err := t.reader.ReadLine()
+	if err != nil {
+		return fmt.Errorf("failed to read input: %w", err)
+	}
+	if len(durationInput) > 0 {
+		duration, err := time.ParseDuration(string(durationInput))
+		if err != nil {
+			return fmt.Errorf("failed to parse new duration: %w", err)
+		}
+		t.stopDroppingSensitiveData <- true
+		go t.dropSensitiveDataByTicker(duration)
+		fmt.Printf("Password expiration was changed to: %s\n", duration.String())
 	}
 	return nil
 }
@@ -247,10 +315,16 @@ func (t *terminal) run() error {
 	}
 }
 
-func (t *terminal) dropSensitiveData(passExpiration time.Duration) {
+func (t *terminal) dropSensitiveDataByTicker(passExpiration time.Duration) {
 	ticker := time.NewTicker(passExpiration)
-	for range ticker.C {
-		t.airgapped.DropSensitiveData()
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			t.airgapped.DropSensitiveData()
+		case <-t.stopDroppingSensitiveData:
+			return
+		}
 	}
 }
 
@@ -295,7 +369,7 @@ func main() {
 	}()
 
 	t := NewTerminal(air)
-	go t.dropSensitiveData(passwordLifeDuration)
+	go t.dropSensitiveDataByTicker(passwordLifeDuration)
 	if err = t.run(); err != nil {
 		log.Fatalf(err.Error())
 	}
