@@ -122,7 +122,6 @@ func getOperationsCommand() *cobra.Command {
 					}
 					msgHash := md5.Sum(payload.SrcPayload)
 					fmt.Printf("Hash of the message to sign - %s\n", hex.EncodeToString(msgHash[:]))
-					fmt.Printf("Signing ID: %s", payload.SigningId)
 				}
 				fmt.Println("-----------------------------------------------------")
 			}
@@ -170,7 +169,7 @@ func getSignaturesCommand() *cobra.Command {
 				fmt.Printf("Hash of the signing data: %s\n", dataHash)
 				for _, participantSig := range signature {
 					fmt.Printf("\tDKG round ID: %s\n", participantSig.DKGRoundID)
-					fmt.Printf("\tParticipant: %s\n", participantSig.Participant)
+					fmt.Printf("\tParticipant: %s\n", participantSig.Username)
 					fmt.Printf("\tReconstructed signature for the data: %s\n", base64.StdEncoding.EncodeToString(participantSig.Signature))
 					fmt.Println()
 				}
@@ -181,7 +180,7 @@ func getSignaturesCommand() *cobra.Command {
 }
 
 func getSignatureRequest(host string, dkgID, dataHash string) (*SignatureResponse, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/getSignatureByDataHash?dkgID=%s&hash=%s", host, dkgID, dataHash))
+	resp, err := http.Get(fmt.Sprintf("http://%s/getSignatureByID?dkgID=%s&id=%s", host, dkgID, dataHash))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get signatures: %w", err)
 	}
@@ -216,7 +215,7 @@ func getSignatureCommand() *cobra.Command {
 				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
 			}
 			for _, participantSig := range signatures.Result {
-				fmt.Printf("\tParticipant: %s\n", participantSig.Participant)
+				fmt.Printf("\tParticipant: %s\n", participantSig.Username)
 				fmt.Printf("\tReconstructed signature for the data: %s\n", base64.StdEncoding.EncodeToString(participantSig.Signature))
 				fmt.Println()
 			}
@@ -243,7 +242,7 @@ func getSignatureDataCommand() *cobra.Command {
 				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
 			}
 			if len(signatures.Result) > 0 {
-				fmt.Println(string(signatures.Result[0].Data))
+				fmt.Println(string(signatures.Result[0].SrcPayload))
 			}
 			return nil
 		},

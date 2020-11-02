@@ -1,7 +1,9 @@
 package client
 
 import (
+	"crypto/md5"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -338,9 +340,11 @@ func (s *LevelDBState) SaveSignature(signature types.ReconstructedSignature) err
 		signatures = make(map[string][]types.ReconstructedSignature)
 	}
 
-	sig := signatures[signature.SigningID]
+	dataHash := md5.Sum(signature.SrcPayload)
+	dataHashString := hex.EncodeToString(dataHash[:])
+	sig := signatures[dataHashString]
 	sig = append(sig, signature)
-	signatures[signature.SigningID] = sig
+	signatures[dataHashString] = sig
 
 	signaturesJSON, err := json.Marshal(signatures)
 	if err != nil {

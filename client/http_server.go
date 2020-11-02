@@ -243,7 +243,7 @@ func (c *BaseClient) getSignatureByIDHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	signature, err := c.GetSignatureByID(r.URL.Query().Get("dkgID"), r.URL.Query().Get("hash"))
+	signature, err := c.GetSignatureByID(r.URL.Query().Get("dkgID"), r.URL.Query().Get("id"))
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get signature: %v", err))
 		return

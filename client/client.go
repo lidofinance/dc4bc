@@ -146,7 +146,8 @@ func (c *BaseClient) processSignature(message storage.Message) error {
 	if err = json.Unmarshal(message.Data, &signature); err != nil {
 		return fmt.Errorf("failed to unmarshal reconstructed signature: %w", err)
 	}
-	signature.Participant = message.SenderAddr
+	signature.Username = message.SenderAddr
+	signature.DKGRoundID = message.DkgRoundID
 	return c.state.SaveSignature(signature)
 }
 
@@ -159,6 +160,11 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 			return fmt.Errorf("failed to SaveOffset: %w", err)
 		}
 		return nil
+	}
+	if fsm.Event(message.Event) == sipf.EventSigningStart {
+		if err := c.processSignature(message); err != nil {
+			return fmt.Errorf("failed to process signature: %w", err)
+		}
 	}
 	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
 	if err != nil {
