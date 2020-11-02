@@ -143,7 +143,7 @@ func RemoveContents(dir, mask string) error {
 
 func TestFullFlow(t *testing.T) {
 	_ = RemoveContents("/tmp", "dc4bc_*")
-	//defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
+	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
 
 	var numNodes = 4
 	var threshold = 2

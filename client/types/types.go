@@ -23,6 +23,7 @@ const (
 )
 
 type ReconstructedSignature struct {
+	SigningID  string
 	SrcPayload []byte
 	Signature  []byte
 	Username   string

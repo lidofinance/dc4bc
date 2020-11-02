@@ -60,12 +60,7 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 		return
 	}
 
-	m.payload.SigningProposalPayload.SigningId, err = generateSigningId()
-
-	if err != nil {
-		err = errors.New("cannot generate {SigningId}")
-		return
-	}
+	m.payload.SigningProposalPayload.SigningId = request.SigningID
 
 	m.payload.SigningProposalPayload.InitiatorId = request.ParticipantId
 	m.payload.SigningProposalPayload.SrcPayload = request.SrcPayload

@@ -363,6 +363,7 @@ func (c *BaseClient) proposeSignDataHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	messageDataSign := requests.SigningProposalStartRequest{
+		SigningID:     uuid.New().String(),
 		ParticipantId: participantID,
 		SrcPayload:    req["data"],
 		CreatedAt:     time.Now(),

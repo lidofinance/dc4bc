@@ -121,7 +121,8 @@ func getOperationsCommand() *cobra.Command {
 						return fmt.Errorf("failed to unmarshal operation payload")
 					}
 					msgHash := md5.Sum(payload.SrcPayload)
-					fmt.Printf("Hash of the message to sign - %s\n", hex.EncodeToString(msgHash[:]))
+					fmt.Printf("Hash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
+					fmt.Printf("Signing ID: %s\n", payload.SigningId)
 				}
 				fmt.Println("-----------------------------------------------------")
 			}
@@ -165,8 +166,8 @@ func getSignaturesCommand() *cobra.Command {
 			if signatures.ErrorMessage != "" {
 				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
 			}
-			for dataHash, signature := range signatures.Result {
-				fmt.Printf("Hash of the signing data: %s\n", dataHash)
+			for sigID, signature := range signatures.Result {
+				fmt.Printf("Signing ID: %s\n", sigID)
 				for _, participantSig := range signature {
 					fmt.Printf("\tDKG round ID: %s\n", participantSig.DKGRoundID)
 					fmt.Printf("\tParticipant: %s\n", participantSig.Username)

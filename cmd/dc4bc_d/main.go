@@ -182,8 +182,7 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("Failed to init state client: %v", err)
 			}
 
-			stg, err := storage.NewFileStorage("/tmp/dc4bc_storage")
-			//stg, err := storage.NewKafkaStorage(ctx, cfg.StorageDBDSN, cfg.StorageTopic)
+			stg, err := storage.NewKafkaStorage(ctx, cfg.StorageDBDSN, cfg.StorageTopic)
 			if err != nil {
 				log.Fatalf("Failed to init storage client: %v", err)
 			}

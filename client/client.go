@@ -152,6 +152,7 @@ func (c *BaseClient) processSignature(message storage.Message) error {
 }
 
 func (c *BaseClient) ProcessMessage(message storage.Message) error {
+	// save broadcasted reconstructed signature
 	if fsm.Event(message.Event) == types.SignatureReconstructed {
 		if err := c.processSignature(message); err != nil {
 			return fmt.Errorf("failed to process signature: %w", err)
@@ -161,6 +162,9 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 		}
 		return nil
 	}
+
+	// save signing data to the same storage as we save signatures
+	// This allows easy to view signing data by CLI-command
 	if fsm.Event(message.Event) == sipf.EventSigningStart {
 		if err := c.processSignature(message); err != nil {
 			return fmt.Errorf("failed to process signature: %w", err)

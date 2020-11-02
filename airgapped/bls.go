@@ -107,6 +107,7 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 	}
 
 	response := client.ReconstructedSignature{
+		SigningID:  payload.SigningId,
 		SrcPayload: payload.SrcPayload,
 		Signature:  reconstructedSignature,
 		DKGRoundID: o.DKGIdentifier,
