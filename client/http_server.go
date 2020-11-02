@@ -70,7 +70,7 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/getOperationQRPath", c.getOperationQRPathHandler)
 
 	mux.HandleFunc("/getSignatures", c.getSignaturesHandler)
-	mux.HandleFunc("/getSignatureByDataHash", c.getSignatureByDataHashHandler)
+	mux.HandleFunc("/getSignatureByID", c.getSignatureByIDHandler)
 
 	mux.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
 	mux.HandleFunc("/handleProcessedOperationJSON", c.handleJSONOperationHandler)
@@ -237,13 +237,13 @@ func (c *BaseClient) getSignaturesHandler(w http.ResponseWriter, r *http.Request
 	successResponse(w, signatures)
 }
 
-func (c *BaseClient) getSignatureByDataHashHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) getSignatureByIDHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
 
-	signature, err := c.GetSignatureByDataHash(r.URL.Query().Get("dkgID"), r.URL.Query().Get("hash"))
+	signature, err := c.GetSignatureByID(r.URL.Query().Get("dkgID"), r.URL.Query().Get("hash"))
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get signature: %v", err))
 		return

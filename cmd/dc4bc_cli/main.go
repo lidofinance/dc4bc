@@ -63,6 +63,7 @@ func main() {
 		getOffsetCommand(),
 		getFSMStatusCommand(),
 		getFSMListCommand(),
+		getSignatureDataCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
@@ -121,6 +122,7 @@ func getOperationsCommand() *cobra.Command {
 					}
 					msgHash := md5.Sum(payload.SrcPayload)
 					fmt.Printf("Hash of the message to sign - %s\n", hex.EncodeToString(msgHash[:]))
+					fmt.Printf("Signing ID: %s", payload.SigningId)
 				}
 				fmt.Println("-----------------------------------------------------")
 			}
@@ -198,7 +200,7 @@ func getSignatureRequest(host string, dkgID, dataHash string) (*SignatureRespons
 
 func getSignatureCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get_signature [dkgID] [hash_of_the_signed_data]",
+		Use:   "get_signature [dkgID] [signing_id]",
 		Args:  cobra.ExactArgs(2),
 		Short: "returns a list of reconstructed signatures of the signed data broadcasted by users",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -217,6 +219,31 @@ func getSignatureCommand() *cobra.Command {
 				fmt.Printf("\tParticipant: %s\n", participantSig.Participant)
 				fmt.Printf("\tReconstructed signature for the data: %s\n", base64.StdEncoding.EncodeToString(participantSig.Signature))
 				fmt.Println()
+			}
+			return nil
+		},
+	}
+}
+
+func getSignatureDataCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_signature_data [dkgID] [signing_id]",
+		Args:  cobra.ExactArgs(2),
+		Short: "returns a data which was signed",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+			signatures, err := getSignatureRequest(listenAddr, args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("failed to get signatures: %w", err)
+			}
+			if signatures.ErrorMessage != "" {
+				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
+			}
+			if len(signatures.Result) > 0 {
+				fmt.Println(string(signatures.Result[0].Data))
 			}
 			return nil
 		},

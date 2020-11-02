@@ -3,7 +3,6 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/corestario/kyber/pairing"
 
 	"github.com/corestario/kyber/sign/bls"
@@ -111,6 +110,7 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 		Data:       payload.SrcPayload,
 		Signature:  reconstructedSignature,
 		DKGRoundID: o.DKGIdentifier,
+		SigningID:  payload.SigningId,
 	}
 	respBz, err := json.Marshal(response)
 	if err != nil {

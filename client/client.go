@@ -294,8 +294,8 @@ func (c *BaseClient) GetSignatures(dkgID string) (map[string][]types.Reconstruct
 }
 
 //GetSignatureByDataHash returns a list of reconstructed signatures of the signed data broadcasted by users
-func (c *BaseClient) GetSignatureByDataHash(dkgID, sigID string) ([]types.ReconstructedSignature, error) {
-	return c.state.GetSignatureByDataHash(dkgID, sigID)
+func (c *BaseClient) GetSignatureByID(dkgID, sigID string) ([]types.ReconstructedSignature, error) {
+	return c.state.GetSignatureByID(dkgID, sigID)
 }
 
 // getOperationJSON returns a specific JSON-encoded operation
