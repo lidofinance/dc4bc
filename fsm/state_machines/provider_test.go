@@ -21,12 +21,12 @@ import (
 )
 
 const (
-	addrMockLen = 32
-	keysMockLen = 128
+	usernameMockLen = 32
+	keysMockLen     = 128
 )
 
 type testParticipantsPayload struct {
-	Addr          string
+	Username      string
 	HotPrivKey    ed25519.PrivateKey
 	HotPubKey     ed25519.PublicKey
 	DkgPubKey     []byte
@@ -41,8 +41,8 @@ var (
 
 	dkgId = "1b7a6382afe0fbe2ff127a5779f5e9b042e685cabefeadcf4ef27c6089a56bfb"
 
-	// map {addr} -> {participant}
-	testAddrMapParticipants = map[string]*testParticipantsPayload{}
+	// map {username} -> {participant}
+	testUsernameMapParticipants = map[string]*testParticipantsPayload{}
 	// map {dkg_queue_id} -> {participant}
 	testIdMapParticipants = map[int]*testParticipantsPayload{}
 
@@ -62,7 +62,7 @@ func init() {
 	for i := 0; i < 3; i++ {
 
 		participant := &testParticipantsPayload{
-			Addr:          base64.StdEncoding.EncodeToString(genDataMock(addrMockLen)),
+			Username:      base64.StdEncoding.EncodeToString(genDataMock(usernameMockLen)),
 			HotPrivKey:    genDataMock(keysMockLen),
 			HotPubKey:     genDataMock(keysMockLen),
 			DkgPubKey:     genDataMock(keysMockLen),
@@ -71,7 +71,7 @@ func init() {
 			DkgResponse:   genDataMock(keysMockLen),
 			DkgPartialKey: genDataMock(keysMockLen),
 		}
-		testAddrMapParticipants[participant.Addr] = participant
+		testUsernameMapParticipants[participant.Username] = participant
 	}
 }
 
@@ -162,10 +162,10 @@ func Test_SignatureProposal_EventInitProposal_Positive(t *testing.T) {
 	// Make request
 	request := make([]*requests.SignatureProposalParticipantsEntry, 0)
 
-	for _, participant := range testAddrMapParticipants {
+	for _, participant := range testUsernameMapParticipants {
 
 		request = append(request, &requests.SignatureProposalParticipantsEntry{
-			Addr:      participant.Addr,
+			Username:  participant.Username,
 			PubKey:    participant.HotPubKey,
 			DkgPubKey: participant.DkgPubKey,
 		})
@@ -196,14 +196,14 @@ func Test_SignatureProposal_EventInitProposal_Positive(t *testing.T) {
 			t.Fatalf("expected unique {ParticipantId}")
 		}
 
-		if participant.Addr == "" {
-			t.Fatalf("expected not empty {Addr}")
+		if participant.Username == "" {
+			t.Fatalf("expected not empty {Username}")
 		}
 
-		participantEntry, ok := testAddrMapParticipants[participant.Addr]
+		participantEntry, ok := testUsernameMapParticipants[participant.Username]
 
 		if !ok {
-			t.Fatalf("expected exist {Addr}")
+			t.Fatalf("expected exist {Username}")
 		}
 
 		testIdMapParticipants[participant.ParticipantId] = participantEntry
@@ -409,8 +409,8 @@ func Test_DkgProposal_EventDKGCommitConfirmationReceived(t *testing.T) {
 			t.Fatalf("expected exist {ParticipantId}")
 		}
 
-		if responseEntry.Addr == "" {
-			t.Fatalf("expected {Addr} non zero length")
+		if responseEntry.Username == "" {
+			t.Fatalf("expected {Username} non zero length")
 		}
 
 		if len(responseEntry.DkgCommit) == 0 {
@@ -534,8 +534,8 @@ func Test_DkgProposal_EventDKGDealConfirmationReceived(t *testing.T) {
 			t.Fatalf("expected exist {ParticipantId}")
 		}
 
-		if responseEntry.Addr == "" {
-			t.Fatalf("expected {Addr} non zero length")
+		if responseEntry.Username == "" {
+			t.Fatalf("expected {Username} non zero length")
 		}
 
 		if len(responseEntry.DkgDeal) == 0 {
@@ -653,8 +653,8 @@ func Test_DkgProposal_EventDKGResponseConfirmationReceived_Positive(t *testing.T
 			t.Fatalf("expected exist {ParticipantId}")
 		}
 
-		if responseEntry.Addr == "" {
-			t.Fatalf("expected {Addr} non zero length")
+		if responseEntry.Username == "" {
+			t.Fatalf("expected {Username} non zero length")
 		}
 
 		if len(responseEntry.DkgResponse) == 0 {

@@ -113,7 +113,7 @@ func (am *Machine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) 
 		if err = pubKey.UnmarshalBinary(entry.DkgPubKey); err != nil {
 			return fmt.Errorf("failed to unmarshal pubkey: %w", err)
 		}
-		dkgInstance.StorePubKey(entry.Addr, entry.ParticipantId, pubKey)
+		dkgInstance.StorePubKey(entry.Username, entry.ParticipantId, pubKey)
 	}
 
 	if err = dkgInstance.InitDKGInstance(am.baseSeed); err != nil {
@@ -182,7 +182,7 @@ func (am *Machine) handleStateDkgDealsAwaitConfirmations(o *client.Operation) er
 			}
 			dkgCommits = append(dkgCommits, commit)
 		}
-		dkgInstance.StoreCommits(entry.Addr, dkgCommits)
+		dkgInstance.StoreCommits(entry.Username, dkgCommits)
 	}
 
 	deals, err := dkgInstance.GetDeals()
@@ -245,7 +245,7 @@ func (am *Machine) handleStateDkgResponsesAwaitConfirmations(o *client.Operation
 		if err = json.Unmarshal(decryptedDealBz, &deal); err != nil {
 			return fmt.Errorf("failed to unmarshal deal")
 		}
-		dkgInstance.StoreDeal(entry.Addr, &deal)
+		dkgInstance.StoreDeal(entry.Username, &deal)
 	}
 
 	processedResponses, err := dkgInstance.ProcessDeals()
@@ -298,7 +298,7 @@ func (am *Machine) handleStateDkgMasterKeyAwaitConfirmations(o *client.Operation
 		if err = json.Unmarshal(entry.DkgResponse, &entryResponses); err != nil {
 			return fmt.Errorf("failed to unmarshal responses: %w", err)
 		}
-		dkgInstance.StoreResponses(entry.Addr, entryResponses)
+		dkgInstance.StoreResponses(entry.Username, entryResponses)
 	}
 
 	if err = dkgInstance.ProcessResponses(); err != nil {

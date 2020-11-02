@@ -230,7 +230,7 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 				if err != nil {
 					return fmt.Errorf("failed to get SigningQuorumParticipant: %w", err)
 				}
-				if initiator.Addr == c.GetUsername() {
+				if initiator.Username == c.GetUsername() {
 					break
 				}
 			}
@@ -400,9 +400,9 @@ func (c *BaseClient) signMessage(message []byte) ([]byte, error) {
 }
 
 func (c *BaseClient) verifyMessage(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
-	senderPubKey, err := fsmInstance.GetPubKeyByAddr(message.SenderAddr)
+	senderPubKey, err := fsmInstance.GetPubKeyByUsername(message.SenderAddr)
 	if err != nil {
-		return fmt.Errorf("failed to GetPubKeyByAddr: %w", err)
+		return fmt.Errorf("failed to GetPubKeyByUsername: %w", err)
 	}
 
 	if !ed25519.Verify(senderPubKey, message.Bytes(), message.Signature) {
