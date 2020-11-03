@@ -40,9 +40,8 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 	}
 
 	for index, participant := range request.Participants {
-		//participantId := createFingerprint(&participant.DkgPubKey)
 		m.payload.SignatureProposalPayload.Quorum[index] = &internal.SignatureProposalParticipant{
-			Addr:      participant.Addr,
+			Username:  participant.Username,
 			PubKey:    participant.PubKey,
 			DkgPubKey: participant.DkgPubKey,
 			Status:    internal.SigConfirmationAwaitConfirmation,
@@ -50,8 +49,8 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 			UpdatedAt: request.CreatedAt,
 		}
 
-		m.payload.SetPubKeyAddr(participant.Addr, participant.PubKey)
-		m.payload.SetIDAddr(participant.Addr, index)
+		m.payload.SetPubKeyUsername(participant.Username, participant.PubKey)
+		m.payload.SetIDUsername(participant.Username, index)
 	}
 
 	// Checking fo quorum length
@@ -67,7 +66,7 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
 		responseEntry := &responses.SignatureProposalParticipantInvitationEntry{
 			ParticipantId: participantId,
-			Addr:          participant.Addr,
+			Username:      participant.Username,
 			Threshold:     participant.Threshold,
 			DkgPubKey:     participant.DkgPubKey,
 			PubKey:        participant.PubKey,
@@ -171,7 +170,7 @@ func (m *SignatureProposalFSM) actionValidateSignatureProposal(fsm.Event, ...int
 	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
 		responseEntry := &responses.SignatureProposalParticipantStatusEntry{
 			ParticipantId: participantId,
-			Addr:          participant.Addr,
+			Username:      participant.Username,
 			Status:        uint8(participant.Status),
 		}
 		responseData = append(responseData, responseEntry)

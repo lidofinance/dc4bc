@@ -13,7 +13,7 @@ type SignatureProposalParticipantsListRequest struct {
 }
 
 type SignatureProposalParticipantsEntry struct {
-	Addr      string
+	Username  string
 	PubKey    []byte
 	DkgPubKey []byte
 }

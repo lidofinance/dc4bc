@@ -29,7 +29,7 @@ type FSMInstance struct {
 
 type Participant interface {
 	GetStatus() internal.ParticipantStatus
-	GetAddr() string
+	GetUsername() string
 }
 
 // Create new fsm with unique id
@@ -91,12 +91,12 @@ func FromDump(data []byte) (*FSMInstance, error) {
 	return i, err
 }
 
-func (i *FSMInstance) GetPubKeyByAddr(addr string) (ed25519.PublicKey, error) {
+func (i *FSMInstance) GetPubKeyByUsername(username string) (ed25519.PublicKey, error) {
 	if i.dump == nil {
 		return nil, errors.New("dump not initialized")
 	}
 
-	return i.dump.Payload.GetPubKeyByAddr(addr)
+	return i.dump.Payload.GetPubKeyByUsername(username)
 }
 
 func (i *FSMInstance) SigningQuorumGetParticipant(id int) (*internal.SigningProposalParticipant, error) {
@@ -107,12 +107,12 @@ func (i *FSMInstance) SigningQuorumGetParticipant(id int) (*internal.SigningProp
 	return i.dump.Payload.SigningQuorumGet(id), nil
 }
 
-func (i *FSMInstance) GetIDByAddr(addr string) (int, error) {
+func (i *FSMInstance) GetIDByUsername(username string) (int, error) {
 	if i.dump == nil {
 		return -1, errors.New("dump not initialized")
 	}
 
-	return i.dump.Payload.GetIDByAddr(addr)
+	return i.dump.Payload.GetIDByUsername(username)
 }
 
 func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, err error) {
