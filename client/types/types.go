@@ -23,10 +23,11 @@ const (
 )
 
 type ReconstructedSignature struct {
-	Data        []byte
-	Signature   []byte
-	Participant string
-	DKGRoundID  string
+	SigningID  string
+	SrcPayload []byte
+	Signature  []byte
+	Username   string
+	DKGRoundID string
 }
 
 // Operation is the type for any Operation that might be required for

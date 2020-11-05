@@ -146,11 +146,13 @@ func (c *BaseClient) processSignature(message storage.Message) error {
 	if err = json.Unmarshal(message.Data, &signature); err != nil {
 		return fmt.Errorf("failed to unmarshal reconstructed signature: %w", err)
 	}
-	signature.Participant = message.SenderAddr
+	signature.Username = message.SenderAddr
+	signature.DKGRoundID = message.DkgRoundID
 	return c.state.SaveSignature(signature)
 }
 
 func (c *BaseClient) ProcessMessage(message storage.Message) error {
+	// save broadcasted reconstructed signature
 	if fsm.Event(message.Event) == types.SignatureReconstructed {
 		if err := c.processSignature(message); err != nil {
 			return fmt.Errorf("failed to process signature: %w", err)
@@ -159,6 +161,14 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 			return fmt.Errorf("failed to SaveOffset: %w", err)
 		}
 		return nil
+	}
+
+	// save signing data to the same storage as we save signatures
+	// This allows easy to view signing data by CLI-command
+	if fsm.Event(message.Event) == sipf.EventSigningStart {
+		if err := c.processSignature(message); err != nil {
+			return fmt.Errorf("failed to process signature: %w", err)
+		}
 	}
 	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
 	if err != nil {
@@ -294,8 +304,8 @@ func (c *BaseClient) GetSignatures(dkgID string) (map[string][]types.Reconstruct
 }
 
 //GetSignatureByDataHash returns a list of reconstructed signatures of the signed data broadcasted by users
-func (c *BaseClient) GetSignatureByDataHash(dkgID, sigID string) ([]types.ReconstructedSignature, error) {
-	return c.state.GetSignatureByDataHash(dkgID, sigID)
+func (c *BaseClient) GetSignatureByID(dkgID, sigID string) ([]types.ReconstructedSignature, error) {
+	return c.state.GetSignatureByID(dkgID, sigID)
 }
 
 // getOperationJSON returns a specific JSON-encoded operation

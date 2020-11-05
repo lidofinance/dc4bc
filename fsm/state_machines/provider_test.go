@@ -897,6 +897,7 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 	compareState(t, sif.StateSigningIdle, inState)
 
 	fsmResponse, testFSMDump[sif.StateSigningAwaitConfirmations], err = testFSMInstance.Do(sif.EventSigningStart, requests.SigningProposalStartRequest{
+		SigningID:     "test-signing-id",
 		ParticipantId: 1,
 		SrcPayload:    []byte("message to sign"),
 		CreatedAt:     time.Now(),
