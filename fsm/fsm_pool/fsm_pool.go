@@ -3,7 +3,7 @@ package fsm_pool
 import (
 	"errors"
 	"fmt"
-	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
 )
 
 type MachineProvider interface {

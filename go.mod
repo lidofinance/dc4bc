@@ -1,4 +1,4 @@
-module github.com/depools/dc4bc
+module github.com/lidofinance/dc4bc
 
 go 1.13
 

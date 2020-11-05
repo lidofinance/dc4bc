@@ -1,17 +1,15 @@
 package client
 
 import (
-	"crypto/md5"
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
 
-	"github.com/depools/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/client/types"
 
-	"github.com/depools/dc4bc/fsm/state_machines"
+	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -39,7 +37,7 @@ type State interface {
 	GetOperationByID(operationID string) (*types.Operation, error)
 
 	SaveSignature(signature types.ReconstructedSignature) error
-	GetSignatureByDataHash(dkgID, signatureID string) ([]types.ReconstructedSignature, error)
+	GetSignatureByID(dkgID, signatureID string) ([]types.ReconstructedSignature, error)
 	GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error)
 }
 
@@ -311,7 +309,7 @@ func (s *LevelDBState) GetSignatures(dkgID string) (map[string][]types.Reconstru
 	return s.getSignatures(dkgID)
 }
 
-func (s *LevelDBState) GetSignatureByDataHash(dkgID, signatureID string) ([]types.ReconstructedSignature, error) {
+func (s *LevelDBState) GetSignatureByID(dkgID, signatureID string) ([]types.ReconstructedSignature, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -340,12 +338,9 @@ func (s *LevelDBState) SaveSignature(signature types.ReconstructedSignature) err
 		signatures = make(map[string][]types.ReconstructedSignature)
 	}
 
-	dataHash := md5.Sum(signature.Data)
-	dataHashString := hex.EncodeToString(dataHash[:])
-
-	sig := signatures[dataHashString]
+	sig := signatures[signature.SigningID]
 	sig = append(sig, signature)
-	signatures[dataHashString] = sig
+	signatures[signature.SigningID] = sig
 
 	signaturesJSON, err := json.Marshal(signatures)
 	if err != nil {

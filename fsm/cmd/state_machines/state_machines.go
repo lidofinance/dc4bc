@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"log"
 )
 

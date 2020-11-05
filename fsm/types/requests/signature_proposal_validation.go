@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/depools/dc4bc/fsm/config"
+	"github.com/lidofinance/dc4bc/fsm/config"
 )
 
 func (r *SignatureProposalParticipantsListRequest) Validate() error {

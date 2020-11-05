@@ -4,8 +4,8 @@ import (
 	"crypto/ed25519"
 	"errors"
 
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/fsm_pool"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/fsm_pool"
 )
 
 type DumpedMachineProvider interface {

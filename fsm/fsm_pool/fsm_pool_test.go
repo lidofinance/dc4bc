@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
 )
 
 type testMachineFSM1 struct {

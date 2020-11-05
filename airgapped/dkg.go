@@ -9,13 +9,13 @@ import (
 
 	"github.com/corestario/kyber"
 	dkgPedersen "github.com/corestario/kyber/share/dkg/pedersen"
-	client "github.com/depools/dc4bc/client/types"
-	"github.com/depools/dc4bc/dkg"
-	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/fsm/types/responses"
-	"github.com/depools/dc4bc/storage"
+	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/dkg"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
+	"github.com/lidofinance/dc4bc/storage"
 )
 
 func createMessage(o client.Operation, data []byte) storage.Message {

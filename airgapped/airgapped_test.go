@@ -12,15 +12,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	client "github.com/depools/dc4bc/client/types"
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/fsm/types/responses"
-	"github.com/depools/dc4bc/storage"
 	"github.com/google/uuid"
+	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
+	"github.com/lidofinance/dc4bc/storage"
 )
 
 const (
