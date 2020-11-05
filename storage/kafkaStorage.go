@@ -12,8 +12,9 @@ import (
 )
 
 const (
-	kafkaPartition = 0
-	maxRetries     = 5
+	kafkaPartition    = 0
+	maxRetries        = 30
+	reconnectInterval = time.Second
 )
 
 func init() {
@@ -31,6 +32,7 @@ type KafkaStorage struct {
 
 func NewKafkaStorage(ctx context.Context, kafkaEndpoint, kafkaTopic string) (Storage, error) {
 	stg := &KafkaStorage{
+		ctx:           ctx,
 		kafkaEndpoint: kafkaEndpoint,
 		kafkaTopic:    kafkaTopic,
 	}
@@ -52,6 +54,8 @@ func (s *KafkaStorage) Send(m Message) (Message, error) {
 				log.Printf("failed to reconnect (%v), %d retries left", err, try.MaxRetries-attempt)
 			}
 		}
+		time.Sleep(reconnectInterval)
+
 		return attempt < try.MaxRetries, err
 	})
 
@@ -85,6 +89,8 @@ func (s *KafkaStorage) GetMessages(offset uint64) (messages []Message, err error
 				log.Printf("failed to reconnect (%v), %d retries left", err, try.MaxRetries-attempt)
 			}
 		}
+		time.Sleep(reconnectInterval)
+
 		return attempt < try.MaxRetries, err
 	})
 
