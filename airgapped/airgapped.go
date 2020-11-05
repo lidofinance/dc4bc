@@ -78,6 +78,10 @@ func (am *Machine) SetQRProcessorFramesDelay(delay int) {
 	am.qrProcessor.SetDelay(delay)
 }
 
+func (am *Machine) CloseCameraReader() {
+	am.qrProcessor.CloseCameraReader()
+}
+
 func (am *Machine) SetQRProcessorChunkSize(chunkSize int) {
 	am.qrProcessor.SetChunkSize(chunkSize)
 }
