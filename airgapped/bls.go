@@ -7,10 +7,10 @@ import (
 
 	"github.com/corestario/kyber/sign/bls"
 	"github.com/corestario/kyber/sign/tbls"
-	client "github.com/depools/dc4bc/client/types"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/fsm/types/responses"
+	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 )
 
 // handleStateSigningAwaitConfirmations returns a confirmation of participation to create a threshold signature for a data

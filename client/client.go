@@ -11,22 +11,22 @@ import (
 	"sync"
 	"time"
 
-	"github.com/depools/dc4bc/fsm/types/responses"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
-	sipf "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	sipf "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
-	"github.com/depools/dc4bc/client/types"
-	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/google/uuid"
+	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
 
-	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 
-	"github.com/depools/dc4bc/fsm/state_machines"
+	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
-	"github.com/depools/dc4bc/fsm/fsm"
-	dpf "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/depools/dc4bc/qr"
-	"github.com/depools/dc4bc/storage"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	dpf "github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/lidofinance/dc4bc/qr"
+	"github.com/lidofinance/dc4bc/storage"
 )
 
 const (

@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/depools/dc4bc/fsm/state_machines"
+	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -17,14 +17,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/responses"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
-	"github.com/depools/dc4bc/client"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/qr"
+	"github.com/lidofinance/dc4bc/client"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/qr"
 	"github.com/spf13/cobra"
 )
 

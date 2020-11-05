@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/depools/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/client/types"
 
-	"github.com/depools/dc4bc/fsm/state_machines"
+	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
 	"github.com/syndtr/goleveldb/leveldb"
 )
