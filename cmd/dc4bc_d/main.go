@@ -8,8 +8,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strings"
 	"reflect"
+	"strings"
 	"syscall"
 
 	"github.com/depools/dc4bc/client"
@@ -31,7 +31,7 @@ const (
 	flagStoreDBDSN               = "key_store_dbdsn"
 	flagFramesDelay              = "frames_delay"
 	flagChunkSize                = "chunk_size"
-	flagConfigPath   = "config_path"
+	flagConfigPath               = "config_path"
 )
 
 func init() {
@@ -50,17 +50,17 @@ func init() {
 }
 
 type config struct {
-	Username      string `json:"username"`
-	ListenAddress string `json:"listen_address"`
-	StateDBDSN    string `json:"state_dbdsn"`
-	StorageDBDSN  string `json:"storage_dbdsn"`
-	StorageTopic  string `json:"storage_topic"`
-	KeyStoreDBDSN string `json:"keystore_dbdsn"`
-	FramesDelay   int    `json:"frames_delay"`
-	ChunkSize     int    `json:"chunk_size"`
+	Username            string `json:"username"`
+	ListenAddress       string `json:"listen_address"`
+	StateDBDSN          string `json:"state_dbdsn"`
+	StorageDBDSN        string `json:"storage_dbdsn"`
+	StorageTopic        string `json:"storage_topic"`
+	KeyStoreDBDSN       string `json:"key_store_dbdsn"`
+	FramesDelay         int    `json:"frames_delay"`
+	ChunkSize           int    `json:"chunk_size"`
 	ProducerCredentials string `json:"producer_credentials"`
 	ConsumerCredentials string `json:"consumer_credentials"`
-	KafkaTrustStorePath string `json:"kafka_trust_store_path"`
+	KafkaTrustStorePath string `json:"kafka_truststore_path"`
 }
 
 func readConfig(path string) (config, error) {

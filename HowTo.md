@@ -73,6 +73,38 @@ export CGO_LDFLAGS="-L/usr/local/Cellar/opencv/4.4.0/lib -lopencv_stitching -lop
 ```
 Now try to build the project again.
 
+#### Starting Kafka
+
+##### Requirements
+
+* Docker
+
+At first, you need to change config files for your Kafka node and TLS certificate generation:
+
+* kafka-docker/.env
+* kafka-docker/ca.cnf - important fields here are 'commonName', 'IP.1', 'DNS.1'. IP.1 is your server IP and 'commonName/'DNS.1' is your domain name if you have one.
+
+After that just run in kafka-docker folder:
+```
+$ ./up.sh
+Generating a 2048 bit RSA private key
+................................................................................+++
+...............+++
+writing new private key to 'certs/ca.key'
+-----
+Importing keystore certs/server.p12 to certs/server.keystore.jks...
+Entry for alias 1 successfully imported.
+Import command completed:  1 entries successfully imported, 0 entries failed or cancelled
+Certificate was added to keystore
+Creating network "kafka-docker_default" with the default driver
+Creating zookeeper ... done
+Creating kafka     ... done
+```
+This command will generate a self-signed certificate (and other necessary files) which will be located in kafka-docker/certs folder.
+And the command will up start a docker container with a Kafka inside.
+
+
+
 #### DKG
 
 Generate keys for your node:
