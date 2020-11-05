@@ -11,13 +11,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	sif "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
-	"github.com/depools/dc4bc/fsm/fsm"
-	dpf "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/fsm/types/responses"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	dpf "github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 )
 
 const (

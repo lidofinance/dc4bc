@@ -2,7 +2,7 @@
 
 Clone the project repository:
 ```
-git clone git@github.com:depools/dc4bc.git
+git clone git@github.com:lidofinance/dc4bc.git
 ```
 
 #### Installation (Linux)

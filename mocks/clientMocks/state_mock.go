@@ -5,9 +5,9 @@
 package clientMocks
 
 import (
-	types "github.com/depools/dc4bc/client/types"
-	state_machines "github.com/depools/dc4bc/fsm/state_machines"
 	gomock "github.com/golang/mock/gomock"
+	types "github.com/lidofinance/dc4bc/client/types"
+	state_machines "github.com/lidofinance/dc4bc/fsm/state_machines"
 	reflect "reflect"
 )
 

@@ -15,12 +15,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/depools/dc4bc/airgapped"
-	"github.com/depools/dc4bc/client/types"
-	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/qr"
-	"github.com/depools/dc4bc/storage"
+	"github.com/lidofinance/dc4bc/airgapped"
+	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/qr"
+	"github.com/lidofinance/dc4bc/storage"
 )
 
 type node struct {

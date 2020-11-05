@@ -16,7 +16,7 @@ import (
 
 	passwordTerminal "golang.org/x/crypto/ssh/terminal"
 
-	"github.com/depools/dc4bc/airgapped"
+	"github.com/lidofinance/dc4bc/airgapped"
 )
 
 func init() {

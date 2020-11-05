@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/depools/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/client/types"
 
-	"github.com/depools/dc4bc/client"
+	"github.com/lidofinance/dc4bc/client"
 	"github.com/stretchr/testify/require"
 )
 
