@@ -9,7 +9,7 @@ git clone git@github.com:depools/dc4bc.git
 
 First install the Go toolchain:
 ```
-wget https://golang.org/dl/go1.15.2.linux-amd64.tar.gz
+curl -OL https://golang.org/dl/go1.15.2.linux-amd64.tar.gz
 tar -C /usr/local -xzf go1.15.2.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 ```
@@ -92,7 +92,7 @@ Print your communication public key and encryption public key and save it somewh
 $ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
 EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 # Inside the airgapped shell:
->>> show_dkg_pub_key
+>>> show_dkg_pubkey
 sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq
 ```
 
@@ -106,12 +106,12 @@ Example of start_dkg_propose.json file structure:
   "SigningThreshold": 2,
   "Participants": [
     {
-    "Addr": "e0d8083f8a2d18f310bfbdc9649a83664470f46053ab53c105a054b08f9eff85",
+    "Username": "john_doe",
     "PubKey": "EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=",
     "DkgPubKey": "sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq"
     },
     {
-      "Addr": "addr2",
+      "Username": "jane_doe",
       "PubKey": "cHVia2V5Mg==",
       "DkgPubKey": "ZGtnX3B1YmtleV8y"
     }
@@ -124,7 +124,7 @@ The message will be consumed by your node:
 [john_doe] starting to poll messages from append-only log...
 [john_doe] Starting HTTP server on address: localhost:8080
 [john_doe] Handling message with offset 0, type event_sig_proposal_init
-[john_doe] message event_sig_proposal_init done successfully from e0d8083f8a2d18f310bfbdc9649a83664470f46053ab53c105a054b08f9eff85
+[john_doe] message event_sig_proposal_init done successfully from john_doe
 [john_doe] Successfully processed message with offset 0, type event_sig_proposal_init
 ```
 
@@ -181,7 +181,7 @@ Operation successfully scanned
 
 After scanning the response, a message is send to the message board. When all participants perform the necessary operations, the node will proceed to the next step:
 ```
-[john_doe] message event_sig_proposal_confirm_by_participant done successfully from b8c083cd717b9958e141be5956bab1e463a7a0d85e4fe8924833601d43d671c4
+[john_doe] message event_sig_proposal_confirm_by_participant done successfully from john_doe
 ```
 Further actions are repetitive. Check for new pending operations:
 ```
@@ -202,9 +202,8 @@ Now we have to collectively sign a message. Some participant will run the comman
 # Inside dc4bc_airgapped prompt:
 $ >>> show_finished_dkg
 AABB10CABB10
-$ echo "the message to sign" | base64
-dGhlIG1lc3NhZ2UgdG8gc2lnbgo=
-$ ./dc4bc_cli sign_data AABB10CABB10 dGhlIG1lc3NhZ2UgdG8gc2lnbgo= --listen_addr localhost:8080
+$ echo "the message to sign" > data.txt
+$ ./dc4bc_cli sign_data AABB10CABB10 data.txt --listen_addr localhost:8080
 ```  
 Further actions are repetitive and are similar to the DKG procedure. Check for new pending operations, feed them to `dc4bc_airgapped`, pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that the signature is ready:
 ```

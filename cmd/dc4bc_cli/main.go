@@ -7,11 +7,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/depools/dc4bc/fsm/state_machines"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/depools/dc4bc/fsm/fsm"
@@ -56,6 +59,10 @@ func main() {
 		getHashOfStartDKGCommand(),
 		getSignaturesCommand(),
 		getSignatureCommand(),
+		saveOffsetCommand(),
+		getOffsetCommand(),
+		getFSMStatusCommand(),
+		getFSMListCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
@@ -266,7 +273,7 @@ func getOperationQRPathCommand() *cobra.Command {
 				return fmt.Errorf("failed to get operations: %s", operation.ErrorMessage)
 			}
 
-			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_%s", operationID))
+			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_%s-request", operationID))
 
 			qrPath := fmt.Sprintf("%s.gif", operationQRPath)
 
@@ -325,6 +332,62 @@ func getPubKeyCommand() *cobra.Command {
 	}
 }
 
+func saveOffsetCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "save_offset [offset]",
+		Short: "saves a new offset for a storage",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			offset, err := strconv.ParseUint(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse uint: %w", err)
+			}
+			req := map[string]uint64{"offset": offset}
+			data, err := json.Marshal(req)
+			if err != nil {
+				return fmt.Errorf("failed to create request: %w", err)
+			}
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/saveOffset", listenAddr), "application/json", data)
+			if err != nil {
+				return fmt.Errorf("failed to save offset: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to save offset: %v", resp.ErrorMessage)
+			}
+			fmt.Println(resp.Result.(string))
+			return nil
+		},
+	}
+}
+
+func getOffsetCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_offset",
+		Short: "returns a current offset for the storage",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			resp, err := rawGetRequest(fmt.Sprintf("http://%s//getOffset", listenAddr))
+			if err != nil {
+				return fmt.Errorf("failed to get offset: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to get offset: %v", resp.ErrorMessage)
+			}
+			fmt.Println(uint64(resp.Result.(float64)))
+			return nil
+		},
+	}
+}
+
 func getUsernameCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get_username",
@@ -369,7 +432,7 @@ func rawPostRequest(url string, contentType string, data []byte) (*client.Respon
 
 func readOperationFromCameraCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "read_from_camera",
+		Use:   "read_qr",
 		Short: "opens the camera and reads QR codes which should contain a processed operation",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
@@ -468,7 +531,7 @@ func getHashOfStartDKGCommand() *cobra.Command {
 				if _, err := hashPayload.Write(p.DkgPubKey); err != nil {
 					return err
 				}
-				if _, err := hashPayload.Write([]byte(p.Addr)); err != nil {
+				if _, err := hashPayload.Write([]byte(p.Username)); err != nil {
 					return err
 				}
 			}
@@ -513,6 +576,120 @@ func proposeSignMessageCommand() *cobra.Command {
 			}
 			if resp.ErrorMessage != "" {
 				return fmt.Errorf("failed to make HTTP request to propose message to sign: %v", resp.ErrorMessage)
+			}
+			return nil
+		},
+	}
+}
+
+func getFSMDumpRequest(host string, dkgID string) (*FSMDumpResponse, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/getFSMDump?dkgID=%s", host, dkgID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get FSM dump: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %w", err)
+	}
+
+	var response FSMDumpResponse
+	if err = json.Unmarshal(responseBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+	return &response, nil
+}
+
+func getFSMStatusCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "show_fsm_status [dkg_id]",
+		Args:  cobra.ExactArgs(1),
+		Short: "shows the current status of FSM",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			fsmDumpResponse, err := getFSMDumpRequest(listenAddr, args[0])
+			if err != nil {
+				return fmt.Errorf("failed to get FSM dump: %w", err)
+			}
+			if fsmDumpResponse.ErrorMessage != "" {
+				return fmt.Errorf("failed to get FSM dump: %v", fsmDumpResponse.ErrorMessage)
+			}
+			dump := fsmDumpResponse.Result
+
+			fmt.Printf("FSM current status is %s\n", dump.State)
+
+			quorum := make(map[int]state_machines.Participant)
+			if strings.HasPrefix(string(dump.State), "state_signing") {
+				for k, v := range dump.Payload.SigningProposalPayload.Quorum {
+					quorum[k] = v
+				}
+			}
+			if strings.HasPrefix(string(dump.State), "state_dkg") {
+				for k, v := range dump.Payload.DKGProposalPayload.Quorum {
+					quorum[k] = v
+				}
+			}
+			if strings.HasPrefix(string(dump.State), "state_sig_") {
+				for k, v := range dump.Payload.SignatureProposalPayload.Quorum {
+					quorum[k] = v
+				}
+			}
+
+			waiting := make([]string, 0)
+			confirmed := make([]string, 0)
+			failed := make([]string, 0)
+
+			for _, p := range quorum {
+				if strings.Contains(p.GetStatus().String(), "Await") {
+					waiting = append(waiting, p.GetUsername())
+				}
+				if strings.Contains(p.GetStatus().String(), "Error") {
+					failed = append(failed, p.GetUsername())
+				}
+				if strings.Contains(p.GetStatus().String(), "Confirmed") {
+					confirmed = append(confirmed, p.GetUsername())
+				}
+			}
+
+			if len(waiting) > 0 {
+				fmt.Printf("Waiting for a data from: %s\n", strings.Join(waiting, ", "))
+			}
+			if len(confirmed) > 0 {
+				fmt.Printf("Received a data from: %s\n", strings.Join(confirmed, ", "))
+			}
+			if len(failed) > 0 {
+				fmt.Printf("Participants who got some error during a process: %s\n", strings.Join(waiting, ", "))
+			}
+
+			return nil
+		},
+	}
+}
+
+func getFSMListCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_fsm_list",
+		Short: "returns a list of all FSMs served by the client",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			resp, err := rawGetRequest(fmt.Sprintf("http://%s/getFSMList", listenAddr))
+			if err != nil {
+				return fmt.Errorf("failed to make HTTP request to get FSM list: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to make HTTP request to get FSM list: %v", resp.ErrorMessage)
+			}
+			fsms := resp.Result.(map[string]interface{})
+			for dkgID, state := range fsms {
+				fmt.Printf("DKG ID: %s - FSM state: %s\n", dkgID, state.(string))
 			}
 			return nil
 		},

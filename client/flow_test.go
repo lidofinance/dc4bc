@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/md5"
-	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -15,7 +15,6 @@ import (
 	"testing"
 	"time"
 
-	bls12381 "github.com/corestario/kyber/pairing/bls12381"
 	"github.com/depools/dc4bc/airgapped"
 	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -111,14 +110,8 @@ func (n *node) run(t *testing.T) {
 				if err = json.Unmarshal(msg.Data, &pubKeyReq); err != nil {
 					t.Fatalf("failed to unmarshal pubKey request: %v", err)
 				}
-				seed := make([]byte, 32)
-				_, _ = rand.Read(seed)
-				pubKey := bls12381.NewBLS12381Suite(seed).Point()
-				if err = pubKey.UnmarshalBinary(pubKeyReq.MasterKey); err != nil {
-					t.Fatalf("failed to unmarshal pubkey: %v", err)
-				}
 				if err = ioutil.WriteFile(fmt.Sprintf("/tmp/participant_%d.pubkey",
-					pubKeyReq.ParticipantId), []byte(pubKey.String()), 0666); err != nil {
+					pubKeyReq.ParticipantId), []byte(hex.EncodeToString(pubKeyReq.MasterKey)), 0666); err != nil {
 					t.Fatalf("failed to write pubkey to temp file: %v", err)
 				}
 			}
@@ -237,7 +230,7 @@ func TestFullFlow(t *testing.T) {
 			log.Fatalln("failed to get DKG pubKey:", err.Error())
 		}
 		participants = append(participants, &requests.SignatureProposalParticipantsEntry{
-			Addr:      node.client.GetUsername(),
+			Username:  node.client.GetUsername(),
 			PubKey:    node.client.GetPubKey(),
 			DkgPubKey: dkgPubKey,
 		})

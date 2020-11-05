@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/depools/dc4bc/client/types"
 	"github.com/depools/dc4bc/fsm/fsm"
+	"github.com/depools/dc4bc/fsm/state_machines"
 	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
@@ -19,17 +20,22 @@ type DKGInvitationResponse responses.SignatureProposalParticipantInvitationsResp
 
 func (d DKGInvitationResponse) Len() int           { return len(d) }
 func (d DKGInvitationResponse) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
-func (d DKGInvitationResponse) Less(i, j int) bool { return d[i].Addr < d[j].Addr }
+func (d DKGInvitationResponse) Less(i, j int) bool { return d[i].Username < d[j].Username }
 
 type DKGParticipants []*requests.SignatureProposalParticipantsEntry
 
 func (d DKGParticipants) Len() int           { return len(d) }
 func (d DKGParticipants) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
-func (d DKGParticipants) Less(i, j int) bool { return d[i].Addr < d[j].Addr }
+func (d DKGParticipants) Less(i, j int) bool { return d[i].Username < d[j].Username }
 
 type OperationsResponse struct {
 	ErrorMessage string                      `json:"error_message,omitempty"`
 	Result       map[string]*types.Operation `json:"result"`
+}
+
+type FSMDumpResponse struct {
+	ErrorMessage string                  `json:"error_message,omitempty"`
+	Result       *state_machines.FSMDump `json:"result"`
 }
 
 type SignaturesResponse struct {
@@ -68,7 +74,7 @@ func calcStartDKGMessageHash(payload []byte) ([]byte, error) {
 		if _, err := hashPayload.Write(p.DkgPubKey); err != nil {
 			return nil, err
 		}
-		if _, err := hashPayload.Write([]byte(p.Addr)); err != nil {
+		if _, err := hashPayload.Write([]byte(p.Username)); err != nil {
 			return nil, err
 		}
 	}

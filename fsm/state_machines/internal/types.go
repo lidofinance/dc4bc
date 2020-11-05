@@ -5,6 +5,10 @@ import (
 	"time"
 )
 
+type ParticipantStatus interface {
+	String() string
+}
+
 type ConfirmationParticipantStatus uint8
 
 const (
@@ -37,7 +41,7 @@ type SignatureConfirmation struct {
 }
 
 type SignatureProposalParticipant struct {
-	Addr      string
+	Username  string
 	PubKey    ed25519.PublicKey
 	DkgPubKey []byte
 	// For validation user confirmation: sign(InvitationSecret, PubKey) => user
@@ -45,6 +49,14 @@ type SignatureProposalParticipant struct {
 	Status           ConfirmationParticipantStatus
 	Threshold        int
 	UpdatedAt        time.Time
+}
+
+func (sigP SignatureProposalParticipant) GetStatus() ParticipantStatus {
+	return sigP.Status
+}
+
+func (sigP SignatureProposalParticipant) GetUsername() string {
+	return sigP.Username
 }
 
 func (c *SignatureConfirmation) IsExpired() bool {
@@ -75,7 +87,7 @@ const (
 )
 
 type DKGProposalParticipant struct {
-	Addr         string
+	Username     string
 	DkgPubKey    []byte
 	DkgCommit    []byte
 	DkgDeal      []byte
@@ -84,6 +96,14 @@ type DKGProposalParticipant struct {
 	Status       DKGParticipantStatus
 	Error        error
 	UpdatedAt    time.Time
+}
+
+func (dkgP DKGProposalParticipant) GetStatus() ParticipantStatus {
+	return dkgP.Status
+}
+
+func (dkgP DKGProposalParticipant) GetUsername() string {
+	return dkgP.Username
 }
 
 type DKGProposalQuorum map[int]*DKGProposalParticipant
@@ -184,9 +204,17 @@ func (s SigningParticipantStatus) String() string {
 }
 
 type SigningProposalParticipant struct {
-	Addr        string
+	Username    string
 	Status      SigningParticipantStatus
 	PartialSign []byte
 	Error       error
 	UpdatedAt   time.Time
+}
+
+func (signingP SigningProposalParticipant) GetStatus() ParticipantStatus {
+	return signingP.Status
+}
+
+func (signingP SigningProposalParticipant) GetUsername() string {
+	return signingP.Username
 }

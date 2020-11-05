@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
+	"reflect"
 	"syscall"
 
 	"github.com/depools/dc4bc/client"
@@ -28,6 +31,7 @@ const (
 	flagStoreDBDSN               = "key_store_dbdsn"
 	flagFramesDelay              = "frames_delay"
 	flagChunkSize                = "chunk_size"
+	flagConfigPath   = "config_path"
 )
 
 func init() {
@@ -42,31 +46,143 @@ func init() {
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
+	rootCmd.PersistentFlags().String(flagConfigPath, "", "Path to a config file")
+}
+
+type config struct {
+	Username      string `json:"username"`
+	ListenAddress string `json:"listen_address"`
+	StateDBDSN    string `json:"state_dbdsn"`
+	StorageDBDSN  string `json:"storage_dbdsn"`
+	StorageTopic  string `json:"storage_topic"`
+	KeyStoreDBDSN string `json:"keystore_dbdsn"`
+	FramesDelay   int    `json:"frames_delay"`
+	ChunkSize     int    `json:"chunk_size"`
+	ProducerCredentials string `json:"producer_credentials"`
+	ConsumerCredentials string `json:"consumer_credentials"`
+	KafkaTrustStorePath string `json:"kafka_trust_store_path"`
+}
+
+func readConfig(path string) (config, error) {
+	var cfg config
+	configBz, err := ioutil.ReadFile(path)
+	if err != nil {
+		return cfg, fmt.Errorf("failed to read config file: %w", err)
+	}
+	if err = json.Unmarshal(configBz, &cfg); err != nil {
+		return cfg, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+	return cfg, nil
+}
+
+func checkConfig(cfg *config) error {
+	v := reflect.ValueOf(cfg)
+	v = v.Elem()
+	t := reflect.TypeOf(*cfg)
+
+	for i := 0; i < v.NumField(); i++ {
+		if v.Field(i).IsZero() {
+			return fmt.Errorf("%s cannot be empty", t.Field(i).Tag.Get("json"))
+		}
+	}
+	if cfg.FramesDelay < 0 {
+		return fmt.Errorf("frames_delay cannot be less than zero")
+	}
+	if cfg.ChunkSize < 0 {
+		return fmt.Errorf("chunk_size cannot be less than zero")
+	}
+	return nil
+}
+
+func loadConfig(cmd *cobra.Command) (*config, error) {
+	var cfg config
+	cfgPath, err := cmd.Flags().GetString(flagConfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read configuration: %v", err)
+	}
+	if cfgPath != "" {
+		cfg, err = readConfig(cfgPath)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		cfg.Username, err = cmd.Flags().GetString(flagUserName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read configuration: %v", err)
+		}
+		cfg.KeyStoreDBDSN, err = cmd.Flags().GetString(flagStoreDBDSN)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read configuration: %v", err)
+		}
+
+		cfg.ListenAddress, err = cmd.Flags().GetString(flagListenAddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read configuration: %v", err)
+		}
+
+		cfg.StateDBDSN, err = cmd.Flags().GetString(flagStateDBDSN)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read configuration: %v", err)
+		}
+
+		cfg.FramesDelay, err = cmd.Flags().GetInt(flagFramesDelay)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read configuration: %v", err)
+		}
+
+		cfg.ChunkSize, err = cmd.Flags().GetInt(flagChunkSize)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read configuration: %v", err)
+		}
+
+		cfg.StorageDBDSN, err = cmd.Flags().GetString(flagStorageDBDSN)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read configuration: %v", err)
+		}
+
+		cfg.StorageTopic, err = cmd.Flags().GetString(flagStorageTopic)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read configuration: %v", err)
+		}
+
+		cfg.KafkaTrustStorePath, err = cmd.Flags().GetString(flagKafkaTrustStorePath)
+		if err != nil {
+			log.Fatalf("failed to read configuration: %v", err)
+		}
+		cfg.ProducerCredentials, err = cmd.Flags().GetString(flagKafkaProducerCredentials)
+		if err != nil {
+			log.Fatalf("failed to read configuration: %v", err)
+		}
+		cfg.ConsumerCredentials, err = cmd.Flags().GetString(flagKafkaConsumerCredentials)
+		if err != nil {
+			log.Fatalf("failed to read configuration: %v", err)
+		}
+	}
+	if err = checkConfig(&cfg); err != nil {
+		return nil, err
+	}
+	return &cfg, nil
 }
 
 func genKeyPairCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "gen_keys",
 		Short: "generates a keypair to sign and verify messages",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			userName, err := cmd.Flags().GetString(flagUserName)
+		Run: func(cmd *cobra.Command, args []string) {
+			cfg, err := loadConfig(cmd)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				log.Fatalf("failed to load config: %v", err)
 			}
-			keyStoreDBDSN, err := cmd.Flags().GetString(flagStoreDBDSN)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
+
 			keyPair := client.NewKeyPair()
-			keyStore, err := client.NewLevelDBKeyStore(userName, keyStoreDBDSN)
+			keyStore, err := client.NewLevelDBKeyStore(cfg.Username, cfg.KeyStoreDBDSN)
 			if err != nil {
-				return fmt.Errorf("failed to init key store: %w", err)
+				log.Fatalf("failed to init key store: %v", err)
 			}
-			if err = keyStore.PutKeys(userName, keyPair); err != nil {
-				return fmt.Errorf("failed to save keypair: %w", err)
+			if err = keyStore.PutKeys(cfg.Username, keyPair); err != nil {
+				log.Fatalf("failed to save keypair: %v", err)
 			}
-			fmt.Printf("keypair generated for user %s and saved to %s\n", userName, keyStoreDBDSN)
-			return nil
+			fmt.Printf("keypair generated for user %s and saved to %s\n", cfg.Username, cfg.KeyStoreDBDSN)
 		},
 	}
 }
@@ -87,94 +203,47 @@ func startClientCommand() *cobra.Command {
 		Use:   "start",
 		Short: "starts dc4bc client",
 		Run: func(cmd *cobra.Command, args []string) {
-			userName, err := cmd.Flags().GetString(flagUserName)
+			cfg, err := loadConfig(cmd)
 			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
-
-			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
-
-			stateDBDSN, err := cmd.Flags().GetString(flagStateDBDSN)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
-
-			framesDelay, err := cmd.Flags().GetInt(flagFramesDelay)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
-
-			chunkSize, err := cmd.Flags().GetInt(flagChunkSize)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
-
-			storageDBDSN, err := cmd.Flags().GetString(flagStorageDBDSN)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
-
-			storageTopic, err := cmd.Flags().GetString(flagStorageTopic)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
-
-			keyStoreDBDSN, err := cmd.Flags().GetString(flagStoreDBDSN)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
+				log.Fatalf("failed to load config: %v", err)
 			}
 
 			ctx := context.Background()
 			ctx, cancel := context.WithCancel(ctx)
 
-			state, err := client.NewLevelDBState(stateDBDSN)
+			state, err := client.NewLevelDBState(cfg.StateDBDSN)
 			if err != nil {
 				log.Fatalf("Failed to init state client: %v", err)
 			}
 
-			kafkaTrustStorePath, err := cmd.Flags().GetString(flagKafkaTrustStorePath)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
-			tlsConfig, err := storage.GetTLSConfig(kafkaTrustStorePath)
+			tlsConfig, err := storage.GetTLSConfig(cfg.KafkaTrustStorePath)
 			if err != nil {
 				log.Fatalf("faile to create tls config: %v", err)
 			}
-			producerCredentialsString, err := cmd.Flags().GetString(flagKafkaProducerCredentials)
+			producerCreds, err := parseKafkaAuthCredentials(cfg.ProducerCredentials)
 			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
+				log.Fatal(err.Error())
 			}
-			producerCreds, err := parseKafkaAuthCredentials(producerCredentialsString)
+			consumerCreds, err := parseKafkaAuthCredentials(cfg.ProducerCredentials)
 			if err != nil {
 				log.Fatal(err.Error())
 			}
 
-			consumerCredentialsString, err := cmd.Flags().GetString(flagKafkaConsumerCredentials)
-			if err != nil {
-				log.Fatalf("failed to read configuration: %v", err)
-			}
-			consumerCreds, err := parseKafkaAuthCredentials(consumerCredentialsString)
-			if err != nil {
-				log.Fatal(err.Error())
-			}
-			stg, err := storage.NewKafkaStorage(ctx, storageDBDSN, storageTopic, tlsConfig, producerCreds, consumerCreds)
+			stg, err := storage.NewKafkaStorage(ctx, cfg.StorageDBDSN, cfg.StorageTopic, tlsConfig, producerCreds, consumerCreds)
 			if err != nil {
 				log.Fatalf("Failed to init storage client: %v", err)
 			}
 
-			keyStore, err := client.NewLevelDBKeyStore(userName, keyStoreDBDSN)
+			keyStore, err := client.NewLevelDBKeyStore(cfg.Username, cfg.KeyStoreDBDSN)
 			if err != nil {
 				log.Fatalf("Failed to init key store: %v", err)
 			}
 
 			processor := qr.NewCameraProcessor()
-			processor.SetDelay(framesDelay)
-			processor.SetChunkSize(chunkSize)
+			processor.SetDelay(cfg.FramesDelay)
+			processor.SetChunkSize(cfg.ChunkSize)
 
-			cli, err := client.NewClient(ctx, userName, state, stg, keyStore, processor)
+			cli, err := client.NewClient(ctx, cfg.Username, state, stg, keyStore, processor)
 			if err != nil {
 				log.Fatalf("Failed to init client: %v", err)
 			}
@@ -192,7 +261,7 @@ func startClientCommand() *cobra.Command {
 			}()
 
 			go func() {
-				if err := cli.StartHTTPServer(listenAddr); err != nil {
+				if err := cli.StartHTTPServer(cfg.ListenAddress); err != nil {
 					log.Fatalf("HTTP server error: %v", err)
 				}
 			}()

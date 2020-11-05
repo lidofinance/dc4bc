@@ -1,0 +1,10 @@
+{
+  "username": "node_0",
+  "listen_address": "localhost:8080",
+  "state_dbdsn": "/tmp/dc4bc_node_0_state/",
+  "storage_dbdsn": "94.130.57.249:9092",
+  "storage_topic": "test_topic",
+  "keystore_dbdsn": "/tmp/dc4bc_node_0_key_store",
+  "frames_delay": 10,
+  "chunk_size": 512
+}

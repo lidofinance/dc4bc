@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-
 	"time"
 
 	"github.com/depools/dc4bc/client/types"
@@ -80,8 +79,49 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/startDKG", c.startDKGHandler)
 	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
 
+	mux.HandleFunc("/saveOffset", c.saveOffsetHandler)
+	mux.HandleFunc("/getOffset", c.getOffsetHandler)
+
+	mux.HandleFunc("/getFSMDump", c.getFSMDumpHandler)
+	mux.HandleFunc("/getFSMList", c.getFSMList)
+
 	c.Logger.Log("Starting HTTP server on address: %s", listenAddr)
 	return http.ListenAndServe(listenAddr, mux)
+}
+
+func (c *BaseClient) getFSMDumpHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	dump, err := c.GetFSMDump(r.URL.Query().Get("dkgID"))
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	successResponse(w, dump)
+}
+
+func (c *BaseClient) getFSMList(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	fsmInstances, err := c.state.GetAllFSM()
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get all FSM instances: %v", err))
+		return
+	}
+	fsmInstancesStates := make(map[string]string, len(fsmInstances))
+	for k, v := range fsmInstances {
+		state, err := v.State()
+		if err != nil {
+			errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get FSM state: %v", err))
+			return
+		}
+		fsmInstancesStates[k] = state.String()
+	}
+	successResponse(w, fsmInstancesStates)
 }
 
 func (c *BaseClient) getUsernameHandler(w http.ResponseWriter, r *http.Request) {
@@ -98,6 +138,47 @@ func (c *BaseClient) getPubkeyHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	successResponse(w, c.GetPubKey())
+}
+
+func (c *BaseClient) getOffsetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	offset, err := c.state.LoadOffset()
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to load offset: %v", err))
+		return
+	}
+	successResponse(w, offset)
+}
+
+func (c *BaseClient) saveOffsetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	reqBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, http.StatusBadRequest, fmt.Sprintf("failed to read request body: %v", err))
+		return
+	}
+	defer r.Body.Close()
+
+	var req map[string]uint64
+	if err = json.Unmarshal(reqBytes, &req); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to unmarshal request: %v", err))
+		return
+	}
+	if _, ok := req["offset"]; !ok {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("offset cannot be null: %v", err))
+		return
+	}
+	if err = c.state.SaveOffset(req["offset"]); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to save offset: %v", err))
+		return
+	}
+	successResponse(w, "ok")
 }
 
 func (c *BaseClient) sendMessageHandler(w http.ResponseWriter, r *http.Request) {
@@ -275,7 +356,7 @@ func (c *BaseClient) proposeSignDataHandler(w http.ResponseWriter, r *http.Reque
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get FSM instance: %v", err))
 		return
 	}
-	participantID, err := fsmInstance.GetIDByAddr(c.GetUsername())
+	participantID, err := fsmInstance.GetIDByUsername(c.GetUsername())
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get participantID: %v", err))
 		return

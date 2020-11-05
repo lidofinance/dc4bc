@@ -63,22 +63,22 @@ func TestClient_ProcessMessage(t *testing.T) {
 		messageData := requests.SignatureProposalParticipantsListRequest{
 			Participants: []*requests.SignatureProposalParticipantsEntry{
 				{
-					Addr:      senderAddr,
+					Username:  senderAddr,
 					PubKey:    senderKeyPair.Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 				{
-					Addr:      "111",
+					Username:  "111",
 					PubKey:    client.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 				{
-					Addr:      "222",
+					Username:  "222",
 					PubKey:    client.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 				{
-					Addr:      "333",
+					Username:  "333",
 					PubKey:    client.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},

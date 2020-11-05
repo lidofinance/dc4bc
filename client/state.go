@@ -31,6 +31,7 @@ type State interface {
 
 	SaveFSM(dkgRoundID string, dump []byte) error
 	LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error)
+	GetAllFSM() (map[string]*state_machines.FSMInstance, error)
 
 	PutOperation(operation *types.Operation) error
 	DeleteOperation(operationID string) error
@@ -144,6 +145,27 @@ func (s *LevelDBState) SaveFSM(dkgRoundID string, dump []byte) error {
 	}
 
 	return nil
+}
+
+func (s *LevelDBState) GetAllFSM() (map[string]*state_machines.FSMInstance, error) {
+	bz, err := s.stateDb.Get([]byte(fsmStateKey), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get FSM instances: %w", err)
+	}
+	var fsmInstancesBz = map[string][]byte{}
+	if len(bz) > 0 {
+		if err := json.Unmarshal(bz, &fsmInstancesBz); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+		}
+	}
+	fsmInstances := make(map[string]*state_machines.FSMInstance, len(fsmInstancesBz))
+	for k, v := range fsmInstancesBz {
+		fsmInstances[k], err = state_machines.FromDump(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to restore FSM instance from dump: %w", err)
+		}
+	}
+	return fsmInstances, nil
 }
 
 func (s *LevelDBState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error) {
