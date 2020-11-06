@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/depools/dc4bc/fsm/config"
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/internal"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/fsm/types/responses"
+	"github.com/lidofinance/dc4bc/fsm/config"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/internal"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 )
 
 // init -> awaitingConfirmations

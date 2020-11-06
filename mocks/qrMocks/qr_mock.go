@@ -84,3 +84,15 @@ func (mr *MockProcessorMockRecorder) SetChunkSize(chunkSize interface{}) *gomock
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetChunkSize", reflect.TypeOf((*MockProcessor)(nil).SetChunkSize), chunkSize)
 }
+
+// CloseCameraReader mocks base method
+func (m *MockProcessor) CloseCameraReader() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "CloseCameraReader")
+}
+
+// CloseCameraReader indicates an expected call of CloseCameraReader
+func (mr *MockProcessorMockRecorder) CloseCameraReader() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseCameraReader", reflect.TypeOf((*MockProcessor)(nil).CloseCameraReader))
+}

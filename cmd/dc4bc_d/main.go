@@ -12,9 +12,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/depools/dc4bc/client"
-	"github.com/depools/dc4bc/qr"
-	"github.com/depools/dc4bc/storage"
+	"github.com/lidofinance/dc4bc/client"
+	"github.com/lidofinance/dc4bc/qr"
+	"github.com/lidofinance/dc4bc/storage"
 
 	"github.com/spf13/cobra"
 )

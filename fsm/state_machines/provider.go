@@ -4,15 +4,15 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"errors"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"strings"
 
-	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/fsm_pool"
-	"github.com/depools/dc4bc/fsm/state_machines/internal"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/fsm_pool"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/internal"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 )
 
 // Is machine state scope dump will be locked?

@@ -5,8 +5,8 @@
 package storageMocks
 
 import (
-	storage "github.com/depools/dc4bc/storage"
 	gomock "github.com/golang/mock/gomock"
+	storage "github.com/lidofinance/dc4bc/storage"
 	reflect "reflect"
 )
 

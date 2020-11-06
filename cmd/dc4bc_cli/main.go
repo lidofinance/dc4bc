@@ -7,7 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/depools/dc4bc/fsm/state_machines"
+	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -17,14 +17,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/responses"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
-	"github.com/depools/dc4bc/client"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/qr"
+	"github.com/lidofinance/dc4bc/client"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/qr"
 	"github.com/spf13/cobra"
 )
 
@@ -63,6 +63,7 @@ func main() {
 		getOffsetCommand(),
 		getFSMStatusCommand(),
 		getFSMListCommand(),
+		getSignatureDataCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
@@ -120,7 +121,8 @@ func getOperationsCommand() *cobra.Command {
 						return fmt.Errorf("failed to unmarshal operation payload")
 					}
 					msgHash := md5.Sum(payload.SrcPayload)
-					fmt.Printf("Hash of the message to sign - %s\n", hex.EncodeToString(msgHash[:]))
+					fmt.Printf("Hash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
+					fmt.Printf("Signing ID: %s\n", payload.SigningId)
 				}
 				fmt.Println("-----------------------------------------------------")
 			}
@@ -164,11 +166,11 @@ func getSignaturesCommand() *cobra.Command {
 			if signatures.ErrorMessage != "" {
 				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
 			}
-			for dataHash, signature := range signatures.Result {
-				fmt.Printf("Hash of the signing data: %s\n", dataHash)
+			for sigID, signature := range signatures.Result {
+				fmt.Printf("Signing ID: %s\n", sigID)
 				for _, participantSig := range signature {
 					fmt.Printf("\tDKG round ID: %s\n", participantSig.DKGRoundID)
-					fmt.Printf("\tParticipant: %s\n", participantSig.Participant)
+					fmt.Printf("\tParticipant: %s\n", participantSig.Username)
 					fmt.Printf("\tReconstructed signature for the data: %s\n", base64.StdEncoding.EncodeToString(participantSig.Signature))
 					fmt.Println()
 				}
@@ -179,7 +181,7 @@ func getSignaturesCommand() *cobra.Command {
 }
 
 func getSignatureRequest(host string, dkgID, dataHash string) (*SignatureResponse, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/getSignatureByDataHash?dkgID=%s&hash=%s", host, dkgID, dataHash))
+	resp, err := http.Get(fmt.Sprintf("http://%s/getSignatureByID?dkgID=%s&id=%s", host, dkgID, dataHash))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get signatures: %w", err)
 	}
@@ -198,7 +200,7 @@ func getSignatureRequest(host string, dkgID, dataHash string) (*SignatureRespons
 
 func getSignatureCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get_signature [dkgID] [hash_of_the_signed_data]",
+		Use:   "get_signature [dkgID] [signing_id]",
 		Args:  cobra.ExactArgs(2),
 		Short: "returns a list of reconstructed signatures of the signed data broadcasted by users",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -214,9 +216,34 @@ func getSignatureCommand() *cobra.Command {
 				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
 			}
 			for _, participantSig := range signatures.Result {
-				fmt.Printf("\tParticipant: %s\n", participantSig.Participant)
+				fmt.Printf("\tParticipant: %s\n", participantSig.Username)
 				fmt.Printf("\tReconstructed signature for the data: %s\n", base64.StdEncoding.EncodeToString(participantSig.Signature))
 				fmt.Println()
+			}
+			return nil
+		},
+	}
+}
+
+func getSignatureDataCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_signature_data [dkgID] [signing_id]",
+		Args:  cobra.ExactArgs(2),
+		Short: "returns a data which was signed",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+			signatures, err := getSignatureRequest(listenAddr, args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("failed to get signatures: %w", err)
+			}
+			if signatures.ErrorMessage != "" {
+				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
+			}
+			if len(signatures.Result) > 0 {
+				fmt.Println(string(signatures.Result[0].SrcPayload))
 			}
 			return nil
 		},

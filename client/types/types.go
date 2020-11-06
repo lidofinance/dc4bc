@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/storage"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/storage"
 )
 
 type OperationType string
@@ -23,10 +23,11 @@ const (
 )
 
 type ReconstructedSignature struct {
-	Data        []byte
-	Signature   []byte
-	Participant string
-	DKGRoundID  string
+	SigningID  string
+	SrcPayload []byte
+	Signature  []byte
+	Username   string
+	DKGRoundID string
 }
 
 // Operation is the type for any Operation that might be required for
