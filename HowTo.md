@@ -27,6 +27,11 @@ gocv version: 0.22.0
 opencv lib version: 4.4.0
 ```
 
+Install Java to generate certificate's truststore for Kafka:
+```
+sudo apt install default-jre
+```
+
 Then build the project binaries:
 ```
 # Go to the cloned repository.
@@ -87,6 +92,9 @@ At first, you need to change config files for your Kafka node and TLS certificat
 After that just run in kafka-docker folder:
 ```
 $ ./up.sh
+```
+If everything is all right, output will be like:
+```
 Generating a 2048 bit RSA private key
 ................................................................................+++
 ...............+++
@@ -102,7 +110,8 @@ Creating kafka     ... done
 ```
 This command will generate a self-signed certificate (and other necessary files) which will be located in kafka-docker/certs folder.
 And the command will up start a docker container with a Kafka inside.
-
+The most important generate file is ca.crt. It is a self-signed SSL certificate. Every participant must have it
+on the same machine where dc4bc_d is running and must provide path to the file in thee start command of dc4bc_d.
 
 
 #### DKG
