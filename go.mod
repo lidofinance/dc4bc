@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/cheekybits/is v0.0.0-20150225183255-68e9c0620927 // indirect
-	github.com/corestario/kyber v1.6.0
+	github.com/corestario/kyber v1.6.1-0.20201110123848-0eac241a9f75
 	github.com/golang/mock v1.4.4
 	github.com/google/go-cmp v0.5.0
 	github.com/google/uuid v1.1.1

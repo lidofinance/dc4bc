@@ -129,6 +129,8 @@ github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf/go.mod h1:F5haX7
 github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
 github.com/corestario/kyber v1.6.0 h1:ix91T0CMHjT2dlLaJbg5e/qYOG/Fvx0YHC4qdiE8BxY=
 github.com/corestario/kyber v1.6.0/go.mod h1:8seqKJ5KGwEPN98iYQLoKFulfFn90ZxcdKSxb29A5XM=
+github.com/corestario/kyber v1.6.1-0.20201110123848-0eac241a9f75 h1:n7+2NN6aB+ZE/eM5+1E1KFO7tASgdohQ97OWHORgogM=
+github.com/corestario/kyber v1.6.1-0.20201110123848-0eac241a9f75/go.mod h1:8seqKJ5KGwEPN98iYQLoKFulfFn90ZxcdKSxb29A5XM=
 github.com/cpuguy83/go-md2man v1.0.10 h1:BSKMNlYxDvnunlTymqtgONjNnaRV1sTpcovwwjF22jk=
 github.com/cpuguy83/go-md2man v1.0.10/go.mod h1:SmD6nW6nTyfqj6ABTjUi3V3JVMnlJmwcJI5acqYI6dE=
 github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
@@ -146,8 +148,6 @@ github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c/go.mod h1:6Uh
 github.com/deckarep/golang-set v0.0.0-20180603214616-504e848d77ea/go.mod h1:93vsz/8Wt4joVM7c2AVqh+YRMiUSc14yDtF28KmMOgQ=
 github.com/deckarep/golang-set v1.7.1 h1:SCQV0S6gTtp6itiFrTqI+pfmJ4LN85S1YzhDf9rTHJQ=
 github.com/deckarep/golang-set v1.7.1/go.mod h1:93vsz/8Wt4joVM7c2AVqh+YRMiUSc14yDtF28KmMOgQ=
-github.com/lidofinance/kyber-bls12381 v0.0.0-20200929134032-c24859b7d890 h1:ra3VcXLAwGdHzcPRXkDVVr2Gb9wpi+XHyljk0J566vs=
-github.com/lidofinance/kyber-bls12381 v0.0.0-20200929134032-c24859b7d890/go.mod h1:82QP3olqMtRnlRCNxEc9/EKk1qlFCOklxasHvSnXMSI=
 github.com/dgraph-io/badger v1.5.5-0.20190226225317-8115aed38f8f/go.mod h1:VZxzAIRPHRVNRKRo6AXrX9BJegn6il06VMTZVJYCIjQ=
 github.com/dgraph-io/badger v1.6.0-rc1/go.mod h1:zwt7syl517jmP8s94KqSxTlM6IMsdhYy6psNgSztDR4=
 github.com/dgraph-io/badger v1.6.0/go.mod h1:zwt7syl517jmP8s94KqSxTlM6IMsdhYy6psNgSztDR4=
@@ -607,6 +607,8 @@ github.com/libp2p/go-yamux v1.3.3/go.mod h1:FGTiPvoV/3DVdgWpX+tM0OW3tsM+W5bSE3gZ
 github.com/libp2p/go-yamux v1.3.5/go.mod h1:FGTiPvoV/3DVdgWpX+tM0OW3tsM+W5bSE3gZwqQTcow=
 github.com/libp2p/go-yamux v1.3.7/go.mod h1:fr7aVgmdNGJK+N1g+b6DW6VxzbRCjCOejR/hkmpooHE=
 github.com/libp2p/go-yamux v1.3.8/go.mod h1:fr7aVgmdNGJK+N1g+b6DW6VxzbRCjCOejR/hkmpooHE=
+github.com/lidofinance/kyber-bls12381 v0.0.0-20200929134032-c24859b7d890 h1:ra3VcXLAwGdHzcPRXkDVVr2Gb9wpi+XHyljk0J566vs=
+github.com/lidofinance/kyber-bls12381 v0.0.0-20200929134032-c24859b7d890/go.mod h1:82QP3olqMtRnlRCNxEc9/EKk1qlFCOklxasHvSnXMSI=
 github.com/logrusorgru/aurora v2.0.3+incompatible/go.mod h1:7rIyQOR62GCctdiQpZ/zOJlFyk6y+94wXzv6RNZgaR4=
 github.com/lunixbochs/vtclean v0.0.0-20180621232353-2d01aacdc34a/go.mod h1:pHhQNgMf3btfWnGBVipUOjRYhoOsdGqdm/+2c2E2WMI=
 github.com/lunixbochs/vtclean v1.0.0/go.mod h1:pHhQNgMf3btfWnGBVipUOjRYhoOsdGqdm/+2c2E2WMI=
