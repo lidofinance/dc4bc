@@ -170,6 +170,7 @@ func ReadDataFromQR(img image.Image) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode the QR-code contents: %w", err)
 	}
+
 	return []byte(result.String()), nil
 }
 
