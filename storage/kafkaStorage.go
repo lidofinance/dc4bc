@@ -6,10 +6,11 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
-	"github.com/segmentio/kafka-go/sasl/plain"
 	"io/ioutil"
 	"log"
 	"time"
+
+	"github.com/segmentio/kafka-go/sasl/plain"
 
 	"github.com/segmentio/kafka-go"
 	"gopkg.in/matryer/try.v1"
@@ -35,7 +36,7 @@ type KafkaStorage struct {
 
 	producerCreds *KafkaAuthCredentials
 	consumerCreds *KafkaAuthCredentials
-	tlsConfig *tls.Config
+	tlsConfig     *tls.Config
 }
 
 type KafkaAuthCredentials struct {
@@ -63,7 +64,7 @@ func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic strin
 		ctx:           ctx,
 		kafkaEndpoint: kafkaEndpoint,
 		kafkaTopic:    kafkaTopic,
-		tlsConfig: tlsConfig,
+		tlsConfig:     tlsConfig,
 		producerCreds: producerCreds,
 		consumerCreds: consumerCreds,
 	}
@@ -100,11 +101,11 @@ func (s *KafkaStorage) send(m Message) (Message, error) {
 	}
 
 	if err := s.writer.SetWriteDeadline(time.Now().Add(time.Second)); err != nil {
-		return Message{}, fmt.Errorf("failed to SetWriteDeadline: %w", err)
+		return m, fmt.Errorf("failed to SetWriteDeadline: %w", err)
 	}
 
 	if _, err := s.writer.WriteMessages(kafka.Message{Key: []byte(m.ID), Value: data}); err != nil {
-		return Message{}, fmt.Errorf("failed to WriteMessages: %w", err)
+		return m, fmt.Errorf("failed to WriteMessages: %w", err)
 	}
 
 	return m, nil
