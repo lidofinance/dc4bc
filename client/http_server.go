@@ -303,7 +303,7 @@ func (c *BaseClient) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(encodedData)))
 	rawResponse(w, encodedData)
 }
