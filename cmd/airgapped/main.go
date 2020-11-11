@@ -35,7 +35,7 @@ type terminal struct {
 	airgapped *airgapped.Machine
 	commands  map[string]*terminalCommand
 
-	currentCommand string
+	currentCommand            string
 	stopDroppingSensitiveData chan bool
 }
 
@@ -148,7 +148,7 @@ func (t *terminal) replayOperationLogCommand() error {
 		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
 	}
 
-	if err := t.airgapped.ReplayOperationsLog(dkgRoundIdentifier); err != nil {
+	if err := t.airgapped.ReplayOperationsLog(strings.Trim(dkgRoundIdentifier, "\n")); err != nil {
 		return fmt.Errorf("failed to ReplayOperationsLog: %w", err)
 	}
 	return nil
