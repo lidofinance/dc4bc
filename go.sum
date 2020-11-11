@@ -129,6 +129,8 @@ github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf/go.mod h1:F5haX7
 github.com/coreos/pkg v0.0.0-20180928190104-399ea9e2e55f/go.mod h1:E3G3o1h8I7cfcXa63jLwjI0eiQQMgzzUDFVpN/nH/eA=
 github.com/corestario/kyber v1.6.0 h1:ix91T0CMHjT2dlLaJbg5e/qYOG/Fvx0YHC4qdiE8BxY=
 github.com/corestario/kyber v1.6.0/go.mod h1:8seqKJ5KGwEPN98iYQLoKFulfFn90ZxcdKSxb29A5XM=
+github.com/corestario/kyber v1.6.1-0.20201110123848-0eac241a9f75 h1:n7+2NN6aB+ZE/eM5+1E1KFO7tASgdohQ97OWHORgogM=
+github.com/corestario/kyber v1.6.1-0.20201110123848-0eac241a9f75/go.mod h1:8seqKJ5KGwEPN98iYQLoKFulfFn90ZxcdKSxb29A5XM=
 github.com/cpuguy83/go-md2man v1.0.10 h1:BSKMNlYxDvnunlTymqtgONjNnaRV1sTpcovwwjF22jk=
 github.com/cpuguy83/go-md2man v1.0.10/go.mod h1:SmD6nW6nTyfqj6ABTjUi3V3JVMnlJmwcJI5acqYI6dE=
 github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
