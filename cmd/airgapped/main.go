@@ -2,9 +2,11 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"github.com/syndtr/goleveldb/leveldb"
 	"io"
 	"log"
 	"os"
@@ -300,6 +302,7 @@ func (p *prompt) enterEncryptionPasswordIfNeeded() error {
 		return nil
 	}
 
+	repeatPassword := p.airgapped.LoadKeysFromDB() == leveldb.ErrNotFound
 	for {
 		p.print("Enter encryption password: ")
 		password, err := terminal.ReadPassword(syscall.Stdin)
@@ -307,6 +310,18 @@ func (p *prompt) enterEncryptionPasswordIfNeeded() error {
 			return fmt.Errorf("failed to read password: %w", err)
 		}
 		p.println()
+		if repeatPassword {
+			p.print("Confirm encryption password: ")
+			confirmedPassword, err := terminal.ReadPassword(syscall.Stdin)
+			if err != nil {
+				return fmt.Errorf("failed to read password: %w", err)
+			}
+			p.println()
+			if !bytes.Equal(password, confirmedPassword) {
+				p.println("Passwords do not match! Try again!")
+				continue
+			}
+		}
 		p.airgapped.SetEncryptionKey(password)
 		if err = p.airgapped.InitKeys(); err != nil {
 			p.printf("Failed to init keys: %v\n", err)
