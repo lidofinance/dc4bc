@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"os/signal"
@@ -14,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	passwordTerminal "golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/lidofinance/dc4bc/airgapped"
 )
@@ -23,150 +24,181 @@ func init() {
 	runtime.LockOSThread()
 }
 
-// terminalCommand holds a description of a command and its handler
-type terminalCommand struct {
+// promptCommand holds a description of a command and its handler
+type promptCommand struct {
 	commandHandler func() error
 	description    string
 }
 
-// terminal a basic implementation of a prompt
-type terminal struct {
-	reader    *bufio.Reader
-	airgapped *airgapped.Machine
-	commands  map[string]*terminalCommand
+// prompt a basic implementation of a prompt
+type prompt struct {
+	terminal         *terminal.Terminal
+	oldTerminalState *terminal.State
+	reader           *bufio.Reader
+	airgapped        *airgapped.Machine
+	commands         map[string]*promptCommand
 
 	currentCommand            string
 	stopDroppingSensitiveData chan bool
+
+	exit chan bool
 }
 
-func NewTerminal(machine *airgapped.Machine) *terminal {
-	t := terminal{
-		bufio.NewReader(os.Stdin),
-		machine,
-		make(map[string]*terminalCommand),
-		"",
-		make(chan bool),
+func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
+	p := prompt{
+		terminal:                  terminal.NewTerminal(os.Stdin, ">>> "),
+		reader:                    bufio.NewReader(os.Stdin),
+		airgapped:                 machine,
+		commands:                  make(map[string]*promptCommand),
+		currentCommand:            "",
+		stopDroppingSensitiveData: make(chan bool),
+		exit:                      make(chan bool, 1),
 	}
-	t.addCommand("read_qr", &terminalCommand{
-		commandHandler: t.readQRCommand,
+
+	if err := p.makeTerminal(); err != nil {
+		return nil, err
+	}
+
+	p.addCommand("read_qr", &promptCommand{
+		commandHandler: p.readQRCommand,
 		description:    "Reads QR chunks from camera, handle a decoded operation and returns paths to qr chunks of operation's result",
 	})
-	t.addCommand("help", &terminalCommand{
-		commandHandler: t.helpCommand,
+	p.addCommand("help", &promptCommand{
+		commandHandler: p.helpCommand,
 		description:    "shows available commands",
 	})
-	t.addCommand("show_dkg_pubkey", &terminalCommand{
-		commandHandler: t.showDKGPubKeyCommand,
+	p.addCommand("show_dkg_pubkey", &promptCommand{
+		commandHandler: p.showDKGPubKeyCommand,
 		description:    "shows a dkg pub key",
 	})
-	t.addCommand("show_finished_dkg", &terminalCommand{
-		commandHandler: t.showFinishedDKGCommand,
+	p.addCommand("show_finished_dkg", &promptCommand{
+		commandHandler: p.showFinishedDKGCommand,
 		description:    "shows a list of finished dkg rounds",
 	})
-	t.addCommand("replay_operations_log", &terminalCommand{
-		commandHandler: t.replayOperationLogCommand,
+	p.addCommand("replay_operations_log", &promptCommand{
+		commandHandler: p.replayOperationLogCommand,
 		description:    "replays the operation log for a given dkg round",
 	})
-	t.addCommand("drop_operations_log", &terminalCommand{
-		commandHandler: t.dropOperationLogCommand,
+	p.addCommand("drop_operations_log", &promptCommand{
+		commandHandler: p.dropOperationLogCommand,
 		description:    "drops the operation log for a given dkg round",
 	})
-	t.addCommand("exit", &terminalCommand{
-		commandHandler: func() error {
-			log.Fatal("interrupted")
-			return nil
-		},
-		description: "stops the machine",
+	p.addCommand("exit", &promptCommand{
+		commandHandler: p.exitCommand,
+		description:    "stops the machine",
 	})
-	t.addCommand("verify_signature", &terminalCommand{
-		commandHandler: t.verifySignCommand,
+	p.addCommand("verify_signature", &promptCommand{
+		commandHandler: p.verifySignCommand,
 		description:    "verifies a BLS signature of a message",
 	})
-	t.addCommand("change_configuration", &terminalCommand{
-		commandHandler: t.changeConfigurationCommand,
+	p.addCommand("change_configuration", &promptCommand{
+		commandHandler: p.changeConfigurationCommand,
 		description:    "changes a configuration variables (frames delay, chunk size, etc...)",
 	})
-	return &t
+	return &p, nil
 }
 
-func (t *terminal) addCommand(name string, command *terminalCommand) {
-	t.commands[name] = command
+func (p *prompt) print(a ...interface{}) {
+	if _, err := fmt.Fprint(p.terminal, a...); err != nil {
+		panic(err)
+	}
 }
 
-func (t *terminal) readQRCommand() error {
-	qrPath, err := t.airgapped.HandleQR()
+func (p *prompt) println(a ...interface{}) {
+	if _, err := fmt.Fprintln(p.terminal, a...); err != nil {
+		panic(err)
+	}
+}
+
+func (p *prompt) printf(format string, a ...interface{}) {
+	if _, err := fmt.Fprintf(p.terminal, format, a...); err != nil {
+		panic(err)
+	}
+}
+
+func (p *prompt) exitCommand() error {
+	p.exit <- true
+	return nil
+}
+
+func (p *prompt) addCommand(name string, command *promptCommand) {
+	p.commands[name] = command
+}
+
+func (p *prompt) readQRCommand() error {
+	qrPath, err := p.airgapped.HandleQR()
 	if err != nil {
 		return err
 	}
 
-	fmt.Println("An operation in the read QR code handled successfully, a result operation saved by chunks in following qr codes:")
-	fmt.Printf("Operation's chunk: %s\n", qrPath)
+	p.println("An operation in the read QR code handled successfully, a result operation saved by chunks in following qr codes:")
+	p.printf("Operation's chunk: %s\n", qrPath)
 	return nil
 }
 
-func (t *terminal) showDKGPubKeyCommand() error {
-	pubkey := t.airgapped.GetPubKey()
+func (p *prompt) showDKGPubKeyCommand() error {
+	pubkey := p.airgapped.GetPubKey()
 	pubkeyBz, err := pubkey.MarshalBinary()
 	if err != nil {
 		return fmt.Errorf("failed to marshal DKG pub key: %w", err)
 	}
 	pubKeyBase64 := base64.StdEncoding.EncodeToString(pubkeyBz)
-	fmt.Println(pubKeyBase64)
+	p.println(pubKeyBase64)
 	return nil
 }
 
-func (t *terminal) helpCommand() error {
-	fmt.Println("Available commands:")
-	for commandName, command := range t.commands {
-		fmt.Printf("* %s - %s\n", commandName, command.description)
+func (p *prompt) helpCommand() error {
+	p.println("Available commands:")
+	for commandName, command := range p.commands {
+		p.printf("* %s - %s\n", commandName, command.description)
 	}
 	return nil
 }
 
-func (t *terminal) showFinishedDKGCommand() error {
-	keyrings, err := t.airgapped.GetBLSKeyrings()
+func (p *prompt) showFinishedDKGCommand() error {
+	keyrings, err := p.airgapped.GetBLSKeyrings()
 	if err != nil {
 		return fmt.Errorf("failed to get a list of finished dkgs: %w", err)
 	}
 	for dkgID, keyring := range keyrings {
-		fmt.Printf("DKG identifier: %s\n", dkgID)
+		p.printf("DKG identifier: %s\n", dkgID)
 		pubkeyBz, err := keyring.PubPoly.Commit().MarshalBinary()
 		if err != nil {
-			fmt.Println("failed to marshal pubkey: %w", err)
+			p.println("failed to marshal pubkey: %w", err)
 			continue
 		}
-		fmt.Printf("PubKey: %s\n", base64.StdEncoding.EncodeToString(pubkeyBz))
-		fmt.Println("-----------------------------------------------------")
+		p.printf("PubKey: %s\n", base64.StdEncoding.EncodeToString(pubkeyBz))
+		p.println("-----------------------------------------------------")
 	}
 	return nil
 }
 
-func (t *terminal) replayOperationLogCommand() error {
-	fmt.Print("> Enter the DKGRoundIdentifier: ")
-	dkgRoundIdentifier, err := t.reader.ReadString('\n')
+func (p *prompt) replayOperationLogCommand() error {
+	p.print("> Enter the DKGRoundIdentifier: ")
+	dkgRoundIdentifier, err := p.reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
 	}
 
-	if err := t.airgapped.ReplayOperationsLog(strings.Trim(dkgRoundIdentifier, "\n")); err != nil {
+	if err := p.airgapped.ReplayOperationsLog(strings.Trim(dkgRoundIdentifier, "\n")); err != nil {
 		return fmt.Errorf("failed to ReplayOperationsLog: %w", err)
 	}
 	return nil
 }
 
-func (t *terminal) changeConfigurationCommand() error {
-	fmt.Print("> Enter a new path to save QR codes (leave empty to avoid changes): ")
-	newQRCodesfolder, _, err := t.reader.ReadLine()
+func (p *prompt) changeConfigurationCommand() error {
+	p.print("> Enter a new path to save QR codes (leave empty to avoid changes): ")
+	newQRCodesfolder, _, err := p.reader.ReadLine()
 	if err != nil {
 		return fmt.Errorf("failed to read input: %w", err)
 	}
 	if len(newQRCodesfolder) > 0 {
-		t.airgapped.SetResultQRFolder(string(newQRCodesfolder))
-		fmt.Printf("Folder to save QR codes was changed to: %s\n", string(newQRCodesfolder))
+		p.airgapped.SetResultQRFolder(string(newQRCodesfolder))
+		p.printf("Folder to save QR codes was changed to: %s\n", string(newQRCodesfolder))
 	}
 
-	fmt.Print("> Enter a new frames delay in 100ths of second (leave empty to avoid changes): ")
-	framesDelayInput, _, err := t.reader.ReadLine()
+	p.print("> Enter a new frames delay in 100ths of second (leave empty to avoid changes): ")
+	framesDelayInput, _, err := p.reader.ReadLine()
 	if err != nil {
 		return fmt.Errorf("failed to read input: %w", err)
 	}
@@ -175,12 +207,12 @@ func (t *terminal) changeConfigurationCommand() error {
 		if err != nil {
 			return fmt.Errorf("failed to parse new frames delay: %w", err)
 		}
-		t.airgapped.SetQRProcessorFramesDelay(framesDelay)
-		fmt.Printf("Frames delay was changed to: %d\n", framesDelay)
+		p.airgapped.SetQRProcessorFramesDelay(framesDelay)
+		p.printf("Frames delay was changed to: %d\n", framesDelay)
 	}
 
-	fmt.Print("> Enter a new QR chunk size (leave empty to avoid changes): ")
-	chunkSizeInput, _, err := t.reader.ReadLine()
+	p.print("> Enter a new QR chunk size (leave empty to avoid changes): ")
+	chunkSizeInput, _, err := p.reader.ReadLine()
 	if err != nil {
 		return fmt.Errorf("failed to read input: %w", err)
 	}
@@ -189,12 +221,12 @@ func (t *terminal) changeConfigurationCommand() error {
 		if err != nil {
 			return fmt.Errorf("failed to parse new chunk size: %w", err)
 		}
-		t.airgapped.SetQRProcessorChunkSize(chunkSize)
-		fmt.Printf("Chunk size was changed to: %d\n", chunkSize)
+		p.airgapped.SetQRProcessorChunkSize(chunkSize)
+		p.printf("Chunk size was changed to: %d\n", chunkSize)
 	}
 
-	fmt.Print("> Enter a password expiration duration (leave empty to avoid changes): ")
-	durationInput, _, err := t.reader.ReadLine()
+	p.print("> Enter a password expiration duration (leave empty to avoid changes): ")
+	durationInput, _, err := p.reader.ReadLine()
 	if err != nil {
 		return fmt.Errorf("failed to read input: %w", err)
 	}
@@ -203,35 +235,35 @@ func (t *terminal) changeConfigurationCommand() error {
 		if err != nil {
 			return fmt.Errorf("failed to parse new duration: %w", err)
 		}
-		t.stopDroppingSensitiveData <- true
-		go t.dropSensitiveDataByTicker(duration)
-		fmt.Printf("Password expiration was changed to: %s\n", duration.String())
+		p.stopDroppingSensitiveData <- true
+		go p.dropSensitiveDataByTicker(duration)
+		p.printf("Password expiration was changed to: %s\n", duration.String())
 	}
 	return nil
 }
 
-func (t *terminal) dropOperationLogCommand() error {
-	fmt.Print("> Enter the DKGRoundIdentifier: ")
-	dkgRoundIdentifier, err := t.reader.ReadString('\n')
+func (p *prompt) dropOperationLogCommand() error {
+	p.print("> Enter the DKGRoundIdentifier: ")
+	dkgRoundIdentifier, err := p.reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
 	}
 
-	if err := t.airgapped.DropOperationsLog(dkgRoundIdentifier); err != nil {
+	if err := p.airgapped.DropOperationsLog(dkgRoundIdentifier); err != nil {
 		return fmt.Errorf("failed to DropOperationsLog: %w", err)
 	}
 	return nil
 }
 
-func (t *terminal) verifySignCommand() error {
-	fmt.Print("> Enter the DKGRoundIdentifier: ")
-	dkgRoundIdentifier, err := t.reader.ReadString('\n')
+func (p *prompt) verifySignCommand() error {
+	p.print("> Enter the DKGRoundIdentifier: ")
+	dkgRoundIdentifier, err := p.reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
 	}
 
-	fmt.Print("> Enter the BLS signature: ")
-	signature, err := t.reader.ReadString('\n')
+	p.print("> Enter the BLS signature: ")
+	signature, err := p.reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("failed to read BLS signature (base64): %w", err)
 	}
@@ -241,8 +273,8 @@ func (t *terminal) verifySignCommand() error {
 		return fmt.Errorf("failed to decode BLS signature: %w", err)
 	}
 
-	fmt.Print("> Enter the message which was signed (base64): ")
-	message, err := t.reader.ReadString('\n')
+	p.print("> Enter the message which was signed (base64): ")
+	message, err := p.reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
 	}
@@ -252,32 +284,32 @@ func (t *terminal) verifySignCommand() error {
 		return fmt.Errorf("failed to decode message: %w", err)
 	}
 
-	if err := t.airgapped.VerifySign(messageDecoded, signatureDecoded, strings.Trim(dkgRoundIdentifier, "\n")); err != nil {
-		fmt.Printf("Signature is invalid: %v\n", err)
+	if err := p.airgapped.VerifySign(messageDecoded, signatureDecoded, strings.Trim(dkgRoundIdentifier, "\n")); err != nil {
+		p.printf("Signature is invalid: %v\n", err)
 	} else {
-		fmt.Println("Signature is correct!")
+		p.println("Signature is correct!")
 	}
 	return nil
 }
 
-func (t *terminal) enterEncryptionPasswordIfNeeded() error {
-	t.airgapped.Lock()
-	defer t.airgapped.Unlock()
+func (p *prompt) enterEncryptionPasswordIfNeeded() error {
+	p.airgapped.Lock()
+	defer p.airgapped.Unlock()
 
-	if !t.airgapped.SensitiveDataRemoved() {
+	if !p.airgapped.SensitiveDataRemoved() {
 		return nil
 	}
 
 	for {
-		fmt.Print("Enter encryption password: ")
-		password, err := passwordTerminal.ReadPassword(syscall.Stdin)
+		p.print("Enter encryption password: ")
+		password, err := terminal.ReadPassword(syscall.Stdin)
 		if err != nil {
 			return fmt.Errorf("failed to read password: %w", err)
 		}
-		fmt.Println()
-		t.airgapped.SetEncryptionKey(password)
-		if err = t.airgapped.InitKeys(); err != nil {
-			fmt.Printf("Failed to init keys: %v\n", err)
+		p.println()
+		p.airgapped.SetEncryptionKey(password)
+		if err = p.airgapped.InitKeys(); err != nil {
+			p.printf("Failed to init keys: %v\n", err)
 			continue
 		}
 		break
@@ -285,52 +317,92 @@ func (t *terminal) enterEncryptionPasswordIfNeeded() error {
 	return nil
 }
 
-func (t *terminal) run() error {
-	if err := t.enterEncryptionPasswordIfNeeded(); err != nil {
+func (p *prompt) run() error {
+	if err := p.enterEncryptionPasswordIfNeeded(); err != nil {
 		return err
 	}
-	if err := t.helpCommand(); err != nil {
+	if err := p.helpCommand(); err != nil {
 		return err
 	}
-	fmt.Println("Waiting for command...")
+	p.println("Waiting for command...")
 	for {
-		fmt.Print(">>> ")
-		command, err := t.reader.ReadString('\n')
-		if err != nil {
-			return fmt.Errorf("failed to read command: %w", err)
-		}
+		select {
+		case <-p.exit:
+			return nil
+		default:
+			command, err := p.terminal.ReadLine()
+			if err != nil && err != io.EOF {
+				return fmt.Errorf("failed to read command: %w", err)
+			}
+			if err == io.EOF {
+				p.reloadTerminal()
+				continue
+			}
 
-		clearCommand := strings.Trim(command, "\n")
-		handler, ok := t.commands[clearCommand]
-		if !ok {
-			fmt.Printf("unknown command: %s\n", command)
-			continue
-		}
-		if err = t.enterEncryptionPasswordIfNeeded(); err != nil {
-			return err
-		}
-		t.airgapped.Lock()
+			clearCommand := strings.Trim(command, "\n")
+			handler, ok := p.commands[clearCommand]
+			if !ok {
+				p.printf("unknown command: %s\n", command)
+				continue
+			}
+			if err = p.enterEncryptionPasswordIfNeeded(); err != nil {
+				return err
+			}
+			p.airgapped.Lock()
 
-		t.currentCommand = clearCommand
-		if err := handler.commandHandler(); err != nil {
-			fmt.Printf("failled to execute command %s: %v \n", command, err)
+			p.currentCommand = clearCommand
+
+			p.restoreTerminal()
+			if err := handler.commandHandler(); err != nil {
+				p.printf("failed to execute command %s: %v \n", command, err)
+			}
+			if err = p.makeTerminal(); err != nil {
+				return err
+			}
+
+			p.currentCommand = ""
+			p.airgapped.Unlock()
 		}
-		t.currentCommand = ""
-		t.airgapped.Unlock()
 	}
 }
 
-func (t *terminal) dropSensitiveDataByTicker(passExpiration time.Duration) {
+func (p *prompt) dropSensitiveDataByTicker(passExpiration time.Duration) {
 	ticker := time.NewTicker(passExpiration)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			t.airgapped.DropSensitiveData()
-		case <-t.stopDroppingSensitiveData:
+			p.airgapped.DropSensitiveData()
+		case <-p.stopDroppingSensitiveData:
 			return
 		}
 	}
+}
+
+func (p *prompt) makeTerminal() error {
+	var err error
+	if p.oldTerminalState, err = terminal.MakeRaw(0); err != nil {
+		return fmt.Errorf("failed to get current terminal state: %w", err)
+	}
+	return nil
+}
+
+func (p *prompt) restoreTerminal() {
+	if err := terminal.Restore(0, p.oldTerminalState); err != nil {
+		panic(err)
+	}
+}
+
+func (p *prompt) reloadTerminal() {
+	p.restoreTerminal()
+	if err := p.makeTerminal(); err != nil {
+		panic(err)
+	}
+	p.terminal = terminal.NewTerminal(os.Stdin, ">>> ")
+}
+
+func (p *prompt) Close() {
+	p.restoreTerminal()
 }
 
 var (
@@ -368,18 +440,23 @@ func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 
-	t := NewTerminal(air)
+	p, err := NewPrompt(air)
+	if err != nil {
+		log.Fatalf(err.Error())
+	}
+	defer p.Close()
+
 	go func() {
 		for range c {
-			if t.currentCommand == "read_qr" {
-				t.airgapped.CloseCameraReader()
+			if p.currentCommand == "read_qr" {
+				p.airgapped.CloseCameraReader()
 				continue
 			}
-			fmt.Printf("Intercepting SIGINT, please type `exit` to stop the machine\n>>> ")
+			p.printf("Intercepting SIGINT, please type `exit` to stop the machine\n ")
 		}
 	}()
-	go t.dropSensitiveDataByTicker(passwordLifeDuration)
-	if err = t.run(); err != nil {
-		log.Fatalf(err.Error())
+	go p.dropSensitiveDataByTicker(passwordLifeDuration)
+	if err = p.run(); err != nil {
+		p.printf("Error occurred: %w", err)
 	}
 }
