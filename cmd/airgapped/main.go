@@ -48,7 +48,6 @@ type prompt struct {
 
 func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 	p := prompt{
-		terminal:                  terminal.NewTerminal(os.Stdin, ">>> "),
 		reader:                    bufio.NewReader(os.Stdin),
 		airgapped:                 machine,
 		commands:                  make(map[string]*promptCommand),
@@ -60,6 +59,7 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 	if err := p.makeTerminal(); err != nil {
 		return nil, err
 	}
+	p.initTerminal()
 
 	p.addCommand("read_qr", &promptCommand{
 		commandHandler: p.readQRCommand,
@@ -98,6 +98,18 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 		description:    "changes a configuration variables (frames delay, chunk size, etc...)",
 	})
 	return &p, nil
+}
+
+func (p *prompt) commandAutoCompleteCallback(line string, pos int, key rune) (suggestedCommand string, newPos int, ok bool) {
+	if key != '\t' {
+		return "", 0, false
+	}
+	for command, _ := range p.commands {
+		if strings.HasPrefix(command, line) {
+			return command, len(command), true
+		}
+	}
+	return "", 0, false
 }
 
 func (p *prompt) print(a ...interface{}) {
@@ -408,10 +420,17 @@ func (p *prompt) makeTerminal() error {
 	return nil
 }
 
+// restoreTerminal restores the terminal connected to the given file descriptor to a
+// previous state.
 func (p *prompt) restoreTerminal() {
 	if err := terminal.Restore(0, p.oldTerminalState); err != nil {
 		panic(err)
 	}
+}
+
+func (p *prompt) initTerminal() {
+	p.terminal = terminal.NewTerminal(os.Stdin, ">>> ")
+	p.terminal.AutoCompleteCallback = p.commandAutoCompleteCallback
 }
 
 func (p *prompt) reloadTerminal() {
@@ -419,7 +438,7 @@ func (p *prompt) reloadTerminal() {
 	if err := p.makeTerminal(); err != nil {
 		panic(err)
 	}
-	p.terminal = terminal.NewTerminal(os.Stdin, ">>> ")
+	p.initTerminal()
 }
 
 func (p *prompt) Close() {
