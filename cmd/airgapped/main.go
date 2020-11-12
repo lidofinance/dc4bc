@@ -335,6 +335,9 @@ func (p *prompt) run() error {
 				return fmt.Errorf("failed to read command: %w", err)
 			}
 			if err == io.EOF {
+				// EOF will be returned by pressing CTRL+C/CTRL+D combinations
+				// But somehow after the pressing ReadLine will always return EOF
+				// So, to avoid this, we just reload the terminal
 				p.reloadTerminal()
 				continue
 			}
@@ -352,10 +355,13 @@ func (p *prompt) run() error {
 
 			p.currentCommand = clearCommand
 
+			// we need to "turn off" terminal lib during command execution to be able to handle OS notifications inside
+			// commands and to read data from stdin without terminal features
 			p.restoreTerminal()
 			if err := handler.commandHandler(); err != nil {
 				p.printf("failed to execute command %s: %v \n", command, err)
 			}
+			// after command done, we turning terminal lib back on
 			if err = p.makeTerminal(); err != nil {
 				return err
 			}
@@ -452,7 +458,7 @@ func main() {
 				p.airgapped.CloseCameraReader()
 				continue
 			}
-			p.printf("Intercepting SIGINT, please type `exit` to stop the machine\n ")
+			p.printf("Intercepting SIGINT, please type `exit` to stop the machine\n")
 		}
 	}()
 	go p.dropSensitiveDataByTicker(passwordLifeDuration)
