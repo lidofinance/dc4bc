@@ -497,6 +497,6 @@ func main() {
 	}()
 	go p.dropSensitiveDataByTicker(passwordLifeDuration)
 	if err = p.run(); err != nil {
-		p.printf("Error occurred: %w", err)
+		p.printf("Error occurred: %v", err)
 	}
 }
