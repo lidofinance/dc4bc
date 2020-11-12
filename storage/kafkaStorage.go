@@ -4,40 +4,65 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/segmentio/kafka-go"
+	"gopkg.in/matryer/try.v1"
 )
 
 const (
-	kafkaPartition = 0
+	kafkaPartition    = 0
+	maxRetries        = 30
+	reconnectInterval = time.Second
 )
 
-type KafkaStorage struct {
-	writer *kafka.Conn
-	reader *kafka.Reader
+func init() {
+	try.MaxRetries = maxRetries
 }
 
-func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string) (Storage, error) {
-	conn, err := kafka.DialLeader(ctx, "tcp", kafkaEndpoint, kafkaTopic, kafkaPartition)
-	if err != nil {
-		return nil, fmt.Errorf("failed to init Kafka client: %w", err)
+type KafkaStorage struct {
+	ctx    context.Context
+	writer *kafka.Conn
+	reader *kafka.Reader
+
+	kafkaEndpoint string
+	kafkaTopic    string
+}
+
+func NewKafkaStorage(ctx context.Context, kafkaEndpoint, kafkaTopic string) (Storage, error) {
+	stg := &KafkaStorage{
+		ctx:           ctx,
+		kafkaEndpoint: kafkaEndpoint,
+		kafkaTopic:    kafkaTopic,
 	}
 
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:   []string{kafkaEndpoint},
-		Topic:     kafkaTopic,
-		Partition: kafkaPartition,
-		MaxWait:   time.Second,
-	})
+	if err := stg.connect(); err != nil {
+		return nil, fmt.Errorf("failed to connect: %w", err)
+	}
 
-	return &KafkaStorage{
-		writer: conn,
-		reader: reader,
-	}, nil
+	return stg, nil
 }
 
 func (s *KafkaStorage) Send(m Message) (Message, error) {
+	err := try.Do(func(attempt int) (bool, error) {
+		var err error
+		m, err = s.send(m)
+		if err != nil {
+			log.Printf("failed while trying to send message (%v), trying to reconnect", err)
+			if err := s.connect(); err != nil {
+				log.Printf("failed to reconnect (%v), %d retries left", err, try.MaxRetries-attempt)
+			}
+		}
+		time.Sleep(reconnectInterval)
+
+		return attempt < try.MaxRetries, err
+	})
+
+	return m, err
+}
+
+func (s *KafkaStorage) send(m Message) (Message, error) {
 	data, err := json.Marshal(m)
 	if err != nil {
 		return m, fmt.Errorf("failed to marshal a message %v: %v", m, err)
@@ -54,7 +79,25 @@ func (s *KafkaStorage) Send(m Message) (Message, error) {
 	return m, nil
 }
 
-func (s *KafkaStorage) GetMessages(offset uint64) ([]Message, error) {
+func (s *KafkaStorage) GetMessages(offset uint64) (messages []Message, err error) {
+	err = try.Do(func(attempt int) (bool, error) {
+		var err error
+		messages, err = s.getMessages(offset)
+		if err != nil {
+			log.Printf("failed while trying to getMessages (%v), trying to reconnect", err)
+			if err := s.connect(); err != nil {
+				log.Printf("failed to reconnect (%v), %d retries left", err, try.MaxRetries-attempt)
+			}
+		}
+		time.Sleep(reconnectInterval)
+
+		return attempt < try.MaxRetries, err
+	})
+
+	return messages, err
+}
+
+func (s *KafkaStorage) getMessages(offset uint64) ([]Message, error) {
 	if err := s.reader.SetOffset(int64(offset)); err != nil {
 		return nil, fmt.Errorf("failed to SetOffset: %w", err)
 	}
@@ -87,13 +130,37 @@ func (s *KafkaStorage) GetMessages(offset uint64) ([]Message, error) {
 }
 
 func (s *KafkaStorage) Close() error {
-	if err := s.reader.Close(); err != nil {
-		return fmt.Errorf("failed to close reader: %w", err)
+	if s.writer != nil {
+		if err := s.writer.Close(); err != nil {
+			return fmt.Errorf("failed to close writer: %w", err)
+		}
 	}
 
-	if err := s.writer.Close(); err != nil {
-		return fmt.Errorf("failed to close writer: %w", err)
+	if s.reader != nil {
+		if err := s.reader.Close(); err != nil {
+			return fmt.Errorf("failed to close reader: %w", err)
+		}
 	}
+
+	return nil
+}
+
+func (s *KafkaStorage) connect() error {
+	_ = s.Close()
+
+	conn, err := kafka.DialLeader(s.ctx, "tcp", s.kafkaEndpoint, s.kafkaTopic, kafkaPartition)
+	if err != nil {
+		return fmt.Errorf("failed to init Kafka client: %w", err)
+	}
+
+	reader := kafka.NewReader(kafka.ReaderConfig{
+		Brokers:   []string{s.kafkaEndpoint},
+		Topic:     s.kafkaTopic,
+		Partition: kafkaPartition,
+		MaxWait:   time.Second,
+	})
+
+	s.writer, s.reader = conn, reader
 
 	return nil
 }

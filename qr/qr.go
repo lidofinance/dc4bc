@@ -30,15 +30,24 @@ type Processor interface {
 	WriteQR(path string, data []byte) error
 	SetDelay(delay int)
 	SetChunkSize(chunkSize int)
+	CloseCameraReader()
 }
 
 type CameraProcessor struct {
 	gifFramesDelay int
 	chunkSize      int
+
+	closeCameraReader chan bool
 }
 
-func NewCameraProcessor() *CameraProcessor {
-	return &CameraProcessor{}
+func NewCameraProcessor() Processor {
+	return &CameraProcessor{
+		closeCameraReader: make(chan bool),
+	}
+}
+
+func (p *CameraProcessor) CloseCameraReader() {
+	p.closeCameraReader <- true
 }
 
 func (p *CameraProcessor) SetDelay(delay int) {
@@ -73,37 +82,43 @@ func (p *CameraProcessor) ReadQR() ([]byte, error) {
 	chunks := make([]*chunk, 0)
 	decodedChunksCount := uint(0)
 	// detects and scans QR-cods from camera until we scan successfully
+READER:
 	for {
-		webcam.Read(&img)
-		window.IMShow(img)
-		window.WaitKey(1)
+		select {
+		case <-p.closeCameraReader:
+			return nil, fmt.Errorf("camera reader was closed")
+		default:
+			webcam.Read(&img)
+			window.IMShow(img)
+			window.WaitKey(1)
 
-		imgObject, err := img.ToImage()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get image object: %w", err)
-		}
-		data, err := ReadDataFromQR(imgObject)
-		if err != nil {
-			continue
-		}
-		decodedChunk, err := decodeChunk(data)
-		if err != nil {
-			return nil, err
-		}
-		if cap(chunks) == 0 {
-			chunks = make([]*chunk, decodedChunk.Total)
-		}
-		if decodedChunk.Index > decodedChunk.Total {
-			return nil, fmt.Errorf("invalid QR-code chunk")
-		}
-		if chunks[decodedChunk.Index] != nil {
-			continue
-		}
-		chunks[decodedChunk.Index] = decodedChunk
-		decodedChunksCount++
-		window.SetWindowTitle(fmt.Sprintf("Read %d/%d chunks", decodedChunksCount, decodedChunk.Total))
-		if decodedChunksCount == decodedChunk.Total {
-			break
+			imgObject, err := img.ToImage()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get image object: %w", err)
+			}
+			data, err := ReadDataFromQR(imgObject)
+			if err != nil {
+				continue
+			}
+			decodedChunk, err := decodeChunk(data)
+			if err != nil {
+				return nil, err
+			}
+			if cap(chunks) == 0 {
+				chunks = make([]*chunk, decodedChunk.Total)
+			}
+			if decodedChunk.Index > decodedChunk.Total {
+				return nil, fmt.Errorf("invalid QR-code chunk")
+			}
+			if chunks[decodedChunk.Index] != nil {
+				continue
+			}
+			chunks[decodedChunk.Index] = decodedChunk
+			decodedChunksCount++
+			window.SetWindowTitle(fmt.Sprintf("Read %d/%d chunks", decodedChunksCount, decodedChunk.Total))
+			if decodedChunksCount == decodedChunk.Total {
+				break READER
+			}
 		}
 	}
 	window.SetWindowTitle("QR-code chunks successfully read!")
@@ -155,6 +170,7 @@ func ReadDataFromQR(img image.Image) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode the QR-code contents: %w", err)
 	}
+
 	return []byte(result.String()), nil
 }
 

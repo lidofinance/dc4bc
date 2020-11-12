@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/depools/dc4bc/fsm/config"
+	"github.com/lidofinance/dc4bc/fsm/config"
 )
 
 func (r *SignatureProposalParticipantsListRequest) Validate() error {
@@ -20,21 +20,21 @@ func (r *SignatureProposalParticipantsListRequest) Validate() error {
 		return errors.New("{SigningThreshold} cannot be higher than {ParticipantsCount}")
 	}
 
-	uniqueAddresses := make(map[string]bool)
+	uniqueUsernames := make(map[string]bool)
 	for _, participant := range r.Participants {
-		if _, ok := uniqueAddresses[participant.Addr]; ok {
-			return errors.New("{Addr} must be unique")
+		if _, ok := uniqueUsernames[participant.Username]; ok {
+			return errors.New("{Username} must be unique")
 		}
-		uniqueAddresses[participant.Addr] = true
+		uniqueUsernames[participant.Username] = true
 	}
 
 	for _, participant := range r.Participants {
-		if len(participant.Addr) < 3 {
-			return errors.New("{Addr} minimum length is {3}")
+		if len(participant.Username) < 3 {
+			return errors.New("{Username} minimum length is {3}")
 		}
 
-		if len(participant.Addr) > 150 {
-			return errors.New("{Addr} maximum length is {150}")
+		if len(participant.Username) > 150 {
+			return errors.New("{Username} maximum length is {150}")
 		}
 
 		if len(participant.PubKey) < 10 {

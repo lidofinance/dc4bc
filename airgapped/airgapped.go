@@ -11,14 +11,14 @@ import (
 
 	"github.com/corestario/kyber"
 	"github.com/corestario/kyber/encrypt/ecies"
-	client "github.com/depools/dc4bc/client/types"
-	"github.com/depools/dc4bc/dkg"
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/qr"
+	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/dkg"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/qr"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -76,6 +76,10 @@ func NewMachine(dbPath string) (*Machine, error) {
 
 func (am *Machine) SetQRProcessorFramesDelay(delay int) {
 	am.qrProcessor.SetDelay(delay)
+}
+
+func (am *Machine) CloseCameraReader() {
+	am.qrProcessor.CloseCameraReader()
 }
 
 func (am *Machine) SetQRProcessorChunkSize(chunkSize int) {
@@ -260,8 +264,7 @@ func (am *Machine) HandleQR() (string, error) {
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	qrPath := filepath.Join(am.resultQRFolder, fmt.Sprintf("%s_%s_%s.gif", resultOperation.Type, resultOperation.ID,
-		resultOperation.To))
+	qrPath := filepath.Join(am.resultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
 	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
 		return "", fmt.Errorf("failed to write QR: %w", err)
 	}

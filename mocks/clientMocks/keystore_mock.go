@@ -5,8 +5,8 @@
 package clientMocks
 
 import (
-	client "github.com/depools/dc4bc/client"
 	gomock "github.com/golang/mock/gomock"
+	client "github.com/lidofinance/dc4bc/client"
 	reflect "reflect"
 )
 

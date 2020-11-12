@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/depools/dc4bc/dkg"
+	"github.com/lidofinance/dc4bc/dkg"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 

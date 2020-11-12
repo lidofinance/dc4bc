@@ -5,12 +5,16 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"fmt"
-	"golang.org/x/crypto/scrypt"
 	"io"
+	"math"
+
+	"golang.org/x/crypto/scrypt"
 )
 
+var N = int(math.Pow(2, 16))
+
 func encrypt(key, salt, data []byte) ([]byte, error) {
-	derivedKey, err := scrypt.Key(key, salt, 32768, 8, 1, 32)
+	derivedKey, err := scrypt.Key(key, salt, N, 8, 1, 32)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +38,7 @@ func encrypt(key, salt, data []byte) ([]byte, error) {
 }
 
 func decrypt(key, salt, data []byte) ([]byte, error) {
-	derivedKey, err := scrypt.Key(key, salt, 32768, 8, 1, 32)
+	derivedKey, err := scrypt.Key(key, salt, N, 8, 1, 32)
 	if err != nil {
 		return nil, err
 	}

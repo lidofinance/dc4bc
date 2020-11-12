@@ -5,6 +5,7 @@ import "time"
 // States: "stage_signing_idle"
 // Events: "event_signing_start"
 type SigningProposalStartRequest struct {
+	SigningID     string
 	ParticipantId int
 	SrcPayload    []byte
 	CreatedAt     time.Time

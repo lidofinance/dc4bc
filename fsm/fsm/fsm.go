@@ -294,16 +294,6 @@ func (f *FSM) MustCopyWithState(state State) *FSM {
 	return f
 }
 
-func (f *FSM) DoInternal(event Event, args ...interface{}) (resp *Response, err error) {
-	trEvent, ok := f.transitions[trKey{f.currentState, event}]
-	if !ok {
-		return nil, fmt.Errorf("cannot execute internal event \"%s\" for state \"%s\"",
-			event, f.currentState)
-	}
-
-	return f.do(trEvent, args...)
-}
-
 func (f *FSM) Do(event Event, args ...interface{}) (resp *Response, err error) {
 	trEvent, ok := f.transitions[trKey{f.currentState, event}]
 	if !ok {
@@ -343,8 +333,6 @@ func (f *FSM) processAutoEvent(mode EventRunMode, args ...interface{}) (exists b
 
 func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err error) {
 	var outEvent Event
-	// f.eventMu.Lock()
-	// defer f.eventMu.Unlock()
 
 	resp = &Response{}
 

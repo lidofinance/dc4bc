@@ -8,18 +8,17 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-
 	"time"
 
-	"github.com/depools/dc4bc/client/types"
-	"github.com/depools/dc4bc/fsm/fsm"
-	spf "github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	sif "github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/requests"
 	"github.com/google/uuid"
+	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	sif "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
 
-	"github.com/depools/dc4bc/qr"
-	"github.com/depools/dc4bc/storage"
+	"github.com/lidofinance/dc4bc/qr"
+	"github.com/lidofinance/dc4bc/storage"
 )
 
 type Response struct {
@@ -71,7 +70,7 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/getOperationQRPath", c.getOperationQRPathHandler)
 
 	mux.HandleFunc("/getSignatures", c.getSignaturesHandler)
-	mux.HandleFunc("/getSignatureByDataHash", c.getSignatureByDataHashHandler)
+	mux.HandleFunc("/getSignatureByID", c.getSignatureByIDHandler)
 
 	mux.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
 	mux.HandleFunc("/handleProcessedOperationJSON", c.handleJSONOperationHandler)
@@ -79,6 +78,9 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 
 	mux.HandleFunc("/startDKG", c.startDKGHandler)
 	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
+
+	mux.HandleFunc("/saveOffset", c.saveOffsetHandler)
+	mux.HandleFunc("/getOffset", c.getOffsetHandler)
 
 	mux.HandleFunc("/getFSMDump", c.getFSMDumpHandler)
 	mux.HandleFunc("/getFSMList", c.getFSMList)
@@ -138,6 +140,47 @@ func (c *BaseClient) getPubkeyHandler(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, c.GetPubKey())
 }
 
+func (c *BaseClient) getOffsetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	offset, err := c.state.LoadOffset()
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to load offset: %v", err))
+		return
+	}
+	successResponse(w, offset)
+}
+
+func (c *BaseClient) saveOffsetHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	reqBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, http.StatusBadRequest, fmt.Sprintf("failed to read request body: %v", err))
+		return
+	}
+	defer r.Body.Close()
+
+	var req map[string]uint64
+	if err = json.Unmarshal(reqBytes, &req); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to unmarshal request: %v", err))
+		return
+	}
+	if _, ok := req["offset"]; !ok {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("offset cannot be null: %v", err))
+		return
+	}
+	if err = c.state.SaveOffset(req["offset"]); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to save offset: %v", err))
+		return
+	}
+	successResponse(w, "ok")
+}
+
 func (c *BaseClient) sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
@@ -194,13 +237,13 @@ func (c *BaseClient) getSignaturesHandler(w http.ResponseWriter, r *http.Request
 	successResponse(w, signatures)
 }
 
-func (c *BaseClient) getSignatureByDataHashHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) getSignatureByIDHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
 
-	signature, err := c.GetSignatureByDataHash(r.URL.Query().Get("dkgID"), r.URL.Query().Get("hash"))
+	signature, err := c.GetSignatureByID(r.URL.Query().Get("dkgID"), r.URL.Query().Get("id"))
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get signature: %v", err))
 		return
@@ -260,7 +303,7 @@ func (c *BaseClient) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Content-Type", "image/png")
 	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(encodedData)))
 	rawResponse(w, encodedData)
 }
@@ -313,13 +356,14 @@ func (c *BaseClient) proposeSignDataHandler(w http.ResponseWriter, r *http.Reque
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get FSM instance: %v", err))
 		return
 	}
-	participantID, err := fsmInstance.GetIDByAddr(c.GetUsername())
+	participantID, err := fsmInstance.GetIDByUsername(c.GetUsername())
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get participantID: %v", err))
 		return
 	}
 
 	messageDataSign := requests.SigningProposalStartRequest{
+		SigningID:     uuid.New().String(),
 		ParticipantId: participantID,
 		SrcPayload:    req["data"],
 		CreatedAt:     time.Now(),

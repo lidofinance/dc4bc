@@ -4,11 +4,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/depools/dc4bc/fsm/config"
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/internal"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/fsm/types/responses"
+	"github.com/lidofinance/dc4bc/fsm/config"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/internal"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 )
 
 func (m *SigningProposalFSM) actionInitSigningProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
@@ -60,12 +60,7 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 		return
 	}
 
-	m.payload.SigningProposalPayload.SigningId, err = generateSigningId()
-
-	if err != nil {
-		err = errors.New("cannot generate {SigningId}")
-		return
-	}
+	m.payload.SigningProposalPayload.SigningId = request.SigningID
 
 	m.payload.SigningProposalPayload.InitiatorId = request.ParticipantId
 	m.payload.SigningProposalPayload.SrcPayload = request.SrcPayload
@@ -75,7 +70,7 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 	// Initialize new quorum
 	for id, dkgEntry := range m.payload.DKGProposalPayload.Quorum {
 		m.payload.SigningProposalPayload.Quorum[id] = &internal.SigningProposalParticipant{
-			Addr:      dkgEntry.Addr,
+			Username:  dkgEntry.Username,
 			Status:    internal.SigningAwaitConfirmation,
 			UpdatedAt: request.CreatedAt,
 		}
@@ -95,7 +90,7 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 	for participantId, participant := range m.payload.SigningProposalPayload.Quorum {
 		responseEntry := &responses.SigningProposalParticipantInvitationEntry{
 			ParticipantId: participantId,
-			Addr:          participant.Addr,
+			Username:      participant.Username,
 			Status:        uint8(participant.Status),
 		}
 		responseData.Participants = append(responseData.Participants, responseEntry)
@@ -296,7 +291,7 @@ func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations
 	for participantId, participant := range m.payload.SigningProposalPayload.Quorum {
 		responseEntry := &responses.SigningProcessParticipantEntry{
 			ParticipantId: participantId,
-			Addr:          participant.Addr,
+			Username:      participant.Username,
 			PartialSign:   participant.PartialSign,
 		}
 		responseData.Participants = append(responseData.Participants, responseEntry)

@@ -7,23 +7,24 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/depools/dc4bc/fsm/state_machines"
+	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/responses"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
-	"github.com/depools/dc4bc/client"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/qr"
+	"github.com/lidofinance/dc4bc/client"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/qr"
 	"github.com/spf13/cobra"
 )
 
@@ -58,8 +59,11 @@ func main() {
 		getHashOfStartDKGCommand(),
 		getSignaturesCommand(),
 		getSignatureCommand(),
+		saveOffsetCommand(),
+		getOffsetCommand(),
 		getFSMStatusCommand(),
 		getFSMListCommand(),
+		getSignatureDataCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
@@ -117,7 +121,8 @@ func getOperationsCommand() *cobra.Command {
 						return fmt.Errorf("failed to unmarshal operation payload")
 					}
 					msgHash := md5.Sum(payload.SrcPayload)
-					fmt.Printf("Hash of the message to sign - %s\n", hex.EncodeToString(msgHash[:]))
+					fmt.Printf("Hash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
+					fmt.Printf("Signing ID: %s\n", payload.SigningId)
 				}
 				fmt.Println("-----------------------------------------------------")
 			}
@@ -161,11 +166,11 @@ func getSignaturesCommand() *cobra.Command {
 			if signatures.ErrorMessage != "" {
 				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
 			}
-			for dataHash, signature := range signatures.Result {
-				fmt.Printf("Hash of the signing data: %s\n", dataHash)
+			for sigID, signature := range signatures.Result {
+				fmt.Printf("Signing ID: %s\n", sigID)
 				for _, participantSig := range signature {
 					fmt.Printf("\tDKG round ID: %s\n", participantSig.DKGRoundID)
-					fmt.Printf("\tParticipant: %s\n", participantSig.Participant)
+					fmt.Printf("\tParticipant: %s\n", participantSig.Username)
 					fmt.Printf("\tReconstructed signature for the data: %s\n", base64.StdEncoding.EncodeToString(participantSig.Signature))
 					fmt.Println()
 				}
@@ -176,7 +181,7 @@ func getSignaturesCommand() *cobra.Command {
 }
 
 func getSignatureRequest(host string, dkgID, dataHash string) (*SignatureResponse, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/getSignatureByDataHash?dkgID=%s&hash=%s", host, dkgID, dataHash))
+	resp, err := http.Get(fmt.Sprintf("http://%s/getSignatureByID?dkgID=%s&id=%s", host, dkgID, dataHash))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get signatures: %w", err)
 	}
@@ -195,7 +200,7 @@ func getSignatureRequest(host string, dkgID, dataHash string) (*SignatureRespons
 
 func getSignatureCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get_signature [dkgID] [hash_of_the_signed_data]",
+		Use:   "get_signature [dkgID] [signing_id]",
 		Args:  cobra.ExactArgs(2),
 		Short: "returns a list of reconstructed signatures of the signed data broadcasted by users",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -211,9 +216,34 @@ func getSignatureCommand() *cobra.Command {
 				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
 			}
 			for _, participantSig := range signatures.Result {
-				fmt.Printf("\tParticipant: %s\n", participantSig.Participant)
+				fmt.Printf("\tParticipant: %s\n", participantSig.Username)
 				fmt.Printf("\tReconstructed signature for the data: %s\n", base64.StdEncoding.EncodeToString(participantSig.Signature))
 				fmt.Println()
+			}
+			return nil
+		},
+	}
+}
+
+func getSignatureDataCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_signature_data [dkgID] [signing_id]",
+		Args:  cobra.ExactArgs(2),
+		Short: "returns a data which was signed",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+			signatures, err := getSignatureRequest(listenAddr, args[0], args[1])
+			if err != nil {
+				return fmt.Errorf("failed to get signatures: %w", err)
+			}
+			if signatures.ErrorMessage != "" {
+				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
+			}
+			if len(signatures.Result) > 0 {
+				fmt.Println(string(signatures.Result[0].SrcPayload))
 			}
 			return nil
 		},
@@ -270,7 +300,7 @@ func getOperationQRPathCommand() *cobra.Command {
 				return fmt.Errorf("failed to get operations: %s", operation.ErrorMessage)
 			}
 
-			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_%s", operationID))
+			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_%s-request", operationID))
 
 			qrPath := fmt.Sprintf("%s.gif", operationQRPath)
 
@@ -329,6 +359,62 @@ func getPubKeyCommand() *cobra.Command {
 	}
 }
 
+func saveOffsetCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "save_offset [offset]",
+		Short: "saves a new offset for a storage",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			offset, err := strconv.ParseUint(args[0], 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse uint: %w", err)
+			}
+			req := map[string]uint64{"offset": offset}
+			data, err := json.Marshal(req)
+			if err != nil {
+				return fmt.Errorf("failed to create request: %w", err)
+			}
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/saveOffset", listenAddr), "application/json", data)
+			if err != nil {
+				return fmt.Errorf("failed to save offset: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to save offset: %v", resp.ErrorMessage)
+			}
+			fmt.Println(resp.Result.(string))
+			return nil
+		},
+	}
+}
+
+func getOffsetCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_offset",
+		Short: "returns a current offset for the storage",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			resp, err := rawGetRequest(fmt.Sprintf("http://%s//getOffset", listenAddr))
+			if err != nil {
+				return fmt.Errorf("failed to get offset: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to get offset: %v", resp.ErrorMessage)
+			}
+			fmt.Println(uint64(resp.Result.(float64)))
+			return nil
+		},
+	}
+}
+
 func getUsernameCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get_username",
@@ -373,7 +459,7 @@ func rawPostRequest(url string, contentType string, data []byte) (*client.Respon
 
 func readOperationFromCameraCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "read_from_camera",
+		Use:   "read_qr",
 		Short: "opens the camera and reads QR codes which should contain a processed operation",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
@@ -472,7 +558,7 @@ func getHashOfStartDKGCommand() *cobra.Command {
 				if _, err := hashPayload.Write(p.DkgPubKey); err != nil {
 					return err
 				}
-				if _, err := hashPayload.Write([]byte(p.Addr)); err != nil {
+				if _, err := hashPayload.Write([]byte(p.Username)); err != nil {
 					return err
 				}
 			}
@@ -574,7 +660,7 @@ func getFSMStatusCommand() *cobra.Command {
 					quorum[k] = v
 				}
 			}
-			if strings.HasPrefix(string(dump.State), "state_sig") {
+			if strings.HasPrefix(string(dump.State), "state_sig_") {
 				for k, v := range dump.Payload.SignatureProposalPayload.Quorum {
 					quorum[k] = v
 				}
@@ -586,13 +672,13 @@ func getFSMStatusCommand() *cobra.Command {
 
 			for _, p := range quorum {
 				if strings.Contains(p.GetStatus().String(), "Await") {
-					waiting = append(waiting, p.GetAddr())
+					waiting = append(waiting, p.GetUsername())
 				}
 				if strings.Contains(p.GetStatus().String(), "Error") {
-					failed = append(failed, p.GetAddr())
+					failed = append(failed, p.GetUsername())
 				}
 				if strings.Contains(p.GetStatus().String(), "Confirmed") {
-					confirmed = append(confirmed, p.GetAddr())
+					confirmed = append(confirmed, p.GetUsername())
 				}
 			}
 

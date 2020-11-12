@@ -1,9 +1,9 @@
 package signing_proposal_fsm
 
 import (
-	"github.com/depools/dc4bc/fsm/fsm"
-	dkp "github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/internal"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	dkp "github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/internal"
 	"sync"
 )
 

@@ -12,15 +12,15 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	client "github.com/depools/dc4bc/client/types"
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/signing_proposal_fsm"
-	"github.com/depools/dc4bc/fsm/types/requests"
-	"github.com/depools/dc4bc/fsm/types/responses"
-	"github.com/depools/dc4bc/storage"
 	"github.com/google/uuid"
+	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
+	"github.com/lidofinance/dc4bc/storage"
 )
 
 const (
@@ -147,7 +147,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		entry := &responses.SignatureProposalParticipantInvitationEntry{
 			ParticipantId: n.ParticipantID,
-			Addr:          n.Participant,
+			Username:      n.Participant,
 			Threshold:     threshold,
 			DkgPubKey:     pubKey,
 		}
@@ -172,7 +172,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		entry := &responses.DKGProposalPubKeysParticipantEntry{
 			ParticipantId: n.ParticipantID,
-			Addr:          n.Participant,
+			Username:      n.Participant,
 			DkgPubKey:     pubKey,
 		}
 		getCommitsRequest = append(getCommitsRequest, entry)
@@ -198,7 +198,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		for _, req := range n.commits {
 			p := responses.DKGProposalCommitParticipantEntry{
 				ParticipantId: req.ParticipantId,
-				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				Username:      fmt.Sprintf("Participant#%d", req.ParticipantId),
 				DkgCommit:     req.Commit,
 			}
 			payload = append(payload, &p)
@@ -222,7 +222,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		for _, req := range n.deals {
 			p := responses.DKGProposalDealParticipantEntry{
 				ParticipantId: req.ParticipantId,
-				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				Username:      fmt.Sprintf("Participant#%d", req.ParticipantId),
 				DkgDeal:       req.Deal,
 			}
 			payload = append(payload, &p)
@@ -246,7 +246,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		for _, req := range n.responses {
 			p := responses.DKGProposalResponseParticipantEntry{
 				ParticipantId: req.ParticipantId,
-				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				Username:      fmt.Sprintf("Participant#%d", req.ParticipantId),
 				DkgResponse:   req.Response,
 			}
 			payload = append(payload, &p)
@@ -300,7 +300,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		for _, req := range n.partialSigns {
 			p := responses.SigningProcessParticipantEntry{
 				ParticipantId: req.ParticipantId,
-				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				Username:      fmt.Sprintf("Participant#%d", req.ParticipantId),
 				PartialSign:   req.PartialSign,
 			}
 			payload.Participants = append(payload.Participants, &p)
@@ -371,7 +371,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		}
 		entry := &responses.SignatureProposalParticipantInvitationEntry{
 			ParticipantId: n.ParticipantID,
-			Addr:          n.Participant,
+			Username:      n.Participant,
 			Threshold:     threshold,
 			DkgPubKey:     pubKey,
 		}
@@ -396,7 +396,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		}
 		entry := &responses.DKGProposalPubKeysParticipantEntry{
 			ParticipantId: n.ParticipantID,
-			Addr:          n.Participant,
+			Username:      n.Participant,
 			DkgPubKey:     pubKey,
 		}
 		getCommitsRequest = append(getCommitsRequest, entry)
@@ -422,7 +422,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		for _, req := range n.commits {
 			p := responses.DKGProposalCommitParticipantEntry{
 				ParticipantId: req.ParticipantId,
-				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				Username:      fmt.Sprintf("Participant#%d", req.ParticipantId),
 				DkgCommit:     req.Commit,
 			}
 			payload = append(payload, &p)
@@ -484,7 +484,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		for _, req := range n.deals {
 			p := responses.DKGProposalDealParticipantEntry{
 				ParticipantId: req.ParticipantId,
-				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				Username:      fmt.Sprintf("Participant#%d", req.ParticipantId),
 				DkgDeal:       req.Deal,
 			}
 			payload = append(payload, &p)
@@ -508,7 +508,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		for _, req := range n.responses {
 			p := responses.DKGProposalResponseParticipantEntry{
 				ParticipantId: req.ParticipantId,
-				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				Username:      fmt.Sprintf("Participant#%d", req.ParticipantId),
 				DkgResponse:   req.Response,
 			}
 			payload = append(payload, &p)
@@ -562,7 +562,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		for _, req := range n.partialSigns {
 			p := responses.SigningProcessParticipantEntry{
 				ParticipantId: req.ParticipantId,
-				Addr:          fmt.Sprintf("Participant#%d", req.ParticipantId),
+				Username:      fmt.Sprintf("Participant#%d", req.ParticipantId),
 				PartialSign:   req.PartialSign,
 			}
 			payload.Participants = append(payload.Participants, &p)

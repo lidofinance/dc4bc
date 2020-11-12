@@ -3,8 +3,8 @@ package signature_proposal_fsm
 import (
 	"sync"
 
-	"github.com/depools/dc4bc/fsm/fsm"
-	"github.com/depools/dc4bc/fsm/state_machines/internal"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/internal"
 )
 
 const (
