@@ -354,7 +354,7 @@ func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
 		return fmt.Errorf("processed operation does not match stored operation: %w", err)
 	}
 
-	for _, message := range operation.ResultMsgs {
+	for i, message := range operation.ResultMsgs {
 		message.SenderAddr = c.GetUsername()
 
 		sig, err := c.signMessage(message.Bytes())
@@ -363,9 +363,11 @@ func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
 		}
 		message.Signature = sig
 
-		if _, err := c.storage.Send(message); err != nil {
-			return fmt.Errorf("failed to post message: %w", err)
-		}
+		operation.ResultMsgs[i] = message
+	}
+
+	if _, err := c.storage.SendBatch(operation.ResultMsgs...); err != nil {
+		return fmt.Errorf("failed to post messages: %w", err)
 	}
 
 	if err := c.state.DeleteOperation(operation.ID); err != nil {

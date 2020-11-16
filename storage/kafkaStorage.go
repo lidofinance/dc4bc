@@ -62,6 +62,24 @@ func (s *KafkaStorage) Send(m Message) (Message, error) {
 	return m, err
 }
 
+func (s *KafkaStorage) SendBatch(msgs ...Message) ([]Message, error) {
+	err := try.Do(func(attempt int) (bool, error) {
+		var err error
+		msgs, err = s.sendBatch(msgs...)
+		if err != nil {
+			log.Printf("failed while trying to send message (%v), trying to reconnect", err)
+			if err := s.connect(); err != nil {
+				log.Printf("failed to reconnect (%v), %d retries left", err, try.MaxRetries-attempt)
+			}
+		}
+		time.Sleep(reconnectInterval)
+
+		return attempt < try.MaxRetries, err
+	})
+
+	return msgs, err
+}
+
 func (s *KafkaStorage) send(m Message) (Message, error) {
 	data, err := json.Marshal(m)
 	if err != nil {
@@ -69,14 +87,35 @@ func (s *KafkaStorage) send(m Message) (Message, error) {
 	}
 
 	if err := s.writer.SetWriteDeadline(time.Now().Add(time.Second)); err != nil {
-		return Message{}, fmt.Errorf("failed to SetWriteDeadline: %w", err)
+		return m, fmt.Errorf("failed to SetWriteDeadline: %w", err)
 	}
 
 	if _, err := s.writer.WriteMessages(kafka.Message{Key: []byte(m.ID), Value: data}); err != nil {
-		return Message{}, fmt.Errorf("failed to WriteMessages: %w", err)
+		return m, fmt.Errorf("failed to WriteMessages: %w", err)
 	}
 
 	return m, nil
+}
+
+func (s *KafkaStorage) sendBatch(msgs ...Message) ([]Message, error) {
+	kafkaMessages := make([]kafka.Message, len(msgs))
+	for i, m := range msgs {
+		data, err := json.Marshal(m)
+		if err != nil {
+			return msgs, fmt.Errorf("failed to marshal a message %v: %v", m, err)
+		}
+		kafkaMessages[i] = kafka.Message{Key: []byte(m.ID), Value: data}
+	}
+
+	if err := s.writer.SetWriteDeadline(time.Now().Add(time.Second)); err != nil {
+		return msgs, fmt.Errorf("failed to SetWriteDeadline: %w", err)
+	}
+
+	if _, err := s.writer.WriteMessages(kafkaMessages...); err != nil {
+		return msgs, fmt.Errorf("failed to WriteMessages: %w", err)
+	}
+
+	return msgs, nil
 }
 
 func (s *KafkaStorage) GetMessages(offset uint64) (messages []Message, err error) {
