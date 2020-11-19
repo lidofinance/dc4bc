@@ -1,44 +1,47 @@
 package storage
 
 import (
-	"fmt"
+	"reflect"
 	"testing"
 )
 
+const (
+	TestEndpoint = "http://0.0.0.0:1317"
+	TestUserName = "user1"
+	TestChainID  = "bulletin"
+	TestTopic    = "test_topic"
+	TestPassword = "12345678"
+	TestMnemonic = "weasel topic tube fun expire faculty panda nut gloom twice define evoke regular toss staff buffalo walk shell quote vote follow regular elephant invite"
+)
+
 func TestNewTendermintStorage(t *testing.T) {
-	ts, err := NewTendermintStorage("http://0.0.0.0:1317", "user1", "bulletin", "test_topic", "12345678", "trip spin bench ghost ride steak fame clutch desk lake fiction emotion pen peace spare output gun genuine soccer fury affair execute bar outdoor")
-	if err != nil {
-		t.Error(err)
-	}
-	info, err := ts.keybase.Get("user1")
-	if err != nil {
-		t.Error(err)
-	}
-	account, err := ts.getAccount(info.GetAddress().String())
-	if err != nil {
-		t.Error(err)
-	}
-	fmt.Println(account.GetCoins())
+	N := 10
+	offset := 4
 
-	msg := Message{
-		ID:            "lsflksdjf",
-		DkgRoundID:    "1234",
-		Offset:        0,
-		Event:         "test_event",
-		Data:          []byte{1, 2, 3, 4},
-		Signature:     []byte{1, 2, 3, 4},
-		SenderAddr:    "sender",
-		RecipientAddr: "recipient",
+	ts, err := NewTendermintStorage(TestEndpoint, TestUserName, TestChainID, TestTopic, TestPassword, TestMnemonic)
+	if err != nil {
+		t.Error(err)
+	}
+	msgs := make([]Message, 0, N)
+	for i := 0; i < N; i++ {
+		msg := Message{
+			Data:      randomBytes(10),
+			Signature: randomBytes(10),
+		}
+		msg, err = ts.Send(msg)
+		if err != nil {
+			t.Error(err)
+		}
+		msgs = append(msgs, msg)
 	}
 
-	tx, err := ts.genTx(msg)
+	offsetMsgs, err := ts.GetMessages(uint64(offset))
 	if err != nil {
 		t.Error(err)
 	}
 
-	signedTx, err := ts.signTx(*tx)
-	if err != nil {
-		t.Error(err)
+	expectedOffsetMsgs := msgs[offset:]
+	for idx, msg := range expectedOffsetMsgs {
+		reflect.DeepEqual(msg.Signature, offsetMsgs[idx].Signature)
 	}
-	fmt.Println(signedTx.GetSignatures())
 }
