@@ -15,7 +15,7 @@ const (
 )
 
 func TestNewTendermintStorage(t *testing.T) {
-	N := 10
+	N := 100
 	offset := 4
 
 	ts, err := NewTendermintStorage(TestEndpoint, TestUserName, TestChainID, TestTopic, TestPassword, TestMnemonic)

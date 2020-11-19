@@ -167,11 +167,17 @@ func (ts *TendermintStorage) signTx(tx types.StdTx) (*types.StdTx, error) {
 	txBuilder := auth.NewTxBuilder(auth.DefaultTxEncoder(app.MakeCodec()), account.GetAccountNumber(),
 		account.GetSequence(), tx.GetGas(), 0, false, ts.chainID, tx.GetMemo(),
 		tx.Fee.Amount, tx.Fee.GasPrices()).WithKeybase(ts.keybase)
+	tx.Fee.Gas = tx.GetGas() * 2
 	signedTx, err := txBuilder.SignStdTx(ts.name, ts.password, tx, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign tx: %w", err)
 	}
 	return &signedTx, nil
+}
+
+type broadcastTxResponse struct {
+	Code   int    `json:"code"`
+	RawLog string `json:"raw_log"`
 }
 
 func (ts *TendermintStorage) broadcastTx(tx types.StdTx) error {
@@ -183,9 +189,16 @@ func (ts *TendermintStorage) broadcastTx(tx types.StdTx) error {
 	if err != nil {
 		return err
 	}
-	if _, err = rawPostRequest(fmt.Sprintf("%s/txs", ts.nodeEndpoint),
-		"application/json", data); err != nil {
+	resp, err := rawPostRequest(fmt.Sprintf("%s/txs", ts.nodeEndpoint), "application/json", data)
+	if err != nil {
 		return err
+	}
+	var txResp broadcastTxResponse
+	if err = json.Unmarshal(resp, &txResp); err != nil {
+		return fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	if txResp.Code != 0 {
+		return fmt.Errorf("failed to execute tx: %s", txResp.RawLog)
 	}
 	return nil
 }
@@ -228,7 +241,7 @@ func (ts *TendermintStorage) GetMessages(offset uint64) ([]Message, error) {
 		if err = json.Unmarshal(respBody, &errorResp); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 		}
-		return nil, fmt.Errorf("%w", err)
+		return nil, fmt.Errorf("failed to get messages: %s", errorResp.Error)
 	}
 
 	if err = json.Unmarshal(respBody, &messagesResponse); err != nil {
@@ -245,7 +258,7 @@ func (ts *TendermintStorage) GetMessages(offset uint64) ([]Message, error) {
 			ID:            message.ID,
 			DkgRoundID:    message.DKGRoundID,
 			Offset:        parsedOffset,
-			Event:         message.Topic,
+			Event:         message.Event,
 			Data:          message.Data,
 			Signature:     message.Signature,
 			SenderAddr:    message.Sender,

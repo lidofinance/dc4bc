@@ -141,15 +141,22 @@ func RemoveContents(dir, mask string) error {
 	return nil
 }
 
+var mnemonics = []string{
+	"attack sister depth cook stick where decorate blush sting dry actual someone broccoli valid oak chronic view bubble mixture coil language obscure advice vague",
+	"observe town orchard motion casino venue mule deny avoid resist arena original sniff kitten ice club october supply uncover tribe just volume mercy velvet",
+	"exhibit shallow endless hole position weapon gallery subway train tail fire feed planet ship picture decide snap picnic merge citizen have cruel celery iron",
+	"where join over avocado song kick jelly sentence step plate combine awkward increase tomato purity friend distance magic inmate spoon soft student clerk kitchen",
+}
+
 func TestFullFlow(t *testing.T) {
 	_ = RemoveContents("/tmp", "dc4bc_*")
 	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
 
 	var numNodes = 4
 	var threshold = 2
-	var storagePath = "/tmp/dc4bc_storage"
+	//var storagePath = "/tmp/dc4bc_storage"
 	var nodes = make([]*node, numNodes)
-	startingPort := 8080
+	startingPort := 8085
 	for nodeID := 0; nodeID < numNodes; nodeID++ {
 		var ctx = context.Background()
 		var userName = fmt.Sprintf("node_%d", nodeID)
@@ -158,7 +165,7 @@ func TestFullFlow(t *testing.T) {
 			t.Fatalf("node %d failed to init state: %v\n", nodeID, err)
 		}
 
-		stg, err := storage.NewFileStorage(storagePath)
+		stg, err := storage.NewTendermintStorage("http://0.0.0.0:1317", fmt.Sprintf("user%d", nodeID), "bulletin", "test_topic9", "12345678", mnemonics[nodeID])
 		if err != nil {
 			t.Fatalf("node %d failed to init storage: %v\n", nodeID, err)
 		}
@@ -250,7 +257,7 @@ func TestFullFlow(t *testing.T) {
 		t.Fatalf("failed to send HTTP request to start DKG: %v\n", err)
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(300 * time.Second)
 	log.Println("Propose message to sign")
 
 	dkgRoundID := md5.Sum(messageDataBz)
