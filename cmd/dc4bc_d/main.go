@@ -92,10 +92,10 @@ func genKeyPairCommand() *cobra.Command {
 			keyPair := client.NewKeyPair()
 			keyStore, err := client.NewLevelDBKeyStore(username, keyStoreDBDSN)
 			if err != nil {
-				log.Fatalf("failed to init key store: %v", err)
+				return fmt.Errorf("failed to init key store: %w", err)
 			}
 			if err = keyStore.PutKeys(username, keyPair); err != nil {
-				log.Fatalf("failed to save keypair: %v", err)
+				return fmt.Errorf("failed to save keypair: %w", err)
 			}
 			fmt.Printf("keypair generated for user %s and saved to %s\n", username, keyStoreDBDSN)
 			return nil
@@ -125,13 +125,13 @@ func startClientCommand() *cobra.Command {
 			stateDBDSN := viper.GetString(flagStateDBDSN)
 			state, err := client.NewLevelDBState(stateDBDSN)
 			if err != nil {
-				return fmt.Errorf("failed to init state client: %v", err)
+				return fmt.Errorf("failed to init state client: %w", err)
 			}
 
 			kafkaTrustStorePath := viper.GetString(flagKafkaTrustStorePath)
 			tlsConfig, err := storage.GetTLSConfig(kafkaTrustStorePath)
 			if err != nil {
-				log.Fatalf("faile to create tls config: %v", err)
+				return fmt.Errorf("faile to create tls config: %w", err)
 			}
 
 			producerCredentials := viper.GetString(flagKafkaProducerCredentials)
@@ -150,14 +150,14 @@ func startClientCommand() *cobra.Command {
 			storageTopic := viper.GetString(flagStorageTopic)
 			stg, err := storage.NewKafkaStorage(ctx, storageDBDSN, storageTopic, tlsConfig, producerCreds, consumerCreds)
 			if err != nil {
-				log.Fatalf("Failed to init storage client: %v", err)
+				return fmt.Errorf("failed to init storage client: %w", err)
 			}
 
 			username := viper.GetString(flagUserName)
 			keyStoreDBDSN := viper.GetString(flagStoreDBDSN)
 			keyStore, err := client.NewLevelDBKeyStore(username, keyStoreDBDSN)
 			if err != nil {
-				log.Fatalf("Failed to init key store: %v", err)
+				return fmt.Errorf("failed to init key store: %w", err)
 			}
 
 			framesDelay := viper.GetInt(flagFramesDelay)
@@ -193,7 +193,7 @@ func startClientCommand() *cobra.Command {
 			cli.GetLogger().Log("Client started to poll messages from append-only log")
 			cli.GetLogger().Log("Waiting for messages from append-only log...")
 			if err = cli.Poll(); err != nil {
-				log.Fatalf("error while handling operations: %v", err)
+				return fmt.Errorf("error while handling operations: %w", err)
 			}
 			cli.GetLogger().Log("polling is stopped")
 			return nil
