@@ -7,13 +7,13 @@ import (
 
 const (
 	TestEndpoint = "http://0.0.0.0:1317"
-	TestUserName = "user1"
+	TestUserName = "test_user"
 	TestChainID  = "bulletin"
 	TestTopic    = "test_topic"
-	TestMnemonic = "dance vague property woman human world run real ship detect clown gossip indicate tone cry dress empower radio square guide laundry valley rose surface"
+	TestMnemonic = ""
 )
 
-func TestNewTendermintStorage(t *testing.T) {
+func TestTendermintStorage_GetMessages(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long test")
 	}
