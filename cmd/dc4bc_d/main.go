@@ -168,7 +168,7 @@ func startClientCommand() *cobra.Command {
 
 			cli, err := client.NewClient(ctx, username, state, stg, keyStore, processor)
 			if err != nil {
-				log.Fatalf("Failed to init client: %v", err)
+				return fmt.Errorf("failed to init client: %w", err)
 			}
 
 			sigs := make(chan os.Signal, 1)
