@@ -149,7 +149,7 @@ func TestFullFlow(t *testing.T) {
 	var threshold = 2
 	var storagePath = "/tmp/dc4bc_storage"
 	var nodes = make([]*node, numNodes)
-	startingPort := 8085
+	startingPort := 8080
 	for nodeID := 0; nodeID < numNodes; nodeID++ {
 		var ctx = context.Background()
 		var userName = fmt.Sprintf("node_%d", nodeID)
@@ -250,7 +250,7 @@ func TestFullFlow(t *testing.T) {
 		t.Fatalf("failed to send HTTP request to start DKG: %v\n", err)
 	}
 
-	time.Sleep(60 * time.Second)
+	time.Sleep(10 * time.Second)
 	log.Println("Propose message to sign")
 
 	dkgRoundID := md5.Sum(messageDataBz)
@@ -264,6 +264,6 @@ func TestFullFlow(t *testing.T) {
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
-	time.Sleep(30 * time.Second)
+	time.Sleep(5 * time.Second)
 
 }
