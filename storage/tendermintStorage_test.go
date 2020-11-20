@@ -10,15 +10,14 @@ const (
 	TestUserName = "user1"
 	TestChainID  = "bulletin"
 	TestTopic    = "test_topic"
-	TestPassword = "12345678"
-	TestMnemonic = "weasel topic tube fun expire faculty panda nut gloom twice define evoke regular toss staff buffalo walk shell quote vote follow regular elephant invite"
+	TestMnemonic = "dance vague property woman human world run real ship detect clown gossip indicate tone cry dress empower radio square guide laundry valley rose surface"
 )
 
 func TestNewTendermintStorage(t *testing.T) {
 	N := 100
 	offset := 4
 
-	ts, err := NewTendermintStorage(TestEndpoint, TestUserName, TestChainID, TestTopic, TestPassword, TestMnemonic)
+	ts, err := NewTendermintStorage(TestEndpoint, TestUserName, TestChainID, TestTopic, TestMnemonic)
 	if err != nil {
 		t.Error(err)
 	}

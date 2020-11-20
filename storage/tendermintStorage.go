@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	clientKeys "github.com/cosmos/cosmos-sdk/client/keys"
 	"github.com/cosmos/cosmos-sdk/crypto/keys"
 	"github.com/cosmos/cosmos-sdk/types/rest"
 	"github.com/cosmos/cosmos-sdk/x/auth"
@@ -20,26 +21,23 @@ type TendermintStorage struct {
 	nodeEndpoint string
 	chainID      string
 	name         string
-	password     string
 
 	keybase        keys.Keybase
 	accountAddress string
 	topic          string
 }
 
-func NewTendermintStorage(nodeEndpoint, name, chainID string, topic string, password,
-	mnemonic string) (Storage, error) {
+func NewTendermintStorage(nodeEndpoint, name, chainID string, topic string, mnemonic string) (Storage, error) {
 	var ts TendermintStorage
 
 	ts.nodeEndpoint = nodeEndpoint
 	ts.chainID = chainID
 	ts.topic = topic
 	ts.name = name
-	ts.password = password
 
 	ts.keybase = keys.NewInMemory()
 	hdPath := keys.CreateHDPath(0, 0).String()
-	info, err := ts.keybase.CreateAccount(name, mnemonic, keys.DefaultBIP39Passphrase, password,
+	info, err := ts.keybase.CreateAccount(name, mnemonic, keys.DefaultBIP39Passphrase, clientKeys.DefaultKeyPass,
 		hdPath, keys.Secp256k1)
 	if err != nil {
 		return nil, err
@@ -54,10 +52,11 @@ func (ts *TendermintStorage) Close() error {
 }
 
 type getAccountResponse struct {
-	Height string           `json:"heignt"`
+	Height string           `json:"height"`
 	Result exported.Account `json:"result"`
 }
 
+//getAccount returns account by cosmos address
 func (ts *TendermintStorage) getAccount(addr string) (exported.Account, error) {
 	url := fmt.Sprintf("%s/auth/accounts/%s", ts.nodeEndpoint, addr)
 	resp, err := http.Get(url)
@@ -115,17 +114,20 @@ type BulletinMessage struct {
 }
 
 type genTxRequest struct {
-	BaseReq    rest.BaseReq `json:"base_req"`
-	Creator    string       `json:"creator"`
-	DKGRoundID string       `json:"dkg_round_id"`
-	Event      string       `json:"event"`
-	Data       []byte       `json:"data"`
-	Signature  []byte       `json:"signature"`
-	Sender     string       `json:"sender"`
-	Recipient  string       `json:"recipient"`
-	Topic      string       `json:"topic"`
+	BaseReq rest.BaseReq `json:"base_req"`
+	// yeah, following fields are full copy of BulletinMessage fields, but cosmos-sdk codec can't marshall/unmarshall
+	// embedded structs properly, so it has to be done this way
+	Creator    string `json:"creator"`
+	DKGRoundID string `json:"dkg_round_id"`
+	Event      string `json:"event"`
+	Data       []byte `json:"data"`
+	Signature  []byte `json:"signature"`
+	Sender     string `json:"sender"`
+	Recipient  string `json:"recipient"`
+	Topic      string `json:"topic"`
 }
 
+//genTx returns a generated tx for the given message by making HTTP requests to LCD node
 func (ts *TendermintStorage) genTx(msg Message) (*types.StdTx, error) {
 	var req genTxRequest
 
@@ -156,9 +158,60 @@ func (ts *TendermintStorage) genTx(msg Message) (*types.StdTx, error) {
 	if err = app.MakeCodec().UnmarshalJSON(resp, &tx); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
+
+	gasEstimate, err := ts.simulateTx(msg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to simulate tx: %w", err)
+	}
+	tx.Fee.Gas = gasEstimate
 	return &tx, nil
 }
 
+type gasEstimateResponse struct {
+	GasEstimate string `json:"gas_estimate"`
+}
+
+//simulateTx returns a gas estimation for a given message by making a HTTP request to LCD node
+func (ts *TendermintStorage) simulateTx(msg Message) (uint64, error) {
+	var req genTxRequest
+
+	req.Creator = ts.accountAddress
+	req.DKGRoundID = msg.DkgRoundID
+	req.Event = msg.Event
+	req.Data = msg.Data
+	req.Signature = msg.Signature
+	req.Sender = msg.SenderAddr
+	req.Recipient = msg.RecipientAddr
+	req.Topic = ts.topic
+
+	req.BaseReq.ChainID = ts.chainID
+	req.BaseReq.From = ts.accountAddress
+	req.Topic = ts.topic
+
+	req.BaseReq.Simulate = true
+
+	data, err := app.MakeCodec().MarshalJSON(req)
+	if err != nil {
+		return 0, fmt.Errorf("failed to marshal request: %w", err)
+	}
+	resp, err := rawPostRequest(fmt.Sprintf("%s/bulletin/message", ts.nodeEndpoint),
+		"application/json", data)
+	if err != nil {
+		return 0, err
+	}
+
+	var gasEstimate gasEstimateResponse
+	if err = app.MakeCodec().UnmarshalJSON(resp, &gasEstimate); err != nil {
+		return 0, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	gasEstimateUint64, err := strconv.ParseUint(gasEstimate.GasEstimate, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse gas_estimate: %w", err)
+	}
+	return gasEstimateUint64, nil
+}
+
+//signTx signs tx
 func (ts *TendermintStorage) signTx(tx types.StdTx) (*types.StdTx, error) {
 	account, err := ts.getAccount(ts.accountAddress)
 	if err != nil {
@@ -168,7 +221,7 @@ func (ts *TendermintStorage) signTx(tx types.StdTx) (*types.StdTx, error) {
 		account.GetSequence(), tx.GetGas(), 0, false, ts.chainID, tx.GetMemo(),
 		tx.Fee.Amount, tx.Fee.GasPrices()).WithKeybase(ts.keybase)
 	tx.Fee.Gas = tx.GetGas() * 2
-	signedTx, err := txBuilder.SignStdTx(ts.name, ts.password, tx, false)
+	signedTx, err := txBuilder.SignStdTx(ts.name, clientKeys.DefaultKeyPass, tx, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign tx: %w", err)
 	}
