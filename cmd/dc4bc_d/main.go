@@ -2,13 +2,10 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
-	"reflect"
 	"strings"
 	"syscall"
 
@@ -17,6 +14,7 @@ import (
 	"github.com/lidofinance/dc4bc/storage"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 const (
@@ -31,10 +29,16 @@ const (
 	flagStoreDBDSN               = "key_store_dbdsn"
 	flagFramesDelay              = "frames_delay"
 	flagChunkSize                = "chunk_size"
-	flagConfigPath               = "config_path"
+	flagConfig                   = "config"
+)
+
+var (
+	cfgFile string
 )
 
 func init() {
+	cobra.OnInitialize(initConfig)
+
 	rootCmd.PersistentFlags().String(flagUserName, "testUser", "Username")
 	rootCmd.PersistentFlags().String(flagListenAddr, "localhost:8080", "Listen Address")
 	rootCmd.PersistentFlags().String(flagStateDBDSN, "./dc4bc_client_state", "State DBDSN")
@@ -46,143 +50,55 @@ func init() {
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
-	rootCmd.PersistentFlags().String(flagConfigPath, "", "Path to a config file")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, flagConfig, "", "path to your config file")
+
+	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
+	exitIfError(viper.BindPFlag(flagListenAddr, rootCmd.PersistentFlags().Lookup(flagListenAddr)))
+	exitIfError(viper.BindPFlag(flagStateDBDSN, rootCmd.PersistentFlags().Lookup(flagStateDBDSN)))
+	exitIfError(viper.BindPFlag(flagStorageDBDSN, rootCmd.PersistentFlags().Lookup(flagStorageDBDSN)))
+	exitIfError(viper.BindPFlag(flagStorageTopic, rootCmd.PersistentFlags().Lookup(flagStorageTopic)))
+	exitIfError(viper.BindPFlag(flagKafkaProducerCredentials, rootCmd.PersistentFlags().Lookup(flagKafkaProducerCredentials)))
+	exitIfError(viper.BindPFlag(flagKafkaConsumerCredentials, rootCmd.PersistentFlags().Lookup(flagKafkaConsumerCredentials)))
+	exitIfError(viper.BindPFlag(flagKafkaTrustStorePath, rootCmd.PersistentFlags().Lookup(flagKafkaTrustStorePath)))
+	exitIfError(viper.BindPFlag(flagStoreDBDSN, rootCmd.PersistentFlags().Lookup(flagStoreDBDSN)))
+	exitIfError(viper.BindPFlag(flagFramesDelay, rootCmd.PersistentFlags().Lookup(flagFramesDelay)))
+	exitIfError(viper.BindPFlag(flagChunkSize, rootCmd.PersistentFlags().Lookup(flagChunkSize)))
+	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 }
 
-type config struct {
-	Username            string `json:"username"`
-	ListenAddress       string `json:"listen_address"`
-	StateDBDSN          string `json:"state_dbdsn"`
-	StorageDBDSN        string `json:"storage_dbdsn"`
-	StorageTopic        string `json:"storage_topic"`
-	KeyStoreDBDSN       string `json:"key_store_dbdsn"`
-	FramesDelay         int    `json:"frames_delay"`
-	ChunkSize           int    `json:"chunk_size"`
-	ProducerCredentials string `json:"producer_credentials"`
-	ConsumerCredentials string `json:"consumer_credentials"`
-	KafkaTrustStorePath string `json:"kafka_truststore_path"`
-}
-
-func readConfig(path string) (config, error) {
-	var cfg config
-	configBz, err := ioutil.ReadFile(path)
+func exitIfError(err error) {
 	if err != nil {
-		return cfg, fmt.Errorf("failed to read config file: %w", err)
+		log.Fatalf("fatal error: %v", err)
 	}
-	if err = json.Unmarshal(configBz, &cfg); err != nil {
-		return cfg, fmt.Errorf("failed to unmarshal config: %w", err)
-	}
-	return cfg, nil
 }
 
-func checkConfig(cfg *config) error {
-	v := reflect.ValueOf(cfg)
-	v = v.Elem()
-	t := reflect.TypeOf(*cfg)
-
-	for i := 0; i < v.NumField(); i++ {
-		if v.Field(i).IsZero() {
-			return fmt.Errorf("%s cannot be empty", t.Field(i).Tag.Get("json"))
-		}
+func initConfig() {
+	if cfgFile == "" {
+		return
 	}
-	if cfg.FramesDelay < 0 {
-		return fmt.Errorf("frames_delay cannot be less than zero")
-	}
-	if cfg.ChunkSize < 0 {
-		return fmt.Errorf("chunk_size cannot be less than zero")
-	}
-	return nil
-}
 
-func loadConfig(cmd *cobra.Command) (*config, error) {
-	var cfg config
-	cfgPath, err := cmd.Flags().GetString(flagConfigPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read configuration: %v", err)
-	}
-	if cfgPath != "" {
-		cfg, err = readConfig(cfgPath)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		cfg.Username, err = cmd.Flags().GetString(flagUserName)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read configuration: %v", err)
-		}
-		cfg.KeyStoreDBDSN, err = cmd.Flags().GetString(flagStoreDBDSN)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read configuration: %v", err)
-		}
-
-		cfg.ListenAddress, err = cmd.Flags().GetString(flagListenAddr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read configuration: %v", err)
-		}
-
-		cfg.StateDBDSN, err = cmd.Flags().GetString(flagStateDBDSN)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read configuration: %v", err)
-		}
-
-		cfg.FramesDelay, err = cmd.Flags().GetInt(flagFramesDelay)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read configuration: %v", err)
-		}
-
-		cfg.ChunkSize, err = cmd.Flags().GetInt(flagChunkSize)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read configuration: %v", err)
-		}
-
-		cfg.StorageDBDSN, err = cmd.Flags().GetString(flagStorageDBDSN)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read configuration: %v", err)
-		}
-
-		cfg.StorageTopic, err = cmd.Flags().GetString(flagStorageTopic)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read configuration: %v", err)
-		}
-
-		cfg.KafkaTrustStorePath, err = cmd.Flags().GetString(flagKafkaTrustStorePath)
-		if err != nil {
-			log.Fatalf("failed to read configuration: %v", err)
-		}
-		cfg.ProducerCredentials, err = cmd.Flags().GetString(flagKafkaProducerCredentials)
-		if err != nil {
-			log.Fatalf("failed to read configuration: %v", err)
-		}
-		cfg.ConsumerCredentials, err = cmd.Flags().GetString(flagKafkaConsumerCredentials)
-		if err != nil {
-			log.Fatalf("failed to read configuration: %v", err)
-		}
-	}
-	if err = checkConfig(&cfg); err != nil {
-		return nil, err
-	}
-	return &cfg, nil
+	viper.SetConfigFile(cfgFile)
+	exitIfError(viper.ReadInConfig())
 }
 
 func genKeyPairCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "gen_keys",
 		Short: "generates a keypair to sign and verify messages",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg, err := loadConfig(cmd)
-			if err != nil {
-				log.Fatalf("failed to load config: %v", err)
-			}
+		RunE: func(cmd *cobra.Command, args []string) error {
+			username := viper.GetString(flagUserName)
+			keyStoreDBDSN := viper.GetString(flagStoreDBDSN)
 
 			keyPair := client.NewKeyPair()
-			keyStore, err := client.NewLevelDBKeyStore(cfg.Username, cfg.KeyStoreDBDSN)
+			keyStore, err := client.NewLevelDBKeyStore(username, keyStoreDBDSN)
 			if err != nil {
 				log.Fatalf("failed to init key store: %v", err)
 			}
-			if err = keyStore.PutKeys(cfg.Username, keyPair); err != nil {
+			if err = keyStore.PutKeys(username, keyPair); err != nil {
 				log.Fatalf("failed to save keypair: %v", err)
 			}
-			fmt.Printf("keypair generated for user %s and saved to %s\n", cfg.Username, cfg.KeyStoreDBDSN)
+			fmt.Printf("keypair generated for user %s and saved to %s\n", username, keyStoreDBDSN)
+			return nil
 		},
 	}
 }
@@ -202,48 +118,55 @@ func startClientCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
 		Short: "starts dc4bc client",
-		Run: func(cmd *cobra.Command, args []string) {
-			cfg, err := loadConfig(cmd)
-			if err != nil {
-				log.Fatalf("failed to load config: %v", err)
-			}
-
+		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 			ctx, cancel := context.WithCancel(ctx)
 
-			state, err := client.NewLevelDBState(cfg.StateDBDSN)
+			stateDBDSN := viper.GetString(flagStateDBDSN)
+			state, err := client.NewLevelDBState(stateDBDSN)
 			if err != nil {
-				log.Fatalf("Failed to init state client: %v", err)
+				return fmt.Errorf("failed to init state client: %v", err)
 			}
 
-			tlsConfig, err := storage.GetTLSConfig(cfg.KafkaTrustStorePath)
+			kafkaTrustStorePath := viper.GetString(flagKafkaTrustStorePath)
+			tlsConfig, err := storage.GetTLSConfig(kafkaTrustStorePath)
 			if err != nil {
 				log.Fatalf("faile to create tls config: %v", err)
 			}
-			producerCreds, err := parseKafkaAuthCredentials(cfg.ProducerCredentials)
+
+			producerCredentials := viper.GetString(flagKafkaProducerCredentials)
+			producerCreds, err := parseKafkaAuthCredentials(producerCredentials)
 			if err != nil {
-				log.Fatal(err.Error())
-			}
-			consumerCreds, err := parseKafkaAuthCredentials(cfg.ProducerCredentials)
-			if err != nil {
-				log.Fatal(err.Error())
+				return fmt.Errorf("failed to parse kafka credentials: %w", err)
 			}
 
-			stg, err := storage.NewKafkaStorage(ctx, cfg.StorageDBDSN, cfg.StorageTopic, tlsConfig, producerCreds, consumerCreds)
+			consumerCredentials := viper.GetString(flagKafkaConsumerCredentials)
+			consumerCreds, err := parseKafkaAuthCredentials(consumerCredentials)
+			if err != nil {
+				return fmt.Errorf("failed to parse kafka credentials: %w", err)
+			}
+
+			storageDBDSN := viper.GetString(flagStorageDBDSN)
+			storageTopic := viper.GetString(flagStorageTopic)
+			stg, err := storage.NewKafkaStorage(ctx, storageDBDSN, storageTopic, tlsConfig, producerCreds, consumerCreds)
 			if err != nil {
 				log.Fatalf("Failed to init storage client: %v", err)
 			}
 
-			keyStore, err := client.NewLevelDBKeyStore(cfg.Username, cfg.KeyStoreDBDSN)
+			username := viper.GetString(flagUserName)
+			keyStoreDBDSN := viper.GetString(flagStoreDBDSN)
+			keyStore, err := client.NewLevelDBKeyStore(username, keyStoreDBDSN)
 			if err != nil {
 				log.Fatalf("Failed to init key store: %v", err)
 			}
 
+			framesDelay := viper.GetInt(flagFramesDelay)
+			chunkSize := viper.GetInt(flagChunkSize)
 			processor := qr.NewCameraProcessor()
-			processor.SetDelay(cfg.FramesDelay)
-			processor.SetChunkSize(cfg.ChunkSize)
+			processor.SetDelay(framesDelay)
+			processor.SetChunkSize(chunkSize)
 
-			cli, err := client.NewClient(ctx, cfg.Username, state, stg, keyStore, processor)
+			cli, err := client.NewClient(ctx, username, state, stg, keyStore, processor)
 			if err != nil {
 				log.Fatalf("Failed to init client: %v", err)
 			}
@@ -260,8 +183,10 @@ func startClientCommand() *cobra.Command {
 				os.Exit(0)
 			}()
 
+			listenAddress := viper.GetString(flagListenAddr)
+
 			go func() {
-				if err := cli.StartHTTPServer(cfg.ListenAddress); err != nil {
+				if err := cli.StartHTTPServer(listenAddress); err != nil {
 					log.Fatalf("HTTP server error: %v", err)
 				}
 			}()
@@ -271,6 +196,7 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("error while handling operations: %v", err)
 			}
 			cli.GetLogger().Log("polling is stopped")
+			return nil
 		},
 	}
 }
