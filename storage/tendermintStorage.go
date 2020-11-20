@@ -159,11 +159,10 @@ func (ts *TendermintStorage) genTx(msg Message) (*types.StdTx, error) {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
-	gasEstimate, err := ts.simulateTx(msg)
+	tx.Fee.Gas, err = ts.simulateTx(msg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to simulate tx: %w", err)
 	}
-	tx.Fee.Gas = gasEstimate
 	return &tx, nil
 }
 
@@ -220,7 +219,7 @@ func (ts *TendermintStorage) signTx(tx types.StdTx) (*types.StdTx, error) {
 	txBuilder := auth.NewTxBuilder(auth.DefaultTxEncoder(app.MakeCodec()), account.GetAccountNumber(),
 		account.GetSequence(), tx.GetGas(), 0, false, ts.chainID, tx.GetMemo(),
 		tx.Fee.Amount, tx.Fee.GasPrices()).WithKeybase(ts.keybase)
-	tx.Fee.Gas = tx.GetGas() * 2
+	tx.Fee.Gas = tx.GetGas() * 2 // Without doubling panic "WritePerByte" occurs. Looks like known issue: https://github.com/cosmos/cosmos-sdk/issues/4938
 	signedTx, err := txBuilder.SignStdTx(ts.name, clientKeys.DefaultKeyPass, tx, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign tx: %w", err)

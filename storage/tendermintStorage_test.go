@@ -14,6 +14,10 @@ const (
 )
 
 func TestNewTendermintStorage(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping long test")
+	}
+
 	N := 100
 	offset := 4
 
