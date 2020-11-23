@@ -81,6 +81,17 @@ func (fs *FileStorage) Send(m Message) (Message, error) {
 	return m, err
 }
 
+func (fs *FileStorage) SendBatch(msgs ...Message) ([]Message, error) {
+	var err error
+	for i, m := range msgs {
+		msgs[i], err = fs.Send(m)
+		if err != nil {
+			return msgs, err
+		}
+	}
+	return msgs, nil
+}
+
 // GetMessages returns a slice of messages from append-only data file with given offset
 func (fs *FileStorage) GetMessages(offset uint64) ([]Message, error) {
 	var (
