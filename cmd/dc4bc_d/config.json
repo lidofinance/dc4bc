@@ -1,13 +1,16 @@
 {
   "username": "node_0",
-  "listen_address": "localhost:8080",
+  "listen_address": "localhost:8085",
   "state_dbdsn": "/tmp/dc4bc_node_0_state/",
-  "storage_dbdsn": "94.130.57.249:9092",
+  "storage_dbdsn": "94.130.57.249:9093",
   "storage_topic": "test_topic",
   "key_store_dbdsn": "/tmp/dc4bc_node_0_key_store",
   "frames_delay": 10,
   "chunk_size": 512,
   "producer_credentials": "producer:producerpass",
   "consumer_credentials": "consumer:consumerpass",
-  "kafka_truststore_path": "../../kafka-docker/certs/ca.crt"
+  "kafka_truststore_path": "../../kafka-docker/certs/ca.crt",
+  "chain_id": "bulletin",
+  "mnemonic": "",
+  "storage_type": "kafka"
 }
