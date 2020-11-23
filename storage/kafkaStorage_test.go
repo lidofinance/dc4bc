@@ -68,7 +68,21 @@ func TestKafkaStorage_SendBatch(t *testing.T) {
 	var offset uint64 = 5
 
 	req := require.New(t)
-	stg, err := NewKafkaStorage(context.Background(), "localhost:9092", "test_topic")
+	producerCreds := &KafkaAuthCredentials{
+		Username: "producer",
+		Password: "producerpass",
+	}
+	consumerCreds := &KafkaAuthCredentials{
+		Username: "consumer",
+		Password: "consumerpass",
+	}
+
+	tlsConfig, err := GetTLSConfig("../kafka-docker/certs/ca.crt")
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	stg, err := NewKafkaStorage(context.Background(), "localhost:9093", "test", tlsConfig, producerCreds, consumerCreds)
 	req.NoError(err)
 
 	msgs := make([]Message, 0, N)

@@ -17,7 +17,8 @@ import (
 	"strconv"
 )
 
-const BulletinMessageEndpoint = "bulletin/message"
+const BulletinPutMessagesEndpoint = "bulletin/messages"
+const BulletinGetMessagesEndpoint = "bulletin/message"
 
 type TendermintStorage struct {
 	nodeEndpoint string
@@ -116,41 +117,37 @@ type BulletinMessage struct {
 }
 
 type genTxRequest struct {
-	BaseReq rest.BaseReq `json:"base_req"`
-	// yeah, following fields are full copy of BulletinMessage fields, but cosmos-sdk codec can't marshall/unmarshall
-	// embedded structs properly, so it has to be done this way
-	Creator    string `json:"creator"`
-	DKGRoundID string `json:"dkg_round_id"`
-	Event      string `json:"event"`
-	Data       []byte `json:"data"`
-	Signature  []byte `json:"signature"`
-	Sender     string `json:"sender"`
-	Recipient  string `json:"recipient"`
-	Topic      string `json:"topic"`
+	BaseReq  rest.BaseReq      `json:"base_req"`
+	Messages []BulletinMessage `json:"messages"`
 }
 
 //genTx returns a generated tx for the given message by making HTTP requests to LCD node
-func (ts *TendermintStorage) genTx(msg Message) (*types.StdTx, error) {
+func (ts *TendermintStorage) genTx(msgs ...Message) (*types.StdTx, error) {
 	var req genTxRequest
 
-	req.Creator = ts.accountAddress
-	req.DKGRoundID = msg.DkgRoundID
-	req.Event = msg.Event
-	req.Data = msg.Data
-	req.Signature = msg.Signature
-	req.Sender = msg.SenderAddr
-	req.Recipient = msg.RecipientAddr
-	req.Topic = ts.topic
+	var bm BulletinMessage
+	req.Messages = make([]BulletinMessage, 0, len(msgs))
+	for _, msg := range msgs {
+		bm.Creator = ts.accountAddress
+		bm.DKGRoundID = msg.DkgRoundID
+		bm.Event = msg.Event
+		bm.Data = msg.Data
+		bm.Signature = msg.Signature
+		bm.Sender = msg.SenderAddr
+		bm.Recipient = msg.RecipientAddr
+		bm.Topic = ts.topic
+		bm.Topic = ts.topic
+		req.Messages = append(req.Messages, bm)
+	}
 
 	req.BaseReq.ChainID = ts.chainID
 	req.BaseReq.From = ts.accountAddress
-	req.Topic = ts.topic
 
 	data, err := app.MakeCodec().MarshalJSON(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	resp, err := rawPostRequest(fmt.Sprintf("%s/bulletin/message", ts.nodeEndpoint),
+	resp, err := rawPostRequest(fmt.Sprintf("%s/%s", ts.nodeEndpoint, BulletinPutMessagesEndpoint),
 		"application/json", data)
 	if err != nil {
 		return nil, err
@@ -161,7 +158,7 @@ func (ts *TendermintStorage) genTx(msg Message) (*types.StdTx, error) {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 
-	tx.Fee.Gas, err = ts.simulateTx(msg)
+	tx.Fee.Gas, err = ts.simulateTx(&req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to simulate tx: %w", err)
 	}
@@ -173,29 +170,17 @@ type gasEstimateResponse struct {
 }
 
 //simulateTx returns a gas estimation for a given message by making a HTTP request to LCD node
-func (ts *TendermintStorage) simulateTx(msg Message) (uint64, error) {
-	var req genTxRequest
-
-	req.Creator = ts.accountAddress
-	req.DKGRoundID = msg.DkgRoundID
-	req.Event = msg.Event
-	req.Data = msg.Data
-	req.Signature = msg.Signature
-	req.Sender = msg.SenderAddr
-	req.Recipient = msg.RecipientAddr
-	req.Topic = ts.topic
-
-	req.BaseReq.ChainID = ts.chainID
-	req.BaseReq.From = ts.accountAddress
-	req.Topic = ts.topic
-
+func (ts *TendermintStorage) simulateTx(req *genTxRequest) (uint64, error) {
 	req.BaseReq.Simulate = true
+	defer func() {
+		req.BaseReq.Simulate = false
+	}()
 
 	data, err := app.MakeCodec().MarshalJSON(req)
 	if err != nil {
 		return 0, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	resp, err := rawPostRequest(fmt.Sprintf("%s/%s", ts.nodeEndpoint, BulletinMessageEndpoint),
+	resp, err := rawPostRequest(fmt.Sprintf("%s/%s", ts.nodeEndpoint, BulletinPutMessagesEndpoint),
 		"application/json", data)
 	if err != nil {
 		return 0, err
@@ -221,7 +206,7 @@ func (ts *TendermintStorage) signTx(tx types.StdTx) (*types.StdTx, error) {
 	txBuilder := auth.NewTxBuilder(auth.DefaultTxEncoder(app.MakeCodec()), account.GetAccountNumber(),
 		account.GetSequence(), tx.GetGas(), 0, false, ts.chainID, tx.GetMemo(),
 		tx.Fee.Amount, tx.Fee.GasPrices()).WithKeybase(ts.keybase)
-	tx.Fee.Gas = tx.GetGas() * 2 // Without doubling panic "WritePerByte" occurs. Looks like known issue: https://github.com/cosmos/cosmos-sdk/issues/4938
+	tx.Fee.Gas = tx.GetGas() * 4 // Without doubling panic "WritePerByte" occurs. Looks like known issue: https://github.com/cosmos/cosmos-sdk/issues/4938
 	signedTx, err := txBuilder.SignStdTx(ts.name, clientKeys.DefaultKeyPass, tx, false)
 	if err != nil {
 		return nil, fmt.Errorf("failed to sign tx: %w", err)
@@ -272,13 +257,28 @@ func (ts *TendermintStorage) Send(msg Message) (Message, error) {
 	return msg, nil
 }
 
+func (ts *TendermintStorage) SendBatch(messages ...Message) ([]Message, error) {
+	tx, err := ts.genTx(messages...)
+	if err != nil {
+		return messages, fmt.Errorf("failed to generate tx: %w", err)
+	}
+	signedTx, err := ts.signTx(*tx)
+	if err != nil {
+		return messages, fmt.Errorf("failed to sign tx: %w", err)
+	}
+	if err = ts.broadcastTx(*signedTx); err != nil {
+		return messages, fmt.Errorf("failed to broadcast tx: %w", err)
+	}
+	return messages, nil
+}
+
 type getMessagesResponse struct {
 	Height string            `json:"height"`
 	Result []BulletinMessage `json:"result"`
 }
 
 func (ts *TendermintStorage) GetMessages(offset uint64) ([]Message, error) {
-	url := fmt.Sprintf("%s/%s/%s/%d", ts.nodeEndpoint, BulletinMessageEndpoint, ts.topic, offset)
+	url := fmt.Sprintf("%s/%s/%s/%d", ts.nodeEndpoint, BulletinGetMessagesEndpoint, ts.topic, offset)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to do HTTP GET request: %w", err)
