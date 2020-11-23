@@ -17,6 +17,8 @@ import (
 	"strconv"
 )
 
+const BulletinMessageEndpoint = "bulletin/message"
+
 type TendermintStorage struct {
 	nodeEndpoint string
 	chainID      string
@@ -193,7 +195,7 @@ func (ts *TendermintStorage) simulateTx(msg Message) (uint64, error) {
 	if err != nil {
 		return 0, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	resp, err := rawPostRequest(fmt.Sprintf("%s/bulletin/message", ts.nodeEndpoint),
+	resp, err := rawPostRequest(fmt.Sprintf("%s/%s", ts.nodeEndpoint, BulletinMessageEndpoint),
 		"application/json", data)
 	if err != nil {
 		return 0, err
@@ -276,7 +278,7 @@ type getMessagesResponse struct {
 }
 
 func (ts *TendermintStorage) GetMessages(offset uint64) ([]Message, error) {
-	url := fmt.Sprintf("%s/bulletin/message/%s/%d", ts.nodeEndpoint, ts.topic, offset)
+	url := fmt.Sprintf("%s/%s/%s/%d", ts.nodeEndpoint, BulletinMessageEndpoint, ts.topic, offset)
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to do HTTP GET request: %w", err)
