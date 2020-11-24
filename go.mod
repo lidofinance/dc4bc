@@ -15,6 +15,7 @@ require (
 	github.com/segmentio/kafka-go v0.4.2
 	github.com/skip2/go-qrcode v0.0.0-20200617195104-da1b6568686e
 	github.com/spf13/cobra v1.0.0
+	github.com/spf13/viper v1.7.1
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.1-0.20200815110645-5c35d600f0ca
 	gocv.io/x/gocv v0.24.0
