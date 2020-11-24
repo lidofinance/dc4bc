@@ -18,12 +18,14 @@ Clone the git repo https://github.com/lidofinance/dc4bc and build the app for yo
 
 You'll need to use apps to generate keypairs. Public keys from those keypair should be submitted to Lido's repo on the next step.
 
-Run the command `gen_keys` on both client and airgapped machines:
+Run the command `gen_keys` on the client machine:
 ```
 ./dc4bc_d gen_keys --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store
 ```
 Here:
 1) Username is your desired username (one you've submitted to doc https://docs.google.com/spreadsheets/d/1h3cWJUm3ZfaX7a2GWbKitzqLEEtg5KGrr-4E4eFQkbY/edit#gid=0)
+
+Keypair for the airgapped machine is generated upon the first launch
 
 ## Start the node communicating with Kafka for testnet
 
