@@ -1,8 +1,7 @@
 package qr
 
 import (
-	"bytes"
-	"encoding/gob"
+	"encoding/json"
 	"fmt"
 	"math"
 )
@@ -43,18 +42,12 @@ func decodeChunk(data []byte) (*chunk, error) {
 		c   chunk
 		err error
 	)
-	dec := gob.NewDecoder(bytes.NewBuffer(data))
-	if err = dec.Decode(&c); err != nil {
-		return nil, fmt.Errorf("failed to decode chunk: %w", err)
+	if err = json.Unmarshal(data, &c); err != nil {
+		return nil, err
 	}
 	return &c, nil
 }
 
 func encodeChunk(c chunk) ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
-	enc := gob.NewEncoder(buf)
-	if err := enc.Encode(c); err != nil {
-		return nil, fmt.Errorf("failed to encode chunk: %w", err)
-	}
-	return buf.Bytes(), nil
+	return json.Marshal(c)
 }
