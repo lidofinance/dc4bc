@@ -67,7 +67,6 @@ func TestKafkaStorage_SendBatch(t *testing.T) {
 	N := 10
 	var offset uint64 = 5
 
-	req := require.New(t)
 	producerCreds := &KafkaAuthCredentials{
 		Username: "producer",
 		Password: "producerpass",
@@ -82,6 +81,7 @@ func TestKafkaStorage_SendBatch(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
+	req := require.New(t)
 	stg, err := NewKafkaStorage(context.Background(), "localhost:9093", "test", tlsConfig, producerCreds, consumerCreds)
 	req.NoError(err)
 
