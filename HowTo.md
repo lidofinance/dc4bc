@@ -194,7 +194,7 @@ QR code was saved to: /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0.gif
 
 A single operation might be split into several QR-codes, which will be located in a single GIF file. Open the GIF-animation in any gif viewer and take a video of it:
 ```
-open /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0.gif
+open -a /Applications/Safari.app/ /tmp/dc4bc_qr_c76396a6-fcd8-4dd2-a85c-085b8dc91494-response.gif
 ```
 
 Now go to `dc4bc_airgapped` prompt and enter:
@@ -212,7 +212,7 @@ Operation's chunk: result_qr_codes/state_sig_proposal_await_participants_confirm
 ```
 Open the response QR-gif in any gif viewer and take a video of it. Then go to the node and run:
 ```
-$ ./dc4bc_cli read_from_camera  --listen_addr localhost:8080
+$ ./dc4bc_cli read_qr  --listen_addr localhost:8080
 ```
 
 The procedure is the same as with `dc4bc_airgapped`: scan QR-gif until you see a success message:
