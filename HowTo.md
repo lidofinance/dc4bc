@@ -78,7 +78,7 @@ export CGO_LDFLAGS="-L/usr/local/Cellar/opencv/4.4.0/lib -lopencv_stitching -lop
 ```
 Now try to build the project again.
 
-#### Starting Kafka
+#### Starting Kafka (optional)
 
 ##### Requirements
 
@@ -255,7 +255,7 @@ Successfully processed message with offset 40, type signature_reconstructed
 Now you have the full reconstructed signature. 
 ```
 ./dc4bc_cli get_signatures AABB10CABB10
-Hash of the signing data: b8fbfd0b1ed86412dd15637967788909
+Signing ID: 909b7660-ccc4-45c4-9201-e30015a69425
 	DKG round ID: AABB10CABB10
 	Participant: john_doe
 	Reconstructed signature for the data: tK+3CV2CI0flgwWLuhrZA5eaFfuJIvpLAc6CbAy5XBuRpzuCkjOZLCU6z1SvlwQIBJp5dAVa2rtbSy1jl98YtidujVWeUDNUz+kRl2C1C1BeLG5JvzQxhgr2dDxq0thu
