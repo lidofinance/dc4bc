@@ -27,6 +27,11 @@ gocv version: 0.22.0
 opencv lib version: 4.4.0
 ```
 
+Install Java to generate certificate's truststore for Kafka:
+```
+sudo apt install default-jre
+```
+
 Then build the project binaries:
 ```
 # Go to the cloned repository.
@@ -73,6 +78,42 @@ export CGO_LDFLAGS="-L/usr/local/Cellar/opencv/4.4.0/lib -lopencv_stitching -lop
 ```
 Now try to build the project again.
 
+#### Starting Kafka
+
+##### Requirements
+
+* Docker
+
+At first, you need to change config files for your Kafka node and TLS certificate generation:
+
+* kafka-docker/.env
+* kafka-docker/ca.cnf - important fields here are 'commonName', 'IP.1', 'DNS.1'. IP.1 is your server IP and 'commonName/'DNS.1' is your domain name if you have one.
+
+After that just run in kafka-docker folder:
+```
+$ ./up.sh
+```
+If everything is all right, output will be like:
+```
+Generating a 2048 bit RSA private key
+................................................................................+++
+...............+++
+writing new private key to 'certs/ca.key'
+-----
+Importing keystore certs/server.p12 to certs/server.keystore.jks...
+Entry for alias 1 successfully imported.
+Import command completed:  1 entries successfully imported, 0 entries failed or cancelled
+Certificate was added to keystore
+Creating network "kafka-docker_default" with the default driver
+Creating zookeeper ... done
+Creating kafka     ... done
+```
+This command will generate a self-signed certificate (and other necessary files) which will be located in kafka-docker/certs folder.
+And the command will up start a docker container with a Kafka inside.
+The most important generate file is ca.crt. It is a self-signed SSL certificate. Every participant must have it
+on the same machine where dc4bc_d is running and must provide path to the file in thee start command of dc4bc_d.
+
+
 #### DKG
 
 Generate keys for your node:
@@ -81,7 +122,7 @@ $ ./dc4bc_d gen_keys --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_k
 ```
 Start the node (note the `--storage_topic` flag — use a fresh topic for cleaner test runs):
 ```
-$ ./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn 94.130.57.249:9092 --storage_topic test_topic
+$ ./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn 94.130.57.249:9092 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path /path/to/ca.crt --storage_topic test_topic
 ```
 Start the airgapped machine:
 ```

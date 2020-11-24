@@ -48,6 +48,25 @@ func (mr *MockStorageMockRecorder) Send(message interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockStorage)(nil).Send), message)
 }
 
+// SendBatch mocks base method
+func (m *MockStorage) SendBatch(messages ...storage.Message) ([]storage.Message, error) {
+	m.ctrl.T.Helper()
+	varargs := []interface{}{}
+	for _, a := range messages {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "SendBatch", varargs...)
+	ret0, _ := ret[0].([]storage.Message)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SendBatch indicates an expected call of SendBatch
+func (mr *MockStorageMockRecorder) SendBatch(messages ...interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendBatch", reflect.TypeOf((*MockStorage)(nil).SendBatch), messages...)
+}
+
 // GetMessages mocks base method
 func (m *MockStorage) GetMessages(offset uint64) ([]storage.Message, error) {
 	m.ctrl.T.Helper()

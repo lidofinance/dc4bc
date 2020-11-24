@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"strings"
 	"syscall"
 
 	"github.com/lidofinance/dc4bc/client"
@@ -19,15 +20,18 @@ import (
 )
 
 const (
-	flagUserName     = "username"
-	flagListenAddr   = "listen_addr"
-	flagStateDBDSN   = "state_dbdsn"
-	flagStorageDBDSN = "storage_dbdsn"
-	flagStorageTopic = "storage_topic"
-	flagStoreDBDSN   = "key_store_dbdsn"
-	flagFramesDelay  = "frames_delay"
-	flagChunkSize    = "chunk_size"
-	flagConfigPath   = "config_path"
+	flagUserName                 = "username"
+	flagListenAddr               = "listen_addr"
+	flagStateDBDSN               = "state_dbdsn"
+	flagStorageDBDSN             = "storage_dbdsn"
+	flagStorageTopic             = "storage_topic"
+	flagKafkaProducerCredentials = "producer_credentials"
+	flagKafkaConsumerCredentials = "consumer_credentials"
+	flagKafkaTrustStorePath      = "kafka_truststore_path"
+	flagStoreDBDSN               = "key_store_dbdsn"
+	flagFramesDelay              = "frames_delay"
+	flagChunkSize                = "chunk_size"
+	flagConfigPath               = "config_path"
 )
 
 func init() {
@@ -36,6 +40,9 @@ func init() {
 	rootCmd.PersistentFlags().String(flagStateDBDSN, "./dc4bc_client_state", "State DBDSN")
 	rootCmd.PersistentFlags().String(flagStorageDBDSN, "./dc4bc_file_storage", "Storage DBDSN")
 	rootCmd.PersistentFlags().String(flagStorageTopic, "messages", "Storage Topic (Kafka)")
+	rootCmd.PersistentFlags().String(flagKafkaProducerCredentials, "producer:producerpass", "Producer credentials for Kafka: username:password")
+	rootCmd.PersistentFlags().String(flagKafkaConsumerCredentials, "consumer:consumerpass", "Consumer credentials for Kafka: username:password")
+	rootCmd.PersistentFlags().String(flagKafkaTrustStorePath, "certs/ca.pem", "Path to kafka truststore")
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
@@ -43,14 +50,17 @@ func init() {
 }
 
 type config struct {
-	Username      string `json:"username"`
-	ListenAddress string `json:"listen_address"`
-	StateDBDSN    string `json:"state_dbdsn"`
-	StorageDBDSN  string `json:"storage_dbdsn"`
-	StorageTopic  string `json:"storage_topic"`
-	KeyStoreDBDSN string `json:"keystore_dbdsn"`
-	FramesDelay   int    `json:"frames_delay"`
-	ChunkSize     int    `json:"chunk_size"`
+	Username            string `json:"username"`
+	ListenAddress       string `json:"listen_address"`
+	StateDBDSN          string `json:"state_dbdsn"`
+	StorageDBDSN        string `json:"storage_dbdsn"`
+	StorageTopic        string `json:"storage_topic"`
+	KeyStoreDBDSN       string `json:"key_store_dbdsn"`
+	FramesDelay         int    `json:"frames_delay"`
+	ChunkSize           int    `json:"chunk_size"`
+	ProducerCredentials string `json:"producer_credentials"`
+	ConsumerCredentials string `json:"consumer_credentials"`
+	KafkaTrustStorePath string `json:"kafka_truststore_path"`
 }
 
 func readConfig(path string) (config, error) {
@@ -134,6 +144,19 @@ func loadConfig(cmd *cobra.Command) (*config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read configuration: %v", err)
 		}
+
+		cfg.KafkaTrustStorePath, err = cmd.Flags().GetString(flagKafkaTrustStorePath)
+		if err != nil {
+			log.Fatalf("failed to read configuration: %v", err)
+		}
+		cfg.ProducerCredentials, err = cmd.Flags().GetString(flagKafkaProducerCredentials)
+		if err != nil {
+			log.Fatalf("failed to read configuration: %v", err)
+		}
+		cfg.ConsumerCredentials, err = cmd.Flags().GetString(flagKafkaConsumerCredentials)
+		if err != nil {
+			log.Fatalf("failed to read configuration: %v", err)
+		}
 	}
 	if err = checkConfig(&cfg); err != nil {
 		return nil, err
@@ -164,6 +187,17 @@ func genKeyPairCommand() *cobra.Command {
 	}
 }
 
+func parseKafkaAuthCredentials(creds string) (*storage.KafkaAuthCredentials, error) {
+	credsSplited := strings.SplitN(creds, ":", 2)
+	if len(credsSplited) == 1 {
+		return nil, fmt.Errorf("failed to parse credentials")
+	}
+	return &storage.KafkaAuthCredentials{
+		Username: credsSplited[0],
+		Password: credsSplited[1],
+	}, nil
+}
+
 func startClientCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
@@ -182,7 +216,20 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("Failed to init state client: %v", err)
 			}
 
-			stg, err := storage.NewKafkaStorage(ctx, cfg.StorageDBDSN, cfg.StorageTopic)
+			tlsConfig, err := storage.GetTLSConfig(cfg.KafkaTrustStorePath)
+			if err != nil {
+				log.Fatalf("faile to create tls config: %v", err)
+			}
+			producerCreds, err := parseKafkaAuthCredentials(cfg.ProducerCredentials)
+			if err != nil {
+				log.Fatal(err.Error())
+			}
+			consumerCreds, err := parseKafkaAuthCredentials(cfg.ProducerCredentials)
+			if err != nil {
+				log.Fatal(err.Error())
+			}
+
+			stg, err := storage.NewKafkaStorage(ctx, cfg.StorageDBDSN, cfg.StorageTopic, tlsConfig, producerCreds, consumerCreds)
 			if err != nil {
 				log.Fatalf("Failed to init storage client: %v", err)
 			}
