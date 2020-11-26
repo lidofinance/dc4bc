@@ -15,10 +15,11 @@ func TestLevelDBState_SaveOffset(t *testing.T) {
 	var (
 		req    = require.New(t)
 		dbPath = "/tmp/dc4bc_test_SaveOffset"
+		topic  = "test_topic"
 	)
 	defer os.RemoveAll(dbPath)
 
-	stg, err := client.NewLevelDBState(dbPath)
+	stg, err := client.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
 	var offset uint64 = 1
@@ -34,10 +35,11 @@ func TestLevelDBState_PutOperation(t *testing.T) {
 	var (
 		req    = require.New(t)
 		dbPath = "/tmp/dc4bc_test_PutOperation"
+		topic  = "test_topic"
 	)
 	defer os.RemoveAll(dbPath)
 
-	stg, err := client.NewLevelDBState(dbPath)
+	stg, err := client.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
 	operation := &types.Operation{
@@ -63,10 +65,11 @@ func TestLevelDBState_GetOperations(t *testing.T) {
 	var (
 		req    = require.New(t)
 		dbPath = "/tmp/dc4bc_test_PutOperation"
+		topic  = "test_topic"
 	)
 	defer os.RemoveAll(dbPath)
 
-	stg, err := client.NewLevelDBState(dbPath)
+	stg, err := client.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
 	operation := &types.Operation{
@@ -91,10 +94,11 @@ func TestLevelDBState_DeleteOperation(t *testing.T) {
 	var (
 		req    = require.New(t)
 		dbPath = "/tmp/dc4bc_test_DeleteOperation"
+		topic  = "test_topic"
 	)
 	defer os.RemoveAll(dbPath)
 
-	stg, err := client.NewLevelDBState(dbPath)
+	stg, err := client.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
 	operation := &types.Operation{
