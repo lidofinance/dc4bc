@@ -133,17 +133,39 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 		return fmt.Errorf("failed to getOperationsLog: %w", err)
 	}
 
-	for _, operation := range operationsLog {
-		if _, err := am.HandleOperation(operation); err != nil {
-			return fmt.Errorf(
-				"failed to HandleOperation %s (this error is fatal, the state can not be recovered): %w",
-				operation.ID, err)
+	for idx, operation := range operationsLog {
+		qrPath, err := am.getResponseQRPath(operation)
+		if err != nil {
+			return fmt.Errorf("failed to getResponseQRPath: %w", err)
 		}
+
+		log.Printf("QR code for operation %d was saved to: %s\n", idx, qrPath)
 	}
 
 	log.Println("Successfully replayed Operation log")
 
 	return nil
+}
+
+func (am *Machine) getResponseQRPath(operation client.Operation) (string, error) {
+	resultOperation, err := am.HandleOperation(operation)
+	if err != nil {
+		return "", fmt.Errorf(
+			"failed to HandleOperation %s (this error is fatal): %w",
+			operation.ID, err)
+	}
+
+	operationBz, err := json.Marshal(resultOperation)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal operation: %w", err)
+	}
+
+	qrPath := filepath.Join(am.resultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
+	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
+		return "", fmt.Errorf("failed to write QR: %w", err)
+	}
+
+	return qrPath, nil
 }
 
 func (am *Machine) DropOperationsLog(dkgIdentifier string) error {
@@ -244,8 +266,6 @@ func (am *Machine) HandleQR() (string, error) {
 		// input operation
 		operation client.Operation
 		qrData    []byte
-
-		resultOperation client.Operation
 	)
 
 	if qrData, err = am.qrProcessor.ReadQR(); err != nil {
@@ -255,19 +275,14 @@ func (am *Machine) HandleQR() (string, error) {
 		return "", fmt.Errorf("failed to unmarshal operation: %w", err)
 	}
 
-	if resultOperation, err = am.HandleOperation(operation); err != nil {
-		return "", err
-	}
-
-	operationBz, err := json.Marshal(resultOperation)
+	qrPath, err := am.getResponseQRPath(operation)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal operation: %w", err)
+		return "", fmt.Errorf("failed to getResponseQRPath: %w", err)
 	}
 
-	qrPath := filepath.Join(am.resultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
-	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
-		return "", fmt.Errorf("failed to write QR: %w", err)
-	}
+	log.Printf("QR code was saved to: %s\n", qrPath)
+
+	return qrPath, nil
 
 	return qrPath, nil
 }

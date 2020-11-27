@@ -17,6 +17,8 @@ import (
 	"github.com/makiuchi-d/gozxing/qrcode"
 )
 
+const defaultChunkSize = 512
+
 var palette = color.Palette{
 	image.Transparent,
 	image.Black,
@@ -43,6 +45,7 @@ type CameraProcessor struct {
 func NewCameraProcessor() Processor {
 	return &CameraProcessor{
 		closeCameraReader: make(chan bool),
+		chunkSize: defaultChunkSize,
 	}
 }
 

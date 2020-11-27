@@ -15,6 +15,7 @@ type chunk struct {
 // DataToChunks divides a data on chunks with a size chunkSize
 func DataToChunks(data []byte, chunkSize int) ([][]byte, error) {
 	chunksCount := int(math.Ceil(float64(len(data)) / float64(chunkSize)))
+	fmt.Println(">>>>>>>>>>>>>>>>", chunksCount, len(data), chunkSize)
 	chunks := make([][]byte, 0, chunksCount)
 
 	index := uint(0)
