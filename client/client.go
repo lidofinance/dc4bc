@@ -177,6 +177,7 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 		return fmt.Errorf("failed to getFSMInstance: %w", err)
 	}
 
+	//TODO: refactor the following checks
 	//handle common errors
 	if strings.HasSuffix(string(fsmInstance.FSMDump().State), "_error") {
 		if fsmInstance.FSMDump().Payload.DKGProposalPayload != nil {
