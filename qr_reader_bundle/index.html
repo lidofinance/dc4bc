@@ -162,7 +162,7 @@ p=0;Ei(69,e|0,28,i|0,r|0);Be=p;p=0;if(Be&1)break;p=0;Ge(45,u|0,18,f|0,a|0,t|0,n|
             <li class="empty">No scans yet</li>
           </ul>
           <transition-group name="scans" tag="ul">
-            <li v-for="scan in scans" :key="scan.date" :title="scan.content">{{ scan.content }}</li>
+            <li @click.stop="download(scan.content)" v-for="scan in scans" :key="scan.date" :title="scan.content">{{ scan.content }}</li>
           </transition-group>
         </section>
       </div>
@@ -281,7 +281,14 @@ type chunk struct {
       this.chunks = [];
       this.decodedChunks =  0;
       this.totalChunks = 0;
-    }
+    },
+    download: function(content) {
+      var a = document.createElement("a");
+      var file = new Blob([content], {type: 'text/plain'});
+      a.href = URL.createObjectURL(file);
+      a.download = "message.json";
+      a.click();
+    },
   }
 });
 </script>
