@@ -460,7 +460,7 @@ func rawPostRequest(url string, contentType string, data []byte) (*client.Respon
 func readOperationResultCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "read_operation_result",
-		Short: "given a base64-encoded Operation, decodes and processes it",
+		Short: "given the path to Operation JSON file, decodes and processes it",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
@@ -468,9 +468,9 @@ func readOperationResultCommand() *cobra.Command {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 
-			operationBz, err := base64.StdEncoding.DecodeString(args[0])
+			operationBz, err := ioutil.ReadFile(strings.Trim(args[0], " \n"))
 			if err != nil {
-				return fmt.Errorf("failed to base64.StdEncoding.DecodeString: %w", err)
+				return fmt.Errorf("failed to read Operation file: %w", err)
 			}
 
 			resp, err := rawPostRequest(fmt.Sprintf("http://%s/handleProcessedOperationJSON", listenAddr),

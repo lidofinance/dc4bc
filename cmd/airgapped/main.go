@@ -10,6 +10,7 @@ import (
 	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/syndtr/goleveldb/leveldb"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -50,7 +51,7 @@ type prompt struct {
 
 func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 	p := prompt{
-		reader:                    bufio.NewReader(os.Stdin),
+		reader:                    bufio.NewReaderSize(os.Stdin, 1 << 22),
 		airgapped:                 machine,
 		commands:                  make(map[string]*promptCommand),
 		currentCommand:            "",
@@ -65,7 +66,7 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 
 	p.addCommand("read_operation", &promptCommand{
 		commandHandler: p.readOperationCommand,
-		description:    "Reads QR chunks from camera, handle a decoded operation and returns paths to qr chunks of operation's result",
+		description:    "reads base64-encoded Operation, handles a decoded operation and returns the path to the GIF with operation's result",
 	})
 	p.addCommand("help", &promptCommand{
 		commandHandler: p.helpCommand,
@@ -142,16 +143,16 @@ func (p *prompt) addCommand(name string, command *promptCommand) {
 }
 
 func (p *prompt) readOperationCommand() error {
-	p.print("> Enter the base64-encoded Operation: ")
+	p.print("> Enter the path to Operation JSON file: ")
 
-	base64Operation, err := p.reader.ReadString('\n')
+	operationPath, err := p.reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("failed to read base64Operation: %w", err)
 	}
 
-	operationBz, err := base64.StdEncoding.DecodeString(base64Operation)
+	operationBz, err := ioutil.ReadFile(strings.Trim(operationPath, " \n"))
 	if err != nil {
-		return fmt.Errorf("failed to base64.StdEncoding.DecodeString: %w", err)
+		return fmt.Errorf("failed to read Operation file: %w", err)
 	}
 
 	var operation client.Operation

@@ -61,7 +61,7 @@ func init() {
 	exitIfError(viper.BindPFlag(flagKafkaConsumerCredentials, rootCmd.PersistentFlags().Lookup(flagKafkaConsumerCredentials)))
 	exitIfError(viper.BindPFlag(flagKafkaTrustStorePath, rootCmd.PersistentFlags().Lookup(flagKafkaTrustStorePath)))
 	exitIfError(viper.BindPFlag(flagStoreDBDSN, rootCmd.PersistentFlags().Lookup(flagStoreDBDSN)))
-	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
+	exitIfError(viper.BindPFlag(flagFramesDelay, rootCmd.PersistentFlags().Lookup(flagFramesDelay)))
 	exitIfError(viper.BindPFlag(flagChunkSize, rootCmd.PersistentFlags().Lookup(flagChunkSize)))
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 }
