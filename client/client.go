@@ -104,8 +104,10 @@ func (c *BaseClient) Poll() error {
 		case <-tk.C:
 			offset, err := c.state.LoadOffset()
 			if err != nil {
-				panic(err)
+				return fmt.Errorf("failed to LoadOffset: %w", err)
 			}
+
+			fmt.Println(">>> OFFSET:", offset)
 
 			messages, err := c.storage.GetMessages(offset)
 			if err != nil {

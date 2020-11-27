@@ -167,8 +167,7 @@ func (p *prompt) readOperationCommand() error {
 
 	log.Printf("QR code was saved to: %s\n", qrPath)
 
-	p.println("An operation in the read QR code handled successfully, a result operation saved by chunks in following qr codes:")
-	p.printf("Operation's chunk: %s\n", qrPath)
+	p.printf("Operation GIF was handled successfully, the result Operation GIF was saved at: %s\n", qrPath)
 	return nil
 }
 
