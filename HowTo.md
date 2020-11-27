@@ -209,7 +209,7 @@ An operation in the read QR code handled successfully, a result operation saved 
 Operation's chunk: /tmp/dc4bc_qr_ce30c6a2-f5d6-43a1-ac7f-0a63b01ca6f8-response.gif
 ```
 
-Open the response QR-gif in any gif viewer and take a video of it. Then go to `./qr_reader_bundle.html` in your web browser and scan the GIF. You may want to give the downloaded file a new name, e.g., `operation_response.json`.
+Open the response QR-gif in any gif viewer and take a video of it. Refresh the `./qr_reader_bundle/index.html` page in your web browser and scan the GIF. You may want to give the downloaded file a new name, e.g., `operation_response.json`.
 
 Then go to the node and run:
 ```
