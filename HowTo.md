@@ -5,80 +5,17 @@ Clone the project repository:
 git clone git@github.com:lidofinance/dc4bc.git
 ```
 
-#### Installation (Linux)
-
-First install the Go toolchain:
+Run the Client node inside a Docker container:
 ```
-curl -OL https://golang.org/dl/go1.15.2.linux-amd64.tar.gz
-tar -C /usr/local -xzf go1.15.2.linux-amd64.tar.gz
-export PATH=$PATH:/usr/local/go/bin
-```
-
-Install Java to generate certificate's truststore for Kafka:
-```
-sudo apt install default-jre
+STORAGE_DBDSN="51.158.98.208:9093" DATA_DIR="/tmp/shared" QR_READER_PORT=9090 make run-client-node
+<...>
+Successfully built 3252bcb6b22a
+Successfully tagged client_node:latest
+c9839b4b626719d74436905334ece04f62567b6e8c8a0a83f1577e51d69b7d09
+root@c9839b4b6267:/go/src# 
 ```
 
-Then build the project binaries:
-```
-# Go to the cloned repository.
-cd dc4bc
-make build-linux
-```
-
-#### Installation (Darwin)
-
-First install the Go toolchain:
-```
-mkdir $HOME/Go
-export GOPATH=$HOME/Go
-export GOROOT=/usr/local/opt/go/libexec
-export PATH=$PATH:$GOPATH/bin
-export PATH=$PATH:$GOROOT/bin
-brew install go
-```
-
-Then build the project binaries:
-```
-# Go to the cloned repository.
-cd dc4bc
-make build-darwin
-```
-
-#### Starting Kafka (optional)
-
-##### Requirements
-
-* Docker
-
-At first, you need to change config files for your Kafka node and TLS certificate generation:
-
-* kafka-docker/.env
-* kafka-docker/ca.cnf - important fields here are 'commonName', 'IP.1', 'DNS.1'. IP.1 is your server IP and 'commonName/'DNS.1' is your domain name if you have one.
-
-After that just run in kafka-docker folder:
-```
-$ ./up.sh
-```
-If everything is all right, output will be like:
-```
-Generating a 2048 bit RSA private key
-................................................................................+++
-...............+++
-writing new private key to 'certs/ca.key'
------
-Importing keystore certs/server.p12 to certs/server.keystore.jks...
-Entry for alias 1 successfully imported.
-Import command completed:  1 entries successfully imported, 0 entries failed or cancelled
-Certificate was added to keystore
-Creating network "kafka-docker_default" with the default driver
-Creating zookeeper ... done
-Creating kafka     ... done
-```
-This command will generate a self-signed certificate (and other necessary files) which will be located in kafka-docker/certs folder.
-And the command will up start a docker container with a Kafka inside.
-The most important generate file is ca.crt. It is a self-signed SSL certificate. Every participant must have it
-on the same machine where dc4bc_d is running and must provide path to the file in thee start command of dc4bc_d.
+After the image is built, and the container is run, you will be automatically logged into the container. All the necessary binaries will be accessible in current working directory. 
 
 
 #### DKG
