@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"strings"
 
@@ -78,7 +79,7 @@ func FromDump(data []byte) (*FSMInstance, error) {
 
 	// TODO: Add logger
 	if err != nil {
-		return nil, errors.New("cannot read machine dump")
+		return nil, fmt.Errorf("cannot read machine dump: %w", err)
 	}
 
 	machine, err := fsmPoolProvider.MachineByState(i.dump.State)

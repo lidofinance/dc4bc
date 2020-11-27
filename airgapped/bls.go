@@ -45,6 +45,7 @@ func (am *Machine) handleStateSigningAwaitConfirmations(o *client.Operation) err
 
 // handleStateSigningAwaitPartialSigns takes a data to sign as payload and returns a partial sign for the data to broadcast
 func (am *Machine) handleStateSigningAwaitPartialSigns(o *client.Operation) error {
+	return fmt.Errorf("kek")
 	var (
 		payload responses.SigningPartialSignsParticipantInvitationsResponse
 		err     error

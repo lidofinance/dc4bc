@@ -250,7 +250,7 @@ func TestFullFlow(t *testing.T) {
 		t.Fatalf("failed to send HTTP request to start DKG: %v\n", err)
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(30 * time.Second)
 	log.Println("Propose message to sign")
 
 	dkgRoundID := md5.Sum(messageDataBz)
@@ -264,6 +264,13 @@ func TestFullFlow(t *testing.T) {
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
-	time.Sleep(5 * time.Second)
+	time.Sleep(10 * time.Second)
+
+	fmt.Println("Sign message again")
+	if _, err := http.Post(fmt.Sprintf("http://localhost:%d/proposeSignMessage", startingPort-1),
+		"application/json", bytes.NewReader(messageDataBz)); err != nil {
+		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
+	}
+	time.Sleep(10 * time.Second)
 
 }

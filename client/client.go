@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -120,6 +121,9 @@ func (c *BaseClient) Poll() error {
 						c.Logger.Log("Successfully processed message with offset %d, type %s",
 							message.Offset, message.Event)
 					}
+					if err := c.state.SaveOffset(message.Offset + 1); err != nil {
+						c.Logger.Log("Failed to save offset: %v", err)
+					}
 				}
 			}
 		case <-c.ctx.Done():
@@ -157,9 +161,6 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 		if err := c.processSignature(message); err != nil {
 			return fmt.Errorf("failed to process signature: %w", err)
 		}
-		if err := c.state.SaveOffset(message.Offset + 1); err != nil {
-			return fmt.Errorf("failed to SaveOffset: %w", err)
-		}
 		return nil
 	}
 
@@ -170,12 +171,74 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 			return fmt.Errorf("failed to process signature: %w", err)
 		}
 	}
+
 	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
 	if err != nil {
 		return fmt.Errorf("failed to getFSMInstance: %w", err)
 	}
 
-	// we can't verify a message at this moment, cause we don't have public keys of participantss
+	//handle common errors
+	if strings.HasSuffix(string(fsmInstance.FSMDump().State), "_error") {
+		if fsmInstance.FSMDump().Payload.DKGProposalPayload != nil {
+			for _, participant := range fsmInstance.FSMDump().Payload.DKGProposalPayload.Quorum {
+				if participant.Error.ErrorMsg != "" {
+					log.Printf("Participant %s got an error during DKG process: %s. DKG aborted\n",
+						participant.Username, participant.Error.Error())
+					// if we have an error during DKG, abort the whole DKG procedure.
+					return nil
+				}
+			}
+		}
+		if fsmInstance.FSMDump().Payload.SigningProposalPayload != nil {
+			for _, participant := range fsmInstance.FSMDump().Payload.SigningProposalPayload.Quorum {
+				if participant.Error.ErrorMsg != "" {
+					log.Printf("Participant %s got an error during signing procedure: %s. Signing procedure aborted\n",
+						participant.Username, participant.Error.Error())
+					break
+				}
+			}
+			//if we have an error during signing procedure, start a new signing procedure
+			_, fsmDump, err := fsmInstance.Do(sipf.EventSigningRestart, requests.DefaultRequest{
+				CreatedAt: time.Now(),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to Do operation in FSM: %w", err)
+			}
+
+			if err := c.state.SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+				return fmt.Errorf("failed to SaveFSM: %w", err)
+			}
+		}
+	}
+
+	//handle timeout errors
+	if strings.HasSuffix(string(fsmInstance.FSMDump().State), "_timeout") {
+		if strings.HasPrefix(string(fsmInstance.FSMDump().State), "state_sig_") ||
+			strings.HasPrefix(string(fsmInstance.FSMDump().State), "state_dkg") {
+			log.Printf("DKG process with ID \"%s\" aborted cause of timeout\n",
+				fsmInstance.FSMDump().Payload.DkgId)
+			// if we have an error during DKG, abort the whole DKG procedure.
+			return nil
+		}
+		if strings.HasPrefix(string(fsmInstance.FSMDump().State), "state_signing_") {
+			log.Printf("Signing process with ID \"%s\" aborted cause of timeout\n",
+				fsmInstance.FSMDump().Payload.SigningProposalPayload.SigningId)
+
+			//if we have an error during signing procedure, start a new signing procedure
+			_, fsmDump, err := fsmInstance.Do(sipf.EventSigningRestart, requests.DefaultRequest{
+				CreatedAt: time.Now(),
+			})
+			if err != nil {
+				return fmt.Errorf("failed to Do operation in FSM: %w", err)
+			}
+
+			if err := c.state.SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+				return fmt.Errorf("failed to SaveFSM: %w", err)
+			}
+		}
+	}
+
+	// we can't verify a message at this moment, cause we don't have public keys of participants
 	if fsm.Event(message.Event) != spf.EventInitProposal {
 		if err := c.verifyMessage(fsmInstance, message); err != nil {
 			return fmt.Errorf("failed to verifyMessage %+v: %w", message, err)
@@ -280,10 +343,6 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 		if err := c.state.PutOperation(operation); err != nil {
 			return fmt.Errorf("failed to PutOperation: %w", err)
 		}
-	}
-
-	if err := c.state.SaveOffset(message.Offset + 1); err != nil {
-		return fmt.Errorf("failed to SaveOffset: %w", err)
 	}
 
 	if err := c.state.SaveFSM(message.DkgRoundID, fsmDump); err != nil {
