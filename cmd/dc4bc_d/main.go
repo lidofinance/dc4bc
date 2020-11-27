@@ -22,12 +22,12 @@ const (
 	flagListenAddr               = "listen_addr"
 	flagStateDBDSN               = "state_dbdsn"
 	flagStorageDBDSN             = "storage_dbdsn"
+	flagFramesDelay              = "frames_delay"
 	flagStorageTopic             = "storage_topic"
 	flagKafkaProducerCredentials = "producer_credentials"
 	flagKafkaConsumerCredentials = "consumer_credentials"
 	flagKafkaTrustStorePath      = "kafka_truststore_path"
 	flagStoreDBDSN               = "key_store_dbdsn"
-	flagFramesDelay              = "frames_delay"
 	flagChunkSize                = "chunk_size"
 	flagConfig                   = "config"
 )
@@ -61,7 +61,7 @@ func init() {
 	exitIfError(viper.BindPFlag(flagKafkaConsumerCredentials, rootCmd.PersistentFlags().Lookup(flagKafkaConsumerCredentials)))
 	exitIfError(viper.BindPFlag(flagKafkaTrustStorePath, rootCmd.PersistentFlags().Lookup(flagKafkaTrustStorePath)))
 	exitIfError(viper.BindPFlag(flagStoreDBDSN, rootCmd.PersistentFlags().Lookup(flagStoreDBDSN)))
-	exitIfError(viper.BindPFlag(flagFramesDelay, rootCmd.PersistentFlags().Lookup(flagFramesDelay)))
+	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	exitIfError(viper.BindPFlag(flagChunkSize, rootCmd.PersistentFlags().Lookup(flagChunkSize)))
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 }
@@ -162,6 +162,7 @@ func startClientCommand() *cobra.Command {
 
 			framesDelay := viper.GetInt(flagFramesDelay)
 			chunkSize := viper.GetInt(flagChunkSize)
+
 			processor := qr.NewCameraProcessor()
 			processor.SetDelay(framesDelay)
 			processor.SetChunkSize(chunkSize)

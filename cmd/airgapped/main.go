@@ -4,8 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
+	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/syndtr/goleveldb/leveldb"
 	"io"
 	"log"
@@ -61,8 +63,8 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 	}
 	p.initTerminal()
 
-	p.addCommand("read_qr", &promptCommand{
-		commandHandler: p.readQRCommand,
+	p.addCommand("read_operation", &promptCommand{
+		commandHandler: p.readOperationCommand,
 		description:    "Reads QR chunks from camera, handle a decoded operation and returns paths to qr chunks of operation's result",
 	})
 	p.addCommand("help", &promptCommand{
@@ -104,7 +106,7 @@ func (p *prompt) commandAutoCompleteCallback(line string, pos int, key rune) (su
 	if key != '\t' {
 		return "", 0, false
 	}
-	for command, _ := range p.commands {
+	for command := range p.commands {
 		if strings.HasPrefix(command, line) {
 			return command, len(command), true
 		}
@@ -139,11 +141,30 @@ func (p *prompt) addCommand(name string, command *promptCommand) {
 	p.commands[name] = command
 }
 
-func (p *prompt) readQRCommand() error {
-	qrPath, err := p.airgapped.HandleQR()
+func (p *prompt) readOperationCommand() error {
+	p.print("> Enter the base64-encoded Operation: ")
+
+	base64Operation, err := p.reader.ReadString('\n')
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read base64Operation: %w", err)
 	}
+
+	operationBz, err := base64.StdEncoding.DecodeString(base64Operation)
+	if err != nil {
+		return fmt.Errorf("failed to base64.StdEncoding.DecodeString: %w", err)
+	}
+
+	var operation client.Operation
+	if err := json.Unmarshal(operationBz, &operation); err != nil {
+		return fmt.Errorf("failed to unmarshal Operation: %w", err)
+	}
+
+	qrPath, err := p.airgapped.ProcessOperation(operation)
+	if err != nil {
+		return fmt.Errorf("failed to ProcessOperation: %w", err)
+	}
+
+	log.Printf("QR code was saved to: %s\n", qrPath)
 
 	p.println("An operation in the read QR code handled successfully, a result operation saved by chunks in following qr codes:")
 	p.printf("Operation's chunk: %s\n", qrPath)
@@ -473,7 +494,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init airgapped machine %v", err)
 	}
-	air.SetQRProcessorFramesDelay(framesDelay)
 	air.SetQRProcessorChunkSize(chunkSize)
 	air.SetResultQRFolder(qrCodesFolder)
 
@@ -488,10 +508,6 @@ func main() {
 
 	go func() {
 		for range c {
-			if p.currentCommand == "read_qr" {
-				p.airgapped.CloseCameraReader()
-				continue
-			}
 			p.printf("Intercepting SIGINT, please type `exit` to stop the machine\n")
 		}
 	}()

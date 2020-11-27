@@ -6,10 +6,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/gif"
-	"log"
 	"os"
-
-	"gocv.io/x/gocv"
 
 	encoder "github.com/skip2/go-qrcode"
 
@@ -28,11 +25,9 @@ var palette = color.Palette{
 }
 
 type Processor interface {
-	ReadQR() ([]byte, error)
 	WriteQR(path string, data []byte) error
 	SetDelay(delay int)
 	SetChunkSize(chunkSize int)
-	CloseCameraReader()
 }
 
 type CameraProcessor struct {
@@ -45,91 +40,16 @@ type CameraProcessor struct {
 func NewCameraProcessor() Processor {
 	return &CameraProcessor{
 		closeCameraReader: make(chan bool),
-		chunkSize: defaultChunkSize,
+		chunkSize:         defaultChunkSize,
 	}
-}
-
-func (p *CameraProcessor) CloseCameraReader() {
-	p.closeCameraReader <- true
-}
-
-func (p *CameraProcessor) SetDelay(delay int) {
-	p.gifFramesDelay = delay
 }
 
 func (p *CameraProcessor) SetChunkSize(chunkSize int) {
 	p.chunkSize = chunkSize
 }
 
-func (p *CameraProcessor) ReadQR() ([]byte, error) {
-	webcam, err := gocv.OpenVideoCapture(0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to OpenVideoCapture: %w", err)
-	}
-	window := gocv.NewWindow("Please, show a gif with QR codes")
-
-	defer func() {
-		if err := webcam.Close(); err != nil {
-			log.Fatalf("failed to close camera: %v", err)
-		}
-	}()
-	defer func() {
-		if err := window.Close(); err != nil {
-			log.Fatalf("failed to close camera window: %v", err)
-		}
-	}()
-
-	img := gocv.NewMat()
-	defer img.Close()
-
-	chunks := make([]*chunk, 0)
-	decodedChunksCount := uint(0)
-	// detects and scans QR-cods from camera until we scan successfully
-READER:
-	for {
-		select {
-		case <-p.closeCameraReader:
-			return nil, fmt.Errorf("camera reader was closed")
-		default:
-			webcam.Read(&img)
-			window.IMShow(img)
-			window.WaitKey(1)
-
-			imgObject, err := img.ToImage()
-			if err != nil {
-				return nil, fmt.Errorf("failed to get image object: %w", err)
-			}
-			data, err := ReadDataFromQR(imgObject)
-			if err != nil {
-				continue
-			}
-			decodedChunk, err := decodeChunk(data)
-			if err != nil {
-				return nil, err
-			}
-			if cap(chunks) == 0 {
-				chunks = make([]*chunk, decodedChunk.Total)
-			}
-			if decodedChunk.Index > decodedChunk.Total {
-				return nil, fmt.Errorf("invalid QR-code chunk")
-			}
-			if chunks[decodedChunk.Index] != nil {
-				continue
-			}
-			chunks[decodedChunk.Index] = decodedChunk
-			decodedChunksCount++
-			window.SetWindowTitle(fmt.Sprintf("Read %d/%d chunks", decodedChunksCount, decodedChunk.Total))
-			if decodedChunksCount == decodedChunk.Total {
-				break READER
-			}
-		}
-	}
-	window.SetWindowTitle("QR-code chunks successfully read!")
-	data := make([]byte, 0)
-	for _, c := range chunks {
-		data = append(data, c.Data...)
-	}
-	return data, nil
+func (p *CameraProcessor) SetDelay(delay int) {
+	p.gifFramesDelay = delay
 }
 
 func (p *CameraProcessor) WriteQR(path string, data []byte) error {

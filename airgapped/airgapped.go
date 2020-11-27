@@ -78,10 +78,6 @@ func (am *Machine) SetQRProcessorFramesDelay(delay int) {
 	am.qrProcessor.SetDelay(delay)
 }
 
-func (am *Machine) CloseCameraReader() {
-	am.qrProcessor.CloseCameraReader()
-}
-
 func (am *Machine) SetQRProcessorChunkSize(chunkSize int) {
 	am.qrProcessor.SetChunkSize(chunkSize)
 }
@@ -134,9 +130,9 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	}
 
 	for idx, operation := range operationsLog {
-		qrPath, err := am.getResponseQRPath(operation)
+		qrPath, err := am.ProcessOperation(operation)
 		if err != nil {
-			return fmt.Errorf("failed to getResponseQRPath: %w", err)
+			return fmt.Errorf("failed to ProcessOperation: %w", err)
 		}
 
 		log.Printf("QR code for operation %d was saved to: %s\n", idx, qrPath)
@@ -147,7 +143,7 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	return nil
 }
 
-func (am *Machine) getResponseQRPath(operation client.Operation) (string, error) {
+func (am *Machine) ProcessOperation(operation client.Operation) (string, error) {
 	resultOperation, err := am.HandleOperation(operation)
 	if err != nil {
 		return "", fmt.Errorf(
@@ -256,35 +252,6 @@ func (am *Machine) handleOperation(operation client.Operation) (client.Operation
 	}
 
 	return operation, nil
-}
-
-// HandleQR - gets an operation from a QR code, do necessary things for the operation and returns paths to QR-code images
-func (am *Machine) HandleQR() (string, error) {
-	var (
-		err error
-
-		// input operation
-		operation client.Operation
-		qrData    []byte
-	)
-
-	if qrData, err = am.qrProcessor.ReadQR(); err != nil {
-		return "", fmt.Errorf("failed to read QR: %w", err)
-	}
-	if err = json.Unmarshal(qrData, &operation); err != nil {
-		return "", fmt.Errorf("failed to unmarshal operation: %w", err)
-	}
-
-	qrPath, err := am.getResponseQRPath(operation)
-	if err != nil {
-		return "", fmt.Errorf("failed to getResponseQRPath: %w", err)
-	}
-
-	log.Printf("QR code was saved to: %s\n", qrPath)
-
-	return qrPath, nil
-
-	return qrPath, nil
 }
 
 // writeErrorRequestToOperation writes error to a operation if some bad things happened
