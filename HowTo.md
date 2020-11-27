@@ -7,7 +7,7 @@ git clone git@github.com:lidofinance/dc4bc.git
 
 Run the Client node inside a Docker container:
 ```
-$ DATA_DIR=/tmp/shared USERNAME=john_doe STORAGE_DBDSN=51.158.98.208:9093 QR_READER_PORT=9090 make run-client-node
+$ DATA_DIR=/tmp/shared USERNAME=john_doe STORAGE_DBDSN=51.158.98.208:9093 STORAGE_TOPIC=test_topic QR_READER_PORT=9090 make run-client-node
 <...>
 Successfully built 9fe3bbdf08e6
 Successfully tagged client_node:latest
@@ -18,6 +18,8 @@ Started QR scanner. Go to http://localhost:9090/qr/index.html
 [john_doe] Waiting for messages from append-only log...
 [john_doe] HTTP server started on address: localhost:8080
 ```
+
+Note that the `DATA_DIR` environment variable specifies the directory _on your host machine_ where persistent state will be kept (you can stop and run the container, and the data will be still there).
 
 Open a separate terminal and log into the Client node. All the necessary binaries will be accessible in current working directory:
 ```
@@ -49,6 +51,8 @@ Available commands:
 Waiting for command...
 >>>
 ```
+
+Again, note that the `DATA_DIR` environment variable specifies the directory _on your host machine_ where persistent state will be kept (you can stop and run the container, and the data will be still there).
 
 #### DKG
 

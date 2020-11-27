@@ -37,7 +37,7 @@ build-local:
 run-client-node:
 	@docker rm -f client_node > /dev/null 2>&1 || true
 	@docker build . --tag client_node -f node.Dockerfile
-	@docker run -it -e STORAGE_TOPIC=foo -e STORAGE_DBDSN=$(STORAGE_DBDSN) -e USERNAME=$(USERNAME) --name client_node -v $(DATA_DIR):/go/src/shared -p $(QR_READER_PORT):9090 client_node:latest
+	@docker run -it -e STORAGE_TOPIC=foo -e STORAGE_DBDSN=$(STORAGE_DBDSN) -e STORAGE_TOPIC=$(STORAGE_TOPIC) -e USERNAME=$(USERNAME) --name client_node -v $(DATA_DIR):/go/src/shared -p $(QR_READER_PORT):9090 client_node:latest
 
 run-client-node-bash:
 	@docker exec -it client_node bash
