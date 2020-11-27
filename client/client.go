@@ -107,8 +107,6 @@ func (c *BaseClient) Poll() error {
 				return fmt.Errorf("failed to LoadOffset: %w", err)
 			}
 
-			fmt.Println(">>> OFFSET:", offset)
-
 			messages, err := c.storage.GetMessages(offset)
 			if err != nil {
 				return fmt.Errorf("failed to GetMessages: %w", err)
