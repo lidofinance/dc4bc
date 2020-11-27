@@ -14,19 +14,6 @@ tar -C /usr/local -xzf go1.15.2.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 ```
 
-When Go is set up, install OpenCV:
-```
-git clone https://github.com/hybridgroup/gocv.git
-cd gocv
-make install
-```
-
-If it works correctly, at the end of the entire process, the following message should be displayed:
-```
-gocv version: 0.22.0
-opencv lib version: 4.4.0
-```
-
 Install Java to generate certificate's truststore for Kafka:
 ```
 sudo apt install default-jre
@@ -51,32 +38,12 @@ export PATH=$PATH:$GOROOT/bin
 brew install go
 ```
 
-When Go is set up, install OpenCV:
-```
-brew uninstall opencv
-brew install opencv
-brew install pkgconfig
-```
-
 Then build the project binaries:
 ```
 # Go to the cloned repository.
 cd dc4bc
 make build-darwin
 ```
-
-If you see unexpected output like this:
-```
-ld: warning: directory not found for option '-L/usr/local/Cellar/opencv/4.4.0/lib'
-```
-
-Try to run:
-```
-export CGO_CXXFLAGS="--std=c++11"
-export CGO_CPPFLAGS="-I/usr/local/Cellar/opencv/4.5.0_5/include"
-export CGO_LDFLAGS="-L/usr/local/Cellar/opencv/4.5.0_5/lib -lopencv_stitching -lopencv_superres -lopencv_videostab -lopencv_aruco -lopencv_bgsegm -lopencv_bioinspired -lopencv_ccalib -lopencv_dnn_objdetect -lopencv_dpm -lopencv_face -lopencv_photo -lopencv_fuzzy -lopencv_hfs -lopencv_img_hash -lopencv_line_descriptor -lopencv_optflow -lopencv_reg -lopencv_rgbd -lopencv_saliency -lopencv_stereo -lopencv_structured_light -lopencv_phase_unwrapping -lopencv_surface_matching -lopencv_tracking -lopencv_datasets -lopencv_dnn -lopencv_plot -lopencv_xfeatures2d -lopencv_shape -lopencv_video -lopencv_ml -lopencv_ximgproc -lopencv_calib3d -lopencv_features2d -lopencv_highgui -lopencv_videoio -lopencv_flann -lopencv_xobjdetect -lopencv_imgcodecs -lopencv_objdetect -lopencv_xphoto -lopencv_imgproc -lopencv_core"
-```
-Now try to build the project again.
 
 #### Starting Kafka (optional)
 
