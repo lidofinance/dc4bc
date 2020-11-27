@@ -182,7 +182,7 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 	if strings.HasSuffix(string(fsmInstance.FSMDump().State), "_error") {
 		if fsmInstance.FSMDump().Payload.DKGProposalPayload != nil {
 			for _, participant := range fsmInstance.FSMDump().Payload.DKGProposalPayload.Quorum {
-				if participant.Error.ErrorMsg != "" {
+				if participant.Error != nil {
 					log.Printf("Participant %s got an error during DKG process: %s. DKG aborted\n",
 						participant.Username, participant.Error.Error())
 					// if we have an error during DKG, abort the whole DKG procedure.
@@ -192,7 +192,7 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 		}
 		if fsmInstance.FSMDump().Payload.SigningProposalPayload != nil {
 			for _, participant := range fsmInstance.FSMDump().Payload.SigningProposalPayload.Quorum {
-				if participant.Error.ErrorMsg != "" {
+				if participant.Error != nil {
 					log.Printf("Participant %s got an error during signing procedure: %s. Signing procedure aborted\n",
 						participant.Username, participant.Error.Error())
 					break

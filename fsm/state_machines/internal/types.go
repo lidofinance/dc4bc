@@ -95,7 +95,7 @@ type DKGProposalParticipant struct {
 	DkgResponse  []byte
 	DkgMasterKey []byte
 	Status       DKGParticipantStatus
-	Error        requests.FSMError
+	Error        *requests.FSMError
 	UpdatedAt    time.Time
 }
 
@@ -208,7 +208,7 @@ type SigningProposalParticipant struct {
 	Username    string
 	Status      SigningParticipantStatus
 	PartialSign []byte
-	Error       requests.FSMError
+	Error       *requests.FSMError
 	UpdatedAt   time.Time
 }
 

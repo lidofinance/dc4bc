@@ -50,7 +50,7 @@ type DKGProposalMasterKeyConfirmationRequest struct {
 //			"event_dkg_master_key_confirm_canceled_by_error"
 type DKGProposalConfirmationErrorRequest struct {
 	ParticipantId int
-	Error         FSMError
+	Error         *FSMError
 	CreatedAt     time.Time
 }
 
@@ -58,8 +58,8 @@ type FSMError struct {
 	ErrorMsg string
 }
 
-func NewFSMError(err error) FSMError {
-	return FSMError{
+func NewFSMError(err error) *FSMError {
+	return &FSMError{
 		ErrorMsg: err.Error(),
 	}
 }

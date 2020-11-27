@@ -69,7 +69,7 @@ func (r *SignatureProposalConfirmationErrorRequest) Validate() error {
 		return errors.New("{ParticipantId} cannot be a negative number")
 	}
 
-	if r.Error.ErrorMsg == "" {
+	if r.Error == nil {
 		return errors.New("{Error} cannot be a nil")
 	}
 
