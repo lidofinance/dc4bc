@@ -298,7 +298,7 @@ func Test_SignatureProposal_EventConfirmSignatureProposal_Canceled_Timeout(t *te
 
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(spf.EventConfirmSignatureProposal, requests.SignatureProposalParticipantRequest{
 		ParticipantId: 0,
-		CreatedAt:     time.Now().Add(36 * time.Hour),
+		CreatedAt:     time.Now().Add(time.Hour * 24 * 8),
 	})
 
 	compareErrNil(t, err)
@@ -439,7 +439,7 @@ func Test_DkgProposal_EventDKGCommitConfirmationReceived_Canceled_Error(t *testi
 
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGCommitConfirmationError, requests.DKGProposalConfirmationErrorRequest{
 		ParticipantId: 0,
-		Error:         errors.New("test error"),
+		Error:         requests.NewFSMError(errors.New("test error")),
 		CreatedAt:     time.Now(),
 	})
 
@@ -466,7 +466,7 @@ func Test_DkgProposal_EventDKGCommitConfirmationReceived_Canceled_Timeout(t *tes
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGCommitConfirmationReceived, requests.DKGProposalCommitConfirmationRequest{
 		ParticipantId: 0,
 		Commit:        testIdMapParticipants[0].DkgCommit,
-		CreatedAt:     time.Now().Add(36 * time.Hour),
+		CreatedAt:     time.Now().Add(time.Hour * 24 * 8),
 	})
 
 	compareErrNil(t, err)
@@ -564,7 +564,7 @@ func Test_DkgProposal_EventDKGDealConfirmationReceived_Canceled_Error(t *testing
 
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGDealConfirmationError, requests.DKGProposalConfirmationErrorRequest{
 		ParticipantId: 0,
-		Error:         errors.New("test error"),
+		Error:         requests.NewFSMError(errors.New("test error")),
 		CreatedAt:     time.Now(),
 	})
 
@@ -591,7 +591,7 @@ func Test_DkgProposal_EventDKGDealConfirmationReceived_Canceled_Timeout(t *testi
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGDealConfirmationReceived, requests.DKGProposalDealConfirmationRequest{
 		ParticipantId: 0,
 		Deal:          testIdMapParticipants[0].DkgDeal,
-		CreatedAt:     time.Now().Add(36 * time.Hour),
+		CreatedAt:     time.Now().Add(time.Hour * 24 * 8),
 	})
 
 	compareErrNil(t, err)
@@ -683,7 +683,7 @@ func Test_DkgProposal_EventDKGResponseConfirmationError_Canceled_Error(t *testin
 
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGResponseConfirmationError, requests.DKGProposalConfirmationErrorRequest{
 		ParticipantId: 0,
-		Error:         errors.New("test error"),
+		Error:         requests.NewFSMError(errors.New("test error")),
 		CreatedAt:     time.Now(),
 	})
 
@@ -710,7 +710,7 @@ func Test_DkgProposal_EventDKGResponseConfirmationReceived_Canceled_Timeout(t *t
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGResponseConfirmationReceived, requests.DKGProposalResponseConfirmationRequest{
 		ParticipantId: 0,
 		Response:      testIdMapParticipants[0].DkgResponse,
-		CreatedAt:     time.Now().Add(36 * time.Hour),
+		CreatedAt:     time.Now().Add(time.Hour * 24 * 8),
 	})
 
 	compareErrNil(t, err)
@@ -776,7 +776,7 @@ func Test_DkgProposal_EventDKGMasterKeyConfirmationError_Canceled_Error(t *testi
 
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGMasterKeyConfirmationError, requests.DKGProposalConfirmationErrorRequest{
 		ParticipantId: 0,
-		Error:         errors.New("test error"),
+		Error:         requests.NewFSMError(errors.New("test error")),
 		CreatedAt:     time.Now(),
 	})
 
@@ -803,7 +803,7 @@ func Test_DkgProposal_EventDKGMasterKeyConfirmationReceived_Canceled_Timeout(t *
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGMasterKeyConfirmationReceived, requests.DKGProposalMasterKeyConfirmationRequest{
 		ParticipantId: 0,
 		MasterKey:     genDataMock(keysMockLen),
-		CreatedAt:     time.Now().Add(36 * time.Hour),
+		CreatedAt:     time.Now().Add(time.Hour * 24 * 8),
 	})
 
 	compareErrNil(t, err)
@@ -1038,7 +1038,7 @@ func Test_SigningProposal_EventConfirmSignatureProposal_Canceled_Timeout(t *test
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(sif.EventConfirmSigningConfirmation, requests.SigningProposalParticipantRequest{
 		SigningId:     testSigningId,
 		ParticipantId: 0,
-		CreatedAt:     time.Now().Add(36 * time.Hour),
+		CreatedAt:     time.Now().Add(time.Hour * 24 * 8),
 	})
 
 	compareErrNil(t, err)

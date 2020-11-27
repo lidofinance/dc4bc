@@ -28,6 +28,6 @@ type SignatureProposalParticipantRequest struct {
 
 type SignatureProposalConfirmationErrorRequest struct {
 	ParticipantId int
-	Error         error
+	Error         *FSMError
 	CreatedAt     time.Time
 }

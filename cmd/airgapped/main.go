@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
+	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/syndtr/goleveldb/leveldb"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
@@ -48,7 +51,7 @@ type prompt struct {
 
 func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 	p := prompt{
-		reader:                    bufio.NewReader(os.Stdin),
+		reader:                    bufio.NewReaderSize(os.Stdin, 1 << 22),
 		airgapped:                 machine,
 		commands:                  make(map[string]*promptCommand),
 		currentCommand:            "",
@@ -61,9 +64,9 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 	}
 	p.initTerminal()
 
-	p.addCommand("read_qr", &promptCommand{
-		commandHandler: p.readQRCommand,
-		description:    "Reads QR chunks from camera, handle a decoded operation and returns paths to qr chunks of operation's result",
+	p.addCommand("read_operation", &promptCommand{
+		commandHandler: p.readOperationCommand,
+		description:    "reads base64-encoded Operation, handles a decoded operation and returns the path to the GIF with operation's result",
 	})
 	p.addCommand("help", &promptCommand{
 		commandHandler: p.helpCommand,
@@ -104,7 +107,7 @@ func (p *prompt) commandAutoCompleteCallback(line string, pos int, key rune) (su
 	if key != '\t' {
 		return "", 0, false
 	}
-	for command, _ := range p.commands {
+	for command := range p.commands {
 		if strings.HasPrefix(command, line) {
 			return command, len(command), true
 		}
@@ -139,14 +142,32 @@ func (p *prompt) addCommand(name string, command *promptCommand) {
 	p.commands[name] = command
 }
 
-func (p *prompt) readQRCommand() error {
-	qrPath, err := p.airgapped.HandleQR()
+func (p *prompt) readOperationCommand() error {
+	p.print("> Enter the path to Operation JSON file: ")
+
+	operationPath, err := p.reader.ReadString('\n')
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read base64Operation: %w", err)
 	}
 
-	p.println("An operation in the read QR code handled successfully, a result operation saved by chunks in following qr codes:")
-	p.printf("Operation's chunk: %s\n", qrPath)
+	operationBz, err := ioutil.ReadFile(strings.Trim(operationPath, " \n"))
+	if err != nil {
+		return fmt.Errorf("failed to read Operation file: %w", err)
+	}
+
+	var operation client.Operation
+	if err := json.Unmarshal(operationBz, &operation); err != nil {
+		return fmt.Errorf("failed to unmarshal Operation: %w", err)
+	}
+
+	qrPath, err := p.airgapped.ProcessOperation(operation)
+	if err != nil {
+		return fmt.Errorf("failed to ProcessOperation: %w", err)
+	}
+
+	log.Printf("QR code was saved to: %s\n", qrPath)
+
+	p.printf("Operation GIF was handled successfully, the result Operation GIF was saved at: %s\n", qrPath)
 	return nil
 }
 
@@ -473,7 +494,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init airgapped machine %v", err)
 	}
-	air.SetQRProcessorFramesDelay(framesDelay)
 	air.SetQRProcessorChunkSize(chunkSize)
 	air.SetResultQRFolder(qrCodesFolder)
 
@@ -488,10 +508,6 @@ func main() {
 
 	go func() {
 		for range c {
-			if p.currentCommand == "read_qr" {
-				p.airgapped.CloseCameraReader()
-				continue
-			}
 			p.printf("Intercepting SIGINT, please type `exit` to stop the machine\n")
 		}
 	}()

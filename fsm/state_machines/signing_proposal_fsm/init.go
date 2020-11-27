@@ -85,16 +85,16 @@ func New() internal.DumpedMachineProvider {
 
 			// Canceled
 			{Name: EventSigningPartialSignReceived, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningAwaitPartialSigns},
-			{Name: EventSigningPartialSignError, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningPartialSignsAwaitCancelledByError},
+			{Name: EventSigningPartialSignError, SrcState: []fsm.State{StateSigningAwaitPartialSigns, StateSigningPartialSignsAwaitCancelledByError}, DstState: StateSigningPartialSignsAwaitCancelledByError},
 			{Name: eventSigningPartialSignsAwaitCancelByTimeoutInternal, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningPartialSignsAwaitCancelledByTimeout, IsInternal: true},
-			{Name: eventSigningPartialSignsAwaitCancelByErrorInternal, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningPartialSignsAwaitCancelledByError, IsInternal: true},
+			{Name: eventSigningPartialSignsAwaitCancelByErrorInternal, SrcState: []fsm.State{StateSigningAwaitPartialSigns, StateSigningPartialSignsAwaitCancelledByError}, DstState: StateSigningPartialSignsAwaitCancelledByError, IsInternal: true},
 
 			// Validate
 			{Name: eventAutoSigningValidatePartialSignInternal, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningAwaitPartialSigns, IsInternal: true, IsAuto: true},
 
 			{Name: eventSigningPartialSignsConfirmedInternal, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningPartialSignsCollected, IsInternal: true},
 
-			{Name: EventSigningRestart, SrcState: []fsm.State{StateSigningPartialSignsCollected}, DstState: StateSigningIdle},
+			{Name: EventSigningRestart, SrcState: []fsm.State{StateSigningPartialSignsCollected, StateSigningPartialSignsAwaitCancelledByError, StateSigningPartialSignsAwaitCancelledByTimeout, StateSigningConfirmationsAwaitCancelledByTimeout}, DstState: StateSigningIdle},
 		},
 		fsm.Callbacks{
 			EventSigningInit:                            machine.actionInitSigningProposal,

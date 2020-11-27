@@ -78,10 +78,6 @@ func (am *Machine) SetQRProcessorFramesDelay(delay int) {
 	am.qrProcessor.SetDelay(delay)
 }
 
-func (am *Machine) CloseCameraReader() {
-	am.qrProcessor.CloseCameraReader()
-}
-
 func (am *Machine) SetQRProcessorChunkSize(chunkSize int) {
 	am.qrProcessor.SetChunkSize(chunkSize)
 }
@@ -133,17 +129,39 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 		return fmt.Errorf("failed to getOperationsLog: %w", err)
 	}
 
-	for _, operation := range operationsLog {
-		if _, err := am.HandleOperation(operation); err != nil {
-			return fmt.Errorf(
-				"failed to HandleOperation %s (this error is fatal, the state can not be recovered): %w",
-				operation.ID, err)
+	for idx, operation := range operationsLog {
+		qrPath, err := am.ProcessOperation(operation)
+		if err != nil {
+			return fmt.Errorf("failed to ProcessOperation: %w", err)
 		}
+
+		log.Printf("QR code for operation %d was saved to: %s\n", idx, qrPath)
 	}
 
 	log.Println("Successfully replayed Operation log")
 
 	return nil
+}
+
+func (am *Machine) ProcessOperation(operation client.Operation) (string, error) {
+	resultOperation, err := am.HandleOperation(operation)
+	if err != nil {
+		return "", fmt.Errorf(
+			"failed to HandleOperation %s (this error is fatal): %w",
+			operation.ID, err)
+	}
+
+	operationBz, err := json.Marshal(resultOperation)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal operation: %w", err)
+	}
+
+	qrPath := filepath.Join(am.resultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
+	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
+		return "", fmt.Errorf("failed to write QR: %w", err)
+	}
+
+	return qrPath, nil
 }
 
 func (am *Machine) DropOperationsLog(dkgIdentifier string) error {
@@ -236,42 +254,6 @@ func (am *Machine) handleOperation(operation client.Operation) (client.Operation
 	return operation, nil
 }
 
-// HandleQR - gets an operation from a QR code, do necessary things for the operation and returns paths to QR-code images
-func (am *Machine) HandleQR() (string, error) {
-	var (
-		err error
-
-		// input operation
-		operation client.Operation
-		qrData    []byte
-
-		resultOperation client.Operation
-	)
-
-	if qrData, err = am.qrProcessor.ReadQR(); err != nil {
-		return "", fmt.Errorf("failed to read QR: %w", err)
-	}
-	if err = json.Unmarshal(qrData, &operation); err != nil {
-		return "", fmt.Errorf("failed to unmarshal operation: %w", err)
-	}
-
-	if resultOperation, err = am.HandleOperation(operation); err != nil {
-		return "", err
-	}
-
-	operationBz, err := json.Marshal(resultOperation)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal operation: %w", err)
-	}
-
-	qrPath := filepath.Join(am.resultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
-	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
-		return "", fmt.Errorf("failed to write QR: %w", err)
-	}
-
-	return qrPath, nil
-}
-
 // writeErrorRequestToOperation writes error to a operation if some bad things happened
 func (am *Machine) writeErrorRequestToOperation(o *client.Operation, handlerError error) error {
 	// each type of request should have a required event even error
@@ -281,13 +263,14 @@ func (am *Machine) writeErrorRequestToOperation(o *client.Operation, handlerErro
 		dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:     dkg_proposal_fsm.EventDKGDealConfirmationError,
 		dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations: dkg_proposal_fsm.EventDKGResponseConfirmationError,
 		dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations: dkg_proposal_fsm.EventDKGMasterKeyConfirmationError,
+		signing_proposal_fsm.StateSigningAwaitPartialSigns:   signing_proposal_fsm.EventSigningPartialSignError,
 	}
 	pid, err := am.getParticipantID(o.DKGIdentifier)
 	if err != nil {
 		return fmt.Errorf("failed to get participant id: %w", err)
 	}
 	req := requests.DKGProposalConfirmationErrorRequest{
-		Error:         handlerError,
+		Error:         requests.NewFSMError(handlerError),
 		ParticipantId: pid,
 		CreatedAt:     o.CreatedAt,
 	}

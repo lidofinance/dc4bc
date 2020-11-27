@@ -117,6 +117,19 @@ func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
 		}
 		resolvedValue = req
+	case dkg_proposal_fsm.EventDKGCommitConfirmationError, dkg_proposal_fsm.EventDKGDealConfirmationError,
+		dkg_proposal_fsm.EventDKGResponseConfirmationError, dkg_proposal_fsm.EventDKGMasterKeyConfirmationError:
+		var req requests.DKGProposalConfirmationErrorRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
+	case signing_proposal_fsm.EventSigningPartialSignError:
+		var req requests.SignatureProposalConfirmationErrorRequest
+		if err := json.Unmarshal(message.Data, &req); err != nil {
+			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+		}
+		resolvedValue = req
 	default:
 		return nil, fmt.Errorf("invalid event: %s", message.Event)
 	}

@@ -22,12 +22,12 @@ const (
 	flagListenAddr               = "listen_addr"
 	flagStateDBDSN               = "state_dbdsn"
 	flagStorageDBDSN             = "storage_dbdsn"
+	flagFramesDelay              = "frames_delay"
 	flagStorageTopic             = "storage_topic"
 	flagKafkaProducerCredentials = "producer_credentials"
 	flagKafkaConsumerCredentials = "consumer_credentials"
 	flagKafkaTrustStorePath      = "kafka_truststore_path"
 	flagStoreDBDSN               = "key_store_dbdsn"
-	flagFramesDelay              = "frames_delay"
 	flagChunkSize                = "chunk_size"
 	flagConfig                   = "config"
 )
@@ -162,6 +162,7 @@ func startClientCommand() *cobra.Command {
 
 			framesDelay := viper.GetInt(flagFramesDelay)
 			chunkSize := viper.GetInt(flagChunkSize)
+
 			processor := qr.NewCameraProcessor()
 			processor.SetDelay(framesDelay)
 			processor.SetChunkSize(chunkSize)

@@ -51,7 +51,7 @@ func main() {
 	rootCmd.AddCommand(
 		getOperationsCommand(),
 		getOperationQRPathCommand(),
-		readOperationFromCameraCommand(),
+		readOperationResultCommand(),
 		startDKGCommand(),
 		proposeSignMessageCommand(),
 		getUsernameCommand(),
@@ -457,29 +457,32 @@ func rawPostRequest(url string, contentType string, data []byte) (*client.Respon
 	return &response, nil
 }
 
-func readOperationFromCameraCommand() *cobra.Command {
+func readOperationResultCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "read_qr",
-		Short: "opens the camera and reads QR codes which should contain a processed operation",
+		Use:   "read_operation_result",
+		Short: "given the path to Operation JSON file, decodes and processes it",
+		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 
-			processor := qr.NewCameraProcessor()
-			data, err := processor.ReadQR()
+			operationBz, err := ioutil.ReadFile(strings.Trim(args[0], " \n"))
 			if err != nil {
-				return fmt.Errorf("failed to read data from QR: %w", err)
+				return fmt.Errorf("failed to read Operation file: %w", err)
 			}
+
 			resp, err := rawPostRequest(fmt.Sprintf("http://%s/handleProcessedOperationJSON", listenAddr),
-				"application/json", data)
+				"application/json", operationBz)
 			if err != nil {
 				return fmt.Errorf("failed to handle processed operation: %w", err)
 			}
+
 			if resp.ErrorMessage != "" {
 				return fmt.Errorf("failed to handle processed operation: %v", resp.ErrorMessage)
 			}
+
 			return nil
 		},
 	}

@@ -104,7 +104,7 @@ func New() internal.DumpedMachineProvider {
 			// Commits
 			{Name: EventDKGCommitConfirmationReceived, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitConfirmations},
 			// Canceled
-			{Name: EventDKGCommitConfirmationError, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitCanceledByError},
+			{Name: EventDKGCommitConfirmationError, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations, StateDkgCommitsAwaitCanceledByError}, DstState: StateDkgCommitsAwaitCanceledByError},
 			{Name: eventDKGCommitsConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitCanceledByTimeout, IsInternal: true},
 
 			{Name: eventAutoDKGValidateConfirmationCommitsInternal, SrcState: []fsm.State{StateDkgCommitsAwaitConfirmations}, DstState: StateDkgCommitsAwaitConfirmations, IsInternal: true, IsAuto: true},
@@ -115,7 +115,7 @@ func New() internal.DumpedMachineProvider {
 			// Deals
 			{Name: EventDKGDealConfirmationReceived, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitConfirmations},
 			// Canceled
-			{Name: EventDKGDealConfirmationError, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitCanceledByError},
+			{Name: EventDKGDealConfirmationError, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations, StateDkgDealsAwaitCanceledByError}, DstState: StateDkgDealsAwaitCanceledByError},
 			{Name: eventDKGDealsConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitCanceledByTimeout, IsInternal: true},
 			{Name: eventAutoDKGValidateConfirmationDealsInternal, SrcState: []fsm.State{StateDkgDealsAwaitConfirmations}, DstState: StateDkgDealsAwaitConfirmations, IsInternal: true, IsAuto: true},
 
@@ -124,7 +124,7 @@ func New() internal.DumpedMachineProvider {
 			// Responses
 			{Name: EventDKGResponseConfirmationReceived, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitConfirmations},
 			// Canceled
-			{Name: EventDKGResponseConfirmationError, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitCanceledByError},
+			{Name: EventDKGResponseConfirmationError, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations, StateDkgResponsesAwaitCanceledByError}, DstState: StateDkgResponsesAwaitCanceledByError},
 			{Name: eventDKGResponseConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitCanceledByTimeout, IsInternal: true},
 
 			{Name: eventAutoDKGValidateResponsesConfirmationInternal, SrcState: []fsm.State{StateDkgResponsesAwaitConfirmations}, DstState: StateDkgResponsesAwaitConfirmations, IsInternal: true, IsAuto: true},
@@ -134,7 +134,7 @@ func New() internal.DumpedMachineProvider {
 			// Master key
 
 			{Name: EventDKGMasterKeyConfirmationReceived, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitConfirmations},
-			{Name: EventDKGMasterKeyConfirmationError, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitCanceledByError},
+			{Name: EventDKGMasterKeyConfirmationError, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations, StateDkgMasterKeyAwaitCanceledByError}, DstState: StateDkgMasterKeyAwaitCanceledByError},
 			{Name: eventDKGMasterKeyConfirmationCancelByErrorInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitCanceledByError, IsInternal: true},
 			{Name: eventDKGMasterKeyConfirmationCancelByTimeoutInternal, SrcState: []fsm.State{StateDkgMasterKeyAwaitConfirmations}, DstState: StateDkgMasterKeyAwaitCanceledByTimeout, IsInternal: true},
 

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/segmentio/kafka-go/sasl/plain"
@@ -27,6 +28,7 @@ func init() {
 }
 
 type KafkaStorage struct {
+	sync.Mutex
 	ctx    context.Context
 	writer *kafka.Conn
 	reader *kafka.Reader
@@ -217,6 +219,9 @@ func (s *KafkaStorage) Close() error {
 }
 
 func (s *KafkaStorage) connect() error {
+	s.Lock()
+	defer s.Unlock()
+
 	_ = s.Close()
 
 	mechanismProducer := plain.Mechanism{s.producerCreds.Username, s.producerCreds.Password}
