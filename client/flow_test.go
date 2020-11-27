@@ -148,12 +148,13 @@ func TestFullFlow(t *testing.T) {
 	var numNodes = 4
 	var threshold = 2
 	var storagePath = "/tmp/dc4bc_storage"
+	topic := "test_topic"
 	var nodes = make([]*node, numNodes)
 	startingPort := 8080
 	for nodeID := 0; nodeID < numNodes; nodeID++ {
 		var ctx = context.Background()
 		var userName = fmt.Sprintf("node_%d", nodeID)
-		var state, err = NewLevelDBState(fmt.Sprintf("/tmp/dc4bc_node_%d_state", nodeID))
+		var state, err = NewLevelDBState(fmt.Sprintf("/tmp/dc4bc_node_%d_state", nodeID), topic)
 		if err != nil {
 			t.Fatalf("node %d failed to init state: %v\n", nodeID, err)
 		}

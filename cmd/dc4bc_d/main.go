@@ -122,8 +122,9 @@ func startClientCommand() *cobra.Command {
 			ctx := context.Background()
 			ctx, cancel := context.WithCancel(ctx)
 
+			storageTopic := viper.GetString(flagStorageTopic)
 			stateDBDSN := viper.GetString(flagStateDBDSN)
-			state, err := client.NewLevelDBState(stateDBDSN)
+			state, err := client.NewLevelDBState(stateDBDSN, storageTopic)
 			if err != nil {
 				return fmt.Errorf("failed to init state client: %w", err)
 			}
@@ -147,7 +148,6 @@ func startClientCommand() *cobra.Command {
 			}
 
 			storageDBDSN := viper.GetString(flagStorageDBDSN)
-			storageTopic := viper.GetString(flagStorageTopic)
 			stg, err := storage.NewKafkaStorage(ctx, storageDBDSN, storageTopic, tlsConfig, producerCreds, consumerCreds)
 			if err != nil {
 				return fmt.Errorf("failed to init storage client: %w", err)
