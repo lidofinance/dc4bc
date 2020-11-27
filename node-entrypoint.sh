@@ -6,6 +6,7 @@ STATE_DIR="$SHARED_DIR/dc4bc_${USERNAME}_state"
 QR_SCANNER_PORT=9090
 
 if [ ! -d "$KEY_STORE_DIR" ]; then
+  echo "Keystore is not found, generating new keys"
   ./dc4bc_d gen_keys --username "$USERNAME" --key_store_dbdsn "$KEY_STORE_DIR"
 fi
 

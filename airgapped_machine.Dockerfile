@@ -6,12 +6,10 @@ COPY . .
 
 ENV DATA_DIR ""
 ENV USERNAME ""
-ENV STORAGE_DBDSN ""
-ENV STORAGE_TOPIC ""
-
-RUN apt-get update && apt-get install -y python3
+ENV PASSWORD_EXPIRATION ""
+ENV AIRGAPPED_STATE_DIR ""
 
 # RUN make test-short
-RUN make build-node
+RUN make build-airgapped-machine
 
-ENTRYPOINT ["./node-entrypoint.sh"]
+ENTRYPOINT ["./airgapped-machine-entrypoint.sh"]

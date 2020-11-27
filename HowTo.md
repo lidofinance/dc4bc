@@ -7,43 +7,65 @@ git clone git@github.com:lidofinance/dc4bc.git
 
 Run the Client node inside a Docker container:
 ```
-STORAGE_DBDSN="51.158.98.208:9093" DATA_DIR="/tmp/shared" QR_READER_PORT=9090 make run-client-node
+$ DATA_DIR=/tmp/shared USERNAME=john_doe STORAGE_DBDSN=51.158.98.208:9093 QR_READER_PORT=9090 make run-client-node
 <...>
-Successfully built 3252bcb6b22a
+Successfully built 9fe3bbdf08e6
 Successfully tagged client_node:latest
-c9839b4b626719d74436905334ece04f62567b6e8c8a0a83f1577e51d69b7d09
-root@c9839b4b6267:/go/src# 
+Keystore is not found, generating new keys
+keypair generated for user john_doe and saved to /go/src/shared/dc4bc_john_doe_key_store
+Started QR scanner. Go to http://localhost:9090/qr/index.html
+[john_doe] Client started to poll messages from append-only log
+[john_doe] Waiting for messages from append-only log...
+[john_doe] HTTP server started on address: localhost:8080
 ```
 
-After the image is built, and the container is run, you will be automatically logged into the container. All the necessary binaries will be accessible in current working directory. 
+Open a separate terminal and log into the Client node. All the necessary binaries will be accessible in current working directory.:
+```
+$ make run-client-node-bash
+root@df8a53006ea0:/go/src#
+```
 
+Next run the Airgapped Machine inside a Docker container:
+```
+$ DATA_DIR=/tmp/shared PASSWORD_EXPIRATION=1000m USERNAME=john_doe make run-airgapped-machine
+<...>
+Successfully built 041987128b41
+Successfully tagged airgapped_machine:latest
+b4c7ab1eb89a7258d9937751052f2f813832fb9dbbf5c84e4d4b038864568c65
+2020/11/27 21:14:34 Base seed not initialized, generating a new one...
+2020/11/27 21:14:34 Successfully generated a new seed
+Enter encryption password:
+Confirm encryption password:
+Available commands:
+* read_operation - reads base64-encoded Operation, handles a decoded operation and returns the path to the GIF with operation's result
+* verify_signature - verifies a BLS signature of a message
+* change_configuration - changes a configuration variables (frames delay, chunk size, etc...)
+* help - shows available commands
+* show_dkg_pubkey - shows a dkg pub key
+* show_finished_dkg - shows a list of finished dkg rounds
+* replay_operations_log - replays the operation log for a given dkg round
+* drop_operations_log - drops the operation log for a given dkg round
+* exit - stops the machine
+Waiting for command...
+>>>
+```
 
 #### DKG
 
-Generate keys for your node:
-```
-$ ./dc4bc_d gen_keys --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store
-```
-Start the node (note the `--storage_topic` flag — use a fresh topic for cleaner test runs):
-```
-$ ./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn 94.130.57.249:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic test_topic
-```
-Start the airgapped machine:
-```
-$ ./dc4bc_airgapped --db_path /tmp/dc4bc_john_doe_airgapped_state --password_expiration 10m
-```
 Print your communication public key and encryption public key and save it somewhere for later use:
 ``` 
+# Inside the Client node shell:
 $ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
 EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
-# Inside the airgapped shell:
+
+# Inside the Airgapped Machine shell:
 >>> show_dkg_pubkey
-sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq
+tJVJWLQlHY2Jpo1CCgRTzq3LHU/rmPuobGGwxe6gCHgUrFKCOxgzfSYNRl3HsnFp
 ```
 
 Now you want to start the DKG procedure. This tells the node to send an InitDKG message that proposes to run DKG with parameters which locate in a start_dkg_propose.json file.
 ```
-$ ./dc4bc_cli start_dkg /path/to/start_dkg_propose.json --listen_addr localhost:8080
+$ ./dc4bc_cli start_dkg /path/to/start_dkg_propose.json
 ```
 Example of start_dkg_propose.json file structure:
 ```
@@ -75,7 +97,7 @@ The message will be consumed by your node:
 
 Now you have a pending operation in your operation pool. Get the list of pending operations:
 ```
-$ ./dc4bc_cli get_operations --listen_addr localhost:8080
+$ ./dc4bc_cli get_operations
 DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
 Operation ID: 30fa9c21-b79f-4a53-a84b-e7ad574c1a51
 Description: confirm participation in the new DKG round
@@ -92,7 +114,7 @@ The command returns a hash of the proposing message. If it is not equal to the h
 
 Copy the Operation ID and make the node produce a QR-code for it:
 ```
-$ ./dc4bc_cli get_operation_qr 6d98f39d-1b24-49ce-8473-4f5d934ab2dc --listen_addr localhost:8080
+$ ./dc4bc_cli get_operation_qr 6d98f39d-1b24-49ce-8473-4f5d934ab2dc
 QR code was saved to: /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0.gif
 ```
 
@@ -117,7 +139,7 @@ Open the response QR-gif in any gif viewer and take a video of it. Refresh the `
 
 Then go to the node and run:
 ```
-$ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 ~/Downloads/operation_response.json
+$ ./dc4bc_cli read_operation_result ~/Downloads/operation_response.json
 ```
 
 After reading the response, a message is send to the message board. When all participants perform the necessary operations, the node will proceed to the next step:
@@ -126,7 +148,7 @@ After reading the response, a message is send to the message board. When all par
 ```
 Further actions are repetitive. Check for new pending operations:
 ```
-$ ./dc4bc_cli get_operations --listen_addr localhost:8080
+$ ./dc4bc_cli get_operations
 ```
 
 Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that DKG is finished (`event_dkg_master_key_confirm_received`):
