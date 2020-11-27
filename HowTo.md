@@ -19,6 +19,8 @@ Started QR scanner. Go to http://localhost:9090/qr/index.html
 [john_doe] HTTP server started on address: localhost:8080
 ```
 
+You can go to http://localhost:9090/qr/index.html in your Web browser to open the QR reading page.
+
 Note that the `DATA_DIR` environment variable specifies the directory _on your host machine_ where persistent state will be kept (you can stop and run the container, and the data will be still there).
 
 Open a separate terminal and log into the Client node. All the necessary binaries will be accessible in current working directory:
