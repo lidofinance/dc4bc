@@ -162,7 +162,7 @@ p=0;Ei(69,e|0,28,i|0,r|0);Be=p;p=0;if(Be&1)break;p=0;Ge(45,u|0,18,f|0,a|0,t|0,n|
             <li class="empty">No scans yet</li>
           </ul>
           <transition-group name="scans" tag="ul">
-            <li @click.stop="download(scan.content)" v-for="scan in scans" :key="scan.date" :title="scan.content">{{ scan.content }}</li>
+            <li @click.stop="download(scan.content) " v-for="scan in scans" :key="scan.date" :title="scan.content">{{ scan.content }}</li>
           </transition-group>
         </section>
       </div>
@@ -250,7 +250,7 @@ type chunk struct {
         }
         b64Data = window.btoa(data);
         self.scans.unshift({ date: +(Date.now()), content: data });  
-        self.scans.unshift({ date: +(Date.now()), content: b64Data });  
+        //self.scans.unshift({ date: +(Date.now()), content: b64Data });  
       }
     });
     Instascan.Camera.getCameras().then(function (cameras) {
