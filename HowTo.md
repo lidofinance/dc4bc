@@ -197,30 +197,26 @@ A single operation might be split into several QR-codes, which will be located i
 open -a /Applications/Safari.app/ /tmp/dc4bc_qr_c76396a6-fcd8-4dd2-a85c-085b8dc91494-response.gif
 ```
 
-Now go to `dc4bc_airgapped` prompt and enter:
+After that, you need to scan the GIF. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser, allow the page to use your camera and demonstrate the recorded video to the camera. After the GIF is scanned, you'll see the operation JSON. Click on that JSON, and it will be saved to your Downloads folder.
+
+Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains the Operation JSON:
 
 ```
->>> read_qr
+>>> read_operation
+> Enter the path to Operation JSON file: ~/Downloads/operation.json
+2020/11/27 16:47:22 QR code was saved to: /tmp/dc4bc_qr_ce30c6a2-f5d6-43a1-ac7f-0a63b01ca6f8-response.gif
+An operation in the read QR code handled successfully, a result operation saved by chunks in following qr codes:
+Operation's chunk: /tmp/dc4bc_qr_ce30c6a2-f5d6-43a1-ac7f-0a63b01ca6f8-response.gif
 ```
 
-A new window will be opened showing what your laptop's camera sees. Place the animation of the QR-gif from the previous step in front of the camera and wait for the airgapped machine to scan it (progress can be seen in window's title).
+Open the response QR-gif in any gif viewer and take a video of it. Then go to `./qr_reader_bundle.html` in your web browser and scan the GIF. You may want to give the downloaded file a new name, e.g., `operation_response.json`.
 
-After you've scanned all QR codes, you will be shown the path to the QR code that contains the response of `dc4bc_airgapped`. Note that it may be split into several chunks like on the client:
+Then go to the node and run:
 ```
-An operation in the readed QR code handled successfully, a result operation saved by chunks in following qr codes:
-Operation's chunk: result_qr_codes/state_sig_proposal_await_participants_confirmations_de09e754-3bc8-4e67-9651-dcdba3316dba_-0.gif
-```
-Open the response QR-gif in any gif viewer and take a video of it. Then go to the node and run:
-```
-$ ./dc4bc_cli read_qr  --listen_addr localhost:8080
+$ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 ~/Downloads/operation_response.json
 ```
 
-The procedure is the same as with `dc4bc_airgapped`: scan QR-gif until you see a success message:
-```
-Operation successfully scanned
-```
-
-After scanning the response, a message is send to the message board. When all participants perform the necessary operations, the node will proceed to the next step:
+After reading the response, a message is send to the message board. When all participants perform the necessary operations, the node will proceed to the next step:
 ```
 [john_doe] message event_sig_proposal_confirm_by_participant done successfully from john_doe
 ```
