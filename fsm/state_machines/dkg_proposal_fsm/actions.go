@@ -458,7 +458,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitMasterKey(inEvent fsm.Eve
 			if !reflect.DeepEqual(masterKey, masterKeys[0]) {
 				for _, participant := range m.payload.DKGProposalPayload.Quorum {
 					participant.Status = internal.MasterKeyConfirmationError
-					participant.Error = errors.New("master key is mismatched")
+					participant.Error = requests.NewFSMError(errors.New("master key is mismatched"))
 				}
 
 				outEvent = eventDKGMasterKeyConfirmationCancelByErrorInternal

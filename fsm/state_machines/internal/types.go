@@ -2,6 +2,7 @@ package internal
 
 import (
 	"crypto/ed25519"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"time"
 )
 
@@ -94,7 +95,7 @@ type DKGProposalParticipant struct {
 	DkgResponse  []byte
 	DkgMasterKey []byte
 	Status       DKGParticipantStatus
-	Error        error
+	Error        *requests.FSMError
 	UpdatedAt    time.Time
 }
 
@@ -207,7 +208,7 @@ type SigningProposalParticipant struct {
 	Username    string
 	Status      SigningParticipantStatus
 	PartialSign []byte
-	Error       error
+	Error       *requests.FSMError
 	UpdatedAt   time.Time
 }
 

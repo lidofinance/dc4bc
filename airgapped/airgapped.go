@@ -263,13 +263,14 @@ func (am *Machine) writeErrorRequestToOperation(o *client.Operation, handlerErro
 		dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:     dkg_proposal_fsm.EventDKGDealConfirmationError,
 		dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations: dkg_proposal_fsm.EventDKGResponseConfirmationError,
 		dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations: dkg_proposal_fsm.EventDKGMasterKeyConfirmationError,
+		signing_proposal_fsm.StateSigningAwaitPartialSigns:   signing_proposal_fsm.EventSigningPartialSignError,
 	}
 	pid, err := am.getParticipantID(o.DKGIdentifier)
 	if err != nil {
 		return fmt.Errorf("failed to get participant id: %w", err)
 	}
 	req := requests.DKGProposalConfirmationErrorRequest{
-		Error:         handlerError,
+		Error:         requests.NewFSMError(handlerError),
 		ParticipantId: pid,
 		CreatedAt:     o.CreatedAt,
 	}

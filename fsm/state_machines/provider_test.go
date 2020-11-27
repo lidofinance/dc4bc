@@ -439,7 +439,7 @@ func Test_DkgProposal_EventDKGCommitConfirmationReceived_Canceled_Error(t *testi
 
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGCommitConfirmationError, requests.DKGProposalConfirmationErrorRequest{
 		ParticipantId: 0,
-		Error:         errors.New("test error"),
+		Error:         requests.NewFSMError(errors.New("test error")),
 		CreatedAt:     time.Now(),
 	})
 
@@ -564,7 +564,7 @@ func Test_DkgProposal_EventDKGDealConfirmationReceived_Canceled_Error(t *testing
 
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGDealConfirmationError, requests.DKGProposalConfirmationErrorRequest{
 		ParticipantId: 0,
-		Error:         errors.New("test error"),
+		Error:         requests.NewFSMError(errors.New("test error")),
 		CreatedAt:     time.Now(),
 	})
 
@@ -683,7 +683,7 @@ func Test_DkgProposal_EventDKGResponseConfirmationError_Canceled_Error(t *testin
 
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGResponseConfirmationError, requests.DKGProposalConfirmationErrorRequest{
 		ParticipantId: 0,
-		Error:         errors.New("test error"),
+		Error:         requests.NewFSMError(errors.New("test error")),
 		CreatedAt:     time.Now(),
 	})
 
@@ -776,7 +776,7 @@ func Test_DkgProposal_EventDKGMasterKeyConfirmationError_Canceled_Error(t *testi
 
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(dpf.EventDKGMasterKeyConfirmationError, requests.DKGProposalConfirmationErrorRequest{
 		ParticipantId: 0,
-		Error:         errors.New("test error"),
+		Error:         requests.NewFSMError(errors.New("test error")),
 		CreatedAt:     time.Now(),
 	})
 

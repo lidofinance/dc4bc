@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/corestario/kyber/pairing"
-
 	"github.com/corestario/kyber/sign/bls"
 	"github.com/corestario/kyber/sign/tbls"
 	client "github.com/lidofinance/dc4bc/client/types"

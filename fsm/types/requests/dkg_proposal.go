@@ -1,6 +1,9 @@
 package requests
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // States: "state_dkg_commits_sending_await_confirmations"
 // Events: "event_dkg_commit_confirm_received"
@@ -47,6 +50,28 @@ type DKGProposalMasterKeyConfirmationRequest struct {
 //			"event_dkg_master_key_confirm_canceled_by_error"
 type DKGProposalConfirmationErrorRequest struct {
 	ParticipantId int
-	Error         error
+	Error         *FSMError
 	CreatedAt     time.Time
+}
+
+type FSMError struct {
+	ErrorMsg string
+}
+
+func NewFSMError(err error) *FSMError {
+	return &FSMError{
+		ErrorMsg: err.Error(),
+	}
+}
+
+func (re FSMError) Error() string {
+	return re.ErrorMsg
+}
+
+func (re FSMError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(re.ErrorMsg)
+}
+
+func (re *FSMError) UnmarshalJSON(data []byte) error {
+	return json.Unmarshal(data, &re.ErrorMsg)
 }

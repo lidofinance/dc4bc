@@ -99,7 +99,6 @@ func TestClient_ProcessMessage(t *testing.T) {
 		}
 		message.Signature = ed25519.Sign(senderKeyPair.Priv, message.Bytes())
 
-		state.EXPECT().SaveOffset(gomock.Any()).Times(1).Return(nil)
 		state.EXPECT().SaveFSM(gomock.Any(), gomock.Any()).Times(1).Return(nil)
 		state.EXPECT().PutOperation(gomock.Any()).Times(1).Return(nil)
 
