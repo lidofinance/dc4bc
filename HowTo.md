@@ -19,13 +19,13 @@ Started QR scanner. Go to http://localhost:9090/qr/index.html
 [john_doe] HTTP server started on address: localhost:8080
 ```
 
-Open a separate terminal and log into the Client node. All the necessary binaries will be accessible in current working directory.:
+Open a separate terminal and log into the Client node. All the necessary binaries will be accessible in current working directory:
 ```
 $ make run-client-node-bash
 root@df8a53006ea0:/go/src#
 ```
 
-Next run the Airgapped Machine inside a Docker container:
+Next run the Airgapped Machine inside a Docker container. You will be logged right into the Airgapped Machine prompt:
 ```
 $ DATA_DIR=/tmp/shared PASSWORD_EXPIRATION=1000m USERNAME=john_doe make run-airgapped-machine
 <...>
@@ -65,6 +65,7 @@ tJVJWLQlHY2Jpo1CCgRTzq3LHU/rmPuobGGwxe6gCHgUrFKCOxgzfSYNRl3HsnFp
 
 Now you want to start the DKG procedure. This tells the node to send an InitDKG message that proposes to run DKG with parameters which locate in a start_dkg_propose.json file.
 ```
+# Inside the Client node shell:
 $ ./dc4bc_cli start_dkg /path/to/start_dkg_propose.json
 ```
 Example of start_dkg_propose.json file structure:
@@ -97,6 +98,7 @@ The message will be consumed by your node:
 
 Now you have a pending operation in your operation pool. Get the list of pending operations:
 ```
+# Inside the Client node shell:
 $ ./dc4bc_cli get_operations
 DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
 Operation ID: 30fa9c21-b79f-4a53-a84b-e7ad574c1a51
@@ -107,6 +109,7 @@ Hash of the proposing DKG message - a60bd47a831cd58a96bdd4381ee15afc
 
 You can check the hash of the proposing DKG message:
 ```
+# Inside the Client node shell:
 ./dc4bc_cli get_start_dkg_file_hash start_dkg_propose.json
 a60bd47a831cd58a96bdd4381ee15afc
 ```
@@ -114,6 +117,7 @@ The command returns a hash of the proposing message. If it is not equal to the h
 
 Copy the Operation ID and make the node produce a QR-code for it:
 ```
+# Inside the Client node shell:
 $ ./dc4bc_cli get_operation_qr 6d98f39d-1b24-49ce-8473-4f5d934ab2dc
 QR code was saved to: /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0.gif
 ```
