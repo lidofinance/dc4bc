@@ -18,6 +18,8 @@ Clone the git repo https://github.com/lidofinance/dc4bc and build the app for yo
 
 You'll need to use apps to generate keypairs. Public keys from those keypair should be submitted to Lido's repo on the next step.
 
+**NOTE:** if you've used the app versions with opencv, please, make sure to use fresh forlders for the `--key_store_dbdsn`, `--state_dbdsn`, `--db_path` parameters.
+
 Run the command `gen_keys` on the client machine:
 ```
 ./dc4bc_d gen_keys --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store
