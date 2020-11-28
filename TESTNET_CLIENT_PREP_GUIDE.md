@@ -6,7 +6,7 @@ To do things properly, you'll need two machines (either Linux or OS X ones). One
 
 ## Install the dependencies
 
-You'll need to prepare `go` and `opencv`. To get them ready, check out the `installation` guide here: https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#step-by-step-guide
+You'll need to prepare `go` to build and use dkg apps. To get it ready, check out the `installation` guide here: https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#step-by-step-guide
 
 ## Build the cli apps
 
@@ -23,7 +23,7 @@ Run the command `gen_keys` on the client machine:
 ./dc4bc_d gen_keys --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store
 ```
 Here:
-1) Username is your desired username (one you've submitted to doc https://docs.google.com/spreadsheets/d/1h3cWJUm3ZfaX7a2GWbKitzqLEEtg5KGrr-4E4eFQkbY/edit#gid=0)
+1) Username is your desired username (one you'll be submitting to the list [here](https://github.com/lidofinance/dc4bc-conference-call/blob/master/dc4bc-conference-call/dc4bc-async-ceremony-27-11-2020.json))
 
 Keypair for the airgapped machine is generated upon the first launch
 
@@ -31,12 +31,12 @@ Keypair for the airgapped machine is generated upon the first launch
 
 On the client machine, run the command `start`:
 ```
-./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn 94.130.57.249:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic test_topic
+./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic test-async-dkg-1
 ```
 
 Here:
 1) `--username john_doe` — pass your username there
-2) `--storage_dbdsn 94.130.57.249:9093` — it's the address of Kafka node we're be using for testnet launch
+2) `--storage_dbdsn 51.158.98.208:9093` — it's the address of Kafka node we're be using for testnet launch
 3) `--kafka_truststore_path ./ca.crt` specifies self-signed certificate we're be using for testnet launch
 
 Let this process run.
@@ -57,13 +57,4 @@ And run the command `show_dkg_pubkey`:
 >>>> show_dkg_pubkey
 ```
 
-Grab the output of both commands and submit it as a pull request to the file [dc4bc-conference-call-25-11-2020.json](https://github.com/lidofinance/dc4bc-conference-call/blob/master/dc4bc-conference-call/dc4bc-conference-call-25-11-2020.json) in the ceremony repo https://github.com/lidofinance/dc4bc-conference-call. Check the format in the repo's `README.md`
-
-## Check airgapped machine communication capabilities
-
-The client and the airgapped machines communicate with the qr-codes. To check airgapped machine is ready, run the command `read_qr` in the airgapped console:
-```
->>>> read_qr
-```
-
-If you're seeing window with videostream from the airgapped machine's webcam — you're all set
+Grab the output of both commands and submit it along with the username as a pull request to the file [dc4bc-conference-call-25-11-2020.json](https://github.com/lidofinance/dc4bc-conference-call/blob/master/dc4bc-conference-call/dc4bc-conference-call-25-11-2020.json) in the ceremony repo https://github.com/lidofinance/dc4bc-conference-call. Check the format in the repo's `README.md`
