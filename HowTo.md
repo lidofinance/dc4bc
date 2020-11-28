@@ -89,14 +89,14 @@ $ ./dc4bc_d gen_keys --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_k
 ```
 Start the node (note the `--storage_topic` flag — use a fresh topic for cleaner test runs):
 ```
-$ ./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn 94.130.57.249:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic test_topic
+$ ./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic test_topic
 ```
 Start the airgapped machine:
 ```
 $ ./dc4bc_airgapped --db_path /tmp/dc4bc_john_doe_airgapped_state --password_expiration 10m
 ```
 Print your communication public key and encryption public key and save it somewhere for later use:
-``` 
+```
 $ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
 EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 # Inside the airgapped shell:
@@ -196,7 +196,7 @@ Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then
 ```
 [john_doe] State stage_signing_idle does not require an operation
 [john_doe] Successfully processed message with offset 10, type event_dkg_master_key_confirm_received
-``` 
+```
 
 #### Signature
 
@@ -208,14 +208,14 @@ $ >>> show_finished_dkg
 AABB10CABB10
 $ echo "the message to sign" > data.txt
 $ ./dc4bc_cli sign_data AABB10CABB10 data.txt --listen_addr localhost:8080
-```  
+```
 Further actions are repetitive and are similar to the DKG procedure. Check for new pending operations, feed them to `dc4bc_airgapped`, pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that the signature is ready:
 ```
 [john_doe] Handling message with offset 40, type signature_reconstructed
 Successfully processed message with offset 40, type signature_reconstructed
 ```
 
-Now you have the full reconstructed signature. 
+Now you have the full reconstructed signature.
 ```
 ./dc4bc_cli get_signatures AABB10CABB10
 Signing ID: 909b7660-ccc4-45c4-9201-e30015a69425
