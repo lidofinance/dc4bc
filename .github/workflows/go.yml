@@ -22,14 +22,6 @@ jobs:
     - name: Check out code into the Go module directory
       uses: actions/checkout@v2
 
-    - name: Install gocv
-      run: |
-        git clone https://github.com/hybridgroup/gocv.git
-        cd gocv
-        make install
-        cd ..
-        echo "Successfully installed gocv!"
-
     - name: Build
       run: make build
 
