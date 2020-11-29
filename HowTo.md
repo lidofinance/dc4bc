@@ -1,5 +1,5 @@
 # Step-by-step guide
-
+0. Install Docker: https://docs.docker.com/get-docker/
 1. Clone the project repository:  
     ```
     git clone git@github.com:lidofinance/dc4bc.git
