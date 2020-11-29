@@ -1,60 +1,53 @@
 # Step-by-step guide
 
-Clone the project repository:
-```
-git clone git@github.com:lidofinance/dc4bc.git
-```
-
-Run the Client node inside a Docker container:
-```
-$ DATA_DIR=/tmp/shared USERNAME=john_doe STORAGE_DBDSN=51.158.98.208:9093 STORAGE_TOPIC=test_topic QR_READER_PORT=9090 make run-client-node
-<...>
-Successfully built 9fe3bbdf08e6
-Successfully tagged client_node:latest
-Keystore is not found, generating new keys
-keypair generated for user john_doe and saved to /go/src/shared/dc4bc_john_doe_key_store
-Started QR scanner. Go to http://localhost:9090/qr/index.html
-[john_doe] Client started to poll messages from append-only log
-[john_doe] Waiting for messages from append-only log...
-[john_doe] HTTP server started on address: localhost:8080
-```
-
-You can go to http://localhost:9090/qr/index.html in your Web browser to open the QR reading page.
-
-Note that the `DATA_DIR` environment variable specifies the directory _on your host machine_ where persistent state will be kept (you can stop and run the container, and the data will be still there).
-
-Open a separate terminal and log into the Client node. All the necessary binaries will be accessible in current working directory:
-```
-$ make run-client-node-bash
-root@df8a53006ea0:/go/src#
-```
-
-Next run the Airgapped Machine inside a Docker container. You will be logged right into the Airgapped Machine prompt:
-```
-$ DATA_DIR=/tmp/shared PASSWORD_EXPIRATION=1000m USERNAME=john_doe make run-airgapped-machine
-<...>
-Successfully built 041987128b41
-Successfully tagged airgapped_machine:latest
-b4c7ab1eb89a7258d9937751052f2f813832fb9dbbf5c84e4d4b038864568c65
-2020/11/27 21:14:34 Base seed not initialized, generating a new one...
-2020/11/27 21:14:34 Successfully generated a new seed
-Enter encryption password:
-Confirm encryption password:
-Available commands:
-* read_operation - reads base64-encoded Operation, handles a decoded operation and returns the path to the GIF with operation's result
-* verify_signature - verifies a BLS signature of a message
-* change_configuration - changes a configuration variables (frames delay, chunk size, etc...)
-* help - shows available commands
-* show_dkg_pubkey - shows a dkg pub key
-* show_finished_dkg - shows a list of finished dkg rounds
-* replay_operations_log - replays the operation log for a given dkg round
-* drop_operations_log - drops the operation log for a given dkg round
-* exit - stops the machine
-Waiting for command...
->>>
-```
-
-Again, note that the `DATA_DIR` environment variable specifies the directory _on your host machine_ where persistent state will be kept (you can stop and run the container, and the data will be still there).
+1. Clone the project repository:  
+    ```
+    git clone git@github.com:lidofinance/dc4bc.git
+    ```
+2. Run the Client node inside a Docker container. Note that the `DATA_DIR` environment variable specifies the directory _on your host machine_ where persistent state will be kept (you can stop and run the container, and the data will be still there). Your keys will be generated automatically of this is the first run (i.e., if the `DATA_DIR` does not contain previously generated keys):  
+    ```
+    $ DATA_DIR=/tmp/shared USERNAME=john_doe STORAGE_DBDSN=51.158.98.208:9093 STORAGE_TOPIC=test_topic make run-client-node
+    <...>
+    Successfully built 9fe3bbdf08e6
+    Successfully tagged client_node:latest
+    Keystore is not found, generating new keys
+    keypair generated for user john_doe and saved to /go/src/shared/dc4bc_john_doe_key_store
+    Started QR scanner. Go to http://localhost:9090/qr/index.html
+    [john_doe] Client started to poll messages from append-only log
+    [john_doe] Waiting for messages from append-only log...
+    [john_doe] HTTP server started on address: localhost:8080
+    ```
+3. Open `./qr/index.html` in your Web browser. This will start the QR-scanning application; you may need to give it permissions to use your camera. 
+4. Open a separate terminal and log into the Client node. All the necessary binaries will be accessible in current working directory:
+    ```
+    $ make run-client-node-bash
+    root@df8a53006ea0:/go/src#
+    ```
+5. Next run the Airgapped Machine inside a Docker container. You will be logged right into the Airgapped Machine prompt:
+    ```
+    $ DATA_DIR=/tmp/shared PASSWORD_EXPIRATION=1000m USERNAME=john_doe make run-airgapped-machine
+    <...>
+    Successfully built 041987128b41
+    Successfully tagged airgapped_machine:latest
+    b4c7ab1eb89a7258d9937751052f2f813832fb9dbbf5c84e4d4b038864568c65
+    2020/11/27 21:14:34 Base seed not initialized, generating a new one...
+    2020/11/27 21:14:34 Successfully generated a new seed
+    Enter encryption password:
+    Confirm encryption password:
+    Available commands:
+    * read_operation - reads base64-encoded Operation, handles a decoded operation and returns the path to the GIF with operation's result
+    * verify_signature - verifies a BLS signature of a message
+    * change_configuration - changes a configuration variables (frames delay, chunk size, etc...)
+    * help - shows available commands
+    * show_dkg_pubkey - shows a dkg pub key
+    * show_finished_dkg - shows a list of finished dkg rounds
+    * replay_operations_log - replays the operation log for a given dkg round
+    * drop_operations_log - drops the operation log for a given dkg round
+    * exit - stops the machine
+    Waiting for command...
+    >>>
+    ```
+   Again, note that the `DATA_DIR` environment variable specifies the directory _on your host machine_ where persistent state will be kept (you can stop and run the container, and the data will be still there).
 
 #### DKG
 
