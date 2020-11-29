@@ -49,12 +49,20 @@
     ```
    Again, note that the `DATA_DIR` environment variable specifies the directory _on your host machine_ where persistent state will be kept (you can stop and run the container, and the data will be still there).
 
+N.B.: that if you want to generate new keys or to manually start/stop the client node, you can use these commands inside the node container (although the preferred way is to clear the `DATA_DIR` and to start/stop the container respectively):
+```
+$ ./dc4bc_d gen_keys --username $USERNAME --key_store_dbdsn /tmp/dc4bc_$USERNAME_key_store
+$ ./dc4bc_d start --username $USERNAME --key_store_dbdsn /tmp/dc4bc_$USERNAME_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic test_topic
+```
+$ 
+
+
 #### DKG
 
 Print your communication public key and encryption public key and save it somewhere for later use:
 ``` 
 # Inside the Client node shell:
-$ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
+$ ./dc4bc_cli get_pubkey
 EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 
 # Inside the Airgapped Machine shell:
