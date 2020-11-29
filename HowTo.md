@@ -4,7 +4,7 @@
     ```
     git clone git@github.com:lidofinance/dc4bc.git
     ```
-2. Run the Client node inside a Docker container. Note that the `DATA_DIR` environment variable specifies the directory _on your host machine_ where persistent state will be kept (you can stop and run the container, and the data will be still there). Your keys will be generated automatically of this is the first run (i.e., if the `DATA_DIR` does not contain previously generated keys):  
+2. Run the Client node inside a Docker container. Note that the `DATA_DIR` environment variable specifies the directory _on your host machine_ where persistent state will be kept (you can stop and run the container, and the data will be still there). Your keys will be generated automatically if this is the first run (i.e., if the `DATA_DIR` does not contain previously generated keys):  
     ```
     $ DATA_DIR=/tmp/shared USERNAME=john_doe STORAGE_DBDSN=51.158.98.208:9093 STORAGE_TOPIC=test_topic make run-client-node
     <...>
