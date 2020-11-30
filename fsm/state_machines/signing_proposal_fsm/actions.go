@@ -171,13 +171,14 @@ func (m *SigningProposalFSM) actionValidateSigningProposalConfirmations(inEvent 
 		}
 	}
 
+	//TODO: calculate with threshold
 	if isContainsDecline {
 		outEvent = eventSetSigningConfirmCanceledByParticipantInternal
 		return
 	}
 
 	// The are no declined and timed out participants, check for all confirmations
-	if unconfirmedParticipants > 0 {
+	if unconfirmedParticipants > m.payload.SigningQuorumCount()-m.payload.GetThreshold() {
 		return
 	}
 
@@ -265,13 +266,14 @@ func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations
 		}
 	}
 
+	//TODO: calculate with threshold
 	if isContainsError {
 		outEvent = eventSigningPartialSignsAwaitCancelByErrorInternal
 		return
 	}
 
 	// The are no declined and timed out participants, check for all confirmations
-	if unconfirmedParticipants > 0 {
+	if unconfirmedParticipants > m.payload.SigningQuorumCount()-m.payload.GetThreshold() {
 		return
 	}
 
@@ -289,6 +291,10 @@ func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations
 	}
 
 	for participantId, participant := range m.payload.SigningProposalPayload.Quorum {
+		// don't return participants who didn't broadcast partial signature
+		if len(participant.PartialSign) == 0 {
+			continue
+		}
 		responseEntry := &responses.SigningProcessParticipantEntry{
 			ParticipantId: participantId,
 			Username:      participant.Username,
