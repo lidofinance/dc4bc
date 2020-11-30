@@ -58,6 +58,7 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 		err = errors.New("error with creating {SignatureProposalQuorum}")
 		return
 	}
+	m.payload.Threshold = request.SigningThreshold
 
 	// Make response
 

@@ -36,6 +36,11 @@ type testParticipantsPayload struct {
 	DkgPartialKey []byte
 }
 
+const (
+	participantsNumber = 10
+	threshold          = 3
+)
+
 var (
 	tm = time.Now()
 
@@ -59,7 +64,7 @@ var (
 )
 
 func init() {
-	for i := 0; i < 3; i++ {
+	for i := 0; i < participantsNumber; i++ {
 
 		participant := &testParticipantsPayload{
 			Username:      base64.StdEncoding.EncodeToString(genDataMock(usernameMockLen)),
@@ -171,7 +176,7 @@ func Test_SignatureProposal_EventInitProposal_Positive(t *testing.T) {
 		})
 	}
 	testParticipantsListRequest.Participants = request
-	testParticipantsListRequest.SigningThreshold = len(request)
+	testParticipantsListRequest.SigningThreshold = threshold
 
 	fsmResponse, testFSMDump[spf.StateAwaitParticipantsConfirmations], err = testFSMInstance.Do(spf.EventInitProposal, testParticipantsListRequest)
 
@@ -945,7 +950,11 @@ func Test_SigningProposal_EventConfirmSigningConfirmation_Positive(t *testing.T)
 
 	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitConfirmations]
 
+	confirmedParticipantsCount := 1
 	for participantId := range testIdMapParticipants {
+		if confirmedParticipantsCount >= threshold {
+			break
+		}
 		participantCounter--
 
 		if testSigningInitiator == participantId {
@@ -973,10 +982,13 @@ func Test_SigningProposal_EventConfirmSigningConfirmation_Positive(t *testing.T)
 
 		compareFSMResponseNotNil(t, fsmResponse)
 
-		if participantCounter-1 > 0 {
-			compareState(t, sif.StateSigningAwaitConfirmations, fsmResponse.State)
-		}
+		confirmedParticipantsCount++
 
+		if confirmedParticipantsCount < threshold {
+			compareState(t, sif.StateSigningAwaitConfirmations, fsmResponse.State)
+		} else if confirmedParticipantsCount >= threshold {
+			compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
+		}
 	}
 
 	compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
@@ -1062,7 +1074,11 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 
 	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitPartialSigns]
 
+	broadcastParticipantsCount := 0
 	for participantId, participant := range testIdMapParticipants {
+		if broadcastParticipantsCount >= threshold {
+			break
+		}
 		participantCounter--
 
 		testFSMInstance, err := FromDump(testFSMDumpLocal)
@@ -1087,10 +1103,13 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 
 		compareFSMResponseNotNil(t, fsmResponse)
 
-		if participantCounter > 0 {
-			compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
-		}
+		broadcastParticipantsCount++
 
+		if broadcastParticipantsCount < threshold {
+			compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
+		} else if broadcastParticipantsCount >= threshold {
+			compareState(t, sif.StateSigningPartialSignsCollected, fsmResponse.State)
+		}
 	}
 
 	compareState(t, sif.StateSigningPartialSignsCollected, fsmResponse.State)

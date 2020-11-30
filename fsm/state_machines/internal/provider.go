@@ -17,6 +17,7 @@ type DumpedMachineProvider interface {
 // because unnecessary data may be unset
 type DumpedMachineStatePayload struct {
 	DkgId                    string
+	Threshold                int
 	SignatureProposalPayload *SignatureConfirmation
 	DKGProposalPayload       *DKGConfirmation
 	SigningProposalPayload   *SigningConfirmation
@@ -94,6 +95,10 @@ func (p *DumpedMachineStatePayload) SigningQuorumCount() int {
 		count = len(p.SigningProposalPayload.Quorum)
 	}
 	return count
+}
+
+func (p *DumpedMachineStatePayload) GetThreshold() int {
+	return p.Threshold
 }
 
 func (p *DumpedMachineStatePayload) SigningQuorumExists(id int) bool {
