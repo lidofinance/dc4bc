@@ -150,10 +150,6 @@ func (m *SigningProposalFSM) actionProposalResponseByParticipant(inEvent fsm.Eve
 }
 
 func (m *SigningProposalFSM) actionValidateSigningProposalConfirmations(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
-	var (
-		isContainsDecline bool
-	)
-
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
@@ -162,17 +158,17 @@ func (m *SigningProposalFSM) actionValidateSigningProposalConfirmations(inEvent 
 		return
 	}
 
+	declinesCount := 0
 	unconfirmedParticipants := m.payload.SigningQuorumCount()
 	for _, participant := range m.payload.SigningProposalPayload.Quorum {
 		if participant.Status == internal.SigningDeclined {
-			isContainsDecline = true
+			declinesCount++
 		} else if participant.Status == internal.SigningConfirmed {
 			unconfirmedParticipants--
 		}
 	}
 
-	//TODO: calculate with threshold
-	if isContainsDecline {
+	if declinesCount > m.payload.SigningQuorumCount()-m.payload.GetThreshold() {
 		outEvent = eventSetSigningConfirmCanceledByParticipantInternal
 		return
 	}
@@ -245,10 +241,6 @@ func (m *SigningProposalFSM) actionPartialSignConfirmationReceived(inEvent fsm.E
 }
 
 func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
-	var (
-		isContainsError bool
-	)
-
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
 
@@ -257,17 +249,17 @@ func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations
 		return
 	}
 
+	failedParticipantsCount := 0
 	unconfirmedParticipants := m.payload.SigningQuorumCount()
 	for _, participant := range m.payload.SigningProposalPayload.Quorum {
 		if participant.Status == internal.SigningError {
-			isContainsError = true
+			failedParticipantsCount++
 		} else if participant.Status == internal.SigningPartialSignsConfirmed {
 			unconfirmedParticipants--
 		}
 	}
 
-	//TODO: calculate with threshold
-	if isContainsError {
+	if failedParticipantsCount > m.payload.SigningQuorumCount()-m.payload.GetThreshold() {
 		outEvent = eventSigningPartialSignsAwaitCancelByErrorInternal
 		return
 	}
@@ -372,6 +364,5 @@ func (m *SigningProposalFSM) actionConfirmationError(inEvent fsm.Event, args ...
 	m.payload.SignatureProposalPayload.UpdatedAt = request.CreatedAt
 
 	m.payload.SigningQuorumUpdate(request.ParticipantId, signingProposalParticipant)
-
 	return
 }
