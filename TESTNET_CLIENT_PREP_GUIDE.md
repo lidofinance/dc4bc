@@ -50,7 +50,7 @@ On the client machine run the command `get_pubkey`:
 ./dc4bc_cli get_pubkey --listen_addr localhost:8080
 ```
 
-On the airgapped machine start the console wit
+On the airgapped machine start the console with
 ```
 ./dc4bc_airgapped --db_path ./stores/dc4bc_john_doe_airgapped_state --password_expiration 10m
 ```
