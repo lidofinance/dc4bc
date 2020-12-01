@@ -1168,86 +1168,142 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 	compareDumpNotZero(t, testFSMDump[sif.StateSigningPartialSignsCollected])
 }
 
-func Test_DkgProposal_EventSigningRestart_Positive(t *testing.T) {
+func Test_SigningProposal_EventPartialKeysReceived_Failed_Participants(t *testing.T) {
 	var (
 		fsmResponse      *fsm.Response
 		testFSMDumpLocal []byte
+		err              error
 	)
 
-	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningPartialSignsCollected])
+	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitPartialSigns]
+
+	testFSMInstance, err := FromDump(testFSMDumpLocal)
 
 	compareErrNil(t, err)
 
 	compareFSMInstanceNotNil(t, testFSMInstance)
 
 	inState, _ := testFSMInstance.State()
-	compareState(t, sif.StateSigningPartialSignsCollected, inState)
+	compareState(t, sif.StateSigningAwaitPartialSigns, inState)
 
-	fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningRestart, requests.DefaultRequest{
-		CreatedAt: time.Now(),
-	})
+	failedParticipantsCount := 0
+	for participantId, _ := range testIdMapParticipants {
+		if failedParticipantsCount > participantsNumber-threshold {
+			break
+		}
 
-	compareErrNil(t, err)
+		testFSMInstance, err = FromDump(testFSMDumpLocal)
 
-	compareFSMResponseNotNil(t, fsmResponse)
+		compareErrNil(t, err)
 
-	compareState(t, sif.StateSigningIdle, fsmResponse.State)
+		compareFSMInstanceNotNil(t, testFSMInstance)
 
-	compareDumpNotZero(t, testFSMDumpLocal)
-}
+		inState, _ := testFSMInstance.State()
+		compareState(t, sif.StateSigningAwaitPartialSigns, inState)
 
-func Test_Parallel(t *testing.T) {
-	var (
-		id1 = "123"
-		id2 = "456"
-	)
-	testFSMInstance1, err := Create(id1)
-	compareErrNil(t, err)
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningPartialSignError, requests.SignatureProposalConfirmationErrorRequest{
+			Error:         requests.NewFSMError(errors.New("some error")),
+			ParticipantId: participantId,
+			CreatedAt:     time.Now(),
+		})
 
-	compareFSMInstanceNotNil(t, testFSMInstance1)
+		compareErrNil(t, err)
 
-	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance1.machine.State())
+		compareDumpNotZero(t, testFSMDumpLocal)
 
-	testFSMDump1, err := testFSMInstance1.Dump()
+		compareFSMResponseNotNil(t, fsmResponse)
+		failedParticipantsCount++
 
-	compareErrNil(t, err)
-
-	compareDumpNotZero(t, testFSMDump1)
-
-	/// fsm2
-	testFSMInstance2, err := Create(id2)
-	compareErrNil(t, err)
-
-	compareFSMInstanceNotNil(t, testFSMInstance2)
-
-	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance2.machine.State())
-
-	testFSMDump2, err := testFSMInstance2.Dump()
-
-	compareErrNil(t, err)
-
-	compareDumpNotZero(t, testFSMDump2)
-
-	testFSMInstance1, err = FromDump(testFSMDump1)
-
-	compareErrNil(t, err)
-
-	testFSMInstance2, err = FromDump(testFSMDump2)
-
-	compareErrNil(t, err)
-
-	_, _, err = testFSMInstance1.Do(spf.EventInitProposal, testParticipantsListRequest)
-	require.NoError(t, err)
-
-	s1, err := testFSMInstance1.State()
-
-	compareErrNil(t, err)
-
-	s2, err := testFSMInstance2.State()
-	require.NoError(t, err)
-
-	if s1 == s2 {
-		t.Fatalf("MATCH STATES {%s}", s1)
+		if failedParticipantsCount > participantsNumber-threshold {
+			compareState(t, sif.StateSigningPartialSignsAwaitCancelledByError, fsmResponse.State)
+		} else if failedParticipantsCount <= participantsNumber-threshold {
+			compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
+		}
 	}
 
+	compareState(t, sif.StateSigningPartialSignsAwaitCancelledByError, fsmResponse.State)
 }
+
+//func Test_DkgProposal_EventSigningRestart_Positive(t *testing.T) {
+//	var (
+//		fsmResponse      *fsm.Response
+//		testFSMDumpLocal []byte
+//	)
+//
+//	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningPartialSignsCollected])
+//
+//	compareErrNil(t, err)
+//
+//	compareFSMInstanceNotNil(t, testFSMInstance)
+//
+//	inState, _ := testFSMInstance.State()
+//	compareState(t, sif.StateSigningPartialSignsCollected, inState)
+//
+//	fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningRestart, requests.DefaultRequest{
+//		CreatedAt: time.Now(),
+//	})
+//
+//	compareErrNil(t, err)
+//
+//	compareFSMResponseNotNil(t, fsmResponse)
+//
+//	compareState(t, sif.StateSigningIdle, fsmResponse.State)
+//
+//	compareDumpNotZero(t, testFSMDumpLocal)
+//}
+//
+//func Test_Parallel(t *testing.T) {
+//	var (
+//		id1 = "123"
+//		id2 = "456"
+//	)
+//	testFSMInstance1, err := Create(id1)
+//	compareErrNil(t, err)
+//
+//	compareFSMInstanceNotNil(t, testFSMInstance1)
+//
+//	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance1.machine.State())
+//
+//	testFSMDump1, err := testFSMInstance1.Dump()
+//
+//	compareErrNil(t, err)
+//
+//	compareDumpNotZero(t, testFSMDump1)
+//
+//	/// fsm2
+//	testFSMInstance2, err := Create(id2)
+//	compareErrNil(t, err)
+//
+//	compareFSMInstanceNotNil(t, testFSMInstance2)
+//
+//	compareState(t, spf.StateParticipantsConfirmationsInit, testFSMInstance2.machine.State())
+//
+//	testFSMDump2, err := testFSMInstance2.Dump()
+//
+//	compareErrNil(t, err)
+//
+//	compareDumpNotZero(t, testFSMDump2)
+//
+//	testFSMInstance1, err = FromDump(testFSMDump1)
+//
+//	compareErrNil(t, err)
+//
+//	testFSMInstance2, err = FromDump(testFSMDump2)
+//
+//	compareErrNil(t, err)
+//
+//	_, _, err = testFSMInstance1.Do(spf.EventInitProposal, testParticipantsListRequest)
+//	require.NoError(t, err)
+//
+//	s1, err := testFSMInstance1.State()
+//
+//	compareErrNil(t, err)
+//
+//	s2, err := testFSMInstance2.State()
+//	require.NoError(t, err)
+//
+//	if s1 == s2 {
+//		t.Fatalf("MATCH STATES {%s}", s1)
+//	}
+//
+//}
