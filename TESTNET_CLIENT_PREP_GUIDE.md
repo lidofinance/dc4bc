@@ -22,7 +22,7 @@ You'll need to use apps to generate keypairs. Public keys from those keypair sho
 
 Run the command `gen_keys` on the client machine:
 ```
-./dc4bc_d gen_keys --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store
+./dc4bc_d gen_keys --username john_doe --key_store_dbdsn ./stores/dc4bc_john_doe_key_store
 ```
 Here:
 1) Username is your desired username (one you'll be submitting to the list [here](https://github.com/lidofinance/dc4bc-conference-call/blob/master/dc4bc-conference-call/dc4bc-async-ceremony-27-11-2020.json))
@@ -33,7 +33,7 @@ Keypair for the airgapped machine is generated upon the first launch
 
 On the client machine, run the command `start`:
 ```
-./dc4bc_d start --username john_doe --key_store_dbdsn /tmp/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn /tmp/dc4bc_john_doe_state --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic test-async-dkg-1
+./dc4bc_d start --username john_doe --key_store_dbdsn ./stores/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn ./stores/dc4bc_john_doe_state --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic test-async-dkg-1
 ```
 
 Here:
@@ -50,9 +50,9 @@ On the client machine run the command `get_pubkey`:
 ./dc4bc_cli get_pubkey --listen_addr localhost:8080
 ```
 
-On the airgapped machine start the console with
+On the airgapped machine start the console wit
 ```
-./dc4bc_airgapped --db_path /tmp/dc4bc_john_doe_airgapped_state --password_expiration 10m
+./dc4bc_airgapped --db_path ./stores/dc4bc_john_doe_airgapped_state --password_expiration 10m
 ```
 And run the command `show_dkg_pubkey`:
 ```
