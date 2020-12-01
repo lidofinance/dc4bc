@@ -175,8 +175,8 @@ p=0;Ei(69,e|0,28,i|0,r|0);Be=p;p=0;if(Be&1)break;p=0;Ge(45,u|0,18,f|0,a|0,t|0,n|
   data: {
     scanner: null,
     activeCameraId: null,
+    chunks: {},
     cameras: [],
-    сhunks: {},
     finished: false,
     totalChunks: 0,
     decodedChunks: 0,
@@ -232,9 +232,9 @@ type chunk struct {
 
       if (!(("Index" in chunk) && ("Total" in chunk) && ("Data" in chunk))) {
         return;
-      } 
+      }
 
-      if (!(chunk["Index"] in self.сhunks)) {
+      if (!(chunk["Index"] in self.chunks)) {
         self.chunks[chunk["Index"]] = chunk;
         self.decodedChunks = Object.keys(self.chunks).length;
         self.totalChunks = chunk["Total"];
@@ -249,8 +249,8 @@ type chunk struct {
           data = data + window.atob(self.chunks[i]["Data"])
         }
         b64Data = window.btoa(data);
-        self.scans.unshift({ date: +(Date.now()), content: data });  
-        //self.scans.unshift({ date: +(Date.now()), content: b64Data });  
+        self.scans.unshift({ date: +(Date.now()), content: data });
+        //self.scans.unshift({ date: +(Date.now()), content: b64Data });
       }
     });
     Instascan.Camera.getCameras().then(function (cameras) {
@@ -271,7 +271,7 @@ type chunk struct {
     },
     currentScanStats: function () {
       return "Decoded: " + this.decodedChunks + "/" + this.totalChunks;
-    },    
+    },
     selectCamera: function (camera) {
       this.activeCameraId = camera.id;
       this.scanner.start(camera);
