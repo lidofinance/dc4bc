@@ -207,11 +207,16 @@ func (am *Machine) decryptDataFromParticipant(data []byte) ([]byte, error) {
 
 // HandleOperation handles and processes an operation
 func (am *Machine) HandleOperation(operation client.Operation) (client.Operation, error) {
+	resultOperation, err := am.handleOperation(operation)
+	if err != nil {
+		return client.Operation{}, fmt.Errorf("failed to handleOperation: %w", err)
+	}
+
 	if err := am.storeOperation(operation); err != nil {
 		return client.Operation{}, fmt.Errorf("failed to storeOperation: %w", err)
 	}
 
-	return am.handleOperation(operation)
+	return resultOperation, nil
 }
 
 func (am *Machine) handleOperation(operation client.Operation) (client.Operation, error) {
