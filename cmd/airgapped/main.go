@@ -165,9 +165,7 @@ func (p *prompt) readOperationCommand() error {
 		return fmt.Errorf("failed to ProcessOperation: %w", err)
 	}
 
-	log.Printf("QR code was saved to: %s\n", qrPath)
-
-	p.printf("Operation GIF was handled successfully, the result Operation GIF was saved at: %s\n", qrPath)
+	p.printf("Operation GIF was handled successfully, the result Operation GIF was saved to: %s\n", qrPath)
 	return nil
 }
 
@@ -284,7 +282,7 @@ func (p *prompt) dropOperationLogCommand() error {
 		return fmt.Errorf("failed to read dkgRoundIdentifier: %w", err)
 	}
 
-	if err := p.airgapped.DropOperationsLog(dkgRoundIdentifier); err != nil {
+	if err := p.airgapped.DropOperationsLog(strings.Trim(dkgRoundIdentifier, " \n")); err != nil {
 		return fmt.Errorf("failed to DropOperationsLog: %w", err)
 	}
 	return nil

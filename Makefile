@@ -113,4 +113,15 @@ build-linux-static: deps sudo_pre_install_clean download
 	go build -ldflags "-linkmode 'external' -extldflags '-static'" -o dc4bc_airgapped_linux ./cmd/airgapped/*.go
 
 
+build:
+	@echo "Building dc4bc_d..."
+	go build -o dc4bc_d ./cmd/dc4bc_d/
+	@echo "Building dc4bc_cli..."
+	go build -o dc4bc_cli ./cmd/dc4bc_cli/
+	@echo "Building dc4bc_airgapped..."
+	go build -o dc4bc_airgapped ./cmd/airgapped/
+	@echo "Building dc4bc_prysm_compatibility_checker..."
+	go build -o dc4bc_prysm_compatibility_checker_linux ./cmd/prysm_compatibility_checker/
+
+
 .PHONY: mocks
