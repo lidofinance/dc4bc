@@ -130,7 +130,7 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	}
 
 	for idx, operation := range operationsLog {
-		qrPath, err := am.ProcessOperation(operation)
+		qrPath, err := am.ProcessOperation(operation, false)
 		if err != nil {
 			return fmt.Errorf("failed to ProcessOperation: %w", err)
 		}
@@ -143,12 +143,18 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	return nil
 }
 
-func (am *Machine) ProcessOperation(operation client.Operation) (string, error) {
-	resultOperation, err := am.HandleOperation(operation)
+func (am *Machine) ProcessOperation(operation client.Operation, storeOperation bool) (string, error) {
+	resultOperation, err := am.getOperationResult(operation)
 	if err != nil {
 		return "", fmt.Errorf(
 			"failed to HandleOperation %s (this error is fatal): %w",
 			operation.ID, err)
+	}
+
+	if storeOperation {
+		if err := am.storeOperation(operation); err != nil {
+			return "", fmt.Errorf("failed to storeOperation: %w", err)
+		}
 	}
 
 	operationBz, err := json.Marshal(resultOperation)
@@ -205,21 +211,7 @@ func (am *Machine) decryptDataFromParticipant(data []byte) ([]byte, error) {
 	return decryptedData, nil
 }
 
-// HandleOperation handles and processes an operation
-func (am *Machine) HandleOperation(operation client.Operation) (client.Operation, error) {
-	resultOperation, err := am.handleOperation(operation)
-	if err != nil {
-		return client.Operation{}, fmt.Errorf("failed to handleOperation: %w", err)
-	}
-
-	if err := am.storeOperation(operation); err != nil {
-		return client.Operation{}, fmt.Errorf("failed to storeOperation: %w", err)
-	}
-
-	return resultOperation, nil
-}
-
-func (am *Machine) handleOperation(operation client.Operation) (client.Operation, error) {
+func (am *Machine) getOperationResult(operation client.Operation) (client.Operation, error) {
 	var (
 		err error
 	)

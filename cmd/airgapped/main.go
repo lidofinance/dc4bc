@@ -160,7 +160,7 @@ func (p *prompt) readOperationCommand() error {
 		return fmt.Errorf("failed to unmarshal Operation: %w", err)
 	}
 
-	qrPath, err := p.airgapped.ProcessOperation(operation)
+	qrPath, err := p.airgapped.ProcessOperation(operation, true)
 	if err != nil {
 		return fmt.Errorf("failed to ProcessOperation: %w", err)
 	}
