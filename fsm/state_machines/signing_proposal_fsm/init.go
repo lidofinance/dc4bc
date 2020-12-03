@@ -85,7 +85,7 @@ func New() internal.DumpedMachineProvider {
 
 			// Canceled
 			{Name: EventSigningPartialSignReceived, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningAwaitPartialSigns},
-			{Name: EventSigningPartialSignError, SrcState: []fsm.State{StateSigningAwaitPartialSigns, StateSigningPartialSignsAwaitCancelledByError}, DstState: StateSigningPartialSignsAwaitCancelledByError},
+			{Name: EventSigningPartialSignError, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningAwaitPartialSigns},
 			{Name: eventSigningPartialSignsAwaitCancelByTimeoutInternal, SrcState: []fsm.State{StateSigningAwaitPartialSigns}, DstState: StateSigningPartialSignsAwaitCancelledByTimeout, IsInternal: true},
 			{Name: eventSigningPartialSignsAwaitCancelByErrorInternal, SrcState: []fsm.State{StateSigningAwaitPartialSigns, StateSigningPartialSignsAwaitCancelledByError}, DstState: StateSigningPartialSignsAwaitCancelledByError, IsInternal: true},
 

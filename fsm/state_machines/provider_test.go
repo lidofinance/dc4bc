@@ -1012,8 +1012,16 @@ func Test_SigningProposal_EventConfirmSigningConfirmation_Positive(t *testing.T)
 	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitPartialSigns])
 }
 
-func Test_SigningProposal_EventDeclineProposal_Canceled_Participant(t *testing.T) {
-	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningAwaitConfirmations])
+func Test_SigningProposal_EventDeclineProposal_Canceled_Participants(t *testing.T) {
+	var (
+		fsmResponse      *fsm.Response
+		testFSMDumpLocal []byte
+		err              error
+	)
+
+	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitConfirmations]
+
+	testFSMInstance, err := FromDump(testFSMDumpLocal)
 
 	compareErrNil(t, err)
 
@@ -1022,17 +1030,44 @@ func Test_SigningProposal_EventDeclineProposal_Canceled_Participant(t *testing.T
 	inState, _ := testFSMInstance.State()
 	compareState(t, sif.StateSigningAwaitConfirmations, inState)
 
-	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(sif.EventDeclineSigningConfirmation, requests.SigningProposalParticipantRequest{
-		SigningId:     testSigningId,
-		ParticipantId: 0,
-		CreatedAt:     time.Now(),
-	})
+	declinedParticipantsCount := 0
+	for participantId, _ := range testIdMapParticipants {
+		if declinedParticipantsCount > participantsNumber-threshold {
+			break
+		}
 
-	compareErrNil(t, err)
+		if testSigningInitiator == participantId {
+			continue
+		}
 
-	compareDumpNotZero(t, testFSMDumpLocal)
+		testFSMInstance, err = FromDump(testFSMDumpLocal)
 
-	compareFSMResponseNotNil(t, fsmResponse)
+		compareErrNil(t, err)
+
+		compareFSMInstanceNotNil(t, testFSMInstance)
+
+		inState, _ := testFSMInstance.State()
+		compareState(t, sif.StateSigningAwaitConfirmations, inState)
+
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventDeclineSigningConfirmation, requests.SigningProposalParticipantRequest{
+			SigningId:     testSigningId,
+			ParticipantId: participantId,
+			CreatedAt:     time.Now(),
+		})
+
+		compareErrNil(t, err)
+
+		compareDumpNotZero(t, testFSMDumpLocal)
+
+		compareFSMResponseNotNil(t, fsmResponse)
+		declinedParticipantsCount++
+
+		if declinedParticipantsCount > participantsNumber-threshold {
+			compareState(t, sif.StateSigningConfirmationsAwaitCancelledByParticipant, fsmResponse.State)
+		} else if declinedParticipantsCount <= participantsNumber-threshold {
+			compareState(t, sif.StateSigningAwaitConfirmations, fsmResponse.State)
+		}
+	}
 
 	compareState(t, sif.StateSigningConfirmationsAwaitCancelledByParticipant, fsmResponse.State)
 }
@@ -1131,6 +1166,62 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 	testFSMDump[sif.StateSigningPartialSignsCollected] = testFSMDumpLocal
 
 	compareDumpNotZero(t, testFSMDump[sif.StateSigningPartialSignsCollected])
+}
+
+func Test_SigningProposal_EventPartialKeysReceived_Failed_Participants(t *testing.T) {
+	var (
+		fsmResponse      *fsm.Response
+		testFSMDumpLocal []byte
+		err              error
+	)
+
+	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitPartialSigns]
+
+	testFSMInstance, err := FromDump(testFSMDumpLocal)
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, sif.StateSigningAwaitPartialSigns, inState)
+
+	failedParticipantsCount := 0
+	for participantId, _ := range testIdMapParticipants {
+		if failedParticipantsCount > participantsNumber-threshold {
+			break
+		}
+
+		testFSMInstance, err = FromDump(testFSMDumpLocal)
+
+		compareErrNil(t, err)
+
+		compareFSMInstanceNotNil(t, testFSMInstance)
+
+		inState, _ := testFSMInstance.State()
+		compareState(t, sif.StateSigningAwaitPartialSigns, inState)
+
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningPartialSignError, requests.SignatureProposalConfirmationErrorRequest{
+			Error:         requests.NewFSMError(errors.New("some error")),
+			ParticipantId: participantId,
+			CreatedAt:     time.Now(),
+		})
+
+		compareErrNil(t, err)
+
+		compareDumpNotZero(t, testFSMDumpLocal)
+
+		compareFSMResponseNotNil(t, fsmResponse)
+		failedParticipantsCount++
+
+		if failedParticipantsCount > participantsNumber-threshold {
+			compareState(t, sif.StateSigningPartialSignsAwaitCancelledByError, fsmResponse.State)
+		} else if failedParticipantsCount <= participantsNumber-threshold {
+			compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
+		}
+	}
+
+	compareState(t, sif.StateSigningPartialSignsAwaitCancelledByError, fsmResponse.State)
 }
 
 func Test_DkgProposal_EventSigningRestart_Positive(t *testing.T) {
