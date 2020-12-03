@@ -34,6 +34,7 @@ func main() {
 	knownOperations := map[string]bool{}
 	for _, operation := range roundOperations {
 		if knownOperations[operation.ID] {
+			fmt.Println("Found a duplicate operation with ID:", operation.ID)
 			continue
 		}
 
