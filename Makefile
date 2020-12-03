@@ -22,7 +22,7 @@ build-darwin:
 	@echo "Building dc4bc_prysm_compatibility_checker..."
 	GOOS=darwin GOARCH=amd64 go build -o dc4bc_prysm_compatibility_checker_darwin ./cmd/prysm_compatibility_checker/
 	@echo "Building Airgapped state cleaner..."
-	GOOS=darwin GOARCH=amd64 go build -o airgapped_state_cleaner ./cmd/airgapped_state_cleaner/
+	GOOS=darwin GOARCH=amd64 go build -o airgapped_state_cleaner_darwin ./cmd/airgapped_state_cleaner/
 
 build-linux:
 	@echo "Building dc4bc_d..."
@@ -34,7 +34,7 @@ build-linux:
 	@echo "Building dc4bc_prysm_compatibility_checker..."
 	GOOS=linux GOARCH=amd64 go build -o dc4bc_prysm_compatibility_checker_linux ./cmd/prysm_compatibility_checker/
 	@echo "Building Airgapped state cleaner..."
-	GOOS=linux GOARCH=amd64 go build -o airgapped_state_cleaner ./cmd/airgapped_state_cleaner/
+	GOOS=linux GOARCH=amd64 go build -o airgapped_state_cleaner_linux ./cmd/airgapped_state_cleaner/
 
 build:
 	@echo "Building dc4bc_d..."
