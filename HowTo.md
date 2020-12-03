@@ -14,16 +14,11 @@ tar -C /usr/local -xzf go1.15.2.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 ```
 
-Install Java to generate certificate's truststore for Kafka:
-```
-sudo apt install default-jre
-```
-
 Then build the project binaries:
 ```
 # Go to the cloned repository.
 cd dc4bc
-make build-linux
+make build
 ```
 
 #### Installation (Darwin)
@@ -42,60 +37,38 @@ Then build the project binaries:
 ```
 # Go to the cloned repository.
 cd dc4bc
-make build-darwin
+make build
 ```
-
-#### Starting Kafka (optional)
-
-##### Requirements
-
-* Docker
-
-At first, you need to change config files for your Kafka node and TLS certificate generation:
-
-* kafka-docker/.env
-* kafka-docker/ca.cnf - important fields here are 'commonName', 'IP.1', 'DNS.1'. IP.1 is your server IP and 'commonName/'DNS.1' is your domain name if you have one.
-
-After that just run in kafka-docker folder:
-```
-$ ./up.sh
-```
-If everything is all right, output will be like:
-```
-Generating a 2048 bit RSA private key
-................................................................................+++
-...............+++
-writing new private key to 'certs/ca.key'
------
-Importing keystore certs/server.p12 to certs/server.keystore.jks...
-Entry for alias 1 successfully imported.
-Import command completed:  1 entries successfully imported, 0 entries failed or cancelled
-Certificate was added to keystore
-Creating network "kafka-docker_default" with the default driver
-Creating zookeeper ... done
-Creating kafka     ... done
-```
-This command will generate a self-signed certificate (and other necessary files) which will be located in kafka-docker/certs folder.
-And the command will up start a docker container with a Kafka inside.
-The most important generate file is ca.crt. It is a self-signed SSL certificate. Every participant must have it
-on the same machine where dc4bc_d is running and must provide path to the file in thee start command of dc4bc_d.
-
 
 #### DKG
 
-Generate keys for your node:
+The goal of DKG is to produce a set of secrets, and those secrets can be potentially used for managing vast amounts of money. Threfore it is obvious that you would like your private key share to be generated and stored as securely as possible. To achieve the desired security level, you should have access to two computers: one for the Client node (with a web camera and with access to the Internet) and one for the Airgapped machine (just with a web camera).
+
+To start a DKG round, you should first generate two pairs of keys: one pair is for signing messages that will go to the Bulletin Board, and the other one will be used by the Airgapped Machine to encrypt private messages (as opposed to the messages that are broadcasted).
+
+First, generate keys for your Client node:
 ```
 $ ./dc4bc_d gen_keys --username john_doe --key_store_dbdsn ./stores/dc4bc_john_doe_key_store
 ```
-Start the node (note the `--storage_topic` flag — use a fresh topic for cleaner test runs):
-```
-$ ./dc4bc_d start --username john_doe --key_store_dbdsn ./stores/dc4bc_john_doe_key_store --listen_addr localhost:8080 --state_dbdsn ./stores/dc4bc_john_doe_state --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic test_topic
-```
-Start the airgapped machine:
+Then start the airgapped machine:
 ```
 $ ./dc4bc_airgapped --db_path ./stores/dc4bc_john_doe_airgapped_state --password_expiration 10m
 ```
-Print your communication public key and encryption public key and save it somewhere for later use:
+* `--db_path` Specifies the directory in which the Aigapped machibne state will be stored. If the directory that you specified does not exist, the Airgapped machine will generate new keys for you on startup. *N.B.: It is very important not to put your Airgapped machine state to `/tmp` or to occasionally lose it. Please make sure that you keep your Airgapped machine state in a safe place and make a backup.*
+* `--password_expiration` Specifies the time in which you'll be able to use the Airgapped machine without re-entering your password. The Airgapped machine will ask you to create a new password during the first run. Make sure that the password is not lost.
+
+After you have the keys, start the node:
+```
+$ ./dc4bc_d start --username john_doe --key_store_dbdsn ./stores/dc4bc_john_doe_key_store --state_dbdsn ./stores/dc4bc_john_doe_state --listen_addr localhost:8080 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_dbdsn 51.158.98.208:9093 --storage_topic test_topic
+```
+* `--username` — This username will be used to identify you during DKG and signing
+* `--key_store_dbdsn` — This is where the keys that are used for signing messages that will go to the Bulletin Board will be stored. Do not store these keys in `/tmp/` for production runs and make sure that you have a backup
+* `--state_dbdsn` This is where your Client node's state (including the FSM state) will be kept. If you delete this directory, you will have to re-read the whole message board topic, which might result in odd states
+* `--storage_dbdsn` This argument specifies the storage endpoint. This storage is going to be used by all participants to exchange messages
+* `--storage_topic` Specifies the topic (a "directory" inside the storage) that you are going to use. Typically participants will agree on a new topic for each new signature or DKG round to avoid confusion
+
+
+Print your communication public key and encryption public key. *You will have to publish them during the [Conference call](https://github.com/lidofinance/dc4bc-conference-call) along with the `--username` that you specified during the Client node setup).*
 ```
 $ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
 EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
@@ -104,7 +77,11 @@ EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq
 ```
 
-Now you want to start the DKG procedure. This tells the node to send an InitDKG message that proposes to run DKG with parameters which locate in a start_dkg_propose.json file.
+**N.B.: You can start and stop both the Client node any time you want given that the states are stored safely on your computer. When you restart the Airgapped machine, make sure that you run the `replay_operations_log` command exactly once before performing any actions — that will make the Airgapped machine replay the state and be ready for new actions.**
+
+Now you want to start the DKG procedure. *This action must be done exactly once by only one of the participants. The participants must decide who will send the initial message collectively.* 
+
+Tell the node to send an InitDKG message that proposes to run DKG with parameters which are located in a `start_dkg_propose.json` file. This file is created collectively during a [Conference call](https://github.com/lidofinance/dc4bc-conference-call) by the participants.
 ```
 $ ./dc4bc_cli start_dkg /path/to/start_dkg_propose.json --listen_addr localhost:8080
 ```
@@ -159,9 +136,9 @@ $ ./dc4bc_cli get_operation_qr 6d98f39d-1b24-49ce-8473-4f5d934ab2dc --listen_add
 QR code was saved to: /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0.gif
 ```
 
-A single operation might be split into several QR-codes, which will be located in a single GIF file. Open the GIF-animation in any gif viewer and take a video of it:
+Open the GIF-animation in any gif viewer and take a video of it:
 ```
-open -a /Applications/Safari.app/ /tmp/dc4bc_qr_c76396a6-fcd8-4dd2-a85c-085b8dc91494-response.gif
+open -a Safari /tmp/dc4bc_qr_c76396a6-fcd8-4dd2-a85c-085b8dc91494-response.gif
 ```
 
 After that, you need to scan the GIF. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser, allow the page to use your camera and demonstrate the recorded video to the camera. After the GIF is scanned, you'll see the operation JSON. Click on that JSON, and it will be saved to your Downloads folder.
@@ -170,10 +147,8 @@ Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains 
 
 ```
 >>> read_operation
-> Enter the path to Operation JSON file: ~/Downloads/operation.json
-2020/11/27 16:47:22 QR code was saved to: /tmp/dc4bc_qr_ce30c6a2-f5d6-43a1-ac7f-0a63b01ca6f8-response.gif
-An operation in the read QR code handled successfully, a result operation saved by chunks in following qr codes:
-Operation's chunk: /tmp/dc4bc_qr_ce30c6a2-f5d6-43a1-ac7f-0a63b01ca6f8-response.gif
+> Enter the path to Operation JSON file: ./operation.json
+Operation GIF was handled successfully, the result Operation GIF was saved to: /tmp/dc4bc_qr_61ae668f-be5f-4173-bb56-c2ba5221ee8c-response.gif
 ```
 
 Open the response QR-gif in any gif viewer and take a video of it. Refresh the `./qr_reader_bundle/index.html` page in your web browser and scan the GIF. You may want to give the downloaded file a new name, e.g., `operation_response.json`.
