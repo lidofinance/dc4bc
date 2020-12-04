@@ -144,7 +144,7 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 }
 
 func (am *Machine) ProcessOperation(operation client.Operation, storeOperation bool) (string, error) {
-	resultOperation, err := am.getOperationResult(operation)
+	resultOperation, err := am.GetOperationResult(operation)
 	if err != nil {
 		return "", fmt.Errorf(
 			"failed to HandleOperation %s (this error is fatal): %w",
@@ -211,7 +211,7 @@ func (am *Machine) decryptDataFromParticipant(data []byte) ([]byte, error) {
 	return decryptedData, nil
 }
 
-func (am *Machine) getOperationResult(operation client.Operation) (client.Operation, error) {
+func (am *Machine) GetOperationResult(operation client.Operation) (client.Operation, error) {
 	var (
 		err error
 	)

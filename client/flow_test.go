@@ -94,7 +94,7 @@ func (n *node) run(t *testing.T) {
 		n.client.GetLogger().Log("Got %d Operations from pool", len(operations))
 		for _, operation := range operations {
 			n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
-			processedOperation, err := n.air.HandleOperation(*operation)
+			processedOperation, err := n.air.GetOperationResult(*operation)
 			if err != nil {
 				n.client.GetLogger().Log("Failed to handle operation: %v", err)
 			}
