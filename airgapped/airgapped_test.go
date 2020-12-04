@@ -157,9 +157,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
 		defer wg.Done()
 
-		_, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 	})
 
@@ -181,9 +184,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
 		defer wg.Done()
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
@@ -205,9 +211,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		op := createOperation(t, string(dkg_proposal_fsm.StateDkgDealsAwaitConfirmations), "", payload)
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
@@ -229,9 +238,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		op := createOperation(t, string(dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations), "", payload)
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
@@ -253,9 +265,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 		}
 		op := createOperation(t, string(dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations), "", payload)
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
@@ -283,9 +298,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 
 		op := createOperation(t, string(signing_proposal_fsm.StateSigningAwaitPartialSigns), "", payload)
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
@@ -308,9 +326,12 @@ func TestAirgappedAllSteps(t *testing.T) {
 		payload.SrcPayload = msgToSign
 		op := createOperation(t, string(signing_proposal_fsm.StateSigningPartialSignsCollected), "", payload)
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
@@ -381,9 +402,12 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
 		defer wg.Done()
 
-		_, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 	})
 
@@ -405,9 +429,12 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 	runStep(tr, func(n *Node, wg *sync.WaitGroup) {
 		defer wg.Done()
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
@@ -429,9 +456,12 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		}
 		op := createOperation(t, string(dkg_proposal_fsm.StateDkgDealsAwaitConfirmations), "", payload)
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
@@ -491,9 +521,12 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		}
 		op := createOperation(t, string(dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations), "", payload)
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
@@ -515,9 +548,12 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		}
 		op := createOperation(t, string(dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations), "", payload)
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
@@ -545,9 +581,12 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 
 		op := createOperation(t, string(signing_proposal_fsm.StateSigningAwaitPartialSigns), "", payload)
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
@@ -570,9 +609,12 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		payload.SrcPayload = msgToSign
 		op := createOperation(t, string(signing_proposal_fsm.StateSigningPartialSignsCollected), "", payload)
 
-		operation, err := n.Machine.HandleOperation(op)
+		operation, err := n.Machine.GetOperationResult(op)
 		if err != nil {
 			t.Fatalf("%s: failed to handle operation %s: %v", n.Participant, op.Type, err)
+		}
+		if err := n.Machine.storeOperation(operation); err != nil {
+			t.Fatalf("failed to storeOperation: %v", err)
 		}
 		for _, msg := range operation.ResultMsgs {
 			tr.BroadcastMessage(t, msg)
