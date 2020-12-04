@@ -169,7 +169,9 @@ The message will be consumed by your node:
 [john_doe] Successfully processed message with offset 0, type event_sig_proposal_init
 ```
 
-Now you have a pending operation in your operation pool. Get the list of pending operations:
+Now you have a pending operation in your operation pool. That is an operation to confirm participation: you'll be bringing dkg setup data to the airgapped machine and submitting the message that you will participate. 
+
+Get the list of pending operations:
 ```
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
 DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
@@ -197,7 +199,7 @@ Open the GIF-animation in any gif viewer and take a video of it:
 open -a Safari /tmp/dc4bc_qr_c76396a6-fcd8-4dd2-a85c-085b8dc91494-response.gif
 ```
 
-After that, you need to scan the GIF. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser, allow the page to use your camera and demonstrate the recorded video to the camera. After the GIF is scanned, you'll see the operation JSON. Click on that JSON, and it will be saved to your Downloads folder.
+After that, you need to scan the GIF. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser on an airgapped machine (firefox from plaintext media in case of Tails airapped machine setup), allow the page to use your camera and demonstrate the recorded video to the camera. After the GIF is scanned, you'll see the operation JSON. Click on that JSON, and it will be saved to your Downloads folder.
 
 Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains the Operation JSON:
 
@@ -207,7 +209,7 @@ Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains 
 Operation GIF was handled successfully, the result Operation GIF was saved to: /tmp/dc4bc_qr_61ae668f-be5f-4173-bb56-c2ba5221ee8c-response.gif
 ```
 
-Open the response QR-gif in any gif viewer and take a video of it. Refresh the `./qr_reader_bundle/index.html` page in your web browser and scan the GIF. You may want to give the downloaded file a new name, e.g., `operation_response.json`.
+Open the response QR-gif in any gif viewer and take a video of it. Open the `./qr_reader_bundle/index.html` page in your web browser on a hot node and scan the GIF. You may want to give the downloaded file a new name, e.g., `operation_response.json`.
 
 Then go to the node and run:
 ```
@@ -218,7 +220,7 @@ After reading the response, a message is send to the message board. When all par
 ```
 [john_doe] message event_sig_proposal_confirm_by_participant done successfully from john_doe
 ```
-Further actions are repetitive. Check for new pending operations:
+Further actions are repetitive. For each step check for new pending operations:
 ```
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
 ```
@@ -228,6 +230,16 @@ Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then
 [john_doe] State stage_signing_idle does not require an operation
 [john_doe] Successfully processed message with offset 10, type event_dkg_master_key_confirm_received
 ```
+
+Next steps are:
+
+- Broadcast commits  - you'll be broadcasting a public derivative of your secret seed for the key shards that will be used to check that you don't try to cheat at DKG
+- Collect commits and broadcast deals - you'll be collecting each other's commits and sending each participant a private message that will be used to construct your key shard
+- Collect deals and broadcast reconstructed public key  - you'll be using private messages from other people to generate your key shard
+
+Key generation ceremony is over.  `exit` airgapped dkg tool prompt and backup your airapped machine db multiple times to different media. 
+
+To check the backup run `dc4bc_airgapped -db_path /path/to/backup` and run `show_dkg_pubkey` command. If it works the backup is correct.
 
 #### Signature
 
@@ -264,3 +276,5 @@ You can verify any signature by executing `verify_signature` command inside the 
 > Enter the message which was signed (base64): dGhlIG1lc3NhZ2UgdG8gc2lnbgo=
 Signature is correct!
 ```
+
+Now the ceremony is  over. 
