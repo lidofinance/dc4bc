@@ -70,10 +70,11 @@ func (am *Machine) SetBaseSeed(mnemonic string) error {
 		return fmt.Errorf("failed to storeBaseSeed: %w", err)
 	}
 
-	log.Println("Successfully set a base seed")
 
 	am.baseSeed = seed
 	am.baseSuite = bls12381.NewBLS12381Suite(am.baseSeed)
+
+	log.Println("Successfully set a base seed")
 
 	return nil
 }
