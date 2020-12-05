@@ -59,6 +59,26 @@ func (am *Machine) loadBaseSeed() error {
 	return nil
 }
 
+func (am *Machine) setBaseSeed(mnemonic string) error {
+	entropy, err :=bip39.EntropyFromMnemonic(mnemonic)
+	if err != nil {
+		return fmt.Errorf("failed to validate mnemonic: %w", err)
+	}
+	seed = pbkdf2.Key([]byte(mnemonic), []byte("mnemonic"), 2048, seedSize, sha512.New)
+
+	if err := am.storeBaseSeed(seed); err != nil {
+		return fmt.Errorf("failed to storeBaseSeed: %w", err)
+	}
+
+	log.Println("Successfully set a base seed")
+
+	am.baseSeed = seed
+	am.baseSuite = bls12381.NewBLS12381Suite(am.baseSeed)
+
+	return nil
+}
+
+
 func (am *Machine) storeBaseSeed(seed []byte) error {
 	if err := am.db.Put([]byte(baseSeedKey), seed, nil); err != nil {
 		return fmt.Errorf("failed to put baseSeed: %w", err)
