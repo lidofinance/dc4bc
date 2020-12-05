@@ -34,7 +34,7 @@ func (am *Machine) loadBaseSeed() error {
 		if err != nil {
 			return fmt.Errorf("failed to generate bip39 entropy: %w", err)
 		}
-		seed = make([]byte, seedSize)
+		
 
 		mnemonic, err := bip39.NewMnemonic(entropy)
 		if err != nil {
@@ -59,12 +59,12 @@ func (am *Machine) loadBaseSeed() error {
 	return nil
 }
 
-func (am *Machine) setBaseSeed(mnemonic string) error {
-	entropy, err :=bip39.EntropyFromMnemonic(mnemonic)
+func (am *Machine) SetBaseSeed(mnemonic string) error {
+	_, err :=bip39.EntropyFromMnemonic(mnemonic)
 	if err != nil {
 		return fmt.Errorf("failed to validate mnemonic: %w", err)
 	}
-	seed = pbkdf2.Key([]byte(mnemonic), []byte("mnemonic"), 2048, seedSize, sha512.New)
+	seed := pbkdf2.Key([]byte(mnemonic), []byte("mnemonic"), 2048, seedSize, sha512.New)
 
 	if err := am.storeBaseSeed(seed); err != nil {
 		return fmt.Errorf("failed to storeBaseSeed: %w", err)
