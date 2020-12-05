@@ -29,17 +29,17 @@ const (
 type Machine struct {
 	sync.Mutex
 
-	dkgInstances map[string]*dkg.DKG
-	qrProcessor  qr.Processor
+	ResultQRFolder string
 
+	dkgInstances  map[string]*dkg.DKG
 	encryptionKey []byte
 	pubKey        kyber.Point
 	secKey        kyber.Scalar
 	baseSuite     vss.Suite
 	baseSeed      []byte
 
-	db             *leveldb.DB
-	resultQRFolder string
+	qrProcessor qr.Processor
+	db          *leveldb.DB
 }
 
 func NewMachine(dbPath string) (*Machine, error) {
@@ -83,7 +83,7 @@ func (am *Machine) SetQRProcessorChunkSize(chunkSize int) {
 }
 
 func (am *Machine) SetResultQRFolder(resultQRFolder string) {
-	am.resultQRFolder = resultQRFolder
+	am.ResultQRFolder = resultQRFolder
 }
 
 // InitKeys load keys public and private keys for DKG from LevelDB. If keys does not exist, creates them.
@@ -162,7 +162,7 @@ func (am *Machine) ProcessOperation(operation client.Operation, storeOperation b
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	qrPath := filepath.Join(am.resultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
+	qrPath := filepath.Join(am.ResultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
 	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
 		return "", fmt.Errorf("failed to write QR: %w", err)
 	}
