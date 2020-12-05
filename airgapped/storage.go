@@ -22,6 +22,7 @@ const (
 	saltDBKey          = "salt_key"
 	baseSeedKey        = "base_seed_key"
 	operationsLogDBKey = "operations_log"
+	mnemonicSalt       = "mnemonic"
 )
 
 type RoundOperationLog map[string][]client.Operation
@@ -34,14 +35,13 @@ func (am *Machine) loadBaseSeed() error {
 		if err != nil {
 			return fmt.Errorf("failed to generate bip39 entropy: %w", err)
 		}
-		
 
 		mnemonic, err := bip39.NewMnemonic(entropy)
 		if err != nil {
 			return fmt.Errorf("failed to generate new mnemonic form entropy: %w", err)
 		}
 
-		seed = pbkdf2.Key([]byte(mnemonic), []byte("mnemonic"), 2048, seedSize, sha512.New)
+		seed = pbkdf2.Key([]byte(mnemonic), []byte(mnemonicSalt), 2048, seedSize, sha512.New)
 
 		if err := am.storeBaseSeed(seed); err != nil {
 			return fmt.Errorf("failed to storeBaseSeed: %w", err)
@@ -60,16 +60,15 @@ func (am *Machine) loadBaseSeed() error {
 }
 
 func (am *Machine) SetBaseSeed(mnemonic string) error {
-	_, err :=bip39.EntropyFromMnemonic(mnemonic)
+	_, err := bip39.EntropyFromMnemonic(mnemonic)
 	if err != nil {
 		return fmt.Errorf("failed to validate mnemonic: %w", err)
 	}
-	seed := pbkdf2.Key([]byte(mnemonic), []byte("mnemonic"), 2048, seedSize, sha512.New)
+	seed := pbkdf2.Key([]byte(mnemonic), []byte(mnemonicSalt), 2048, seedSize, sha512.New)
 
 	if err := am.storeBaseSeed(seed); err != nil {
 		return fmt.Errorf("failed to storeBaseSeed: %w", err)
 	}
-
 
 	am.baseSeed = seed
 	am.baseSuite = bls12381.NewBLS12381Suite(am.baseSeed)
@@ -78,7 +77,6 @@ func (am *Machine) SetBaseSeed(mnemonic string) error {
 
 	return nil
 }
-
 
 func (am *Machine) storeBaseSeed(seed []byte) error {
 	if err := am.db.Put([]byte(baseSeedKey), seed, nil); err != nil {

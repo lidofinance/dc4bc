@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	client "github.com/lidofinance/dc4bc/client/types"
-	"github.com/syndtr/goleveldb/leveldb"
 	"io"
 	"io/ioutil"
 	"log"
@@ -19,6 +17,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/syndtr/goleveldb/leveldb"
 
 	"golang.org/x/crypto/ssh/terminal"
 
@@ -51,7 +52,7 @@ type prompt struct {
 
 func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 	p := prompt{
-		reader:                    bufio.NewReaderSize(os.Stdin, 1 << 22),
+		reader:                    bufio.NewReaderSize(os.Stdin, 1<<22),
 		airgapped:                 machine,
 		commands:                  make(map[string]*promptCommand),
 		currentCommand:            "",
@@ -104,6 +105,7 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 		commandHandler: p.setSeedCommand,
 		description:    "resets a global random seed using BIP39 word list. WARNING! Only do that on a fresh database with no operation carried out.",
 	})
+
 	return &p, nil
 }
 
@@ -293,8 +295,9 @@ func (p *prompt) dropOperationLogCommand() error {
 }
 
 func (p *prompt) setSeedCommand() error {
-	p.print("> WARNING! this will overwrite your old seed, which might make DKGs you've done with it unusable.")
+	p.print("> WARNING! this will overwrite your old seed, which might make DKGs you've done with it unusable.\n")
 	p.print("> Only do this on a fresh db_path. Type 'ok' to  continue: ")
+
 	ok, err := p.reader.ReadString('\n')
 	if err != nil {
 		return fmt.Errorf("failed to read confirmation: %w", err)
@@ -312,6 +315,11 @@ func (p *prompt) setSeedCommand() error {
 	if err := p.airgapped.SetBaseSeed(strings.Trim(mnemonic, " \n")); err != nil {
 		return fmt.Errorf("failed to set base seed: %w", err)
 	}
+
+	if err := p.airgapped.GenerateKeys(); err != nil {
+		return fmt.Errorf("failed to GenerateKeys: %w", err)
+	}
+
 	return nil
 }
 
@@ -537,6 +545,7 @@ func main() {
 		}
 	}()
 	go p.dropSensitiveDataByTicker(passwordLifeDuration)
+
 	if err = p.run(); err != nil {
 		p.printf("Error occurred: %v", err)
 	}
