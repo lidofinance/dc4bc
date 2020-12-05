@@ -2,6 +2,7 @@ package airgapped
 
 import (
 	"crypto/rand"
+	"crypto/sha512"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,6 +12,8 @@ import (
 
 	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/tyler-smith/go-bip39"
+	"golang.org/x/crypto/pbkdf2"
 )
 
 const (
@@ -26,18 +29,26 @@ type RoundOperationLog map[string][]client.Operation
 func (am *Machine) loadBaseSeed() error {
 	seed, err := am.getBaseSeed()
 	if errors.Is(err, leveldb.ErrNotFound) {
-		log.Println("Base seed not initialized, generating a new one...")
-		seed = make([]byte, seedSize)
-		_, err = rand.Read(seed)
+		log.Println("Base seed not initialized, making a new one...")
+		entropy, err := bip39.NewEntropy(256) //maximum
 		if err != nil {
-			return fmt.Errorf("failed to rand.Read: %w", err)
+			return fmt.Errorf("failed to generate bip39 entropy: %w", err)
 		}
+		seed = make([]byte, seedSize)
+
+		mnemonic, err := bip39.NewMnemonic(entropy)
+		if err != nil {
+			return fmt.Errorf("failed to generate new mnemonic form entropy: %w", err)
+		}
+
+		seed = pbkdf2.Key([]byte(mnemonic), []byte("mnemonic"), 2048, seedSize, sha512.New)
 
 		if err := am.storeBaseSeed(seed); err != nil {
 			return fmt.Errorf("failed to storeBaseSeed: %w", err)
 		}
 
 		log.Println("Successfully generated a new seed")
+		log.Println("Write down your mnemonic: ", mnemonic)
 	} else if err != nil {
 		return fmt.Errorf("failed to getBaseSeed: %w", err)
 	}
