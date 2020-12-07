@@ -113,17 +113,20 @@ func (c *BaseClient) Poll() error {
 			}
 
 			for _, message := range messages {
+				c.Logger.Log("Handling message with offset %d, type %s", message.Offset, message.Event)
 				if message.RecipientAddr == "" || message.RecipientAddr == c.GetUsername() {
-					c.Logger.Log("Handling message with offset %d, type %s", message.Offset, message.Event)
 					if err := c.ProcessMessage(message); err != nil {
 						c.Logger.Log("Failed to process message with offset %d: %v", message.Offset, err)
 					} else {
 						c.Logger.Log("Successfully processed message with offset %d, type %s",
 							message.Offset, message.Event)
 					}
-					if err := c.state.SaveOffset(message.Offset + 1); err != nil {
-						c.Logger.Log("Failed to save offset: %v", err)
-					}
+				} else {
+					c.Logger.Log("Message with offset %d, type %s is not intended for us, skip it",
+						message.Offset, message.Event)
+				}
+				if err := c.state.SaveOffset(message.Offset + 1); err != nil {
+					c.Logger.Log("Failed to save offset: %v", err)
 				}
 			}
 		case <-c.ctx.Done():
