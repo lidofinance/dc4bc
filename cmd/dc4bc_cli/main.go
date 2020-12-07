@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -16,6 +15,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
@@ -686,7 +687,7 @@ func getFSMStatusCommand() *cobra.Command {
 			}
 
 			if len(waiting) > 0 {
-				fmt.Printf("Waiting for a data from: %s\n", strings.Join(waiting, ", "))
+				fmt.Printf("Waiting for data from: %s\n", strings.Join(waiting, ", "))
 			}
 			if len(confirmed) > 0 {
 				fmt.Printf("Received a data from: %s\n", strings.Join(confirmed, ", "))

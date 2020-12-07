@@ -31,7 +31,8 @@ type Machine struct {
 
 	ResultQRFolder string
 
-	dkgInstances  map[string]*dkg.DKG
+	dkgInstances map[string]*dkg.DKG
+	// Used to encrypt local sensitive data, e.g. BLS keyrings.
 	encryptionKey []byte
 	pubKey        kyber.Point
 	secKey        kyber.Scalar
@@ -86,23 +87,32 @@ func (am *Machine) SetResultQRFolder(resultQRFolder string) {
 	am.ResultQRFolder = resultQRFolder
 }
 
-// InitKeys load keys public and private keys for DKG from LevelDB. If keys does not exist, creates them.
+// InitKeys load keys public and private keys for DKG from LevelDB. If keys do not exist, it creates them.
 func (am *Machine) InitKeys() error {
 	err := am.LoadKeysFromDB()
 	if err != nil && err != leveldb.ErrNotFound {
 		return fmt.Errorf("failed to load keys from db: %w", err)
 	}
-	// if keys were not generated yet
+
+	// If keys were not generated yet.
 	if err == leveldb.ErrNotFound {
-		am.secKey = am.baseSuite.Scalar().Pick(am.baseSuite.RandomStream())
-		am.pubKey = am.baseSuite.Point().Mul(am.secKey, nil)
-		return am.SaveKeysToDB()
+		return am.GenerateKeys()
 	}
 
 	return nil
 }
 
-// SetEncryptionKey set a key to encrypt and decrypt a sensitive data
+func (am *Machine) GenerateKeys() error {
+	am.secKey = am.baseSuite.Scalar().Pick(am.baseSuite.RandomStream())
+	am.pubKey = am.baseSuite.Point().Mul(am.secKey, nil)
+	if err := am.SaveKeysToDB(); err != nil {
+		return fmt.Errorf("failed to SaveKeysToDB: %w", err)
+	}
+
+	return nil
+}
+
+// SetEncryptionKey set a key to encrypt and decrypt sensitive data.
 func (am *Machine) SetEncryptionKey(key []byte) {
 	am.encryptionKey = key
 }

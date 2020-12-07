@@ -20,14 +20,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lidofinance/dc4bc/qr"
-
-	client "github.com/lidofinance/dc4bc/client/types"
-	"github.com/syndtr/goleveldb/leveldb"
-
-	"golang.org/x/crypto/ssh/terminal"
-
 	"github.com/lidofinance/dc4bc/airgapped"
+	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/qr"
+	"github.com/syndtr/goleveldb/leveldb"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func init() {
@@ -109,6 +106,11 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 		commandHandler: p.generateDKGPubKeyQR,
 		description:    "generates and saves a QR with DKG public key that can be read by the Client node",
 	})
+	p.addCommand("set_seed", &promptCommand{
+		commandHandler: p.setSeedCommand,
+		description:    "resets a global random seed using BIP39 word list. WARNING! Only do that on a fresh database with no operation carried out.",
+	})
+
 	return &p, nil
 }
 
@@ -301,6 +303,35 @@ func (p *prompt) dropOperationLogCommand() error {
 	if err := p.airgapped.DropOperationsLog(strings.Trim(dkgRoundIdentifier, " \n")); err != nil {
 		return fmt.Errorf("failed to DropOperationsLog: %w", err)
 	}
+	return nil
+}
+
+func (p *prompt) setSeedCommand() error {
+	p.print("> WARNING! this will overwrite your old seed, which might make DKGs you've done with it unusable.\n")
+	p.print("> Only do this on a fresh db_path. Type 'ok' to  continue: ")
+
+	ok, err := p.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read confirmation: %w", err)
+	}
+	if strings.Trim(ok, " \n") != "ok" {
+		return nil
+	}
+
+	p.print("> Enter the BIP39 mnemonic for a random seed: ")
+	mnemonic, err := p.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read BIP39 mnemonic: %w", err)
+	}
+
+	if err := p.airgapped.SetBaseSeed(strings.Trim(mnemonic, " \n")); err != nil {
+		return fmt.Errorf("failed to set base seed: %w", err)
+	}
+
+	if err := p.airgapped.GenerateKeys(); err != nil {
+		return fmt.Errorf("failed to GenerateKeys: %w", err)
+	}
+
 	return nil
 }
 
@@ -550,6 +581,7 @@ func main() {
 		}
 	}()
 	go p.dropSensitiveDataByTicker(passwordLifeDuration)
+
 	if err = p.run(); err != nil {
 		p.printf("Error occurred: %v", err)
 	}
