@@ -123,10 +123,10 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 		type signingPayload struct {
 			SigningId string
 		}
-		var a signingPayload
+		var sp signingPayload
 		if strings.HasPrefix(string(op.Type), "state_signing_") {
-			if err := json.Unmarshal(op.Payload, &a); err == nil {
-				if a.SigningId == payload.SigningId {
+			if err := json.Unmarshal(op.Payload, &sp); err == nil {
+				if sp.SigningId == payload.SigningId {
 					return true
 				}
 			}
