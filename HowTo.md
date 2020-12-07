@@ -78,14 +78,14 @@ A laptop that can run Tails (linux distribution) and has a webcam. Preferably it
 
 NB: If you know what you're doing set up an airgapped machine yourself or use one you already have. Tails live dvd/usb is not the best possible setup - it's just good enough in our opinion.
 
-Backup media: Three usb drives at least 1gb in capacity. Preferably from different vendors so that they wouldn't fail all at the same time. These drives will store the secrets that are used in threshold signing ceremonies. You will keep these backup drives until withdrawals are enabled in eth2.
+Backup media: paper wallet or another media you will use to backup bip39 word-based seed. You will keep this backup until withdrawals are enabled in eth2.
 
-Plaintext media: 1+ gb usb drive or cd/dvd for non-secrets (executables and the like). If you choose USB drive, you'll be disposing of that particular drive (not backup ones!) by the end of a ceremony.
+Plaintext media: 1+ gb usb drive or cd/dvd for non-secrets (executables and the like). If you choose USB drive, you'll be disposing of that particular drive by the end of a ceremony.
 
 1. Make a bootable media for tails using https://tails.boum.org/install/index.en.html instructions. Live dvd is preferabe to a usb stick but usb stick is a valid option. Verification of an image signature per instructions on Tail's site is strongly recommended. 
 2. Prepare a plaintext media: run a script `sh airapped_folder/setup.sh` to set up a folder with one on your hot node, then copy/burn that folder on the plaintext media. It contains airapped node binary, firefox distribution, qr code reader html file and deploy script to easily copy all that to tails distribution.
-2. If your airgapped laptop  allows it, switch the wireless hardware off. Boot into Tails, selecting "no network connection" as an additional option on starting (always select this option on an airgapped machine). From this point on to the end of ceremony the machine shouldn't ever connect to the network; if you can afford having it permanently airgapped forever - can by useful in crypto - do it.
-3. Use this instruction to make https://tails.boum.org/doc/encryption_and_privacy/encrypted_volumes/index.en.html encrypted volumes on all three backup media, all with strong password. You can use the same password. Make volumes small (<500mb): we don't need a lot of space for data and larger encrypted volumes are slower.
+3. If your airgapped laptop  allows it, switch the wireless hardware off. Boot into Tails, selecting "no network connection" as an additional option on starting (always select this option on an airgapped machine). From this point on to the end of ceremony the machine shouldn't ever connect to the network; if you can afford having it permanently airgapped forever - can by useful in crypto - do it.
+4. Insert a plaintext media and run `sh ./deploy.sh` from there to copy all the needed files to your ephemeral home dir on tails.
 
 Now you've got all paraphernalia set up and can proceed with the guide further.
 
@@ -109,7 +109,7 @@ $ ./dc4bc_airgapped --db_path ./stores/dc4bc_john_doe_airgapped_state --password
 ```
 * `--db_path` Specifies the directory in which the Aigapped machibne state will be stored. If the directory that you specified does not exist, the Airgapped machine will generate new keys for you on startup. *N.B.: It is very important not to put your Airgapped machine state to `/tmp` or to occasionally lose it. Please make sure that you keep your Airgapped machine state in a safe place and make a backup.*
 
-Backup it to the encrypted media immediately: if these keys are lost durin the ceremony, the dkg ceremony is. toast; if they are lost after, you won't be able to participate in the signing. 
+Backup the generated bip39 seed on a paper wallet; if you need to restore it, use the `set_seed` command in the airgapped executable's console.
 
 * `--password_expiration` Specifies the time in which you'll be able to use the Airgapped machine without re-entering your password. The Airgapped machine will ask you to create a new password during the first run. Make sure that the password is not lost.
 
@@ -131,7 +131,10 @@ EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 # Inside the airgapped shell:
 >>> show_dkg_pubkey
 sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq
+>>> generate_dkg_pubkey_qr
+A QR code with DKG public key was saved to: /tmp/dc4bc_qr_dkg_pub_key.gif
 ```
+
 
 **N.B.: You can start and stop both the Client node and the Airgapped machine any time you want given that the states are stored safely on your computer. When you restart the Airgapped machine, make sure that you run the `replay_operations_log` command exactly once before performing any actions — that will make the Airgapped machine replay the state and be ready for new actions. Please do not replay the log more than once during one Airgapped session, this might lead to undefined state.**
 
