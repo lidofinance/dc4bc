@@ -1,3 +1,5 @@
+#!/bin/bash
+
 mkdir ~/dc4bc
 cp -r ./* ~/dc4bc/ 
 cd ~/dc4bc

@@ -12,14 +12,19 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/qr"
+
 	"github.com/syndtr/goleveldb/leveldb"
+
+	client "github.com/lidofinance/dc4bc/client/types"
 
 	"golang.org/x/crypto/ssh/terminal"
 
@@ -100,6 +105,10 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 	p.addCommand("change_configuration", &promptCommand{
 		commandHandler: p.changeConfigurationCommand,
 		description:    "changes a configuration variables (frames delay, chunk size, etc...)",
+	})
+	p.addCommand("generate_dkg_pubkey_qr", &promptCommand{
+		commandHandler: p.generateDKGPubKeyQR,
+		description:    "generates and saves a QR with DKG public key that can be read by the Client node",
 	})
 	p.addCommand("set_seed", &promptCommand{
 		commandHandler: p.setSeedCommand,
@@ -187,10 +196,17 @@ func (p *prompt) showDKGPubKeyCommand() error {
 }
 
 func (p *prompt) helpCommand() error {
-	p.println("Available commands:")
-	for commandName, command := range p.commands {
-		p.printf("* %s - %s\n", commandName, command.description)
+	var commandNames []string
+	for commandName := range p.commands {
+		commandNames = append(commandNames, commandName)
 	}
+	sort.Strings(commandNames)
+
+	p.println("Available commands:")
+	for _, commandName := range commandNames {
+		p.printf("* %s - %s\n", commandName, p.commands[commandName].description)
+	}
+
 	return nil
 }
 
@@ -357,6 +373,30 @@ func (p *prompt) verifySignCommand() error {
 	} else {
 		p.println("Signature is correct!")
 	}
+	return nil
+}
+
+func (p *prompt) generateDKGPubKeyQR() error {
+	dkgPubKey := p.airgapped.GetPubKey()
+	dkgPubKeyBz, err := dkgPubKey.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to marshal DKG pub key: %w", err)
+	}
+
+	dkgPubKeyBase64 := base64.StdEncoding.EncodeToString(dkgPubKeyBz)
+	dkgPubKeyJSON, err := json.Marshal(map[string]string{"dkg_pub_key": dkgPubKeyBase64})
+	if err != nil {
+		return fmt.Errorf("failed to marshal operation: %w", err)
+	}
+
+	qrProcessor := qr.NewCameraProcessor()
+	qrPath := filepath.Join(p.airgapped.ResultQRFolder, fmt.Sprintf("dc4bc_qr_dkg_pub_key.gif"))
+	if err = qrProcessor.WriteQR(qrPath, dkgPubKeyJSON); err != nil {
+		return fmt.Errorf("failed to write QR: %w", err)
+	}
+
+	p.printf("A QR code with DKG public key was saved to: %s\n", qrPath)
+
 	return nil
 }
 
