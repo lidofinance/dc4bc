@@ -107,7 +107,7 @@ func (am *Machine) getOperationsLog(dkgIdentifier string) ([]client.Operation, e
 	return operationsLog, nil
 }
 
-func (am *Machine) clearOperationsLog(dkgIdentifier string, clear func(o client.Operation) bool) error {
+func (am *Machine) clearOperationsLog(dkgIdentifier string, remove func(o client.Operation) bool) error {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -117,16 +117,16 @@ func (am *Machine) clearOperationsLog(dkgIdentifier string, clear func(o client.
 	}
 
 	operations := roundOperationsLog[dkgIdentifier]
-	clearOperations := make([]client.Operation, 0)
 
+	savedOperations := make([]client.Operation, 0)
 	for _, o := range operations {
-		if clear(o) {
+		if remove(o) {
 			continue
 		}
-		clearOperations = append(clearOperations, o)
+		savedOperations = append(savedOperations, o)
 	}
 
-	roundOperationsLog[dkgIdentifier] = clearOperations
+	roundOperationsLog[dkgIdentifier] = savedOperations
 	roundOperationsLogBz, err := json.Marshal(roundOperationsLog)
 	if err != nil {
 		return fmt.Errorf("failed to marshal operationsLog: %w", err)

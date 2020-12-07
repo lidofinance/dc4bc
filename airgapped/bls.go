@@ -119,7 +119,7 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 	o.Event = client.SignatureReconstructed
 	o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, respBz))
 
-	clearOperationFunc := func(op client.Operation) bool {
+	removeSignatureOperationsFunc := func(op client.Operation) bool {
 		type signingPayload struct {
 			SigningId string
 		}
@@ -133,7 +133,7 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 		}
 		return false
 	}
-	if err = am.clearOperationsLog(o.DKGIdentifier, clearOperationFunc); err != nil {
+	if err = am.clearOperationsLog(o.DKGIdentifier, removeSignatureOperationsFunc); err != nil {
 		return fmt.Errorf("failed to clear operations log: %w", err)
 	}
 	return nil
