@@ -856,7 +856,7 @@ func TestAirgappedMachine_ClearOperations(t *testing.T) {
 	//save operation logs of all nodes
 	//at this moment the log contains operations of unfinished signature process
 	//and all operations of DKG process
-	oldOperationLogs := make([][]client.Operation, len(tr.nodes))
+	oldOperationLogs := make([][]client.Operation, 0, len(tr.nodes))
 	for _, n := range tr.nodes {
 		storedOperations, err := n.Machine.getOperationsLog(DKGIdentifier)
 		if err != nil {
@@ -946,7 +946,9 @@ func TestAirgappedMachine_ClearOperations(t *testing.T) {
 		if err != nil {
 			t.Fatal("failed to get operations log: ", err.Error())
 		}
-		reflect.DeepEqual(oldOperationLogs[i], storedOperations)
+		if !reflect.DeepEqual(oldOperationLogs[i], storedOperations) {
+			t.Fatalf("old operation log is not equal to cleaned operation log")
+		}
 	}
 
 	//keys and signatures are equal, so let's test it on prysm compatibility
