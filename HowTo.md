@@ -60,7 +60,7 @@ make build
 
 ### Downloading
 
-Check out project releases tab in ithub and get the distribuition archive for your system. Extract is with `tar -xzf ...` into a suitable folder.
+Check out project releases tab in github and get the distribuition archive for your system. Extract is with `tar -xzf ...` into a suitable folder.
 
 
 #### Setting up hot and airapped nodes
@@ -99,13 +99,13 @@ To start a DKG round, you should first generate two pairs of keys: one pair is f
 
 First, generate keys for your Client node:
 ```
-$ ./dc4bc_d gen_keys --username john_doe --key_store_dbdsn ./stores/dc4bc_john_doe_key_store
+$ ./dc4bc_d gen_keys --username <YOUR USERNAME> --key_store_dbdsn ./stores/dc4bc_<YOUR USERNAME>_key_store
 ```
 Immediately backup the key store: these keys won't. be the ones to hold money, but if they are lost durin. the initial ceremony dkg round will have to be reasterted.
 
 Then start the on the airgapped machine:
 ```
-$ ./dc4bc_airgapped --db_path ./stores/dc4bc_john_doe_airgapped_state --password_expiration 10m
+$ ./dc4bc_airgapped --db_path ./stores/dc4bc_<YOUR USERNAME>_airgapped_state --password_expiration 10m
 ```
 * `--db_path` Specifies the directory in which the Aigapped machibne state will be stored. If the directory that you specified does not exist, the Airgapped machine will generate new keys for you on startup. *N.B.: It is very important not to put your Airgapped machine state to `/tmp` or to occasionally lose it. Please make sure that you keep your Airgapped machine state in a safe place and make a backup.*
 
@@ -115,7 +115,7 @@ Backup the generated bip39 seed on a paper wallet; if you need to restore it, us
 
 After you have the keys, start the node:
 ```
-$ ./dc4bc_d start --username john_doe --key_store_dbdsn ./stores/dc4bc_john_doe_key_store --state_dbdsn ./stores/dc4bc_john_doe_state --listen_addr localhost:8080 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_dbdsn 51.158.98.208:9093 --storage_topic test_topic
+$ ./dc4bc_d start --username <YOUR USERNAME> --key_store_dbdsn ./stores/dc4bc_<YOUR USERNAME>_key_store --state_dbdsn ./stores/dc4bc_<YOUR USERNAME>_state --listen_addr localhost:8080 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_dbdsn 51.158.98.208:9093 --storage_topic <DKG_TOPIC>
 ```
 * `--username` — This username will be used to identify you during DKG and signing
 * `--key_store_dbdsn` — This is where the keys that are used for signing messages that will go to the Bulletin Board will be stored. Do not store these keys in `/tmp/` for production runs and make sure that you have a backup
