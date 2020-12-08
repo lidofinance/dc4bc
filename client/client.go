@@ -16,7 +16,6 @@ import (
 
 	sipf "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
-	"github.com/google/uuid"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 
@@ -309,18 +308,16 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 				}
 			}
 
-			bz, err := json.Marshal(resp.Data)
+			operationPayloadBz, err := json.Marshal(resp.Data)
 			if err != nil {
 				return fmt.Errorf("failed to marshal FSM response: %w", err)
 			}
 
-			operation = &types.Operation{
-				ID:            uuid.New().String(),
-				Type:          types.OperationType(resp.State),
-				Payload:       bz,
-				DKGIdentifier: message.DkgRoundID,
-				CreatedAt:     time.Now(),
-			}
+			operation = types.NewOperation(
+				message.DkgRoundID,
+				operationPayloadBz,
+				resp.State,
+			)
 		}
 	default:
 		c.Logger.Log("State %s does not require an operation", resp.State)

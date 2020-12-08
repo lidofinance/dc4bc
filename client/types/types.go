@@ -2,6 +2,8 @@ package types
 
 import (
 	"bytes"
+	"crypto/md5"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -41,6 +43,26 @@ type Operation struct {
 	DKGIdentifier string
 	To            string
 	Event         fsm.Event
+}
+
+func NewOperation(
+	dkgRoundID string,
+	payload []byte,
+	state fsm.State,
+) *Operation {
+	operationID := fmt.Sprintf(
+		"%s_%s",
+		dkgRoundID,
+		base64.StdEncoding.EncodeToString(payload),
+	)
+	operationIDmd5 := md5.Sum([]byte(operationID))
+	return &Operation{
+		ID:            string(operationIDmd5[:]),
+		Type:          OperationType(state),
+		Payload:       payload,
+		DKGIdentifier: dkgRoundID,
+		CreatedAt:     time.Now(),
+	}
 }
 
 func (o *Operation) Check(o2 *Operation) error {
