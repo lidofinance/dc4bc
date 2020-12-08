@@ -10,7 +10,6 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
-	"strings"
 )
 
 // handleStateSigningAwaitConfirmations returns a confirmation of participation to create a threshold signature for a data
@@ -118,24 +117,6 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 	}
 	o.Event = client.SignatureReconstructed
 	o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, respBz))
-
-	removeSignatureOperationsFunc := func(op client.Operation) bool {
-		type signingPayload struct {
-			SigningId string
-		}
-		var sp signingPayload
-		if strings.HasPrefix(string(op.Type), "state_signing_") {
-			if err := json.Unmarshal(op.Payload, &sp); err == nil {
-				if sp.SigningId == payload.SigningId {
-					return true
-				}
-			}
-		}
-		return false
-	}
-	if err = am.clearOperationsLog(o.DKGIdentifier, removeSignatureOperationsFunc); err != nil {
-		return fmt.Errorf("failed to clear operations log: %w", err)
-	}
 	return nil
 }
 

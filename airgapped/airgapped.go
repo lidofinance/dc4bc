@@ -3,8 +3,10 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"log"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	vss "github.com/corestario/kyber/share/vss/rabin"
@@ -143,6 +145,33 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	return nil
 }
 
+func (am *Machine) removeSignatureOperations(o *client.Operation) error {
+	var (
+		payload responses.SigningProcessParticipantResponse
+		err     error
+	)
+
+	if err = json.Unmarshal(o.Payload, &payload); err != nil {
+		return fmt.Errorf("failed to unmarshal payload: %w", err)
+	}
+
+	removeSignatureOperationsFunc := func(op client.Operation) bool {
+		type signingPayload struct {
+			SigningId string
+		}
+		var sp signingPayload
+		if strings.HasPrefix(string(op.Type), "state_signing_") {
+			if err := json.Unmarshal(op.Payload, &sp); err == nil {
+				if sp.SigningId == payload.SigningId {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	return am.clearOperationsLog(o.DKGIdentifier, removeSignatureOperationsFunc)
+}
+
 func (am *Machine) ProcessOperation(operation client.Operation, storeOperation bool) (string, error) {
 	resultOperation, err := am.GetOperationResult(operation)
 	if err != nil {
@@ -154,6 +183,12 @@ func (am *Machine) ProcessOperation(operation client.Operation, storeOperation b
 	if storeOperation {
 		if err := am.storeOperation(operation); err != nil {
 			return "", fmt.Errorf("failed to storeOperation: %w", err)
+		}
+	}
+
+	if fsm.State(operation.Type) == signing_proposal_fsm.StateSigningPartialSignsCollected {
+		if err := am.removeSignatureOperations(&operation); err != nil {
+			return "", fmt.Errorf("failed to remove signature operations: %w", err)
 		}
 	}
 
