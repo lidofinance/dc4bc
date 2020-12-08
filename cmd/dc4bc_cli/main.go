@@ -690,7 +690,7 @@ func getFSMStatusCommand() *cobra.Command {
 				fmt.Printf("Waiting for data from: %s\n", strings.Join(waiting, ", "))
 			}
 			if len(confirmed) > 0 {
-				fmt.Printf("Received a data from: %s\n", strings.Join(confirmed, ", "))
+				fmt.Printf("Received data from: %s\n", strings.Join(confirmed, ", "))
 			}
 			if len(failed) > 0 {
 				fmt.Printf("Participants who got some error during a process: %s\n", strings.Join(waiting, ", "))
