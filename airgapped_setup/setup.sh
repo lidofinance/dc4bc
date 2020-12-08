@@ -9,7 +9,7 @@ done
 wget -q --show-progress https://github.com/lidofinance/dc4bc/releases/download/0.1.1/dc4bc_airgapped_linux
 shasum dc4bc_airgapped_linux |
 while read -r sum _ ; do
-  [[ $sum == 0dd1aed350f4d58957dd4ebf58d845586db2cac3 ]] && echo "Airgapped checksum is correct." || echo "[WARN] Incorrect Airgapped checksum!"
+  [[ $sum == a15b791e3926f9925e560ef813d9fe3e30d777f5 ]] && echo "Airgapped checksum is correct." || echo "[WARN] Incorrect Airgapped checksum!"
 done
 
 cp ../qr_reader_bundle/index.html ./index.html
