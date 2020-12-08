@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -57,7 +58,7 @@ func NewOperation(
 	)
 	operationIDmd5 := md5.Sum([]byte(operationID))
 	return &Operation{
-		ID:            string(operationIDmd5[:]),
+		ID:            hex.EncodeToString(operationIDmd5[:]),
 		Type:          OperationType(state),
 		Payload:       payload,
 		DKGIdentifier: dkgRoundID,
