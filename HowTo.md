@@ -20,7 +20,7 @@ You'll generate key shards for a threshold signature potentially holding multimi
 
 Clone the project repository:
 ```
-git clone git@github.com:lidofinance/dc4bc.git
+git clone https://github.com/lidofinance/dc4bc.git
 ```
 
 #### Installation (Linux)
@@ -60,7 +60,7 @@ make build
 
 ### Downloading
 
-Check out project releases tab in github and get the distribuition archive for your system. Extract is with `tar -xzf ...` into a suitable folder.
+Check out project releases tab in github and get the distribuition binaries for your system. Also clone the repository anyway, because you'll need the certificate file for kafka and qr reading html file that are not part of the releases files.
 
 
 #### Setting up hot and airapped nodes
