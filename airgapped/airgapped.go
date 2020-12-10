@@ -266,13 +266,14 @@ func (am *Machine) writeErrorRequestToOperation(o *client.Operation, handlerErro
 	// each type of request should have a required event even error
 	// maybe should be global?
 	eventToErrorMap := map[fsm.State]fsm.Event{
-		dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:     dkg_proposal_fsm.EventDKGCommitConfirmationError,
-		dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:       dkg_proposal_fsm.EventDKGDealConfirmationError,
-		dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations:   dkg_proposal_fsm.EventDKGResponseConfirmationError,
-		dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:   dkg_proposal_fsm.EventDKGMasterKeyConfirmationError,
-		signing_proposal_fsm.StateSigningAwaitConfirmations:    signing_proposal_fsm.EventDeclineSigningConfirmation,
-		signing_proposal_fsm.StateSigningAwaitPartialSigns:     signing_proposal_fsm.EventSigningPartialSignError,
-		signing_proposal_fsm.StateSigningPartialSignsCollected: client.SignatureReconstructionFailed,
+		signature_proposal_fsm.StateAwaitParticipantsConfirmations: signature_proposal_fsm.EventDeclineProposal,
+		dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:         dkg_proposal_fsm.EventDKGCommitConfirmationError,
+		dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:           dkg_proposal_fsm.EventDKGDealConfirmationError,
+		dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations:       dkg_proposal_fsm.EventDKGResponseConfirmationError,
+		dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:       dkg_proposal_fsm.EventDKGMasterKeyConfirmationError,
+		signing_proposal_fsm.StateSigningAwaitConfirmations:        signing_proposal_fsm.EventDeclineSigningConfirmation,
+		signing_proposal_fsm.StateSigningAwaitPartialSigns:         signing_proposal_fsm.EventSigningPartialSignError,
+		signing_proposal_fsm.StateSigningPartialSignsCollected:     client.SignatureReconstructionFailed,
 	}
 	pid, err := am.getParticipantID(o.DKGIdentifier)
 	if err != nil {
