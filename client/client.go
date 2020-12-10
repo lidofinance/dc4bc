@@ -158,17 +158,26 @@ func (c *BaseClient) processSignature(message storage.Message) error {
 }
 
 func (c *BaseClient) ProcessMessage(message storage.Message) error {
-	// save broadcasted reconstructed signature
-	if fsm.Event(message.Event) == types.SignatureReconstructed {
+	switch fsm.Event(message.Event) {
+	case types.SignatureReconstructed: // save broadcasted reconstructed signature
 		if err := c.processSignature(message); err != nil {
 			return fmt.Errorf("failed to process signature: %w", err)
 		}
 		return nil
-	}
-
+	case types.SignatureReconstructionFailed:
+		errorRequest, err := types.FSMRequestFromMessage(message)
+		if err != nil {
+			return fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
+		}
+		errorRequestTyped, ok := errorRequest.(requests.SignatureProposalConfirmationErrorRequest)
+		if !ok {
+			return fmt.Errorf("failed to convert request to SignatureProposalConfirmationErrorRequest: %v", err)
+		}
+		c.Logger.Log("Participant #%d got an error during signature reconstruction process: %v", errorRequestTyped.ParticipantId, errorRequestTyped.Error)
+		return nil
 	// save signing data to the same storage as we save signatures
 	// This allows easy to view signing data by CLI-command
-	if fsm.Event(message.Event) == sipf.EventSigningStart {
+	case sipf.EventSigningStart:
 		if err := c.processSignature(message); err != nil {
 			return fmt.Errorf("failed to process signature: %w", err)
 		}
