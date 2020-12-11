@@ -2,8 +2,10 @@ package internal
 
 import (
 	"crypto/ed25519"
-	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"sort"
 	"time"
+
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
 )
 
 type ParticipantStatus interface {
@@ -88,15 +90,16 @@ const (
 )
 
 type DKGProposalParticipant struct {
-	Username     string
-	DkgPubKey    []byte
-	DkgCommit    []byte
-	DkgDeal      []byte
-	DkgResponse  []byte
-	DkgMasterKey []byte
-	Status       DKGParticipantStatus
-	Error        *requests.FSMError
-	UpdatedAt    time.Time
+	ParticipantID int
+	Username      string
+	DkgPubKey     []byte
+	DkgCommit     []byte
+	DkgDeal       []byte
+	DkgResponse   []byte
+	DkgMasterKey  []byte
+	Status        DKGParticipantStatus
+	Error         *requests.FSMError
+	UpdatedAt     time.Time
 }
 
 func (dkgP DKGProposalParticipant) GetStatus() ParticipantStatus {
@@ -108,6 +111,24 @@ func (dkgP DKGProposalParticipant) GetUsername() string {
 }
 
 type DKGProposalQuorum map[int]*DKGProposalParticipant
+
+func (q DKGProposalQuorum) GetOrderedParticipants() []*DKGProposalParticipant {
+	var sortedParticipantIDs []int
+	for participantID := range q {
+		sortedParticipantIDs = append(sortedParticipantIDs, participantID)
+	}
+
+	sort.Ints(sortedParticipantIDs)
+
+	var out []*DKGProposalParticipant
+	for _, participantID := range sortedParticipantIDs {
+		var participant = q[participantID]
+		participant.ParticipantID = participantID
+		out = append(out, participant)
+	}
+
+	return out
+}
 
 type DKGConfirmation struct {
 	Quorum    DKGProposalQuorum
