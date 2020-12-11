@@ -216,6 +216,19 @@ func (am *Machine) handleStateDkgDealsAwaitConfirmations(o *client.Operation) er
 		o.Event = dkg_proposal_fsm.EventDKGDealConfirmationReceived
 		o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, reqBz))
 	}
+
+	req := requests.DKGProposalDealConfirmationRequest{
+		ParticipantId: dkgInstance.ParticipantID,
+		Deal:          []byte("self-confirm"),
+		CreatedAt:     o.CreatedAt,
+	}
+	o.To = dkgInstance.GetParticipantByIndex(dkgInstance.ParticipantID)
+	reqBz, err := json.Marshal(req)
+	if err != nil {
+		return fmt.Errorf("failed to generate fsm request: %w", err)
+	}
+	o.Event = dkg_proposal_fsm.EventDKGDealConfirmationReceived
+	o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, reqBz))
 	return nil
 }
 
@@ -237,6 +250,9 @@ func (am *Machine) handleStateDkgResponsesAwaitConfirmations(o *client.Operation
 	}
 
 	for _, entry := range payload {
+		if entry.ParticipantId == dkgInstance.ParticipantID {
+			continue
+		}
 		decryptedDealBz, err := am.decryptDataFromParticipant(entry.DkgDeal)
 		if err != nil {
 			return fmt.Errorf("failed to decrypt deal: %w", err)

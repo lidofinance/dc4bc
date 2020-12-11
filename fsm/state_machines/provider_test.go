@@ -530,7 +530,7 @@ func Test_DkgProposal_EventDKGDealConfirmationReceived(t *testing.T) {
 	}
 
 	// Deals count less than total users count by 1 unit
-	if len(response) != len(testParticipantsListRequest.Participants)-1 {
+	if len(response) != len(testParticipantsListRequest.Participants) {
 		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(response)-1)
 	}
 
