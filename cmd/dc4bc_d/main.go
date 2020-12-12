@@ -30,6 +30,7 @@ const (
 	flagStoreDBDSN               = "key_store_dbdsn"
 	flagChunkSize                = "chunk_size"
 	flagConfig                   = "config"
+	flagSkipMessageVerification  = "skip_message_verification"
 )
 
 var (
@@ -51,6 +52,7 @@ func init() {
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, flagConfig, "", "path to your config file")
+	rootCmd.PersistentFlags().Bool(flagSkipMessageVerification, false, "verify messages from append-log or not")
 
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 	exitIfError(viper.BindPFlag(flagListenAddr, rootCmd.PersistentFlags().Lookup(flagListenAddr)))
@@ -64,6 +66,7 @@ func init() {
 	exitIfError(viper.BindPFlag(flagFramesDelay, rootCmd.PersistentFlags().Lookup(flagFramesDelay)))
 	exitIfError(viper.BindPFlag(flagChunkSize, rootCmd.PersistentFlags().Lookup(flagChunkSize)))
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
+	exitIfError(viper.BindPFlag(flagSkipMessageVerification, rootCmd.PersistentFlags().Lookup(flagSkipMessageVerification)))
 }
 
 func exitIfError(err error) {
@@ -171,6 +174,7 @@ func startClientCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to init client: %w", err)
 			}
+			cli.SetSkipMessageVerification(viper.GetBool(flagSkipMessageVerification))
 
 			sigs := make(chan os.Signal, 1)
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
