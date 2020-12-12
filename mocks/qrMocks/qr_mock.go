@@ -32,21 +32,6 @@ func (m *MockProcessor) EXPECT() *MockProcessorMockRecorder {
 	return m.recorder
 }
 
-// ReadQR mocks base method
-func (m *MockProcessor) ReadQR() ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadQR")
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ReadQR indicates an expected call of ReadQR
-func (mr *MockProcessorMockRecorder) ReadQR() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadQR", reflect.TypeOf((*MockProcessor)(nil).ReadQR))
-}
-
 // WriteQR mocks base method
 func (m *MockProcessor) WriteQR(path string, data []byte) error {
 	m.ctrl.T.Helper()
@@ -83,16 +68,4 @@ func (m *MockProcessor) SetChunkSize(chunkSize int) {
 func (mr *MockProcessorMockRecorder) SetChunkSize(chunkSize interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetChunkSize", reflect.TypeOf((*MockProcessor)(nil).SetChunkSize), chunkSize)
-}
-
-// CloseCameraReader mocks base method
-func (m *MockProcessor) CloseCameraReader() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "CloseCameraReader")
-}
-
-// CloseCameraReader indicates an expected call of CloseCameraReader
-func (mr *MockProcessorMockRecorder) CloseCameraReader() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseCameraReader", reflect.TypeOf((*MockProcessor)(nil).CloseCameraReader))
 }
