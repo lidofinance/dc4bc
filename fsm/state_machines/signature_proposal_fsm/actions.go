@@ -64,9 +64,9 @@ func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, ar
 
 	responseData := make(responses.SignatureProposalParticipantInvitationsResponse, 0)
 
-	for participantId, participant := range m.payload.SignatureProposalPayload.Quorum {
+	for _, participant := range m.payload.SignatureProposalPayload.Quorum.GetOrderedParticipants() {
 		responseEntry := &responses.SignatureProposalParticipantInvitationEntry{
-			ParticipantId: participantId,
+			ParticipantId: participant.ParticipantID,
 			Username:      participant.Username,
 			Threshold:     participant.Threshold,
 			DkgPubKey:     participant.DkgPubKey,
