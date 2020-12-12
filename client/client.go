@@ -44,20 +44,20 @@ type Client interface {
 	GetOperations() (map[string]*types.Operation, error)
 	GetOperationQRPath(operationID string) (string, error)
 	StartHTTPServer(listenAddr string) error
-	SetSkipMessageVerification(bool)
+	SetSkipCommKeysVerification(bool)
 }
 
 type BaseClient struct {
 	sync.Mutex
-	Logger                  *logger
-	userName                string
-	pubKey                  ed25519.PublicKey
-	ctx                     context.Context
-	state                   State
-	storage                 storage.Storage
-	keyStore                KeyStore
-	qrProcessor             qr.Processor
-	skipMessageVerification bool
+	Logger                   *logger
+	userName                 string
+	pubKey                   ed25519.PublicKey
+	ctx                      context.Context
+	state                    State
+	storage                  storage.Storage
+	keyStore                 KeyStore
+	qrProcessor              qr.Processor
+	SkipCommKeysVerification bool
 }
 
 func NewClient(
@@ -97,8 +97,8 @@ func (c *BaseClient) GetPubKey() ed25519.PublicKey {
 	return c.pubKey
 }
 
-func (c *BaseClient) SetSkipMessageVerification(f bool) {
-	c.skipMessageVerification = f
+func (c *BaseClient) SetSkipCommKeysVerification(f bool) {
+	c.SkipCommKeysVerification = f
 }
 
 // Poll is a main client loop, which gets new messages from an append-only log and processes them
@@ -478,7 +478,7 @@ func (c *BaseClient) signMessage(message []byte) ([]byte, error) {
 }
 
 func (c *BaseClient) verifyMessage(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
-	if c.skipMessageVerification {
+	if c.SkipCommKeysVerification {
 		return nil
 	}
 	senderPubKey, err := fsmInstance.GetPubKeyByUsername(message.SenderAddr)
