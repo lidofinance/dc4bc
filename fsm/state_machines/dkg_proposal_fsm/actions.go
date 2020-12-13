@@ -56,9 +56,9 @@ func (m *DKGProposalFSM) actionInitDKGProposal(inEvent fsm.Event, args ...interf
 
 	responseData := make(responses.DKGProposalPubKeysParticipantResponse, 0)
 
-	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
+	for _, participant := range m.payload.DKGProposalPayload.Quorum.GetOrderedParticipants() {
 		responseEntry := &responses.DKGProposalPubKeysParticipantEntry{
-			ParticipantId: participantId,
+			ParticipantId: participant.ParticipantID,
 			Username:      participant.Username,
 			DkgPubKey:     participant.DkgPubKey,
 		}
@@ -155,9 +155,9 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitCommits(inEvent fsm.Event
 
 	responseData := make(responses.DKGProposalCommitParticipantResponse, 0)
 
-	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
+	for _, participant := range m.payload.DKGProposalPayload.Quorum.GetOrderedParticipants() {
 		responseEntry := &responses.DKGProposalCommitParticipantEntry{
-			ParticipantId: participantId,
+			ParticipantId: participant.ParticipantID,
 			Username:      participant.Username,
 			DkgCommit:     participant.DkgCommit,
 		}
@@ -257,12 +257,12 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 
 	responseData := make(responses.DKGProposalDealParticipantResponse, 0)
 
-	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
+	for _, participant := range m.payload.DKGProposalPayload.Quorum.GetOrderedParticipants() {
 		if len(participant.DkgDeal) == 0 {
 			continue
 		}
 		responseEntry := &responses.DKGProposalDealParticipantEntry{
-			ParticipantId: participantId,
+			ParticipantId: participant.ParticipantID,
 			Username:      participant.Username,
 			DkgDeal:       participant.DkgDeal,
 		}
@@ -362,9 +362,9 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitResponses(inEvent fsm.Eve
 
 	responseData := make(responses.DKGProposalResponseParticipantResponse, 0)
 
-	for participantId, participant := range m.payload.DKGProposalPayload.Quorum {
+	for _, participant := range m.payload.DKGProposalPayload.Quorum.GetOrderedParticipants() {
 		responseEntry := &responses.DKGProposalResponseParticipantEntry{
-			ParticipantId: participantId,
+			ParticipantId: participant.ParticipantID,
 			Username:      participant.Username,
 			DkgResponse:   participant.DkgResponse,
 		}
