@@ -127,7 +127,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitCommits(inEvent fsm.Event
 	}
 
 	unconfirmedParticipants := m.payload.DKGQuorumCount()
-	for _, participant := range m.payload.DKGProposalPayload.Quorum.GetOrderedParticipants() {
+	for _, participant := range m.payload.DKGProposalPayload.Quorum {
 		if participant.Status == internal.CommitConfirmationError {
 			isContainsError = true
 		} else if participant.Status == internal.CommitConfirmed {
