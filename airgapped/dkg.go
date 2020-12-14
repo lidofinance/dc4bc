@@ -217,6 +217,8 @@ func (am *Machine) handleStateDkgDealsAwaitConfirmations(o *client.Operation) er
 		o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, reqBz))
 	}
 
+	//a dirty but simple hack to inform FSM we are done with deals step
+	//the hack prevents a bug when FSM switches state to responses step with unfinished deals
 	req := requests.DKGProposalDealConfirmationRequest{
 		ParticipantId: dkgInstance.ParticipantID,
 		Deal:          []byte("self-confirm"),
@@ -250,6 +252,7 @@ func (am *Machine) handleStateDkgResponsesAwaitConfirmations(o *client.Operation
 	}
 
 	for _, entry := range payload {
+		//do not store deals from ourselves because of the hack above
 		if entry.ParticipantId == dkgInstance.ParticipantID {
 			continue
 		}
