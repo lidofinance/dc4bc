@@ -16,7 +16,6 @@ import (
 
 	sipf "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
-	"github.com/google/uuid"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 
@@ -45,18 +44,20 @@ type Client interface {
 	GetOperations() (map[string]*types.Operation, error)
 	GetOperationQRPath(operationID string) (string, error)
 	StartHTTPServer(listenAddr string) error
+	SetSkipCommKeysVerification(bool)
 }
 
 type BaseClient struct {
 	sync.Mutex
-	Logger      *logger
-	userName    string
-	pubKey      ed25519.PublicKey
-	ctx         context.Context
-	state       State
-	storage     storage.Storage
-	keyStore    KeyStore
-	qrProcessor qr.Processor
+	Logger                   *logger
+	userName                 string
+	pubKey                   ed25519.PublicKey
+	ctx                      context.Context
+	state                    State
+	storage                  storage.Storage
+	keyStore                 KeyStore
+	qrProcessor              qr.Processor
+	SkipCommKeysVerification bool
 }
 
 func NewClient(
@@ -96,6 +97,10 @@ func (c *BaseClient) GetPubKey() ed25519.PublicKey {
 	return c.pubKey
 }
 
+func (c *BaseClient) SetSkipCommKeysVerification(f bool) {
+	c.SkipCommKeysVerification = f
+}
+
 // Poll is a main client loop, which gets new messages from an append-only log and processes them
 func (c *BaseClient) Poll() error {
 	tk := time.NewTicker(pollingPeriod)
@@ -113,17 +118,20 @@ func (c *BaseClient) Poll() error {
 			}
 
 			for _, message := range messages {
+				c.Logger.Log("Handling message with offset %d, type %s", message.Offset, message.Event)
 				if message.RecipientAddr == "" || message.RecipientAddr == c.GetUsername() {
-					c.Logger.Log("Handling message with offset %d, type %s", message.Offset, message.Event)
 					if err := c.ProcessMessage(message); err != nil {
 						c.Logger.Log("Failed to process message with offset %d: %v", message.Offset, err)
 					} else {
 						c.Logger.Log("Successfully processed message with offset %d, type %s",
 							message.Offset, message.Event)
 					}
-					if err := c.state.SaveOffset(message.Offset + 1); err != nil {
-						c.Logger.Log("Failed to save offset: %v", err)
-					}
+				} else {
+					c.Logger.Log("Message with offset %d, type %s is not intended for us, skip it",
+						message.Offset, message.Event)
+				}
+				if err := c.state.SaveOffset(message.Offset + 1); err != nil {
+					c.Logger.Log("Failed to save offset: %v", err)
 				}
 			}
 		case <-c.ctx.Done():
@@ -309,18 +317,16 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 				}
 			}
 
-			bz, err := json.Marshal(resp.Data)
+			operationPayloadBz, err := json.Marshal(resp.Data)
 			if err != nil {
 				return fmt.Errorf("failed to marshal FSM response: %w", err)
 			}
 
-			operation = &types.Operation{
-				ID:            uuid.New().String(),
-				Type:          types.OperationType(resp.State),
-				Payload:       bz,
-				DKGIdentifier: message.DkgRoundID,
-				CreatedAt:     time.Now(),
-			}
+			operation = types.NewOperation(
+				message.DkgRoundID,
+				operationPayloadBz,
+				resp.State,
+			)
 		}
 	default:
 		c.Logger.Log("State %s does not require an operation", resp.State)
@@ -472,6 +478,9 @@ func (c *BaseClient) signMessage(message []byte) ([]byte, error) {
 }
 
 func (c *BaseClient) verifyMessage(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
+	if c.SkipCommKeysVerification {
+		return nil
+	}
 	senderPubKey, err := fsmInstance.GetPubKeyByUsername(message.SenderAddr)
 	if err != nil {
 		return fmt.Errorf("failed to GetPubKeyByUsername: %w", err)

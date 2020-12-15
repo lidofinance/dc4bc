@@ -7,22 +7,24 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	client "github.com/lidofinance/dc4bc/client/types"
-	"github.com/syndtr/goleveldb/leveldb"
 	"io"
 	"io/ioutil"
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
-	"golang.org/x/crypto/ssh/terminal"
-
 	"github.com/lidofinance/dc4bc/airgapped"
+	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/qr"
+	"github.com/syndtr/goleveldb/leveldb"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func init() {
@@ -51,7 +53,7 @@ type prompt struct {
 
 func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 	p := prompt{
-		reader:                    bufio.NewReaderSize(os.Stdin, 1 << 22),
+		reader:                    bufio.NewReaderSize(os.Stdin, 1<<22),
 		airgapped:                 machine,
 		commands:                  make(map[string]*promptCommand),
 		currentCommand:            "",
@@ -100,6 +102,15 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 		commandHandler: p.changeConfigurationCommand,
 		description:    "changes a configuration variables (frames delay, chunk size, etc...)",
 	})
+	p.addCommand("generate_dkg_pubkey_qr", &promptCommand{
+		commandHandler: p.generateDKGPubKeyQR,
+		description:    "generates and saves a QR with DKG public key that can be read by the Client node",
+	})
+	p.addCommand("set_seed", &promptCommand{
+		commandHandler: p.setSeedCommand,
+		description:    "resets a global random seed using BIP39 word list. WARNING! Only do that on a fresh database with no operation carried out.",
+	})
+
 	return &p, nil
 }
 
@@ -160,7 +171,7 @@ func (p *prompt) readOperationCommand() error {
 		return fmt.Errorf("failed to unmarshal Operation: %w", err)
 	}
 
-	qrPath, err := p.airgapped.ProcessOperation(operation)
+	qrPath, err := p.airgapped.ProcessOperation(operation, true)
 	if err != nil {
 		return fmt.Errorf("failed to ProcessOperation: %w", err)
 	}
@@ -181,10 +192,17 @@ func (p *prompt) showDKGPubKeyCommand() error {
 }
 
 func (p *prompt) helpCommand() error {
-	p.println("Available commands:")
-	for commandName, command := range p.commands {
-		p.printf("* %s - %s\n", commandName, command.description)
+	var commandNames []string
+	for commandName := range p.commands {
+		commandNames = append(commandNames, commandName)
 	}
+	sort.Strings(commandNames)
+
+	p.println("Available commands:")
+	for _, commandName := range commandNames {
+		p.printf("* %s - %s\n", commandName, p.commands[commandName].description)
+	}
+
 	return nil
 }
 
@@ -288,6 +306,35 @@ func (p *prompt) dropOperationLogCommand() error {
 	return nil
 }
 
+func (p *prompt) setSeedCommand() error {
+	p.print("> WARNING! this will overwrite your old seed, which might make DKGs you've done with it unusable.\n")
+	p.print("> Only do this on a fresh db_path. Type 'ok' to  continue: ")
+
+	ok, err := p.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read confirmation: %w", err)
+	}
+	if strings.Trim(ok, " \n") != "ok" {
+		return nil
+	}
+
+	p.print("> Enter the BIP39 mnemonic for a random seed: ")
+	mnemonic, err := p.reader.ReadString('\n')
+	if err != nil {
+		return fmt.Errorf("failed to read BIP39 mnemonic: %w", err)
+	}
+
+	if err := p.airgapped.SetBaseSeed(strings.Trim(mnemonic, " \n")); err != nil {
+		return fmt.Errorf("failed to set base seed: %w", err)
+	}
+
+	if err := p.airgapped.GenerateKeys(); err != nil {
+		return fmt.Errorf("failed to GenerateKeys: %w", err)
+	}
+
+	return nil
+}
+
 func (p *prompt) verifySignCommand() error {
 	p.print("> Enter the DKGRoundIdentifier: ")
 	dkgRoundIdentifier, err := p.reader.ReadString('\n')
@@ -322,6 +369,30 @@ func (p *prompt) verifySignCommand() error {
 	} else {
 		p.println("Signature is correct!")
 	}
+	return nil
+}
+
+func (p *prompt) generateDKGPubKeyQR() error {
+	dkgPubKey := p.airgapped.GetPubKey()
+	dkgPubKeyBz, err := dkgPubKey.MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to marshal DKG pub key: %w", err)
+	}
+
+	dkgPubKeyBase64 := base64.StdEncoding.EncodeToString(dkgPubKeyBz)
+	dkgPubKeyJSON, err := json.Marshal(map[string]string{"dkg_pub_key": dkgPubKeyBase64})
+	if err != nil {
+		return fmt.Errorf("failed to marshal operation: %w", err)
+	}
+
+	qrProcessor := qr.NewCameraProcessor()
+	qrPath := filepath.Join(p.airgapped.ResultQRFolder, fmt.Sprintf("dc4bc_qr_dkg_pub_key.gif"))
+	if err = qrProcessor.WriteQR(qrPath, dkgPubKeyJSON); err != nil {
+		return fmt.Errorf("failed to write QR: %w", err)
+	}
+
+	p.printf("A QR code with DKG public key was saved to: %s\n", qrPath)
+
 	return nil
 }
 
@@ -510,6 +581,7 @@ func main() {
 		}
 	}()
 	go p.dropSensitiveDataByTicker(passwordLifeDuration)
+
 	if err = p.run(); err != nil {
 		p.printf("Error occurred: %v", err)
 	}

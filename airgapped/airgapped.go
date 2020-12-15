@@ -29,17 +29,18 @@ const (
 type Machine struct {
 	sync.Mutex
 
-	dkgInstances map[string]*dkg.DKG
-	qrProcessor  qr.Processor
+	ResultQRFolder string
 
+	dkgInstances map[string]*dkg.DKG
+	// Used to encrypt local sensitive data, e.g. BLS keyrings.
 	encryptionKey []byte
 	pubKey        kyber.Point
 	secKey        kyber.Scalar
 	baseSuite     vss.Suite
 	baseSeed      []byte
 
-	db             *leveldb.DB
-	resultQRFolder string
+	qrProcessor qr.Processor
+	db          *leveldb.DB
 }
 
 func NewMachine(dbPath string) (*Machine, error) {
@@ -83,26 +84,35 @@ func (am *Machine) SetQRProcessorChunkSize(chunkSize int) {
 }
 
 func (am *Machine) SetResultQRFolder(resultQRFolder string) {
-	am.resultQRFolder = resultQRFolder
+	am.ResultQRFolder = resultQRFolder
 }
 
-// InitKeys load keys public and private keys for DKG from LevelDB. If keys does not exist, creates them.
+// InitKeys load keys public and private keys for DKG from LevelDB. If keys do not exist, it creates them.
 func (am *Machine) InitKeys() error {
 	err := am.LoadKeysFromDB()
 	if err != nil && err != leveldb.ErrNotFound {
 		return fmt.Errorf("failed to load keys from db: %w", err)
 	}
-	// if keys were not generated yet
+
+	// If keys were not generated yet.
 	if err == leveldb.ErrNotFound {
-		am.secKey = am.baseSuite.Scalar().Pick(am.baseSuite.RandomStream())
-		am.pubKey = am.baseSuite.Point().Mul(am.secKey, nil)
-		return am.SaveKeysToDB()
+		return am.GenerateKeys()
 	}
 
 	return nil
 }
 
-// SetEncryptionKey set a key to encrypt and decrypt a sensitive data
+func (am *Machine) GenerateKeys() error {
+	am.secKey = am.baseSuite.Scalar().Pick(am.baseSuite.RandomStream())
+	am.pubKey = am.baseSuite.Point().Mul(am.secKey, nil)
+	if err := am.SaveKeysToDB(); err != nil {
+		return fmt.Errorf("failed to SaveKeysToDB: %w", err)
+	}
+
+	return nil
+}
+
+// SetEncryptionKey set a key to encrypt and decrypt sensitive data.
 func (am *Machine) SetEncryptionKey(key []byte) {
 	am.encryptionKey = key
 }
@@ -130,7 +140,7 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	}
 
 	for idx, operation := range operationsLog {
-		qrPath, err := am.ProcessOperation(operation)
+		qrPath, err := am.ProcessOperation(operation, false)
 		if err != nil {
 			return fmt.Errorf("failed to ProcessOperation: %w", err)
 		}
@@ -143,12 +153,18 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	return nil
 }
 
-func (am *Machine) ProcessOperation(operation client.Operation) (string, error) {
-	resultOperation, err := am.HandleOperation(operation)
+func (am *Machine) ProcessOperation(operation client.Operation, storeOperation bool) (string, error) {
+	resultOperation, err := am.GetOperationResult(operation)
 	if err != nil {
 		return "", fmt.Errorf(
 			"failed to HandleOperation %s (this error is fatal): %w",
 			operation.ID, err)
+	}
+
+	if storeOperation {
+		if err := am.storeOperation(operation); err != nil {
+			return "", fmt.Errorf("failed to storeOperation: %w", err)
+		}
 	}
 
 	operationBz, err := json.Marshal(resultOperation)
@@ -156,7 +172,7 @@ func (am *Machine) ProcessOperation(operation client.Operation) (string, error) 
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	qrPath := filepath.Join(am.resultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
+	qrPath := filepath.Join(am.ResultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
 	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
 		return "", fmt.Errorf("failed to write QR: %w", err)
 	}
@@ -205,21 +221,7 @@ func (am *Machine) decryptDataFromParticipant(data []byte) ([]byte, error) {
 	return decryptedData, nil
 }
 
-// HandleOperation handles and processes an operation
-func (am *Machine) HandleOperation(operation client.Operation) (client.Operation, error) {
-	resultOperation, err := am.handleOperation(operation)
-	if err != nil {
-		return client.Operation{}, fmt.Errorf("failed to handleOperation: %w", err)
-	}
-
-	if err := am.storeOperation(operation); err != nil {
-		return client.Operation{}, fmt.Errorf("failed to storeOperation: %w", err)
-	}
-
-	return resultOperation, nil
-}
-
-func (am *Machine) handleOperation(operation client.Operation) (client.Operation, error) {
+func (am *Machine) GetOperationResult(operation client.Operation) (client.Operation, error) {
 	var (
 		err error
 	)
