@@ -20,7 +20,6 @@ import (
 
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
 	"github.com/lidofinance/dc4bc/client"
@@ -116,7 +115,7 @@ func getOperationsCommand() *cobra.Command {
 					}
 					fmt.Printf("Hash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
 				}
-				if fsm.State(operation.Type) == signing_proposal_fsm.StateSigningAwaitConfirmations {
+				if strings.HasPrefix(string(operation.Type), "state_signing_") {
 					var payload responses.SigningProposalParticipantInvitationsResponse
 					if err := json.Unmarshal(operation.Payload, &payload); err != nil {
 						return fmt.Errorf("failed to unmarshal operation payload")
