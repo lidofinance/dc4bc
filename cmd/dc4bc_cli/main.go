@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"crypto/md5"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -121,7 +122,7 @@ func getOperationsCommand() *cobra.Command {
 					if err := json.Unmarshal(operation.Payload, &payload); err != nil {
 						return fmt.Errorf("failed to unmarshal operation payload")
 					}
-					msgHash := md5.Sum(payload.SrcPayload)
+					msgHash := sha256.Sum256(payload.SrcPayload)
 					fmt.Printf("Hash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
 					fmt.Printf("Signing ID: %s\n", payload.SigningId)
 				}
