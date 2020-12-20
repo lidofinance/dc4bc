@@ -416,6 +416,17 @@ func getOffsetCommand() *cobra.Command {
 	}
 }
 
+func getUsername(listenAddr string) (string, error) {
+	resp, err := rawGetRequest(fmt.Sprintf("http://%s//getUsername", listenAddr))
+	if err != nil {
+		return "", fmt.Errorf("failed to do HTTP request: %w", err)
+	}
+	if resp.ErrorMessage != "" {
+		return "", fmt.Errorf("failed to get client's username: %v", resp.ErrorMessage)
+	}
+	return resp.Result.(string), nil
+}
+
 func getUsernameCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get_username",
@@ -426,14 +437,11 @@ func getUsernameCommand() *cobra.Command {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 
-			resp, err := rawGetRequest(fmt.Sprintf("http://%s//getUsername", listenAddr))
+			username, err := getUsername(listenAddr)
 			if err != nil {
 				return fmt.Errorf("failed to get client's username: %w", err)
 			}
-			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to get client's username: %v", resp.ErrorMessage)
-			}
-			fmt.Println(resp.Result.(string))
+			fmt.Println(username)
 			return nil
 		},
 	}
@@ -674,8 +682,17 @@ func getFSMStatusCommand() *cobra.Command {
 			confirmed := make([]string, 0)
 			failed := make([]string, 0)
 
+			username, err := getUsername(listenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to get client's username: %w", err)
+			}
+
 			for _, p := range quorum {
 				if strings.Contains(p.GetStatus().String(), "Await") {
+					// deals are private messages, so we don't need to wait messages from ourself
+					if p.GetStatus().String() == "DealAwaitConfirmation" && p.GetUsername() == username {
+						continue
+					}
 					waiting = append(waiting, p.GetUsername())
 				}
 				if strings.Contains(p.GetStatus().String(), "Error") {
