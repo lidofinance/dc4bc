@@ -172,14 +172,6 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 		return nil
 	}
 
-	// save signing data to the same storage as we save signatures
-	// This allows easy to view signing data by CLI-command
-	if fsm.Event(message.Event) == sipf.EventSigningStart {
-		if err := c.processSignature(message); err != nil {
-			return fmt.Errorf("failed to process signature: %w", err)
-		}
-	}
-
 	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
 	if err != nil {
 		return fmt.Errorf("failed to getFSMInstance: %w", err)
@@ -343,6 +335,14 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 		})
 		if err != nil {
 			return fmt.Errorf("failed to Do operation in FSM: %w", err)
+		}
+	}
+
+	// save signing data to the same storage as we save signatures
+	// This allows easy to view signing data by CLI-command
+	if fsm.Event(message.Event) == sipf.EventSigningStart {
+		if err := c.processSignature(message); err != nil {
+			return fmt.Errorf("failed to process signature: %w", err)
 		}
 	}
 
