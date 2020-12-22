@@ -68,8 +68,8 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 	m.payload.SigningProposalPayload.Quorum = make(internal.SigningProposalQuorum)
 
 	// Initialize new quorum
-	for id, dkgEntry := range m.payload.DKGProposalPayload.Quorum {
-		m.payload.SigningProposalPayload.Quorum[id] = &internal.SigningProposalParticipant{
+	for _, dkgEntry := range m.payload.DKGProposalPayload.Quorum.GetOrderedParticipants() {
+		m.payload.SigningProposalPayload.Quorum[dkgEntry.ParticipantID] = &internal.SigningProposalParticipant{
 			Username:  dkgEntry.Username,
 			Status:    internal.SigningAwaitConfirmation,
 			UpdatedAt: request.CreatedAt,
@@ -87,9 +87,9 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 		Participants: make([]*responses.SigningProposalParticipantInvitationEntry, 0),
 	}
 
-	for participantId, participant := range m.payload.SigningProposalPayload.Quorum {
+	for _, participant := range m.payload.SigningProposalPayload.Quorum.GetOrderedParticipants() {
 		responseEntry := &responses.SigningProposalParticipantInvitationEntry{
-			ParticipantId: participantId,
+			ParticipantId: participant.ParticipantID,
 			Username:      participant.Username,
 			Status:        uint8(participant.Status),
 		}
@@ -282,13 +282,13 @@ func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations
 		Participants: make([]*responses.SigningProcessParticipantEntry, 0),
 	}
 
-	for participantId, participant := range m.payload.SigningProposalPayload.Quorum {
+	for _, participant := range m.payload.SigningProposalPayload.Quorum.GetOrderedParticipants() {
 		// don't return participants who didn't broadcast partial signature
 		if len(participant.PartialSign) == 0 {
 			continue
 		}
 		responseEntry := &responses.SigningProcessParticipantEntry{
-			ParticipantId: participantId,
+			ParticipantId: participant.ParticipantID,
 			Username:      participant.Username,
 			PartialSign:   participant.PartialSign,
 		}

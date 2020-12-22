@@ -2,8 +2,10 @@ package internal
 
 import (
 	"crypto/ed25519"
-	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"sort"
 	"time"
+
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
 )
 
 type ParticipantStatus interface {
@@ -42,9 +44,10 @@ type SignatureConfirmation struct {
 }
 
 type SignatureProposalParticipant struct {
-	Username  string
-	PubKey    ed25519.PublicKey
-	DkgPubKey []byte
+	ParticipantID int
+	Username      string
+	PubKey        ed25519.PublicKey
+	DkgPubKey     []byte
 	// For validation user confirmation: sign(InvitationSecret, PubKey) => user
 	InvitationSecret string
 	Status           ConfirmationParticipantStatus
@@ -68,6 +71,24 @@ func (c *SignatureConfirmation) IsExpired() bool {
 // Excludes array merge and rotate operations
 type SignatureProposalQuorum map[int]*SignatureProposalParticipant
 
+func (q SignatureProposalQuorum) GetOrderedParticipants() []*SignatureProposalParticipant {
+	var sortedParticipantIDs []int
+	for participantID := range q {
+		sortedParticipantIDs = append(sortedParticipantIDs, participantID)
+	}
+
+	sort.Ints(sortedParticipantIDs)
+
+	var out []*SignatureProposalParticipant
+	for _, participantID := range sortedParticipantIDs {
+		var participant = q[participantID]
+		participant.ParticipantID = participantID
+		out = append(out, participant)
+	}
+
+	return out
+}
+
 // DKG proposal
 
 type DKGParticipantStatus uint8
@@ -88,15 +109,16 @@ const (
 )
 
 type DKGProposalParticipant struct {
-	Username     string
-	DkgPubKey    []byte
-	DkgCommit    []byte
-	DkgDeal      []byte
-	DkgResponse  []byte
-	DkgMasterKey []byte
-	Status       DKGParticipantStatus
-	Error        *requests.FSMError
-	UpdatedAt    time.Time
+	ParticipantID int
+	Username      string
+	DkgPubKey     []byte
+	DkgCommit     []byte
+	DkgDeal       []byte
+	DkgResponse   []byte
+	DkgMasterKey  []byte
+	Status        DKGParticipantStatus
+	Error         *requests.FSMError
+	UpdatedAt     time.Time
 }
 
 func (dkgP DKGProposalParticipant) GetStatus() ParticipantStatus {
@@ -108,6 +130,24 @@ func (dkgP DKGProposalParticipant) GetUsername() string {
 }
 
 type DKGProposalQuorum map[int]*DKGProposalParticipant
+
+func (q DKGProposalQuorum) GetOrderedParticipants() []*DKGProposalParticipant {
+	var sortedParticipantIDs []int
+	for participantID := range q {
+		sortedParticipantIDs = append(sortedParticipantIDs, participantID)
+	}
+
+	sort.Ints(sortedParticipantIDs)
+
+	var out []*DKGProposalParticipant
+	for _, participantID := range sortedParticipantIDs {
+		var participant = q[participantID]
+		participant.ParticipantID = participantID
+		out = append(out, participant)
+	}
+
+	return out
+}
 
 type DKGConfirmation struct {
 	Quorum    DKGProposalQuorum
@@ -173,6 +213,24 @@ func (c *SigningConfirmation) IsExpired() bool {
 
 type SigningProposalQuorum map[int]*SigningProposalParticipant
 
+func (q SigningProposalQuorum) GetOrderedParticipants() []*SigningProposalParticipant {
+	var sortedParticipantIDs []int
+	for participantID := range q {
+		sortedParticipantIDs = append(sortedParticipantIDs, participantID)
+	}
+
+	sort.Ints(sortedParticipantIDs)
+
+	var out []*SigningProposalParticipant
+	for _, participantID := range sortedParticipantIDs {
+		var participant = q[participantID]
+		participant.ParticipantID = participantID
+		out = append(out, participant)
+	}
+
+	return out
+}
+
 type SigningParticipantStatus uint8
 
 const (
@@ -205,11 +263,12 @@ func (s SigningParticipantStatus) String() string {
 }
 
 type SigningProposalParticipant struct {
-	Username    string
-	Status      SigningParticipantStatus
-	PartialSign []byte
-	Error       *requests.FSMError
-	UpdatedAt   time.Time
+	ParticipantID int
+	Username      string
+	Status        SigningParticipantStatus
+	PartialSign   []byte
+	Error         *requests.FSMError
+	UpdatedAt     time.Time
 }
 
 func (signingP SigningProposalParticipant) GetStatus() ParticipantStatus {
