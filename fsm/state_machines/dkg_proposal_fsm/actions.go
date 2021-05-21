@@ -228,8 +228,7 @@ func (m *DKGProposalFSM) actionValidateDkgProposalAwaitDeals(inEvent fsm.Event, 
 		return
 	}
 
-	// Only awaiting deals stage requires ({all_participants} - 1) confirmations
-	unconfirmedDealsParticipants := m.payload.DKGQuorumCount() - 1
+	unconfirmedDealsParticipants := m.payload.DKGQuorumCount()
 	for _, participant := range m.payload.DKGProposalPayload.Quorum {
 		if participant.Status == internal.DealConfirmationError {
 			isContainsError = true
