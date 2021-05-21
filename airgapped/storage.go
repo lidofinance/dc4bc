@@ -137,6 +137,38 @@ func (am *Machine) getOperationsLog(dkgIdentifier string) ([]client.Operation, e
 	return operationsLog, nil
 }
 
+func (am *Machine) clearOperationsLog(dkgIdentifier string, remove func(o client.Operation) bool) error {
+	roundOperationsLog, err := am.getRoundOperationLog()
+	if err != nil {
+		if err == leveldb.ErrNotFound {
+			return err
+		}
+		return fmt.Errorf("failed to get operationsLogBz from db: %w", err)
+	}
+
+	operations := roundOperationsLog[dkgIdentifier]
+
+	savedOperations := make([]client.Operation, 0)
+	for _, o := range operations {
+		if remove(o) {
+			continue
+		}
+		savedOperations = append(savedOperations, o)
+	}
+
+	roundOperationsLog[dkgIdentifier] = savedOperations
+	roundOperationsLogBz, err := json.Marshal(roundOperationsLog)
+	if err != nil {
+		return fmt.Errorf("failed to marshal operationsLog: %w", err)
+	}
+
+	if err := am.db.Put([]byte(operationsLogDBKey), roundOperationsLogBz, nil); err != nil {
+		return fmt.Errorf("failed to put updated operationsLog: %w", err)
+	}
+
+	return nil
+}
+
 func (am *Machine) dropRoundOperationLog(dkgIdentifier string) error {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
