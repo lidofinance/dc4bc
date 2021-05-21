@@ -21,8 +21,9 @@ import (
 type OperationType string
 
 const (
-	DKGCommits             OperationType = "dkg_commits"
-	SignatureReconstructed fsm.Event     = "signature_reconstructed"
+	DKGCommits                    OperationType = "dkg_commits"
+	SignatureReconstructed        fsm.Event     = "signature_reconstructed"
+	SignatureReconstructionFailed fsm.Event     = "signature_reconstruction_failed"
 )
 
 type ReconstructedSignature struct {
@@ -86,7 +87,7 @@ func (o *Operation) Check(o2 *Operation) error {
 func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 	var resolvedValue interface{}
 	switch fsm.Event(message.Event) {
-	case signature_proposal_fsm.EventConfirmSignatureProposal:
+	case signature_proposal_fsm.EventConfirmSignatureProposal, signature_proposal_fsm.EventDeclineProposal:
 		var req requests.SignatureProposalParticipantRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
@@ -128,7 +129,7 @@ func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
 		}
 		resolvedValue = req
-	case signing_proposal_fsm.EventConfirmSigningConfirmation:
+	case signing_proposal_fsm.EventConfirmSigningConfirmation, signing_proposal_fsm.EventDeclineSigningConfirmation:
 		var req requests.SigningProposalParticipantRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
@@ -147,7 +148,7 @@ func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
 		}
 		resolvedValue = req
-	case signing_proposal_fsm.EventSigningPartialSignError:
+	case signing_proposal_fsm.EventSigningPartialSignError, SignatureReconstructionFailed:
 		var req requests.SignatureProposalConfirmationErrorRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
