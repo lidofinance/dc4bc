@@ -5,7 +5,7 @@ import "time"
 const (
 	// Signature proposal
 	UsernameMinLength                         = 3
-	UsernameMaxLength                         = 15
+	UsernameMaxLength                         = 150
 	ParticipantPubKeyMinLength                = 10
 	DkgPubKeyMinLength                        = 10
 	SignatureProposalSigningThresholdMinCount = 2
