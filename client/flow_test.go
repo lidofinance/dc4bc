@@ -7,6 +7,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -78,11 +80,11 @@ func handleProcessedOperation(url string, operation types.Operation) error {
 	return nil
 }
 
-func (n *node) run(t *testing.T) {
+func (n *node) run() {
 	for {
 		operationsResponse, err := getOperations(fmt.Sprintf("http://%s/getOperations", n.listenAddr))
 		if err != nil {
-			t.Fatalf("failed to get operations: %v", err)
+			panic(fmt.Sprintf("failed to get operations: %v", err))
 		}
 
 		operations := operationsResponse.Result
@@ -93,6 +95,32 @@ func (n *node) run(t *testing.T) {
 
 		n.client.GetLogger().Log("Got %d Operations from pool", len(operations))
 		for _, operation := range operations {
+			if fsm.State(operation.Type) == spf.StateAwaitParticipantsConfirmations {
+				payloadBz, err := json.Marshal(map[string]string{"operationID": operation.ID})
+				if err != nil {
+					panic(fmt.Sprintf("failed to marshal payload: %v", err))
+				}
+
+				resp, err := http.Post(fmt.Sprintf("http://%s/approveDKGParticipation", n.listenAddr), "application/json", bytes.NewReader(payloadBz))
+				if err != nil {
+					panic(fmt.Sprintf("failed to make HTTP request to get operation: %v", err))
+				}
+
+				responseBody, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					panic(fmt.Sprintf("failed to read body %v", err))
+				}
+				resp.Body.Close()
+
+				var response Response
+				if err = json.Unmarshal(responseBody, &response); err != nil {
+					panic(fmt.Sprintf("failed to unmarshal response: %v", err))
+				}
+				if response.ErrorMessage != "" {
+					panic(fmt.Sprintf("failed to approve participation: %s", response.ErrorMessage))
+				}
+				continue
+			}
 			n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
 			processedOperation, err := n.air.GetOperationResult(*operation)
 			if err != nil {
@@ -108,11 +136,11 @@ func (n *node) run(t *testing.T) {
 				msg := processedOperation.ResultMsgs[0]
 				var pubKeyReq requests.DKGProposalMasterKeyConfirmationRequest
 				if err = json.Unmarshal(msg.Data, &pubKeyReq); err != nil {
-					t.Fatalf("failed to unmarshal pubKey request: %v", err)
+					panic(fmt.Sprintf("failed to unmarshal pubKey request: %v", err))
 				}
 				if err = ioutil.WriteFile(fmt.Sprintf("/tmp/participant_%d.pubkey",
 					pubKeyReq.ParticipantId), []byte(hex.EncodeToString(pubKeyReq.MasterKey)), 0666); err != nil {
-					t.Fatalf("failed to write pubkey to temp file: %v", err)
+					panic(fmt.Sprintf("failed to write pubkey to temp file: %v", err))
 				}
 			}
 
@@ -208,15 +236,15 @@ func TestFullFlow(t *testing.T) {
 	for nodeID, n := range nodes {
 		go func(nodeID int, node *node) {
 			if err := node.client.StartHTTPServer(node.listenAddr); err != nil {
-				t.Fatalf("failed to start HTTP server for nodeID #%d: %v\n", nodeID, err)
+				panic(fmt.Sprintf("failed to start HTTP server for nodeID #%d: %v\n", nodeID, err))
 			}
 		}(nodeID, n)
 		time.Sleep(1 * time.Second)
-		go nodes[nodeID].run(t)
+		go nodes[nodeID].run()
 
 		go func(nodeID int, node Client) {
 			if err := node.Poll(); err != nil {
-				t.Fatalf("client %d poller failed: %v\n", nodeID, err)
+				panic(fmt.Sprintf("client %d poller failed: %v\n", nodeID, err))
 			}
 		}(nodeID, n.client)
 

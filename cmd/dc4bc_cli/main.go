@@ -53,6 +53,7 @@ func main() {
 		getOperationsCommand(),
 		getOperationQRPathCommand(),
 		readOperationResultCommand(),
+		approveDKGParticipationCommand(),
 		startDKGCommand(),
 		proposeSignMessageCommand(),
 		getUsernameCommand(),
@@ -115,6 +116,7 @@ func getOperationsCommand() *cobra.Command {
 						return fmt.Errorf("failed to get hash of start DKG message: %w", err)
 					}
 					fmt.Printf("Hash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
+					fmt.Print("You don't need to process this operation in an airgapped machine. Just execute the approve_participation command")
 				}
 				if strings.HasPrefix(string(operation.Type), "state_signing_") {
 					var payload responses.SigningProposalParticipantInvitationsResponse
@@ -534,6 +536,35 @@ func startDKGCommand() *cobra.Command {
 			}
 			if resp.ErrorMessage != "" {
 				return fmt.Errorf("failed to make HTTP request to start DKG: %v", resp.ErrorMessage)
+			}
+			return nil
+		},
+	}
+}
+
+func approveDKGParticipationCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "approve_participation [OPERATION_ID]",
+		Args:  cobra.ExactArgs(1),
+		Short: "approve participation in a DKG process",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			operationID := args[0]
+
+			payloadBz, err := json.Marshal(map[string]string{"operationID": operationID})
+			if err != nil {
+				return fmt.Errorf("failed to marshal payload: %v", err)
+			}
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/approveDKGParticipation", listenAddr), "application/json", payloadBz)
+			if err != nil {
+				return fmt.Errorf("failed to approve participation: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to approve participation: %v", resp.ErrorMessage)
 			}
 			return nil
 		},

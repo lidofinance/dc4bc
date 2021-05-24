@@ -192,7 +192,7 @@ func (tr *Transport) initRequest(threshold int) error {
 	})
 }
 
-func (tr *Transport) commitsStep() error {
+func (tr *Transport) commitsStep(threshold int) error {
 	var getCommitsRequest responses.DKGProposalPubKeysParticipantResponse
 	for _, n := range tr.nodes {
 		pubKey, err := n.Machine.pubKey.MarshalBinary()
@@ -203,6 +203,7 @@ func (tr *Transport) commitsStep() error {
 			ParticipantId: n.ParticipantID,
 			Username:      n.Participant,
 			DkgPubKey:     pubKey,
+			Threshold:     threshold,
 		}
 		getCommitsRequest = append(getCommitsRequest, entry)
 	}
@@ -391,11 +392,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 	}
 	defer os.RemoveAll(testDir)
 
-	if err := tr.initRequest(threshold); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
-
-	if err := tr.commitsStep(); err != nil {
+	if err := tr.commitsStep(threshold); err != nil {
 		t.Fatalf("failed to do commits step: %v", err)
 	}
 
@@ -446,11 +443,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 	}
 	defer os.RemoveAll(testDir)
 
-	if err := tr.initRequest(threshold); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
-
-	if err := tr.commitsStep(); err != nil {
+	if err := tr.commitsStep(threshold); err != nil {
 		t.Fatalf("failed to do init request: %v", err)
 	}
 
@@ -532,11 +525,7 @@ func TestAirgappedMachine_ClearOperations(t *testing.T) {
 	}
 	defer os.RemoveAll(testDir)
 
-	if err := tr.initRequest(threshold); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
-
-	if err := tr.commitsStep(); err != nil {
+	if err := tr.commitsStep(threshold); err != nil {
 		t.Fatalf("failed to do init request: %v", err)
 	}
 
