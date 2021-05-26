@@ -21,6 +21,7 @@ const (
 	kafkaPartition    = 0
 	maxRetries        = 30
 	reconnectInterval = time.Second
+	readerMaxAttempts = 10
 )
 
 func init() {
@@ -256,11 +257,12 @@ func (s *KafkaStorage) connect() error {
 	}
 
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:   []string{s.kafkaEndpoint},
-		Topic:     s.kafkaTopic,
-		Partition: kafkaPartition,
-		MaxWait:   time.Second,
-		Dialer:    dialerConsumer,
+		Brokers:     []string{s.kafkaEndpoint},
+		Topic:       s.kafkaTopic,
+		Partition:   kafkaPartition,
+		MaxWait:     time.Second,
+		Dialer:      dialerConsumer,
+		MaxAttempts: readerMaxAttempts,
 	})
 
 	s.writer, s.reader = conn, reader
