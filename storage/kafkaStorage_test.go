@@ -8,6 +8,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	kafkaEndpoint = "94.130.57.249:9093"
+	kafkaTopic    = "test"
+)
+
+var (
+	kafkaAuthCredentials = &KafkaAuthCredentials{
+		Username: "producer",
+		Password: "producerpass",
+	}
+)
+
 // kafkacat -C -b localhost -t messages
 func TestKafkaStorage_GetMessages(t *testing.T) {
 	if testing.Short() {
@@ -17,15 +29,6 @@ func TestKafkaStorage_GetMessages(t *testing.T) {
 	N := 10
 	var offset uint64 = 5
 
-	producerCreds := &KafkaAuthCredentials{
-		Username: "producer",
-		Password: "producerpass",
-	}
-	consumerCreds := &KafkaAuthCredentials{
-		Username: "consumer",
-		Password: "consumerpass",
-	}
-
 	tlsConfig, err := GetTLSConfig("../kafka-docker/certs/ca.crt")
 	if err != nil {
 		t.Fatal(err.Error())
@@ -34,11 +37,11 @@ func TestKafkaStorage_GetMessages(t *testing.T) {
 	req := require.New(t)
 	stg, err := NewKafkaStorage(
 		context.Background(),
-		"localhost:9093",
-		"test",
+		kafkaEndpoint,
+		kafkaTopic,
 		tlsConfig,
-		producerCreds,
-		consumerCreds,
+		kafkaAuthCredentials,
+		kafkaAuthCredentials,
 		time.Second*10)
 	req.NoError(err)
 
@@ -74,16 +77,6 @@ func TestKafkaStorage_SendBatch(t *testing.T) {
 
 	N := 10
 	var offset uint64 = 5
-
-	producerCreds := &KafkaAuthCredentials{
-		Username: "producer",
-		Password: "producerpass",
-	}
-	consumerCreds := &KafkaAuthCredentials{
-		Username: "consumer",
-		Password: "consumerpass",
-	}
-
 	tlsConfig, err := GetTLSConfig("../kafka-docker/certs/ca.crt")
 	if err != nil {
 		t.Fatal(err.Error())
@@ -92,11 +85,11 @@ func TestKafkaStorage_SendBatch(t *testing.T) {
 	req := require.New(t)
 	stg, err := NewKafkaStorage(
 		context.Background(),
-		"localhost:9093",
-		"test",
+		kafkaEndpoint,
+		kafkaTopic,
 		tlsConfig,
-		producerCreds,
-		consumerCreds,
+		kafkaAuthCredentials,
+		kafkaAuthCredentials,
 		time.Second*10)
 	req.NoError(err)
 
@@ -130,15 +123,6 @@ func TestKafkaStorage_SendResets(t *testing.T) {
 	}
 
 	N := 10
-	producerCreds := &KafkaAuthCredentials{
-		Username: "producer",
-		Password: "producerpass",
-	}
-	consumerCreds := &KafkaAuthCredentials{
-		Username: "consumer",
-		Password: "consumerpass",
-	}
-
 	tlsConfig, err := GetTLSConfig("../ca.crt")
 	if err != nil {
 		t.Fatal(err.Error())
@@ -147,11 +131,11 @@ func TestKafkaStorage_SendResets(t *testing.T) {
 	req := require.New(t)
 	stg, err := NewKafkaStorage(
 		context.Background(),
-		"94.130.57.249:9093",
-		"test",
+		kafkaEndpoint,
+		kafkaTopic,
 		tlsConfig,
-		producerCreds,
-		consumerCreds,
+		kafkaAuthCredentials,
+		kafkaAuthCredentials,
 		time.Second*10,
 	)
 	req.NoError(err)
@@ -160,11 +144,11 @@ func TestKafkaStorage_SendResets(t *testing.T) {
 		msgs := make([]Message, 0, N)
 
 		msg := Message{
-			Data:      randomBytes(500000),
+			Data:      randomBytes(600000),
 			Signature: randomBytes(10),
 		}
 		msgs = append(msgs, msg)
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 5)
 
 		_, err := stg.SendBatch(msgs...)
 		req.NoError(err)
