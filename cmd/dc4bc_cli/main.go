@@ -116,7 +116,7 @@ func getOperationsCommand() *cobra.Command {
 						return fmt.Errorf("failed to get hash of start DKG message: %w", err)
 					}
 					fmt.Printf("Hash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
-					fmt.Print("You don't need to process this operation in an airgapped machine. Just execute the approve_participation command")
+					fmt.Print("You don't need to process this operation in an airgapped machine. Just execute the approve_participation command\n")
 				}
 				if strings.HasPrefix(string(operation.Type), "state_signing_") {
 					var payload responses.SigningProposalParticipantInvitationsResponse
