@@ -29,9 +29,10 @@ func init() {
 
 type KafkaStorage struct {
 	sync.Mutex
-	ctx    context.Context
-	writer *kafka.Conn
-	reader *kafka.Reader
+	ctx     context.Context
+	timeout time.Duration
+	writer  *kafka.Conn
+	reader  *kafka.Reader
 
 	kafkaEndpoint string
 	kafkaTopic    string
@@ -61,9 +62,18 @@ func GetTLSConfig(trustStorePath string) (*tls.Config, error) {
 	return config, nil
 }
 
-func NewKafkaStorage(ctx context.Context, kafkaEndpoint string, kafkaTopic string, tlsConfig *tls.Config, producerCreds, consumerCreds *KafkaAuthCredentials) (Storage, error) {
+func NewKafkaStorage(
+	ctx context.Context,
+	kafkaEndpoint string,
+	kafkaTopic string,
+	tlsConfig *tls.Config,
+	producerCreds,
+	consumerCreds *KafkaAuthCredentials,
+	timeout time.Duration,
+) (Storage, error) {
 	stg := &KafkaStorage{
 		ctx:           ctx,
+		timeout:       timeout,
 		kafkaEndpoint: kafkaEndpoint,
 		kafkaTopic:    kafkaTopic,
 		tlsConfig:     tlsConfig,
@@ -141,7 +151,7 @@ func (s *KafkaStorage) sendBatch(msgs ...Message) ([]Message, error) {
 		kafkaMessages[i] = kafka.Message{Key: []byte(m.ID), Value: data}
 	}
 
-	if err := s.writer.SetWriteDeadline(time.Now().Add(time.Second)); err != nil {
+	if err := s.writer.SetWriteDeadline(time.Now().Add(s.timeout)); err != nil {
 		return msgs, fmt.Errorf("failed to SetWriteDeadline: %w", err)
 	}
 
@@ -228,13 +238,13 @@ func (s *KafkaStorage) connect() error {
 	mechanismConsumer := plain.Mechanism{s.consumerCreds.Username, s.consumerCreds.Password}
 
 	dialerProducer := &kafka.Dialer{
-		Timeout:       10 * time.Second,
+		Timeout:       s.timeout,
 		DualStack:     true,
 		TLS:           s.tlsConfig,
 		SASLMechanism: mechanismProducer,
 	}
 	dialerConsumer := &kafka.Dialer{
-		Timeout:       10 * time.Second,
+		Timeout:       s.timeout,
 		DualStack:     true,
 		TLS:           s.tlsConfig,
 		SASLMechanism: mechanismConsumer,

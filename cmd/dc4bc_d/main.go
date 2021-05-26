@@ -3,15 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client"
+	"github.com/lidofinance/dc4bc/qr"
+	"github.com/lidofinance/dc4bc/storage"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
-
-	"github.com/lidofinance/dc4bc/client"
-	"github.com/lidofinance/dc4bc/qr"
-	"github.com/lidofinance/dc4bc/storage"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -23,6 +22,7 @@ const (
 	flagStateDBDSN               = "state_dbdsn"
 	flagStorageDBDSN             = "storage_dbdsn"
 	flagFramesDelay              = "frames_delay"
+	flagStorageTimeout           = "storage_timeout"
 	flagStorageTopic             = "storage_topic"
 	flagKafkaProducerCredentials = "producer_credentials"
 	flagKafkaConsumerCredentials = "consumer_credentials"
@@ -44,6 +44,7 @@ func init() {
 	rootCmd.PersistentFlags().String(flagListenAddr, "localhost:8080", "Listen Address")
 	rootCmd.PersistentFlags().String(flagStateDBDSN, "./dc4bc_client_state", "State DBDSN")
 	rootCmd.PersistentFlags().String(flagStorageDBDSN, "./dc4bc_file_storage", "Storage DBDSN")
+	rootCmd.PersistentFlags().String(flagStorageTimeout, "10s", "Storage I/O Timeout")
 	rootCmd.PersistentFlags().String(flagStorageTopic, "messages", "Storage Topic (Kafka)")
 	rootCmd.PersistentFlags().String(flagKafkaProducerCredentials, "producer:producerpass", "Producer credentials for Kafka: username:password")
 	rootCmd.PersistentFlags().String(flagKafkaConsumerCredentials, "consumer:consumerpass", "Consumer credentials for Kafka: username:password")
@@ -59,6 +60,7 @@ func init() {
 	exitIfError(viper.BindPFlag(flagStateDBDSN, rootCmd.PersistentFlags().Lookup(flagStateDBDSN)))
 	exitIfError(viper.BindPFlag(flagStorageDBDSN, rootCmd.PersistentFlags().Lookup(flagStorageDBDSN)))
 	exitIfError(viper.BindPFlag(flagStorageTopic, rootCmd.PersistentFlags().Lookup(flagStorageTopic)))
+	exitIfError(viper.BindPFlag(flagStorageTimeout, rootCmd.PersistentFlags().Lookup(flagStorageTimeout)))
 	exitIfError(viper.BindPFlag(flagKafkaProducerCredentials, rootCmd.PersistentFlags().Lookup(flagKafkaProducerCredentials)))
 	exitIfError(viper.BindPFlag(flagKafkaConsumerCredentials, rootCmd.PersistentFlags().Lookup(flagKafkaConsumerCredentials)))
 	exitIfError(viper.BindPFlag(flagKafkaTrustStorePath, rootCmd.PersistentFlags().Lookup(flagKafkaTrustStorePath)))
@@ -125,6 +127,7 @@ func startClientCommand() *cobra.Command {
 			ctx := context.Background()
 			ctx, cancel := context.WithCancel(ctx)
 
+			storageTimeout := viper.GetDuration(flagStorageTimeout)
 			storageTopic := viper.GetString(flagStorageTopic)
 			stateDBDSN := viper.GetString(flagStateDBDSN)
 			state, err := client.NewLevelDBState(stateDBDSN, storageTopic)
@@ -151,7 +154,15 @@ func startClientCommand() *cobra.Command {
 			}
 
 			storageDBDSN := viper.GetString(flagStorageDBDSN)
-			stg, err := storage.NewKafkaStorage(ctx, storageDBDSN, storageTopic, tlsConfig, producerCreds, consumerCreds)
+			stg, err := storage.NewKafkaStorage(
+				ctx,
+				storageDBDSN,
+				storageTopic,
+				tlsConfig,
+				producerCreds,
+				consumerCreds,
+				storageTimeout,
+			)
 			if err != nil {
 				return fmt.Errorf("failed to init storage client: %w", err)
 			}
