@@ -1,10 +1,12 @@
 package client
 
 import (
+	"crypto/ed25519"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -78,6 +80,7 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 
 	mux.HandleFunc("/startDKG", c.startDKGHandler)
 	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
+	mux.HandleFunc("/approveDKGParticipation", c.approveParticipationHandler)
 
 	mux.HandleFunc("/saveOffset", c.saveOffsetHandler)
 	mux.HandleFunc("/getOffset", c.getOffsetHandler)
@@ -330,6 +333,86 @@ func (c *BaseClient) startDKGHandler(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))
 		return
 	}
+	successResponse(w, "ok")
+}
+
+func (c *BaseClient) approveParticipationHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+
+	var req map[string]string
+	err := decoder.Decode(&req)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
+		return
+	}
+
+	operationID, ok := req["operationID"]
+	if !ok {
+		errorResponse(w, http.StatusBadRequest, fmt.Sprintf("operationID is required: %v", err))
+		return
+	}
+
+	operations, err := c.GetOperations()
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operations: %v", err))
+		return
+	}
+
+	operation, ok := operations[operationID]
+	if !ok {
+		errorResponse(w, http.StatusNotFound, fmt.Sprintf("operation %s not found", operationID))
+		return
+	}
+	if fsm.State(operation.Type) != spf.StateAwaitParticipantsConfirmations {
+		errorResponse(w, http.StatusBadRequest, fmt.Sprintf("cannot approve participation with operationID %s", operationID))
+		return
+	}
+
+	var payload responses.SignatureProposalParticipantInvitationsResponse
+	if err = json.Unmarshal(operation.Payload, &payload); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to unmarshal payload: %v", err))
+		return
+	}
+
+	pid := -1
+	for _, p := range payload {
+		if c.GetPubKey().Equal(ed25519.PublicKey(p.PubKey)) {
+			pid = p.ParticipantId
+			break
+		}
+	}
+	if pid < 0 {
+		errorResponse(w, http.StatusInternalServerError, "failed to determine participant id")
+		return
+	}
+
+	fsmRequest := requests.SignatureProposalParticipantRequest{
+		ParticipantId: pid,
+		CreatedAt:     operation.CreatedAt,
+	}
+	reqBz, err := json.Marshal(fsmRequest)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to generate FSM request: %v", err))
+		return
+	}
+
+	operation.Event = spf.EventConfirmSignatureProposal
+	operation.ResultMsgs = append(operation.ResultMsgs, storage.Message{
+		Event:         string(operation.Event),
+		Data:          reqBz,
+		DkgRoundID:    operation.DKGIdentifier,
+		RecipientAddr: operation.To,
+	})
+
+	if err = c.handleProcessedOperation(*operation); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to handle processed operation: %v", err))
+		return
+	}
+
 	successResponse(w, "ok")
 }
 

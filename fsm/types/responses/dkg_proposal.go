@@ -6,6 +6,7 @@ type DKGProposalPubKeysParticipantEntry struct {
 	ParticipantId int
 	Username      string
 	DkgPubKey     []byte
+	Threshold     int
 }
 
 type DKGProposalCommitParticipantResponse []*DKGProposalCommitParticipantEntry
