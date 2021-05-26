@@ -3,12 +3,16 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/lidofinance/dc4bc/fsm/config"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+
+	"github.com/lidofinance/dc4bc/client"
+	"github.com/lidofinance/dc4bc/fsm/config"
+	"github.com/lidofinance/dc4bc/qr"
+	"github.com/lidofinance/dc4bc/storage"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
