@@ -422,6 +422,10 @@ func (c *BaseClient) GetOperationQRPath(operationID string) (string, error) {
 // It checks that the operation exists in an operation pool, signs the operation, sends it to an append-only log and
 // deletes it from the pool.
 func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
+	if len(operation.ResultMsgs) == 0 {
+		return errors.New("operation is request operation, provide result operation instead")
+	}
+
 	storedOperation, err := c.state.GetOperationByID(operation.ID)
 	if err != nil {
 		return fmt.Errorf("failed to find matching operation: %w", err)

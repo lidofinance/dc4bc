@@ -3,9 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client"
-	"github.com/lidofinance/dc4bc/qr"
-	"github.com/lidofinance/dc4bc/storage"
+	"github.com/lidofinance/dc4bc/fsm/config"
 	"log"
 	"os"
 	"os/signal"
@@ -92,6 +90,15 @@ func genKeyPairCommand() *cobra.Command {
 		Short: "generates a keypair to sign and verify messages",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			username := viper.GetString(flagUserName)
+
+			if len(username) < config.UsernameMinLength {
+				return fmt.Errorf("\"username\" minimum length is %d", config.UsernameMinLength)
+			}
+
+			if len(username) > config.UsernameMaxLength {
+				return fmt.Errorf("\"username\" maximum length is %d", config.UsernameMaxLength)
+			}
+
 			keyStoreDBDSN := viper.GetString(flagStoreDBDSN)
 
 			keyPair := client.NewKeyPair()

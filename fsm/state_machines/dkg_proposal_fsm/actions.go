@@ -61,6 +61,7 @@ func (m *DKGProposalFSM) actionInitDKGProposal(inEvent fsm.Event, args ...interf
 			ParticipantId: participant.ParticipantID,
 			Username:      participant.Username,
 			DkgPubKey:     participant.DkgPubKey,
+			Threshold:     m.payload.SignatureProposalPayload.Quorum[0].Threshold,
 		}
 		responseData = append(responseData, responseEntry)
 	}
