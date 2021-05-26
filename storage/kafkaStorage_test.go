@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"testing"
 	"time"
 
@@ -33,7 +32,14 @@ func TestKafkaStorage_GetMessages(t *testing.T) {
 	}
 
 	req := require.New(t)
-	stg, err := NewKafkaStorage(context.Background(), "localhost:9093", "test", tlsConfig, producerCreds, consumerCreds)
+	stg, err := NewKafkaStorage(
+		context.Background(),
+		"localhost:9093",
+		"test",
+		tlsConfig,
+		producerCreds,
+		consumerCreds,
+		time.Second*10)
 	req.NoError(err)
 
 	msgs := make([]Message, 0, N)
@@ -84,7 +90,14 @@ func TestKafkaStorage_SendBatch(t *testing.T) {
 	}
 
 	req := require.New(t)
-	stg, err := NewKafkaStorage(context.Background(), "localhost:9093", "test", tlsConfig, producerCreds, consumerCreds)
+	stg, err := NewKafkaStorage(
+		context.Background(),
+		"localhost:9093",
+		"test",
+		tlsConfig,
+		producerCreds,
+		consumerCreds,
+		time.Second*10)
 	req.NoError(err)
 
 	msgs := make([]Message, 0, N)
