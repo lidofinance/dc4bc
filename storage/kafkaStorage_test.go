@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -9,8 +10,9 @@ import (
 )
 
 const (
-	kafkaEndpoint = "94.130.57.249:9093"
-	kafkaTopic    = "test"
+	kafkaEndpoint   = "94.130.57.249:9093"
+	kafkaTopic      = "test_long"
+	certificatePath = "../ca.crt"
 )
 
 var (
@@ -29,7 +31,7 @@ func TestKafkaStorage_GetMessages(t *testing.T) {
 	N := 10
 	var offset uint64 = 5
 
-	tlsConfig, err := GetTLSConfig("../kafka-docker/certs/ca.crt")
+	tlsConfig, err := GetTLSConfig(certificatePath)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -77,7 +79,7 @@ func TestKafkaStorage_SendBatch(t *testing.T) {
 
 	N := 10
 	var offset uint64 = 5
-	tlsConfig, err := GetTLSConfig("../kafka-docker/certs/ca.crt")
+	tlsConfig, err := GetTLSConfig(certificatePath)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -117,16 +119,17 @@ func TestKafkaStorage_SendBatch(t *testing.T) {
 	}
 }
 
-func TestKafkaStorage_SendResets(t *testing.T) {
+func TestKafkaStorage_Resets(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping long test")
 	}
 
-	N := 10
-	tlsConfig, err := GetTLSConfig("../ca.crt")
+	tlsConfig, err := GetTLSConfig(certificatePath)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+
+	var testDuration = time.Minute * 5
 
 	req := require.New(t)
 	stg, err := NewKafkaStorage(
@@ -140,17 +143,47 @@ func TestKafkaStorage_SendResets(t *testing.T) {
 	)
 	req.NoError(err)
 
-	for j := 0; j < 10; j++ {
-		msgs := make([]Message, 0, N)
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
 
-		msg := Message{
-			Data:      randomBytes(600000),
-			Signature: randomBytes(10),
+	tmWrite := time.NewTimer(testDuration)
+	go func() {
+		for {
+			select {
+			case <-tmWrite.C:
+				wg.Done()
+				return
+			default:
+				msgs := []Message{
+					{
+						Data:      randomBytes(500000),
+						Signature: randomBytes(10),
+					},
+				}
+				_, err := stg.SendBatch(msgs...)
+				req.NoError(err)
+				time.Sleep(time.Millisecond * 330)
+			}
 		}
-		msgs = append(msgs, msg)
-		time.Sleep(time.Second * 5)
+	}()
 
-		_, err := stg.SendBatch(msgs...)
-		req.NoError(err)
-	}
+	tmRead := time.NewTimer(testDuration)
+	go func() {
+		var offset uint64
+		for {
+			select {
+			case <-tmRead.C:
+				wg.Done()
+				return
+			default:
+				msgs, err := stg.GetMessages(offset)
+				require.NoError(t, err)
+				if len(msgs) > 0 {
+					offset = msgs[len(msgs)-1].Offset
+				}
+			}
+		}
+	}()
+
+	wg.Wait()
 }
