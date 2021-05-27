@@ -1,4 +1,4 @@
-package storage
+package file_storage
 
 import (
 	"bufio"
@@ -7,11 +7,13 @@ import (
 	"io"
 	"os"
 
+	"github.com/lidofinance/dc4bc/storage"
+
 	"github.com/google/uuid"
 	"github.com/juju/fslock"
 )
 
-var _ Storage = (*FileStorage)(nil)
+var _ storage.Storage = (*FileStorage)(nil)
 
 type FileStorage struct {
 	lockFile *fslock.Lock
@@ -36,7 +38,7 @@ func countLines(r io.Reader) uint64 {
 
 // NewFileStorage inits append-only file storage
 // It takes two arguments: filename - path to a data file, lockFilename (optional) - path to a lock file
-func NewFileStorage(filename string, lockFilename ...string) (Storage, error) {
+func NewFileStorage(filename string, lockFilename ...string) (storage.Storage, error) {
 	var (
 		fs  FileStorage
 		err error
@@ -54,7 +56,7 @@ func NewFileStorage(filename string, lockFilename ...string) (Storage, error) {
 }
 
 // Send sends a message to an append-only data file, returns a message with offset and id
-func (fs *FileStorage) Send(m Message) (Message, error) {
+func (fs *FileStorage) send(m storage.Message) (storage.Message, error) {
 	var (
 		data []byte
 		err  error
@@ -81,24 +83,24 @@ func (fs *FileStorage) Send(m Message) (Message, error) {
 	return m, err
 }
 
-func (fs *FileStorage) SendBatch(msgs ...Message) ([]Message, error) {
+func (fs *FileStorage) Send(msgs ...storage.Message) error {
 	var err error
 	for i, m := range msgs {
-		msgs[i], err = fs.Send(m)
+		msgs[i], err = fs.send(m)
 		if err != nil {
-			return msgs, err
+			return err
 		}
 	}
-	return msgs, nil
+	return nil
 }
 
 // GetMessages returns a slice of messages from append-only data file with given offset
-func (fs *FileStorage) GetMessages(offset uint64) ([]Message, error) {
+func (fs *FileStorage) GetMessages(offset uint64) ([]storage.Message, error) {
 	var (
-		msgs []Message
+		msgs []storage.Message
 		err  error
 		row  []byte
-		data Message
+		data storage.Message
 	)
 	if _, err = fs.dataFile.Seek(0, 0); err != nil {
 		return nil, fmt.Errorf("failed to seek a offset to the start of a data file: %v", err)
