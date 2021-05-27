@@ -15,3 +15,5 @@
 # vendor/
 
 .idea
+dc4bc_*
+*.json
