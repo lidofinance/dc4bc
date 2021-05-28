@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/md5"
 	"crypto/sha256"
@@ -11,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -23,6 +25,7 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
+	"github.com/fatih/color"
 	"github.com/lidofinance/dc4bc/client"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/qr"
@@ -99,6 +102,7 @@ func getOperationsCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
+
 			operations, err := getOperationsRequest(listenAddr)
 			if err != nil {
 				return fmt.Errorf("failed to get operations: %w", err)
@@ -106,17 +110,36 @@ func getOperationsCommand() *cobra.Command {
 			if operations.ErrorMessage != "" {
 				return fmt.Errorf("failed to get operations: %s", operations.ErrorMessage)
 			}
-			for _, operation := range operations.Result {
-				fmt.Printf("DKG round ID: %s\n", operation.DKGIdentifier)
-				fmt.Printf("Operation ID: %s\n", operation.ID)
-				fmt.Printf("Description: %s\n", getShortOperationDescription(operation.Type))
+
+			if len(operations.Result) == 0 {
+				color.New(color.Bold).Println("The are no available operations yet")
+				return nil
+			}
+
+			colorTitle := color.New(color.Bold)
+			colorDKG := color.New(color.FgCyan)
+			colorOperationId := color.New(color.FgGreen)
+			colorTitle.Println("Please, select operation:")
+			fmt.Println("-----------------------------------------------------")
+			for actionId, operation := range operations.Result {
+				fmt.Printf(" %s)\t\t", color.YellowString(actionId))
+
+				colorTitle.Print("DKG round ID:")
+				colorDKG.Printf(" %s\n", operation.DKGIdentifier)
+
+				colorTitle.Print("\t\tOperation ID:")
+				colorOperationId.Printf(" %s\n", operation.ID)
+
+				colorTitle.Print("\t\tDescription:")
+				fmt.Printf(" %s\n", getShortOperationDescription(operation.Type))
+
 				if fsm.State(operation.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
 					payloadHash, err := calcStartDKGMessageHash(operation.Payload)
 					if err != nil {
 						return fmt.Errorf("failed to get hash of start DKG message: %w", err)
 					}
-					fmt.Printf("Hash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
-					fmt.Print("You don't need to process this operation in an airgapped machine. Just execute the approve_participation command\n")
+					fmt.Printf("\t\tHash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
+					fmt.Print("\t\tYou don't need to process this operation in an airgapped machine. Just execute the approve_participation command\n")
 				}
 				if strings.HasPrefix(string(operation.Type), "state_signing_") {
 					var payload responses.SigningProposalParticipantInvitationsResponse
@@ -124,11 +147,32 @@ func getOperationsCommand() *cobra.Command {
 						return fmt.Errorf("failed to unmarshal operation payload")
 					}
 					msgHash := sha256.Sum256(payload.SrcPayload)
-					fmt.Printf("Hash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
-					fmt.Printf("Signing ID: %s\n", payload.SigningId)
+					fmt.Printf("\t\tHash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
+					fmt.Printf("\t\tSigning ID: %s\n", payload.SigningId)
 				}
 				fmt.Println("-----------------------------------------------------")
 			}
+
+			colorTitle.Println("Select operation and press Enter. Ctrl+C for cancel")
+
+			scanner := bufio.NewScanner(os.Stdin)
+			for scanner.Scan() {
+				if operation, ok := operations.Result[scanner.Text()]; ok {
+					colorTitle.Print("Processing operation")
+					colorOperationId.Printf(" %s\n", operation.ID)
+
+					qrCmd := getOperationQRPathCommand()
+
+					qrCmd.SetArgs([]string{operation.ID})
+					qrCmd.Flags().AddFlagSet(cmd.Flags())
+
+					qrCmd.Execute()
+					return nil
+				} else {
+					color.New(color.FgRed).Println("Unknown operation action")
+				}
+			}
+
 			return nil
 		},
 	}
