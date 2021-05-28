@@ -73,6 +73,47 @@ func TestKafkaStorage_Send(t *testing.T) {
 	req.Len(offsetMsgs, len(msgs))
 }
 
+func TestFileStorage_IgnoreMessages(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping long test")
+	}
+
+	var (
+		numMessages = 10
+		stg         = getTestStorage()
+		req         = require.New(t)
+	)
+
+	msgs := make([]storage.Message, 0, numMessages)
+	for i := 0; i < numMessages; i++ {
+		msg := storage.Message{
+			Data:      randomBytes(10),
+			Signature: randomBytes(10),
+		}
+		msgs = append(msgs, msg)
+	}
+
+	err := stg.Send(msgs...)
+	req.NoError(err)
+
+	ids := []string{msgs[0].ID, msgs[1].ID}
+	err = stg.IgnoreMessages(ids, false)
+	req.NoError(err)
+
+	msgsAfterIgnoring, err := stg.GetMessages(0)
+	req.NoError(err)
+
+	expectedMsgs := msgs[2:]
+	req.ElementsMatch(msgsAfterIgnoring, expectedMsgs)
+
+	stg.UnignoreMessages()
+
+	msgsAfterUnignoring, err := stg.GetMessages(0)
+	req.NoError(err)
+
+	req.ElementsMatch(msgsAfterUnignoring, msgs)
+}
+
 func randomBytes(n int) []byte {
 	rand.Seed(time.Now().UnixNano())
 	b := make([]byte, n)

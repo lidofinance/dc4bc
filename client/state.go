@@ -28,6 +28,8 @@ func makeCompositeKey(prefix, key string) []byte {
 // State is the client's state (it keeps the offset, the FSM state and
 // the Operation pool.
 type State interface {
+	NewStateFromOld(stateDbPath string) (State, string, error)
+
 	SaveOffset(uint64) error
 	LoadOffset() (uint64, error)
 
@@ -47,8 +49,9 @@ type State interface {
 
 type LevelDBState struct {
 	sync.Mutex
-	stateDb *leveldb.DB
-	topic   string
+	stateDb     *leveldb.DB
+	topic       string
+	stateDbPath string
 }
 
 func NewLevelDBState(stateDbPath string, topic string) (State, error) {
@@ -58,8 +61,9 @@ func NewLevelDBState(stateDbPath string, topic string) (State, error) {
 	}
 
 	state := &LevelDBState{
-		stateDb: db,
-		topic:   topic,
+		stateDb:     db,
+		topic:       topic,
+		stateDbPath: stateDbPath,
 	}
 
 	// Init state key for operations JSON.
@@ -88,6 +92,16 @@ func NewLevelDBState(stateDbPath string, topic string) (State, error) {
 	}
 
 	return state, nil
+}
+
+func (s *LevelDBState) NewStateFromOld(stateDbPath string) (State, string, error) {
+	if len(stateDbPath) < 1 {
+		stateDbPath = s.stateDbPath + "_new"
+	}
+
+	state, err := NewLevelDBState(stateDbPath, s.topic)
+
+	return state, stateDbPath, err
 }
 
 func (s *LevelDBState) initJsonKey(key []byte, data interface{}) error {
