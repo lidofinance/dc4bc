@@ -7,8 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/fsm/fsm"
-	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -17,12 +15,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	"github.com/lidofinance/dc4bc/storage/file_storage"
+
 	"github.com/lidofinance/dc4bc/airgapped"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/qr"
-	"github.com/lidofinance/dc4bc/storage"
 )
 
 type node struct {
@@ -187,7 +188,7 @@ func TestFullFlow(t *testing.T) {
 			t.Fatalf("node %d failed to init state: %v\n", nodeID, err)
 		}
 
-		stg, err := storage.NewFileStorage(storagePath)
+		stg, err := file_storage.NewFileStorage(storagePath)
 		if err != nil {
 			t.Fatalf("node %d failed to init storage: %v\n", nodeID, err)
 		}

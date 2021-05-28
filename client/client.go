@@ -142,7 +142,7 @@ func (c *BaseClient) Poll() error {
 }
 
 func (c *BaseClient) SendMessage(message storage.Message) error {
-	if _, err := c.storage.Send(message); err != nil {
+	if err := c.storage.Send(message); err != nil {
 		return fmt.Errorf("failed to post message: %w", err)
 	}
 
@@ -447,7 +447,7 @@ func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
 		operation.ResultMsgs[i] = message
 	}
 
-	if _, err := c.storage.SendBatch(operation.ResultMsgs...); err != nil {
+	if err := c.storage.Send(operation.ResultMsgs...); err != nil {
 		return fmt.Errorf("failed to post messages: %w", err)
 	}
 

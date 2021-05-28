@@ -3,16 +3,19 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/lidofinance/dc4bc/fsm/config"
 	"log"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 
+	"github.com/segmentio/kafka-go/sasl/plain"
+
+	"github.com/lidofinance/dc4bc/fsm/config"
+	"github.com/lidofinance/dc4bc/storage/kafka_storage"
+
 	"github.com/lidofinance/dc4bc/client"
 	"github.com/lidofinance/dc4bc/qr"
-	"github.com/lidofinance/dc4bc/storage"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -28,6 +31,8 @@ const (
 	flagKafkaProducerCredentials = "producer_credentials"
 	flagKafkaConsumerCredentials = "consumer_credentials"
 	flagKafkaTrustStorePath      = "kafka_truststore_path"
+	flagKafkaConsumerGroup       = "kafka_consumer_group"
+	flagKafkaTimeout             = "kafka_timeout"
 	flagStoreDBDSN               = "key_store_dbdsn"
 	flagChunkSize                = "chunk_size"
 	flagConfig                   = "config"
@@ -49,6 +54,8 @@ func init() {
 	rootCmd.PersistentFlags().String(flagKafkaProducerCredentials, "producer:producerpass", "Producer credentials for Kafka: username:password")
 	rootCmd.PersistentFlags().String(flagKafkaConsumerCredentials, "consumer:consumerpass", "Consumer credentials for Kafka: username:password")
 	rootCmd.PersistentFlags().String(flagKafkaTrustStorePath, "certs/ca.pem", "Path to kafka truststore")
+	rootCmd.PersistentFlags().String(flagKafkaConsumerGroup, "testUser_consumer_group", "Kafka consumer group")
+	rootCmd.PersistentFlags().String(flagKafkaTimeout, "60s", "Kafka I/O Timeout")
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
@@ -63,6 +70,8 @@ func init() {
 	exitIfError(viper.BindPFlag(flagKafkaProducerCredentials, rootCmd.PersistentFlags().Lookup(flagKafkaProducerCredentials)))
 	exitIfError(viper.BindPFlag(flagKafkaConsumerCredentials, rootCmd.PersistentFlags().Lookup(flagKafkaConsumerCredentials)))
 	exitIfError(viper.BindPFlag(flagKafkaTrustStorePath, rootCmd.PersistentFlags().Lookup(flagKafkaTrustStorePath)))
+	exitIfError(viper.BindPFlag(flagKafkaConsumerGroup, rootCmd.PersistentFlags().Lookup(flagKafkaConsumerGroup)))
+	exitIfError(viper.BindPFlag(flagKafkaTimeout, rootCmd.PersistentFlags().Lookup(flagKafkaTimeout)))
 	exitIfError(viper.BindPFlag(flagStoreDBDSN, rootCmd.PersistentFlags().Lookup(flagStoreDBDSN)))
 	exitIfError(viper.BindPFlag(flagFramesDelay, rootCmd.PersistentFlags().Lookup(flagFramesDelay)))
 	exitIfError(viper.BindPFlag(flagChunkSize, rootCmd.PersistentFlags().Lookup(flagChunkSize)))
@@ -116,14 +125,14 @@ func genKeyPairCommand() *cobra.Command {
 	}
 }
 
-func parseKafkaAuthCredentials(creds string) (*storage.KafkaAuthCredentials, error) {
-	credsSplited := strings.SplitN(creds, ":", 2)
-	if len(credsSplited) == 1 {
+func parseKafkaSaslPlain(creds string) (*plain.Mechanism, error) {
+	credsSplit := strings.SplitN(creds, ":", 2)
+	if len(credsSplit) == 1 {
 		return nil, fmt.Errorf("failed to parse credentials")
 	}
-	return &storage.KafkaAuthCredentials{
-		Username: credsSplited[0],
-		Password: credsSplited[1],
+	return &plain.Mechanism{
+		Username: credsSplit[0],
+		Password: credsSplit[1],
 	}, nil
 }
 
@@ -143,25 +152,28 @@ func startClientCommand() *cobra.Command {
 			}
 
 			kafkaTrustStorePath := viper.GetString(flagKafkaTrustStorePath)
-			tlsConfig, err := storage.GetTLSConfig(kafkaTrustStorePath)
+			kafkaConsumerGroup := viper.GetString(flagKafkaConsumerGroup)
+			kafkaTimeout := viper.GetDuration(flagKafkaTimeout)
+			tlsConfig, err := kafka_storage.GetTLSConfig(kafkaTrustStorePath)
 			if err != nil {
 				return fmt.Errorf("faile to create tls config: %w", err)
 			}
 
 			producerCredentials := viper.GetString(flagKafkaProducerCredentials)
-			producerCreds, err := parseKafkaAuthCredentials(producerCredentials)
+			producerCreds, err := parseKafkaSaslPlain(producerCredentials)
 			if err != nil {
 				return fmt.Errorf("failed to parse kafka credentials: %w", err)
 			}
 
 			consumerCredentials := viper.GetString(flagKafkaConsumerCredentials)
-			consumerCreds, err := parseKafkaAuthCredentials(consumerCredentials)
+			consumerCreds, err := parseKafkaSaslPlain(consumerCredentials)
 			if err != nil {
 				return fmt.Errorf("failed to parse kafka credentials: %w", err)
 			}
 
 			storageDBDSN := viper.GetString(flagStorageDBDSN)
-			stg, err := storage.NewKafkaStorage(ctx, storageDBDSN, storageTopic, tlsConfig, producerCreds, consumerCreds)
+			stg, err := kafka_storage.NewKafkaStorage(storageDBDSN, storageTopic, kafkaConsumerGroup, tlsConfig,
+				producerCreds, consumerCreds, kafkaTimeout)
 			if err != nil {
 				return fmt.Errorf("failed to init storage client: %w", err)
 			}
