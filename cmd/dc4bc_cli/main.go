@@ -22,11 +22,11 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
 	"github.com/lidofinance/dc4bc/fsm/fsm"
-	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
 	"github.com/fatih/color"
 	"github.com/lidofinance/dc4bc/client"
+	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/qr"
 	"github.com/spf13/cobra"
@@ -121,8 +121,12 @@ func getOperationsCommand() *cobra.Command {
 			colorOperationId := color.New(color.FgGreen)
 			colorTitle.Println("Please, select operation:")
 			fmt.Println("-----------------------------------------------------")
-			for actionId, operation := range operations.Result {
-				fmt.Printf(" %s)\t\t", color.YellowString(actionId))
+
+			actionsMap := map[string]string{}
+			actionId := 1
+			for operationId, operation := range operations.Result {
+				actionsMap[strconv.Itoa(actionId)] = operationId
+				fmt.Printf(" %s)\t\t", color.YellowString("%d", actionId))
 
 				colorTitle.Print("DKG round ID:")
 				colorDKG.Printf(" %s\n", operation.DKGIdentifier)
@@ -133,14 +137,15 @@ func getOperationsCommand() *cobra.Command {
 				colorTitle.Print("\t\tDescription:")
 				fmt.Printf(" %s\n", getShortOperationDescription(operation.Type))
 
-				if fsm.State(operation.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
+				/*  Moved to actions selection
+					if fsm.State(operation.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
 					payloadHash, err := calcStartDKGMessageHash(operation.Payload)
 					if err != nil {
 						return fmt.Errorf("failed to get hash of start DKG message: %w", err)
 					}
 					fmt.Printf("\t\tHash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
 					fmt.Print("\t\tYou don't need to process this operation in an airgapped machine. Just execute the approve_participation command\n")
-				}
+				}*/
 				if strings.HasPrefix(string(operation.Type), "state_signing_") {
 					var payload responses.SigningProposalParticipantInvitationsResponse
 					if err := json.Unmarshal(operation.Payload, &payload); err != nil {
@@ -151,21 +156,29 @@ func getOperationsCommand() *cobra.Command {
 					fmt.Printf("\t\tSigning ID: %s\n", payload.SigningId)
 				}
 				fmt.Println("-----------------------------------------------------")
+				actionId++
 			}
 
 			colorTitle.Println("Select operation and press Enter. Ctrl+C for cancel")
 
 			scanner := bufio.NewScanner(os.Stdin)
 			for scanner.Scan() {
-				if operation, ok := operations.Result[scanner.Text()]; ok {
+				if operationId, ok := actionsMap[scanner.Text()]; ok {
 					colorTitle.Print("Processing operation")
-					colorOperationId.Printf(" %s\n", operation.ID)
+					colorOperationId.Printf(" %s\n", operationId)
 
-					qrCmd := getOperationQRPathCommand()
+					qrCmd := &cobra.Command{}
 
-					qrCmd.SetArgs([]string{operation.ID})
+					switch fsm.State(operations.Result[operationId].Type) {
+					case spf.StateAwaitParticipantsConfirmations:
+						qrCmd = approveDKGParticipationCommand()
+					default:
+						qrCmd = getOperationQRPathCommand()
+
+					}
+
+					qrCmd.SetArgs([]string{operationId})
 					qrCmd.Flags().AddFlagSet(cmd.Flags())
-
 					qrCmd.Execute()
 					return nil
 				} else {

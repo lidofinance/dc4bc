@@ -192,35 +192,6 @@ func (tr *Transport) initRequest(threshold int) error {
 	})
 }
 
-func (tr *Transport) commitsStep(threshold int) error {
-	var getCommitsRequest responses.DKGProposalPubKeysParticipantResponse
-	for _, n := range tr.nodes {
-		pubKey, err := n.Machine.pubKey.MarshalBinary()
-		if err != nil {
-			return fmt.Errorf("%s: failed to marshal pubkey: %v", n.Participant, err)
-		}
-		entry := &responses.DKGProposalPubKeysParticipantEntry{
-			ParticipantId: n.ParticipantID,
-			Username:      n.Participant,
-			DkgPubKey:     pubKey,
-			Threshold:     threshold,
-		}
-		getCommitsRequest = append(getCommitsRequest, entry)
-	}
-	op, err := createOperation(string(dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations), "", getCommitsRequest)
-	if err != nil {
-		return fmt.Errorf("failed to create operation: %w", err)
-	}
-	return runStep(tr, func(n *Node, wg *sync.WaitGroup) error {
-		defer wg.Done()
-
-		if err := tr.processOperation(n, *op); err != nil {
-			return fmt.Errorf("failed to process operation: %w", err)
-		}
-		return nil
-	})
-}
-
 func (tr *Transport) dealsStep() error {
 	return runStep(tr, func(n *Node, wg *sync.WaitGroup) error {
 		defer wg.Done()
@@ -380,7 +351,6 @@ func (tr *Transport) checkReconstructedSignatures(msgToSign []byte) error {
 
 func TestAirgappedAllSteps(t *testing.T) {
 	nodesCount := 10
-	threshold := 3
 	participants := make([]string, nodesCount)
 	for i := 0; i < nodesCount; i++ {
 		participants[i] = fmt.Sprintf("Participant#%d", i)
@@ -391,10 +361,6 @@ func TestAirgappedAllSteps(t *testing.T) {
 		t.Fatalf("failed to create transport: %v", err)
 	}
 	defer os.RemoveAll(testDir)
-
-	if err := tr.commitsStep(threshold); err != nil {
-		t.Fatalf("failed to do commits step: %v", err)
-	}
 
 	if err := tr.dealsStep(); err != nil {
 		t.Fatalf("failed to do deals step: %v", err)
@@ -431,7 +397,6 @@ func TestAirgappedAllSteps(t *testing.T) {
 
 func TestAirgappedMachine_Replay(t *testing.T) {
 	nodesCount := 2
-	threshold := 2
 	participants := make([]string, nodesCount)
 	for i := 0; i < nodesCount; i++ {
 		participants[i] = fmt.Sprintf("Participant#%d", i)
@@ -442,10 +407,6 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		t.Fatalf("failed to create transport: %v", err)
 	}
 	defer os.RemoveAll(testDir)
-
-	if err := tr.commitsStep(threshold); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
 
 	if err := tr.dealsStep(); err != nil {
 		t.Fatalf("failed to do init request: %v", err)
@@ -508,7 +469,6 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 
 func TestAirgappedMachine_ClearOperations(t *testing.T) {
 	nodesCount := 10
-	threshold := 2
 
 	if err := os.RemoveAll(testDir); err != nil {
 		t.Fatal("failed to remove test dir:", err.Error())
@@ -524,10 +484,6 @@ func TestAirgappedMachine_ClearOperations(t *testing.T) {
 		t.Fatalf("failed to create transport: %v", err)
 	}
 	defer os.RemoveAll(testDir)
-
-	if err := tr.commitsStep(threshold); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
 
 	if err := tr.dealsStep(); err != nil {
 		t.Fatalf("failed to do init request: %v", err)
