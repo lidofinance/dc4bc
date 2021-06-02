@@ -51,6 +51,7 @@ var rootCmd = &cobra.Command{
 func main() {
 	rootCmd.AddCommand(
 		getOperationsCommand(),
+		getReDKGQRPathCommand(),
 		getOperationQRPathCommand(),
 		readOperationResultCommand(),
 		approveDKGParticipationCommand(),
@@ -312,6 +313,62 @@ func getOperationQRPathCommand() *cobra.Command {
 			processor.SetDelay(framesDelay)
 
 			if err = processor.WriteQR(qrPath, operation.Result); err != nil {
+				return fmt.Errorf("failed to save QR gif: %w", err)
+			}
+
+			fmt.Printf("QR code was saved to: %s\n", qrPath)
+			return nil
+		},
+	}
+}
+
+func getReDKGQRPathCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "re_dkg [reDKG JSON file path]",
+		Args:  cobra.ExactArgs(1),
+		Short: "returns path to QR codes which contains the reDKG message for airgapped",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+			framesDelay, err := cmd.Flags().GetInt(flagFramesDelay)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %w", err)
+			}
+			chunkSize, err := cmd.Flags().GetInt(flagChunkSize)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %w", err)
+			}
+			qrCodeFolder, err := cmd.Flags().GetString(flagQRCodesFolder)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %w", err)
+			}
+
+			reDKGFile := args[0]
+
+			reDKGDData, err := ioutil.ReadFile(reDKGFile)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", reDKGFile, err)
+			}
+
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/reDKG", listenAddr),
+				"application/json", reDKGDData)
+
+			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_re_DKG-request"))
+
+			qrPath := fmt.Sprintf("%s.gif", operationQRPath)
+
+			processor := qr.NewCameraProcessor()
+			processor.SetChunkSize(chunkSize)
+			processor.SetDelay(framesDelay)
+
+			respBz, err := json.Marshal(resp)
+			if err != nil {
+				return fmt.Errorf("failed to marshal: %w", err)
+			}
+
+			if err = processor.WriteQR(qrPath, respBz); err != nil {
 				return fmt.Errorf("failed to save QR gif: %w", err)
 			}
 
