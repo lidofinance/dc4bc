@@ -12,6 +12,7 @@ import (
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"io/ioutil"
 	"log"
 	"strings"
 )
@@ -24,11 +25,12 @@ const (
 	flagKafkaConsumerGroup       = "kafka_consumer_group"
 	flagKafkaTimeout             = "kafka_timeout"
 	flagStorageTopic             = "storage_topic"
+	flagOutputFile               = "output"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "dkg_reinitializer",
-	Short: "reads a Kafka storage, gets all messages from there and creates DKG reinit JSON file",
+	Short: "reads a Kafka storage, gets all messages from there and returns DKG reinit JSON (to stdout by default).",
 }
 
 func init() {
@@ -39,6 +41,7 @@ func init() {
 	rootCmd.PersistentFlags().String(flagKafkaConsumerGroup, "testUser_consumer_group", "Kafka consumer group")
 	rootCmd.PersistentFlags().String(flagKafkaTimeout, "60s", "Kafka I/O Timeout")
 	rootCmd.PersistentFlags().String(flagStorageTopic, "messages", "Storage Topic (Kafka)")
+	rootCmd.PersistentFlags().StringP(flagOutputFile, "o", "", "Output file")
 }
 
 func parseKafkaSaslPlain(creds string) (*plain.Mechanism, error) {
@@ -118,5 +121,13 @@ func main() {
 		log.Fatalf("failed to encode reinit DKG message: %v", err)
 	}
 
-	fmt.Println(string(reDKGBz))
+	outputFile := viper.GetString(flagOutputFile)
+	if len(outputFile) == 0 {
+		fmt.Println(string(reDKGBz))
+		return
+	}
+
+	if err = ioutil.WriteFile(outputFile, reDKGBz, 0666); err != nil {
+		log.Fatalf("failed to save reinit DKG JSON: %v", err)
+	}
 }
