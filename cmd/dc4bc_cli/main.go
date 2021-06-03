@@ -51,7 +51,7 @@ var rootCmd = &cobra.Command{
 func main() {
 	rootCmd.AddCommand(
 		getOperationsCommand(),
-		getReDKGQRPathCommand(),
+		reinitDKGQRPathCommand(),
 		getOperationQRPathCommand(),
 		readOperationResultCommand(),
 		approveDKGParticipationCommand(),
@@ -322,11 +322,11 @@ func getOperationQRPathCommand() *cobra.Command {
 	}
 }
 
-func getReDKGQRPathCommand() *cobra.Command {
+func reinitDKGQRPathCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "re_dkg [reDKG JSON file path]",
+		Use:   "reinit_dkg [reDKG JSON file path]",
 		Args:  cobra.ExactArgs(1),
-		Short: "returns path to QR codes which contains the reDKG message for airgapped",
+		Short: "returns path to QR codes which contains a reDKG message for airgapped",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
@@ -352,10 +352,10 @@ func getReDKGQRPathCommand() *cobra.Command {
 				return fmt.Errorf("failed to read file %s: %w", reDKGFile, err)
 			}
 
-			resp, err := rawPostRequest(fmt.Sprintf("http://%s/reDKG", listenAddr),
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/reinitDKG", listenAddr),
 				"application/json", reDKGDData)
 
-			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_re_DKG-request"))
+			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_reinit_DKG-request"))
 
 			qrPath := fmt.Sprintf("%s.gif", operationQRPath)
 

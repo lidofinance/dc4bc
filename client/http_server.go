@@ -81,7 +81,7 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/startDKG", c.startDKGHandler)
 	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
 	mux.HandleFunc("/approveDKGParticipation", c.approveParticipationHandler)
-	mux.HandleFunc("/reDKG", c.reDKGHandler)
+	mux.HandleFunc("/reinitDKG", c.reinitDKGHandler)
 
 	mux.HandleFunc("/saveOffset", c.saveOffsetHandler)
 	mux.HandleFunc("/getOffset", c.getOffsetHandler)
@@ -510,7 +510,7 @@ type ReDKG struct {
 	Messages     []storage.Message `json:"messages"`
 }
 
-func (c *BaseClient) reDKGHandler(w http.ResponseWriter, r *http.Request) {
+func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return

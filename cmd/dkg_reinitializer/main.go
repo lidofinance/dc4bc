@@ -3,14 +3,15 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
-	"github.com/lidofinance/dc4bc/storage"
-	"github.com/lidofinance/dc4bc/storage/file_storage"
+	"github.com/lidofinance/dc4bc/storage/kafka_storage"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"log"
 	"strings"
 )
@@ -27,7 +28,7 @@ const (
 
 var rootCmd = &cobra.Command{
 	Use:   "dkg_reinitializer",
-	Short: "",
+	Short: "reads a Kafka storage, gets all messages from there and creates DKG reinit JSON file",
 }
 
 func init() {
@@ -51,47 +52,32 @@ func parseKafkaSaslPlain(creds string) (*plain.Mechanism, error) {
 	}, nil
 }
 
-type Participant struct {
-	DKGPubKey     []byte `json:"dkg_pub_key"`
-	OldCommPubKey []byte `json:"old_comm_pub_key"`
-	NewCommPubKey []byte `json:"new_comm_pub_key"`
-	Name          string `json:"name"`
-}
-
-type ReDKG struct {
-	DKGID        string            `json:"dkg_id"`
-	Threshold    int               `json:"threshold"`
-	Participants []Participant     `json:"participants"`
-	Messages     []storage.Message `json:"messages"`
-}
-
 func main() {
-	//kafkaTrustStorePath := viper.GetString(flagKafkaTrustStorePath)
-	//kafkaConsumerGroup := viper.GetString(flagKafkaConsumerGroup)
-	//kafkaTimeout := viper.GetDuration(flagKafkaTimeout)
-	//tlsConfig, err := kafka_storage.GetTLSConfig(kafkaTrustStorePath)
-	//if err != nil {
-	//	log.Fatalf("failed to create tls config: %v", err)
-	//}
-	//
-	//storageTopic := viper.GetString(flagStorageTopic)
-	//
-	//producerCredentials := viper.GetString(flagKafkaProducerCredentials)
-	//producerCreds, err := parseKafkaSaslPlain(producerCredentials)
-	//if err != nil {
-	//	log.Fatalf("failed to parse kafka credentials: %v", err)
-	//}
-	//
-	//consumerCredentials := viper.GetString(flagKafkaConsumerCredentials)
-	//consumerCreds, err := parseKafkaSaslPlain(consumerCredentials)
-	//if err != nil {
-	//	log.Fatalf("failed to parse kafka credentials: %v", err)
-	//}
-	//
-	//storageDBDSN := viper.GetString(flagStorageDBDSN)
-	//stg, err := kafka_storage.NewKafkaStorage(storageDBDSN, storageTopic, kafkaConsumerGroup, tlsConfig,
-	//	producerCreds, consumerCreds, kafkaTimeout)
-	stg, err := file_storage.NewFileStorage("/tmp/dc4bc_storage")
+	kafkaTrustStorePath := viper.GetString(flagKafkaTrustStorePath)
+	kafkaConsumerGroup := viper.GetString(flagKafkaConsumerGroup)
+	kafkaTimeout := viper.GetDuration(flagKafkaTimeout)
+	tlsConfig, err := kafka_storage.GetTLSConfig(kafkaTrustStorePath)
+	if err != nil {
+		log.Fatalf("failed to create tls config: %v", err)
+	}
+
+	storageTopic := viper.GetString(flagStorageTopic)
+
+	producerCredentials := viper.GetString(flagKafkaProducerCredentials)
+	producerCreds, err := parseKafkaSaslPlain(producerCredentials)
+	if err != nil {
+		log.Fatalf("failed to parse kafka credentials: %v", err)
+	}
+
+	consumerCredentials := viper.GetString(flagKafkaConsumerCredentials)
+	consumerCreds, err := parseKafkaSaslPlain(consumerCredentials)
+	if err != nil {
+		log.Fatalf("failed to parse kafka credentials: %v", err)
+	}
+
+	storageDBDSN := viper.GetString(flagStorageDBDSN)
+	stg, err := kafka_storage.NewKafkaStorage(storageDBDSN, storageTopic, kafkaConsumerGroup, tlsConfig,
+		producerCreds, consumerCreds, kafkaTimeout)
 	if err != nil {
 		log.Fatalf("failed to init storage: %v", err)
 	}
@@ -101,7 +87,7 @@ func main() {
 		log.Fatalf("failed to get messages: %v", err)
 	}
 
-	var reDKG ReDKG
+	var reDKG client.ReDKG
 
 	for _, msg := range messages {
 		if fsm.Event(msg.Event) == spf.EventInitProposal {
@@ -116,7 +102,7 @@ func main() {
 			reDKG.DKGID = msg.DkgRoundID
 			reDKG.Threshold = request.SigningThreshold
 			for _, participant := range request.Participants {
-				reDKG.Participants = append(reDKG.Participants, Participant{
+				reDKG.Participants = append(reDKG.Participants, client.Participant{
 					DKGPubKey:     participant.DkgPubKey,
 					OldCommPubKey: participant.PubKey,
 					Name:          participant.Username,
