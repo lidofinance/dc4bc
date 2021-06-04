@@ -3,11 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client"
 	"github.com/lidofinance/dc4bc/client/types"
-	"github.com/lidofinance/dc4bc/fsm/fsm"
-	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/storage/kafka_storage"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/spf13/cobra"
@@ -90,30 +86,9 @@ func main() {
 		log.Fatalf("failed to get messages: %v", err)
 	}
 
-	var reDKG client.ReDKG
-
-	for _, msg := range messages {
-		if fsm.Event(msg.Event) == spf.EventInitProposal {
-			req, err := types.FSMRequestFromMessage(msg)
-			if err != nil {
-				log.Fatalf("failed to get FSM request from message: %v", err)
-			}
-			request, ok := req.(requests.SignatureProposalParticipantsListRequest)
-			if !ok {
-				log.Fatalf("invalid request")
-			}
-			reDKG.DKGID = msg.DkgRoundID
-			reDKG.Threshold = request.SigningThreshold
-			for _, participant := range request.Participants {
-				reDKG.Participants = append(reDKG.Participants, client.Participant{
-					DKGPubKey:     participant.DkgPubKey,
-					OldCommPubKey: participant.PubKey,
-					Name:          participant.Username,
-				})
-			}
-		}
-
-		reDKG.Messages = append(reDKG.Messages, msg)
+	reDKG, err := types.GenerateReDKGMessage(messages)
+	if err != nil {
+		log.Fatalf("failed to generate reDKG message: %v", err)
 	}
 
 	reDKGBz, err := json.Marshal(reDKG)

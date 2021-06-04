@@ -496,20 +496,6 @@ func (c *BaseClient) handleJSONOperationHandler(w http.ResponseWriter, r *http.R
 	successResponse(w, "ok")
 }
 
-type Participant struct {
-	DKGPubKey     []byte `json:"dkg_pub_key"`
-	OldCommPubKey []byte `json:"old_comm_pub_key"`
-	NewCommPubKey []byte `json:"new_comm_pub_key"`
-	Name          string `json:"name"`
-}
-
-type ReDKG struct {
-	DKGID        string            `json:"dkg_id"`
-	Threshold    int               `json:"threshold"`
-	Participants []Participant     `json:"participants"`
-	Messages     []storage.Message `json:"messages"`
-}
-
 func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
@@ -522,7 +508,7 @@ func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	var req ReDKG
+	var req types.ReDKG
 	if err = json.Unmarshal(reqBody, &req); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
 		return
