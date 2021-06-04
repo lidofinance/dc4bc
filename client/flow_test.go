@@ -186,7 +186,7 @@ func TestFullFlow(t *testing.T) {
 	var storagePath = "/tmp/dc4bc_storage"
 	topic := "test_topic"
 	var nodes = make([]*node, numNodes)
-	startingPort := 8080
+	startingPort := 8085
 	for nodeID := 0; nodeID < numNodes; nodeID++ {
 		var ctx = context.Background()
 		var userName = fmt.Sprintf("node_%d", nodeID)
