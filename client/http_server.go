@@ -87,6 +87,7 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/startDKG", c.startDKGHandler)
 	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
 	mux.HandleFunc("/approveDKGParticipation", c.approveParticipationHandler)
+	mux.HandleFunc("/reinitDKG", c.reinitDKGHandler)
 
 	mux.HandleFunc("/saveOffset", c.saveOffsetHandler)
 	mux.HandleFunc("/getOffset", c.getOffsetHandler)
@@ -501,6 +502,76 @@ func (c *BaseClient) handleJSONOperationHandler(w http.ResponseWriter, r *http.R
 	}
 
 	successResponse(w, "ok")
+}
+
+func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to read body: %v", err))
+		return
+	}
+	defer r.Body.Close()
+
+	var req types.ReDKG
+	if err = json.Unmarshal(reqBody, &req); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
+		return
+	}
+
+	participants := make([]*requests.SignatureProposalParticipantsEntry, 0, len(req.Participants))
+	for _, reqParticipant := range req.Participants {
+		participants = append(participants, &requests.SignatureProposalParticipantsEntry{
+			Username:  reqParticipant.Name,
+			DkgPubKey: reqParticipant.DKGPubKey,
+			PubKey:    reqParticipant.NewCommPubKey,
+		})
+	}
+	startDKGReq := requests.SignatureProposalParticipantsListRequest{
+		Participants:     participants,
+		SigningThreshold: req.Threshold,
+		CreatedAt:        time.Now(),
+	}
+	startDKGReqBz, err := json.Marshal(startDKGReq)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to marshall startDKGRequest: %v", err))
+		return
+	}
+
+	// cause we can't verify messages with old pubkeys
+	if !c.GetSkipCommKeysVerification() {
+		c.SetSkipCommKeysVerification(true)
+		defer c.SetSkipCommKeysVerification(false)
+	}
+
+	operations := make([]*types.Operation, 0)
+	for _, message := range req.Messages {
+		if fsm.Event(message.Event) == sif.EventSigningStart {
+			break
+		}
+		if fsm.Event(message.Event) == spf.EventInitProposal {
+			msg, err := c.buildMessage(req.DKGID, spf.EventInitProposal, startDKGReqBz)
+			if err != nil {
+				errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
+				return
+			}
+			message = *msg
+		}
+		if message.RecipientAddr == "" || message.RecipientAddr == c.GetUsername() {
+			operation, err := c.processMessage(message)
+			if err != nil {
+				c.Logger.Log("failed to process operation: %v", err)
+			}
+			if operation != nil {
+				operations = append(operations, operation)
+			}
+		}
+	}
+
+	successResponse(w, operations)
 }
 
 func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {

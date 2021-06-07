@@ -160,3 +160,46 @@ func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 
 	return resolvedValue, nil
 }
+
+type Participant struct {
+	DKGPubKey     []byte `json:"dkg_pub_key"`
+	OldCommPubKey []byte `json:"old_comm_pub_key"`
+	NewCommPubKey []byte `json:"new_comm_pub_key"`
+	Name          string `json:"name"`
+}
+
+type ReDKG struct {
+	DKGID        string            `json:"dkg_id"`
+	Threshold    int               `json:"threshold"`
+	Participants []Participant     `json:"participants"`
+	Messages     []storage.Message `json:"messages"`
+}
+
+func GenerateReDKGMessage(messages []storage.Message) (*ReDKG, error) {
+	var reDKG ReDKG
+
+	for _, msg := range messages {
+		if fsm.Event(msg.Event) == signature_proposal_fsm.EventInitProposal {
+			req, err := FSMRequestFromMessage(msg)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get FSM request from message: %v", err)
+			}
+			request, ok := req.(requests.SignatureProposalParticipantsListRequest)
+			if !ok {
+				return nil, fmt.Errorf("invalid request")
+			}
+			reDKG.DKGID = msg.DkgRoundID
+			reDKG.Threshold = request.SigningThreshold
+			for _, participant := range request.Participants {
+				reDKG.Participants = append(reDKG.Participants, Participant{
+					DKGPubKey:     participant.DkgPubKey,
+					OldCommPubKey: participant.PubKey,
+					Name:          participant.Username,
+				})
+			}
+		}
+
+		reDKG.Messages = append(reDKG.Messages, msg)
+	}
+	return &reDKG, nil
+}
