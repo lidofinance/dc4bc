@@ -1,7 +1,6 @@
 package fsm
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -17,7 +16,6 @@ import (
 //  fsmInstance.Do(event, args)
 //
 
-// Temporary global finish state for deprecating operations
 const (
 	StateGlobalIdle = State("__idle")
 	StateGlobalDone = State("__done")
@@ -294,50 +292,61 @@ func (f *FSM) MustCopyWithState(state State) *FSM {
 	return f
 }
 
-func (f *FSM) Do(event Event, args ...interface{}) (resp *Response, err error) {
+func (f *FSM) Do(event Event, args ...interface{}) (resp *Response, err *FsmError) {
 	trEvent, ok := f.transitions[trKey{f.currentState, event}]
 	if !ok {
-		return nil, fmt.Errorf("cannot execute event \"%s\" for state \"%s\"", event, f.currentState)
+		return nil, NewErrf(FatalLevel, "cannot execute event \"%s\" for state \"%s\"", event, f.currentState)
 	}
 	if trEvent.isInternal {
-		return nil, errors.New("event is internal")
+		return nil, NewErr(FatalLevel, "event is internal")
 	}
 
 	return f.do(trEvent, args...)
 }
 
 // Check and execute auto event
-func (f *FSM) processAutoEvent(mode EventRunMode, args ...interface{}) (exists bool, outEvent Event, response interface{}, err error) {
+func (f *FSM) processAutoEvent(mode EventRunMode, args ...interface{}) (exists bool, outEvent Event, response interface{}, fsmErr *FsmError) {
 	autoEvent, exists := f.autoTransitions[trAutoKeyEvent{f.State(), mode}]
 	if !exists {
 		return
 	}
 
 	if f.isCallbackExists(autoEvent.event) {
-		outEvent, response, err = f.execCallback(autoEvent.event, args...)
-		// Do not try change state on error
-		if err != nil {
-			return exists, "", response, err
-		}
+		var callbackErr error
 
+		outEvent, response, callbackErr = f.execCallback(autoEvent.event, args...)
+
+		if callbackErr != nil {
+			// Handle error and do not try change state on error
+			if fsmErr, ok := callbackErr.(*FsmError); ok {
+				// Process FsmError and plain
+				if fsmErr.level > WarnLevel {
+					return exists, "", response, fsmErr
+				}
+			} else {
+				// Process plain errors
+				return exists, "", response, NewErr(ErrorLevel, callbackErr.Error())
+			}
+		}
 	}
 
 	if outEvent.IsEmpty() || autoEvent.event == outEvent {
-		err = f.SetState(autoEvent.event)
+		fsmErr = f.SetState(autoEvent.event)
 	} else {
-		err = f.SetState(outEvent)
+		fsmErr = f.SetState(outEvent)
 	}
 
 	return
 }
 
-func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err error) {
+func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, fsmErr *FsmError) {
 	var outEvent Event
 
 	resp = &Response{}
 
 	// Process auto event
-	isAutoEventExecuted, outEvent, data, err := f.processAutoEvent(EventRunBefore, args...)
+	// FSMError type already handled
+	isAutoEventExecuted, outEvent, data, fsmErr := f.processAutoEvent(EventRunBefore, args...)
 
 	if isAutoEventExecuted {
 		resp.State = f.State()
@@ -345,36 +354,49 @@ func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err err
 			resp.Data = data
 		}
 
-		if err != nil {
-			return resp, err
+		if fsmErr != nil {
+			return resp, fsmErr
 		}
 	}
 
 	if f.isCallbackExists(trEvent.event) {
-		outEvent, resp.Data, err = f.execCallback(trEvent.event, args...)
+		var callbackErr error
+
+		outEvent, resp.Data, callbackErr = f.execCallback(trEvent.event, args...)
 		// Do not try change state on error
-		if err != nil {
-			return resp, err
+
+		if callbackErr != nil {
+			// Handle error and do not try change state on error
+			// TODO: Add appending errors
+			if fsmErr, ok := callbackErr.(*FsmError); ok {
+				// Process FsmError and plain
+				if fsmErr.level > WarnLevel {
+					return resp, fsmErr
+				}
+			} else {
+				// Process plain errors
+				return resp, NewErr(ErrorLevel, callbackErr.Error())
+			}
 		}
 	}
 
 	// Set state when callback executed
 	if outEvent.IsEmpty() || trEvent.event == outEvent {
-		err = f.SetState(trEvent.event)
-		if err != nil {
-			return resp, err
+		fsmErr = f.SetState(trEvent.event)
+		if fsmErr != nil {
+			return resp, fsmErr
 		}
 	} else {
-		err = f.SetState(outEvent)
-		if err != nil {
-			return resp, err
+		fsmErr = f.SetState(outEvent)
+		if fsmErr != nil {
+			return resp, fsmErr
 		}
 	}
 
 	resp.State = f.State()
 
 	// Process auto event
-	isAutoEventExecuted, _, data, err = f.processAutoEvent(EventRunAfter, args...)
+	isAutoEventExecuted, _, data, fsmErr = f.processAutoEvent(EventRunAfter, args...)
 
 	if isAutoEventExecuted {
 		resp.State = f.State()
@@ -382,8 +404,8 @@ func (f *FSM) do(trEvent *trEvent, args ...interface{}) (resp *Response, err err
 			resp.Data = data
 		}
 
-		if err != nil {
-			return resp, err
+		if fsmErr != nil {
+			return resp, fsmErr
 		}
 	}
 
@@ -401,13 +423,13 @@ func (f *FSM) State() State {
 
 // SetState allows the user to move to the given state from currentState state.
 // The call does not trigger any callbacks, if defined.
-func (f *FSM) SetState(event Event) error {
+func (f *FSM) SetState(event Event) *FsmError {
 	f.stateMu.Lock()
 	defer f.stateMu.Unlock()
 
 	trEvent, ok := f.transitions[trKey{f.currentState, event}]
 	if !ok {
-		return fmt.Errorf("cannot set state by event \"%s\" for state \"%s\"", event, f.currentState)
+		return NewErrf(FatalLevel, "cannot set state by event \"%s\" for state \"%s\"", event, f.currentState)
 	}
 
 	f.currentState = trEvent.dstState

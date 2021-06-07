@@ -35,7 +35,7 @@ type Participant interface {
 
 // Create new fsm with unique id
 // transactionId required for unique identify dump
-func Create(dkgID string) (*FSMInstance, error) {
+func Create(dkgID string) (*FSMInstance, *fsm.FsmError) {
 	var (
 		err error
 		i   = &FSMInstance{}
@@ -43,7 +43,7 @@ func Create(dkgID string) (*FSMInstance, error) {
 
 	err = i.InitDump(dkgID)
 	if err != nil {
-		return nil, err
+		return nil, fsm.NewErr(fsm.FatalLevel, err.Error())
 	}
 
 	fsmPoolProvider := fsm_pool.Init(
@@ -52,10 +52,10 @@ func Create(dkgID string) (*FSMInstance, error) {
 		signing_proposal_fsm.New(),
 	)
 
-	machine, err := fsmPoolProvider.EntryPointMachine()
+	machine, fsmErr := fsmPoolProvider.EntryPointMachine()
 	i.machine = machine.(internal.DumpedMachineProvider).
 		WithSetup(i.dump.State, i.dump.Payload)
-	return i, err
+	return i, fsmErr
 }
 
 // DKGQuorumGet fsm from dump
@@ -116,14 +116,14 @@ func (i *FSMInstance) GetIDByUsername(username string) (int, error) {
 	return i.dump.Payload.GetIDByUsername(username)
 }
 
-func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, err error) {
+func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Response, dump []byte, fsmErr *fsm.FsmError) {
 	var dumpErr error
 
 	if i.machine == nil {
-		return nil, []byte{}, errors.New("machine is not initialized")
+		return nil, []byte{}, fsm.NewErr(fsm.ErrorLevel, "machine is not initialized")
 	}
 
-	result, err = i.machine.Do(event, args...)
+	result, fsmErr = i.machine.Do(event, args...)
 
 	// On route errors result will be nil
 	if result != nil {
@@ -131,11 +131,11 @@ func (i *FSMInstance) Do(event fsm.Event, args ...interface{}) (result *fsm.Resp
 
 		dump, dumpErr = i.dump.Marshal()
 		if dumpErr != nil {
-			return result, []byte{}, err
+			return result, []byte{}, fsmErr
 		}
 	}
 
-	return result, dump, err
+	return result, dump, fsmErr
 }
 
 func (i *FSMInstance) InitDump(dkgID string) error {

@@ -783,7 +783,7 @@ func getFSMStatusCommand() *cobra.Command {
 					}
 					waiting = append(waiting, p.GetUsername())
 				}
-				if strings.Contains(p.GetStatus().String(), "Error") {
+				if strings.Contains(p.GetStatus().String(), "ErrorLevel") {
 					failed = append(failed, p.GetUsername())
 				}
 				if strings.Contains(p.GetStatus().String(), "Confirmed") {

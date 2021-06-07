@@ -1,7 +1,6 @@
 package fsm_pool
 
 import (
-	"errors"
 	"fmt"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 )
@@ -18,7 +17,7 @@ type MachineProvider interface {
 	State() fsm.State
 
 	// Process event
-	Do(event fsm.Event, args ...interface{}) (*fsm.Response, error)
+	Do(event fsm.Event, args ...interface{}) (*fsm.Response, *fsm.FsmError)
 
 	GlobalInitialEvent() fsm.Event
 
@@ -131,34 +130,34 @@ func Init(machines ...MachineProvider) *FSMPool {
 	return p
 }
 
-func (p *FSMPool) EntryPointMachine() (MachineProvider, error) {
+func (p *FSMPool) EntryPointMachine() (MachineProvider, *fsm.FsmError) {
 	entryStateMachineName := p.events[p.fsmInitialEvent]
 
 	machine, exists := p.mapper[entryStateMachineName]
 
 	if !exists || machine == nil {
-		return nil, errors.New("cannot init machine with entry point")
+		return nil, fsm.NewErr(fsm.FatalLevel, "cannot init machine with entry point")
 	}
 	return machine, nil
 }
 
-func (p *FSMPool) MachineByEvent(event fsm.Event) (MachineProvider, error) {
+func (p *FSMPool) MachineByEvent(event fsm.Event) (MachineProvider, *fsm.FsmError) {
 	eventMachineName := p.events[event]
 	machine, exists := p.mapper[eventMachineName]
 
 	if !exists || machine == nil {
-		return nil, errors.New("cannot init machine for event")
+		return nil, fsm.NewErr(fsm.FatalLevel, "cannot init machine for event")
 	}
 	return machine, nil
 }
 
 // Out states now is not returns machine
-func (p *FSMPool) MachineByState(state fsm.State) (MachineProvider, error) {
+func (p *FSMPool) MachineByState(state fsm.State) (MachineProvider, *fsm.FsmError) {
 	eventMachineName := p.states[state]
 	machine, exists := p.mapper[eventMachineName]
 
 	if !exists || machine == nil {
-		return nil, errors.New("cannot init machine for state")
+		return nil, fsm.NewErr(fsm.FatalLevel, "cannot init machine for state")
 	}
 	return machine, nil
 }

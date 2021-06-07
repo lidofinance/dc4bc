@@ -1,9 +1,8 @@
 package fsm_pool
 
 import (
+	// "github.com/stretchr/testify/require"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 )
@@ -254,9 +253,9 @@ func TestFSMPool_MachineByEvent(t *testing.T) {
 }
 
 func TestFSMPool_WorkFlow(t *testing.T) {
-	machine, err := testPoolProvider.MachineByState(fsm1StateInit)
+	machine, fsmErr := testPoolProvider.MachineByState(fsm1StateInit)
 
-	if err != nil || machine.Name() != fsm1Name {
+	if fsmErr != nil || machine.Name() != fsm1Name {
 		t.Fatalf("expected machine fsm1 for state \"%s\"", fsm1StateInit)
 	}
 
@@ -264,18 +263,21 @@ func TestFSMPool_WorkFlow(t *testing.T) {
 		t.Fatalf("expected machine  state \"%s\", got \"%s\"", fsm1StateInit, machine.State())
 	}
 
-	resp, err := machine.Do(eventFSM1Init)
+	resp, fsmErr := machine.Do(eventFSM1Init)
 
-	if err != nil {
-		t.Fatalf("expected response without error, got \"%s\"", err)
+	if fsmErr != nil {
+		t.Fatalf("expected response without error, got \"%s\"", fsmErr)
 	}
 
 	if resp.State != fsm1StateStage2 {
 		t.Fatalf("expected machine  state \"%s\", got \"%s\"", fsm1StateStage2, resp.State)
 	}
 
-	resp, err = machine.Do(eventFSM1Process, testVal2)
-	require.NoError(t, err)
+	resp, fsmErr = machine.Do(eventFSM1Process, testVal2)
+
+	if fsmErr != nil {
+		t.Fatalf("expected no error, got \"%s\"", fsmErr.Error())
+	}
 
 	data, ok := resp.Data.(int)
 

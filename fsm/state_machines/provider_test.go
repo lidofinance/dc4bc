@@ -129,9 +129,13 @@ func compareState(t *testing.T, expected fsm.State, got fsm.State) {
 
 // Test Workflow
 func Test_SignatureProposal_Init(t *testing.T) {
-	testFSMInstance, err := Create(dkgId)
+	var (
+		fsmErr *fsm.FsmError
+		err    error
+	)
+	testFSMInstance, fsmErr := Create(dkgId)
 
-	compareErrNil(t, err)
+	compareErrNil(t, fsmErr)
 
 	compareFSMInstanceNotNil(t, testFSMInstance)
 
@@ -1256,8 +1260,8 @@ func Test_Parallel(t *testing.T) {
 		id1 = "123"
 		id2 = "456"
 	)
-	testFSMInstance1, err := Create(id1)
-	compareErrNil(t, err)
+	testFSMInstance1, fsmErr := Create(id1)
+	compareErrNil(t, fsmErr)
 
 	compareFSMInstanceNotNil(t, testFSMInstance1)
 
@@ -1270,8 +1274,8 @@ func Test_Parallel(t *testing.T) {
 	compareDumpNotZero(t, testFSMDump1)
 
 	/// fsm2
-	testFSMInstance2, err := Create(id2)
-	compareErrNil(t, err)
+	testFSMInstance2, fsmErr := Create(id2)
+	compareErrNil(t, fsmErr)
 
 	compareFSMInstanceNotNil(t, testFSMInstance2)
 
@@ -1291,8 +1295,8 @@ func Test_Parallel(t *testing.T) {
 
 	compareErrNil(t, err)
 
-	_, _, err = testFSMInstance1.Do(spf.EventInitProposal, testParticipantsListRequest)
-	require.NoError(t, err)
+	_, _, fsmErr = testFSMInstance1.Do(spf.EventInitProposal, testParticipantsListRequest)
+	require.NoError(t, fsmErr)
 
 	s1, err := testFSMInstance1.State()
 
