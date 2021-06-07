@@ -119,3 +119,30 @@ func TestLevelDBState_DeleteOperation(t *testing.T) {
 	_, err = stg.GetOperationByID(operation.ID)
 	req.Error(err)
 }
+
+func TestLevelDBState_NewStateFromOld(t *testing.T) {
+	var (
+		req    = require.New(t)
+		dbPath = "/tmp/dc4bc_test_NewStateFromOld"
+		topic  = "test_topic"
+	)
+	defer os.RemoveAll(dbPath)
+
+	state, err := client.NewLevelDBState(dbPath, topic)
+	req.NoError(err)
+
+	var offset uint64 = 1
+	err = state.SaveOffset(offset)
+	req.NoError(err)
+
+	loadedOffset, err := state.LoadOffset()
+	req.NoError(err)
+	req.Equal(offset, loadedOffset)
+
+	newState, newStateDbPath, err := state.NewStateFromOld("")
+	req.NoError(err)
+	req.Equal(newStateDbPath, dbPath + "_new")
+	newLoadedOffset, err := newState.LoadOffset()
+	req.NoError(err)
+	req.NotEqual(newLoadedOffset, loadedOffset)
+}

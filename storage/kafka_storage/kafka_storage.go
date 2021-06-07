@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/lidofinance/dc4bc/storage"
@@ -32,6 +33,9 @@ type KafkaStorage struct {
 	producerCreds, consumerCreds         *plain.Mechanism
 	brokerEndpoint, consumerGroup, topic string
 	timeout                              time.Duration
+
+	idIgnoreList     map[string]struct{}
+	offsetIgnoreList map[uint64]struct{}
 }
 
 func NewKafkaStorage(
@@ -51,6 +55,9 @@ func NewKafkaStorage(
 		producerCreds:  producerCreds,
 		consumerCreds:  consumerCreds,
 		timeout:        timeout,
+
+		idIgnoreList: map[string]struct{}{},
+		offsetIgnoreList: map[uint64]struct{}{},
 	}
 	if err := ks.reset(); err != nil {
 		return nil, fmt.Errorf("failed to create a NewKafkaStorage: %w", err)
@@ -112,10 +119,38 @@ func (ks *KafkaStorage) GetMessages(_ uint64) ([]storage.Message, error) {
 		}
 
 		message.Offset = uint64(kafkaMessage.Offset)
-		messages = append(messages, message)
+
+		_, idOk := ks.idIgnoreList[message.ID]
+		_, offsetOk := ks.offsetIgnoreList[message.Offset]
+		if !idOk && !offsetOk {
+			messages = append(messages, message)
+		}
 	}
 
 	return messages, nil
+}
+
+func (ks *KafkaStorage) IgnoreMessages(messages []string, useOffset bool) error {
+	for _, msg := range messages {
+		if useOffset {
+			offset, err := strconv.ParseUint(msg, 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse message offset: %v", err)
+			}
+			ks.offsetIgnoreList[offset] = struct{}{}
+
+			continue
+		}
+
+		ks.idIgnoreList[msg] = struct{}{}
+	}
+
+	return nil
+}
+
+func (ks *KafkaStorage) UnignoreMessages() {
+	ks.idIgnoreList = map[string]struct{}{}
+	ks.offsetIgnoreList = map[uint64]struct{}{}
 }
 
 func (ks *KafkaStorage) storageToKafkaMessages(messages ...storage.Message) ([]kafka.Message, error) {

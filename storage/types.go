@@ -32,4 +32,6 @@ type Storage interface {
 	Send(messages ...Message) error
 	GetMessages(offset uint64) ([]Message, error)
 	Close() error
+	IgnoreMessages(messages []string, useOffset bool) error
+	UnignoreMessages()
 }
