@@ -55,6 +55,9 @@ func NewKafkaStorage(
 		producerCreds:  producerCreds,
 		consumerCreds:  consumerCreds,
 		timeout:        timeout,
+
+		idIgnoreList: map[string]struct{}{},
+		offsetIgnoreList: map[uint64]struct{}{},
 	}
 	if err := ks.reset(); err != nil {
 		return nil, fmt.Errorf("failed to create a NewKafkaStorage: %w", err)

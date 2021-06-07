@@ -6,7 +6,9 @@ import (
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/lidofinance/dc4bc/storage"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -26,8 +28,19 @@ import (
 	"github.com/lidofinance/dc4bc/qr"
 )
 
+var (
+	errSendingNode            string
+	commitConfirmationErrSent bool
+	stateReset                bool
+	errEvent                  fsm.Event
+	msgToIgnore               string
+	roundToIgnore             string
+	operationToIgnore         string
+)
+
 type node struct {
 	client     Client
+	storage    storage.Storage
 	keyPair    *KeyPair
 	air        *airgapped.Machine
 	listenAddr string
@@ -81,77 +94,120 @@ func handleProcessedOperation(url string, operation types.Operation) error {
 	return nil
 }
 
-func (n *node) run() {
+func (n *node) run(ctx context.Context) {
 	for {
-		operationsResponse, err := getOperations(fmt.Sprintf("http://%s/getOperations", n.listenAddr))
-		if err != nil {
-			panic(fmt.Sprintf("failed to get operations: %v", err))
-		}
+		select {
+		case <-ctx.Done():
+			n.client.GetLogger().Log("node.run() stopped for %s", n.client.GetUsername())
+			return
+		default:
+			operationsResponse, err := getOperations(fmt.Sprintf("http://%s/getOperations", n.listenAddr))
+			if err != nil {
+				panic(fmt.Sprintf("failed to get operations: %v", err))
+			}
 
-		operations := operationsResponse.Result
-		if len(operations) == 0 {
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		n.client.GetLogger().Log("Got %d Operations from pool", len(operations))
-		for _, operation := range operations {
-			if fsm.State(operation.Type) == spf.StateAwaitParticipantsConfirmations {
-				payloadBz, err := json.Marshal(map[string]string{"operationID": operation.ID})
-				if err != nil {
-					panic(fmt.Sprintf("failed to marshal payload: %v", err))
-				}
-
-				resp, err := http.Post(fmt.Sprintf("http://%s/approveDKGParticipation", n.listenAddr), "application/json", bytes.NewReader(payloadBz))
-				if err != nil {
-					panic(fmt.Sprintf("failed to make HTTP request to get operation: %v", err))
-				}
-
-				responseBody, err := ioutil.ReadAll(resp.Body)
-				if err != nil {
-					panic(fmt.Sprintf("failed to read body %v", err))
-				}
-				resp.Body.Close()
-
-				var response Response
-				if err = json.Unmarshal(responseBody, &response); err != nil {
-					panic(fmt.Sprintf("failed to unmarshal response: %v", err))
-				}
-				if response.ErrorMessage != "" {
-					panic(fmt.Sprintf("failed to approve participation: %s", response.ErrorMessage))
-				}
+			operations := operationsResponse.Result
+			_, containsOperationToIgnore := operations[operationToIgnore]
+			if len(operations) == 0 || (len(operations) == 1 && containsOperationToIgnore) {
+				time.Sleep(1 * time.Second)
 				continue
 			}
-			n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
-			processedOperation, err := n.air.GetOperationResult(*operation)
-			if err != nil {
-				n.client.GetLogger().Log("Failed to handle operation: %v", err)
-			}
 
-			n.client.GetLogger().Log("Got %d Processed Operations from Airgapped", len(operations))
-			n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
-				operation.Event, processedOperation.Event)
+			n.client.GetLogger().Log("Got %d Operations from pool", len(operations))
+			for _, operation := range operations {
 
-			// for integration tests
-			if processedOperation.Event == dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived {
-				msg := processedOperation.ResultMsgs[0]
-				var pubKeyReq requests.DKGProposalMasterKeyConfirmationRequest
-				if err = json.Unmarshal(msg.Data, &pubKeyReq); err != nil {
-					panic(fmt.Sprintf("failed to unmarshal pubKey request: %v", err))
+				if fsm.State(operation.Type) == dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations &&
+					((!commitConfirmationErrSent && n.client.GetUsername() != errSendingNode) ||
+						(stateReset && n.client.GetUsername() == errSendingNode)) {
+					time.Sleep(1 * time.Second)
+					continue
 				}
-				if err = ioutil.WriteFile(fmt.Sprintf("/tmp/participant_%d.pubkey",
-					pubKeyReq.ParticipantId), []byte(hex.EncodeToString(pubKeyReq.MasterKey)), 0666); err != nil {
-					panic(fmt.Sprintf("failed to write pubkey to temp file: %v", err))
+
+				if fsm.State(operation.Type) == spf.StateAwaitParticipantsConfirmations {
+					payloadBz, err := json.Marshal(map[string]string{"operationID": operation.ID})
+					if err != nil {
+						panic(fmt.Sprintf("failed to marshal payload: %v", err))
+					}
+
+					resp, err := http.Post(fmt.Sprintf("http://%s/approveDKGParticipation", n.listenAddr), "application/json", bytes.NewReader(payloadBz))
+					if err != nil {
+						panic(fmt.Sprintf("failed to make HTTP request to get operation: %v", err))
+					}
+
+					responseBody, err := ioutil.ReadAll(resp.Body)
+					if err != nil {
+						panic(fmt.Sprintf("failed to read body %v", err))
+					}
+					resp.Body.Close()
+
+					var response Response
+					if err = json.Unmarshal(responseBody, &response); err != nil {
+						panic(fmt.Sprintf("failed to unmarshal response: %v", err))
+					}
+					if response.ErrorMessage != "" {
+						panic(fmt.Sprintf("failed to approve participation: %s", response.ErrorMessage))
+					}
+					continue
 				}
-			}
 
-			if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
-				processedOperation); err != nil {
-				n.client.GetLogger().Log("Failed to handle processed operation: %v", err)
-			} else {
-				n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
-			}
+				n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
+				processedOperation, err := n.air.GetOperationResult(*operation)
+				if err != nil {
+					n.client.GetLogger().Log("Failed to handle operation: %v", err)
+				}
 
+				n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
+					operation.Type, processedOperation.Event)
+
+				// for integration tests
+				if processedOperation.Event == dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived {
+					msg := processedOperation.ResultMsgs[0]
+					var pubKeyReq requests.DKGProposalMasterKeyConfirmationRequest
+					if err = json.Unmarshal(msg.Data, &pubKeyReq); err != nil {
+						panic(fmt.Sprintf("failed to unmarshal pubKey request: %v", err))
+					}
+					if err = ioutil.WriteFile(fmt.Sprintf("/tmp/participant_%d.pubkey",
+						pubKeyReq.ParticipantId), []byte(hex.EncodeToString(pubKeyReq.MasterKey)), 0666); err != nil {
+						panic(fmt.Sprintf("failed to write pubkey to temp file: %v", err))
+					}
+				}
+
+				if n.client.GetUsername() == errSendingNode && !commitConfirmationErrSent &&
+					fsm.State(operation.Type) == dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations {
+					processedOperation.Event = errEvent
+					operationMsg := processedOperation.ResultMsgs[0]
+					req := requests.DKGProposalConfirmationErrorRequest{
+						Error:     requests.NewFSMError(errors.New("test error")),
+						CreatedAt: time.Now(),
+					}
+					reqBz, err := json.Marshal(req)
+					if err != nil {
+						n.client.GetLogger().Log("failed to generate fsm request: %v", err)
+					}
+					errMsg := storage.Message{
+						DkgRoundID: operationMsg.DkgRoundID,
+						Offset:     operationMsg.Offset,
+						Event:      errEvent.String(),
+						Data:       reqBz,
+					}
+
+					processedOperation.ResultMsgs = append(processedOperation.ResultMsgs, errMsg)
+
+					roundToIgnore = processedOperation.DKGIdentifier
+					operationToIgnore = operation.ID
+					commitConfirmationErrSent = true
+				}
+
+				if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
+					processedOperation); err != nil {
+					n.client.GetLogger().Log("Failed to handle processed operation: %v", err)
+				} else {
+					n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
+				}
+
+				time.Sleep(1 * time.Second)
+			}
+			time.Sleep(1 * time.Second)
 		}
 	}
 }
@@ -226,6 +282,7 @@ func TestFullFlow(t *testing.T) {
 
 		nodes[nodeID] = &node{
 			client:     clt,
+			storage:    stg,
 			keyPair:    keyPair,
 			air:        airgappedMachine,
 			listenAddr: fmt.Sprintf("localhost:%d", startingPort),
@@ -233,7 +290,12 @@ func TestFullFlow(t *testing.T) {
 		startingPort++
 	}
 
+	// node_3 will produce event_dkg_confirm_cancelled_by_error
+	errEvent = dkg_proposal_fsm.EventDKGCommitConfirmationError
+	errSendingNode = nodes[3].client.GetUsername()
+
 	// Each node starts to Poll().
+	runCtx, cancel := context.WithCancel(context.Background())
 	for nodeID, n := range nodes {
 		go func(nodeID int, node *node) {
 			if err := node.client.StartHTTPServer(node.listenAddr); err != nil {
@@ -241,7 +303,7 @@ func TestFullFlow(t *testing.T) {
 			}
 		}(nodeID, n)
 		time.Sleep(1 * time.Second)
-		go nodes[nodeID].run()
+		go nodes[nodeID].run(runCtx)
 
 		go func(nodeID int, node Client) {
 			if err := node.Poll(); err != nil {
@@ -281,6 +343,53 @@ func TestFullFlow(t *testing.T) {
 	}
 
 	time.Sleep(30 * time.Second)
+
+	log.Print("\n\n\nStopping nodes and resetting their states\n\n\n")
+
+	cancel()
+	time.Sleep(10 * time.Second)
+
+	msgs, err := nodes[0].storage.GetMessages(0)
+	if err != nil {
+		t.Fatalf("failed to get messages from storage: %v\n", err)
+	}
+
+	for _, msg := range msgs {
+		if msg.Event == errEvent.String() && msg.DkgRoundID == roundToIgnore {
+			msgToIgnore = msg.ID
+		}
+	}
+
+	resetReq := ResetStateRequest{
+		NewStateDBDSN: "",
+		UseOffset:     false,
+		Messages:      []string{msgToIgnore},
+	}
+	resetReqBz, err := json.Marshal(resetReq)
+	if err != nil {
+		t.Fatalf("failed to marshal ResetStateRequest: %v\n", err)
+	}
+
+	for i := startingPort - numNodes; i < startingPort; i++ {
+		if _, err := http.Post(fmt.Sprintf("http://localhost:%d/resetState", i),
+			"application/json", bytes.NewReader(resetReqBz)); err != nil {
+			t.Fatalf("failed to send HTTP request to reset state: %v\n", err)
+		}
+	}
+
+	time.Sleep(20 * time.Second)
+
+	stateReset = true
+
+	runCtx, cancel = context.WithCancel(context.Background())
+	for _, n := range nodes {
+		go n.run(runCtx)
+	}
+
+	log.Print("\n\n\nState recreated\n\n\n")
+
+	time.Sleep(35 * time.Second)
+
 	log.Println("Propose message to sign")
 
 	dkgRoundID := md5.Sum(messageDataBz)
@@ -303,4 +412,5 @@ func TestFullFlow(t *testing.T) {
 	}
 	time.Sleep(10 * time.Second)
 
+	cancel()
 }
