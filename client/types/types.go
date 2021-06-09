@@ -24,6 +24,10 @@ const (
 	DKGCommits                    OperationType = "dkg_commits"
 	SignatureReconstructed        fsm.Event     = "signature_reconstructed"
 	SignatureReconstructionFailed fsm.Event     = "signature_reconstruction_failed"
+	ReinitDKG                     fsm.State     = "reinit_dkg"
+
+	// OperationProcessed common event type for successfully processed operations but with an empty result
+	OperationProcessed fsm.Event = "operation_processed_successfully"
 )
 
 type ReconstructedSignature struct {
@@ -197,6 +201,9 @@ func GenerateReDKGMessage(messages []storage.Message) (*ReDKG, error) {
 					Name:          participant.Username,
 				})
 			}
+		}
+		if fsm.Event(msg.Event) == signing_proposal_fsm.EventSigningStart {
+			break
 		}
 
 		reDKG.Messages = append(reDKG.Messages, msg)
