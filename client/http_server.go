@@ -29,9 +29,10 @@ type Response struct {
 }
 
 type ResetStateRequest struct {
-	NewStateDBDSN string   `json:"new_state_dbdsn,omitempty"`
-	UseOffset     bool     `json:"use_offset"`
-	Messages      []string `json:"messages,omitempty"`
+	NewStateDBDSN      string   `json:"new_state_dbdsn,omitempty"`
+	UseOffset          bool     `json:"use_offset"`
+	KafkaConsumerGroup string   `json:"kafka_consumer_group"`
+	Messages           []string `json:"messages,omitempty"`
 }
 
 func rawResponse(w http.ResponseWriter, response []byte) {
@@ -521,7 +522,7 @@ func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newStateDbPath, err := c.ResetState(req.NewStateDBDSN, req.Messages, req.UseOffset)
+	newStateDbPath, err := c.ResetState(req.NewStateDBDSN, req.KafkaConsumerGroup, req.Messages, req.UseOffset)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to reset state: %v", err))
 		return

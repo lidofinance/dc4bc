@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/segmentio/kafka-go/sasl/plain"
 
@@ -57,7 +58,7 @@ func init() {
 	rootCmd.PersistentFlags().String(flagKafkaProducerCredentials, "producer:producerpass", "Producer credentials for Kafka: username:password")
 	rootCmd.PersistentFlags().String(flagKafkaConsumerCredentials, "consumer:consumerpass", "Consumer credentials for Kafka: username:password")
 	rootCmd.PersistentFlags().String(flagKafkaTrustStorePath, "certs/ca.pem", "Path to kafka truststore")
-	rootCmd.PersistentFlags().String(flagKafkaConsumerGroup, "testUser_consumer_group", "Kafka consumer group")
+	rootCmd.PersistentFlags().String(flagKafkaConsumerGroup, "", "Kafka consumer group")
 	rootCmd.PersistentFlags().String(flagKafkaTimeout, "60s", "Kafka I/O Timeout")
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
@@ -177,8 +178,13 @@ func startClientCommand() *cobra.Command {
 				return fmt.Errorf("failed to init state client: %w", err)
 			}
 
-			kafkaTrustStorePath := viper.GetString(flagKafkaTrustStorePath)
+			username := viper.GetString(flagUserName)
 			kafkaConsumerGroup := viper.GetString(flagKafkaConsumerGroup)
+			if len(kafkaConsumerGroup) < 1 {
+				kafkaConsumerGroup = fmt.Sprintf("%s_%d", username, time.Now().Unix())
+			}
+
+			kafkaTrustStorePath := viper.GetString(flagKafkaTrustStorePath)
 			kafkaTimeout := viper.GetDuration(flagKafkaTimeout)
 			tlsConfig, err := kafka_storage.GetTLSConfig(kafkaTrustStorePath)
 			if err != nil {
@@ -214,7 +220,6 @@ func startClientCommand() *cobra.Command {
 				return fmt.Errorf("failed to ignore messages in storage: %w", err)
 			}
 
-			username := viper.GetString(flagUserName)
 			keyStoreDBDSN := viper.GetString(flagStoreDBDSN)
 			keyStore, err := client.NewLevelDBKeyStore(username, keyStoreDBDSN)
 			if err != nil {
