@@ -261,6 +261,18 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 }
 
 func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, error) {
+	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to getFSMInstance: %w", err)
+	}
+
+	// we can't verify a message at this moment, cause we don't have public keys of participants
+	if fsm.Event(message.Event) != spf.EventInitProposal {
+		if err := c.verifyMessage(fsmInstance, message); err != nil {
+			return nil, fmt.Errorf("failed to verifyMessage %+v: %w", message, err)
+		}
+	}
+
 	switch fsm.Event(message.Event) {
 	case types.SignatureReconstructed: // save broadcasted reconstructed signature
 		if err := c.processSignature(message); err != nil {
@@ -278,11 +290,6 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 		}
 		c.Logger.Log("Participant #%d got an error during signature reconstruction process: %v", errorRequestTyped.ParticipantId, errorRequestTyped.Error)
 		return nil, nil
-	}
-
-	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to getFSMInstance: %w", err)
 	}
 
 	//TODO: refactor the following checks
@@ -344,13 +351,6 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 			if err := c.state.SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 				return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 			}
-		}
-	}
-
-	// we can't verify a message at this moment, cause we don't have public keys of participants
-	if fsm.Event(message.Event) != spf.EventInitProposal {
-		if err := c.verifyMessage(fsmInstance, message); err != nil {
-			return nil, fmt.Errorf("failed to verifyMessage %+v: %w", message, err)
 		}
 	}
 
