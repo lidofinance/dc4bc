@@ -113,7 +113,7 @@ func TestLevelDBState_DeleteOperation(t *testing.T) {
 	_, err = stg.GetOperationByID(operation.ID)
 	req.NoError(err)
 
-	err = stg.DeleteOperation(operation.ID)
+	err = stg.DeleteOperation(operation)
 	req.NoError(err)
 
 	_, err = stg.GetOperationByID(operation.ID)

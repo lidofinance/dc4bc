@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -36,7 +37,7 @@ const (
 
 type Client interface {
 	Poll() error
-	GetLogger() *logger
+	GetLogger() Logger
 	GetPubKey() ed25519.PublicKey
 	GetUsername() string
 	SendMessage(message storage.Message) error
@@ -44,13 +45,15 @@ type Client interface {
 	GetOperations() (map[string]*types.Operation, error)
 	GetOperationQRPath(operationID string) (string, error)
 	StartHTTPServer(listenAddr string) error
+	StopHTTPServer()
 	SetSkipCommKeysVerification(bool)
 	ResetState(newStateDBPath string, messages []string, useOffset bool) (string, error)
 }
 
 type BaseClient struct {
 	sync.Mutex
-	Logger                   *logger
+	server                   *http.Server
+	Logger                   Logger
 	userName                 string
 	pubKey                   ed25519.PublicKey
 	ctx                      context.Context
@@ -94,7 +97,7 @@ func (c *BaseClient) getState() State {
 	return c.state
 }
 
-func (c *BaseClient) GetLogger() *logger {
+func (c *BaseClient) GetLogger() Logger {
 	return c.Logger
 }
 
@@ -226,7 +229,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 		if fsmInstance.FSMDump().Payload.DKGProposalPayload != nil {
 			for _, participant := range fsmInstance.FSMDump().Payload.DKGProposalPayload.Quorum {
 				if participant.Error != nil {
-					log.Printf("Participant %s got an error during DKG process: %s. DKG aborted\n",
+					c.Logger.Log("Participant %s got an error during DKG process: %s. DKG aborted\n",
 						participant.Username, participant.Error.Error())
 					// if we have an error during DKG, abort the whole DKG procedure.
 					return nil, nil
@@ -236,7 +239,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 		if fsmInstance.FSMDump().Payload.SigningProposalPayload != nil {
 			for _, participant := range fsmInstance.FSMDump().Payload.SigningProposalPayload.Quorum {
 				if participant.Error != nil {
-					log.Printf("Participant %s got an error during signing procedure: %s. Signing procedure aborted\n",
+					c.Logger.Log("Participant %s got an error during signing procedure: %s. Signing procedure aborted\n",
 						participant.Username, participant.Error.Error())
 					break
 				}
@@ -260,13 +263,13 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 	if strings.HasSuffix(string(fsmInstance.FSMDump().State), "_timeout") {
 		if strings.HasPrefix(string(fsmInstance.FSMDump().State), "state_sig_") ||
 			strings.HasPrefix(string(fsmInstance.FSMDump().State), "state_dkg") {
-			log.Printf("DKG process with ID \"%s\" aborted cause of timeout\n",
+			c.Logger.Log("DKG process with ID \"%s\" aborted cause of timeout\n",
 				fsmInstance.FSMDump().Payload.DkgId)
 			// if we have an error during DKG, abort the whole DKG procedure.
 			return nil, nil
 		}
 		if strings.HasPrefix(string(fsmInstance.FSMDump().State), "state_signing_") {
-			log.Printf("Signing process with ID \"%s\" aborted cause of timeout\n",
+			c.Logger.Log("Signing process with ID \"%s\" aborted cause of timeout\n",
 				fsmInstance.FSMDump().Payload.SigningProposalPayload.SigningId)
 
 			//if we have an error during signing procedure, start a new signing procedure
@@ -478,7 +481,7 @@ func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
 		return fmt.Errorf("failed to post messages: %w", err)
 	}
 
-	if err := c.getState().DeleteOperation(operation.ID); err != nil {
+	if err := c.getState().DeleteOperation(&operation); err != nil {
 		return fmt.Errorf("failed to DeleteOperation: %w", err)
 	}
 

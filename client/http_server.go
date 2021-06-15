@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/md5"
 	"encoding/hex"
@@ -97,8 +98,14 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 
 	mux.HandleFunc("/resetState", c.resetStateHandler)
 
+	c.server = &http.Server{Addr: listenAddr, Handler: mux}
+
 	c.Logger.Log("HTTP server started on address: %s", listenAddr)
-	return http.ListenAndServe(listenAddr, mux)
+	return c.server.ListenAndServe()
+}
+
+func (c *BaseClient) StopHTTPServer() {
+	c.server.Shutdown(context.Background())
 }
 
 func (c *BaseClient) getFSMDumpHandler(w http.ResponseWriter, r *http.Request) {
