@@ -1,11 +1,16 @@
 package qr
 
 import (
+	"bufio"
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	encoder "github.com/skip2/go-qrcode"
 	"image"
 	"image/draw"
 	"image/gif"
+	"io"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"reflect"
@@ -22,27 +27,32 @@ func NewTestQRProcessor() *TestQrProcessor {
 }
 
 func (p *TestQrProcessor) ReadQR() ([]byte, error) {
+	if _, err := os.Stat(p.qr); err != nil {
+		return nil, fmt.Errorf("cannot open qr file \"%s\"", err)
+	}
+
 	file, err := os.Open(p.qr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot read qr file \"%s\"", err)
 	}
 	defer file.Close()
 
 	decodedGIF, err := gif.DecodeAll(file)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("cannot decode qr file \"%s\"", err)
 	}
 
 	chunks := make([]*chunk, 0)
 	decodedChunksCount := uint(0)
-	for _, frame := range decodedGIF.Image {
+	for idx, frame := range decodedGIF.Image {
 		data, err := ReadDataFromQR(frame)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("cannot read frame %d", idx)
+			// continue
 		}
 		decodedChunk, err := decodeChunk(data)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot decode chunk \"%s\"", err)
 		}
 		if cap(chunks) == 0 {
 			chunks = make([]*chunk, decodedChunk.Total)
@@ -60,10 +70,36 @@ func (p *TestQrProcessor) ReadQR() ([]byte, error) {
 	for _, c := range chunks {
 		data = append(data, c.Data...)
 	}
-	if err = os.Remove(p.qr); err != nil {
-		return nil, err
+
+	buf := bytes.Buffer{}
+	bufWriter := bufio.NewWriter(&buf)
+
+	zr, err := gzip.NewReader(bytes.NewBuffer(data))
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot create compression reader: %s", err)
 	}
-	return data, nil
+
+	defer zr.Close()
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot read compression data \"%s\"", err)
+	}
+
+	_, err = io.Copy(bufWriter, zr)
+	if err != nil {
+		return nil, fmt.Errorf("cannot copy compression data \"%s\"", err)
+	}
+
+	if err := zr.Close(); err != nil {
+		return nil, fmt.Errorf("cannot finalize readed data \"%s\"", err)
+	}
+
+	if err = os.Remove(p.qr); err != nil {
+		return nil, fmt.Errorf("cannot remove qr file \"%s\"", err)
+	}
+
+	return buf.Bytes(), nil
 }
 
 func (p *TestQrProcessor) WriteQR(path string, data []byte) error {
@@ -73,7 +109,7 @@ func (p *TestQrProcessor) WriteQR(path string, data []byte) error {
 	}
 	outGif := &gif.GIF{}
 	for _, c := range chunks {
-		code, err := encoder.New(string(c), encoder.Medium)
+		code, err := encoder.New(string(c), encoder.High)
 		if err != nil {
 			return fmt.Errorf("failed to create a QR code: %w", err)
 		}
@@ -113,11 +149,48 @@ func TestReadDataFromQRChunks(t *testing.T) {
 	p := NewTestQRProcessor()
 	p.chunkSize = 128
 
-	if err := p.WriteQR("/tmp/test_gif.gif", data); err != nil {
+	tmpFile, err := ioutil.TempFile("", "tmp_qr_gif")
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if err := p.WriteQR(tmpFile.Name(), data); err != nil {
 		t.Fatalf(err.Error())
 	}
 
 	recoveredDataFromQRChunks, err := p.ReadQR()
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	if !reflect.DeepEqual(data, recoveredDataFromQRChunks) {
+		t.Fatal("recovered data from chunks and initial data are not equal!")
+	}
+}
+
+func TestReadDataFromQRCameraProcessorChunks(t *testing.T) {
+	N := 1000
+
+	data := genBytes(N)
+
+	p := NewCameraProcessor()
+	p.SetChunkSize(128)
+	p.SetRecoveryLevel(encoder.High)
+
+	tmpFile, err := ioutil.TempFile("", "tmp_qr_gif")
+
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	//defer os.Remove(tmpFile.Name())
+
+	if err := p.WriteQR(tmpFile.Name(), data); err != nil {
+		t.Fatalf(err.Error())
+	}
+
+	recoveredDataFromQRChunks, err := p.ReadQR(tmpFile.Name())
 	if err != nil {
 		t.Fatalf(err.Error())
 	}

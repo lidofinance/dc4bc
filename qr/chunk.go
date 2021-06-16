@@ -1,7 +1,10 @@
 package qr
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 )
@@ -14,17 +17,35 @@ type chunk struct {
 
 // DataToChunks divides a data on chunks with a size chunkSize
 func DataToChunks(data []byte, chunkSize int) ([][]byte, error) {
-	chunksCount := int(math.Ceil(float64(len(data)) / float64(chunkSize)))
+	var buf bytes.Buffer
+
+	zw, err := gzip.NewWriterLevel(&buf, gzip.BestCompression)
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot create compression writer: %s", err)
+	}
+
+	_, err = zw.Write(data)
+
+	if err != nil {
+		return nil, fmt.Errorf("cannot write compressed data: %s", err)
+	}
+
+	if err := zw.Close(); err != nil {
+		return nil, fmt.Errorf("cannot finalize compressed data: %s", err)
+	}
+
+	chunksCount := int(math.Ceil(float64(buf.Len()) / float64(chunkSize)))
 	chunks := make([][]byte, 0, chunksCount)
 
 	index := uint(0)
-	for offset := 0; offset < len(data); offset += chunkSize {
+	for offset := 0; offset < buf.Len(); offset += chunkSize {
 		offsetEnd := offset + chunkSize
-		if offsetEnd > len(data) {
-			offsetEnd = len(data)
+		if offsetEnd > buf.Len() {
+			offsetEnd = buf.Len()
 		}
 		chunkBz, err := encodeChunk(chunk{
-			Data:  data[offset:offsetEnd],
+			Data:  buf.Bytes()[offset:offsetEnd],
 			Total: uint(chunksCount),
 			Index: index,
 		})
@@ -42,6 +63,9 @@ func decodeChunk(data []byte) (*chunk, error) {
 		c   chunk
 		err error
 	)
+	if len(data) < 5 {
+		return nil, errors.New("empty chunk data")
+	}
 	if err = json.Unmarshal(data, &c); err != nil {
 		return nil, err
 	}
