@@ -42,7 +42,7 @@ func (am *Machine) handleReinitDKG(operation *client.Operation) error {
 		if !o.Event.IsEmpty() || fsm.State(o.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
 			continue
 		}
-		if _, err := am.ProcessOperation(o, false); err != nil {
+		if _, err := am.GetOperationResult(o); err != nil {
 			return fmt.Errorf("failed to process operation: %w", err)
 		}
 	}
