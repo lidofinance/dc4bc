@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/lidofinance/dc4bc/client/types"
 
@@ -96,7 +97,7 @@ func NewLevelDBState(stateDbPath string, topic string) (State, error) {
 
 func (s *LevelDBState) NewStateFromOld(stateDbPath string) (State, string, error) {
 	if len(stateDbPath) < 1 {
-		stateDbPath = s.stateDbPath + "_new"
+		stateDbPath = fmt.Sprintf("%s_%d", s.stateDbPath, time.Now().Unix())
 	}
 
 	state, err := NewLevelDBState(stateDbPath, s.topic)
