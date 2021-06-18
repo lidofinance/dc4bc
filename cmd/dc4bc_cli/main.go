@@ -54,6 +54,7 @@ var rootCmd = &cobra.Command{
 func main() {
 	rootCmd.AddCommand(
 		getOperationsCommand(),
+		reinitDKGQRPathCommand(),
 		getOperationQRPathCommand(),
 		readOperationResultCommand(),
 		approveDKGParticipationCommand(),
@@ -373,6 +374,33 @@ func getOperationQRPathCommand() *cobra.Command {
 			}
 
 			fmt.Printf("QR code was saved to: %s\n", qrPath)
+			return nil
+		},
+	}
+}
+
+func reinitDKGQRPathCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "reinit_dkg [reDKG JSON file path]",
+		Args:  cobra.ExactArgs(1),
+		Short: "send reinitDKG message to a storage",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			reDKGFile := args[0]
+
+			reDKGDData, err := ioutil.ReadFile(reDKGFile)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", reDKGFile, err)
+			}
+
+			if _, err := rawPostRequest(fmt.Sprintf("http://%s/reinitDKG", listenAddr),
+				"application/json", reDKGDData); err != nil {
+				return fmt.Errorf("failed to reinit DKG: %w", err)
+			}
 			return nil
 		},
 	}
