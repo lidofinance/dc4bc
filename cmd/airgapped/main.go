@@ -7,8 +7,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/lidofinance/dc4bc/fsm/fsm"
-	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"io"
 	"io/ioutil"
 	"log"
@@ -71,10 +69,6 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 	p.addCommand("read_operation", &promptCommand{
 		commandHandler: p.readOperationCommand,
 		description:    "reads base64-encoded Operation, handles a decoded operation and returns the path to the GIF with operation's result",
-	})
-	p.addCommand("reinit_dkg", &promptCommand{
-		commandHandler: p.reDKGCommand,
-		description:    "reads reDKG JSON-file and restores DKG",
 	})
 	p.addCommand("help", &promptCommand{
 		commandHandler: p.helpCommand,
@@ -183,40 +177,6 @@ func (p *prompt) readOperationCommand() error {
 	}
 
 	p.printf("Operation GIF was handled successfully, the result Operation GIF was saved to: %s\n", qrPath)
-	return nil
-}
-
-type ReDKG struct {
-	Result []client.Operation `json:"result"`
-}
-
-func (p *prompt) reDKGCommand() error {
-	p.print("> Enter the path to reDKG JSON file: ")
-
-	reDKGPath, err := p.reader.ReadString('\n')
-	if err != nil {
-		return fmt.Errorf("failed to read base64Operation: %w", err)
-	}
-
-	reDKGBz, err := ioutil.ReadFile(strings.Trim(reDKGPath, " \n"))
-	if err != nil {
-		return fmt.Errorf("failed to read Operation file: %w", err)
-	}
-
-	var reDKG ReDKG
-	if err := json.Unmarshal(reDKGBz, &reDKG); err != nil {
-		return fmt.Errorf("failed to unmarshal reDKG file: %w", err)
-	}
-
-	for _, operation := range reDKG.Result {
-		if !operation.Event.IsEmpty() || fsm.State(operation.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
-			continue
-		}
-		if _, err := p.airgapped.ProcessOperation(operation, false); err != nil {
-			return fmt.Errorf("failed to process operation: %w", err)
-		}
-	}
-	p.println("DKG reinitialised successfully")
 	return nil
 }
 
@@ -355,6 +315,7 @@ func (p *prompt) setSeedCommand() error {
 		return fmt.Errorf("failed to read confirmation: %w", err)
 	}
 	if strings.Trim(ok, " \n") != "ok" {
+		p.println("Seed setting canceled!")
 		return nil
 	}
 

@@ -113,6 +113,8 @@ func (fs *FileStorage) GetMessages(offset uint64) ([]storage.Message, error) {
 		return nil, fmt.Errorf("failed to seek a offset to the start of a data file: %v", err)
 	}
 	scanner := bufio.NewScanner(fs.dataFile)
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
 	for scanner.Scan() {
 		if offset > 0 {
 			offset--
@@ -131,7 +133,7 @@ func (fs *FileStorage) GetMessages(offset uint64) ([]storage.Message, error) {
 		}
 	}
 	if scanner.Err() != nil {
-		return nil, fmt.Errorf("failed to read a data file: %v", err)
+		return nil, fmt.Errorf("failed to read a data file: %v", scanner.Err())
 	}
 	return msgs, nil
 }

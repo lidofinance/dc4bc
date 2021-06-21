@@ -7,7 +7,6 @@ import (
 	"github.com/lidofinance/dc4bc/storage/kafka_storage"
 	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"log"
 	"strings"
@@ -26,7 +25,7 @@ const (
 
 var rootCmd = &cobra.Command{
 	Use:   "dkg_reinitializer",
-	Short: "reads a Kafka storage, gets all messages from there and returns DKG reinit JSON (to stdout by default).",
+	Short: "DKG reinitializer tool",
 }
 
 func init() {
@@ -51,58 +50,74 @@ func parseKafkaSaslPlain(creds string) (*plain.Mechanism, error) {
 	}, nil
 }
 
+func reinit() *cobra.Command {
+	return &cobra.Command{
+		Use:   "reinit",
+		Short: "reads a Kafka storage, gets all messages from there and returns DKG reinit JSON (to stdout by default).",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			kafkaTrustStorePath, _ := cmd.Flags().GetString(flagKafkaTrustStorePath)
+			kafkaConsumerGroup, _ := cmd.Flags().GetString(flagKafkaConsumerGroup)
+			kafkaTimeout, _ := cmd.Flags().GetDuration(flagKafkaTimeout)
+			tlsConfig, err := kafka_storage.GetTLSConfig(kafkaTrustStorePath)
+			if err != nil {
+				return fmt.Errorf("failed to create tls config: %v", err)
+			}
+
+			storageTopic, _ := cmd.Flags().GetString(flagStorageTopic)
+
+			producerCredentials, _ := cmd.Flags().GetString(flagKafkaProducerCredentials)
+			producerCreds, err := parseKafkaSaslPlain(producerCredentials)
+			if err != nil {
+				return fmt.Errorf("failed to parse kafka credentials: %v", err)
+			}
+
+			consumerCredentials, _ := cmd.Flags().GetString(flagKafkaConsumerCredentials)
+			consumerCreds, err := parseKafkaSaslPlain(consumerCredentials)
+			if err != nil {
+				return fmt.Errorf("failed to parse kafka credentials: %v", err)
+			}
+
+			storageDBDSN, _ := cmd.Flags().GetString(flagStorageDBDSN)
+			stg, err := kafka_storage.NewKafkaStorage(storageDBDSN, storageTopic, kafkaConsumerGroup, tlsConfig,
+				producerCreds, consumerCreds, kafkaTimeout)
+			if err != nil {
+				return fmt.Errorf("failed to init storage: %v", err)
+			}
+
+			messages, err := stg.GetMessages(0)
+			if err != nil {
+				return fmt.Errorf("failed to get messages: %v", err)
+			}
+
+			reDKG, err := types.GenerateReDKGMessage(messages)
+			if err != nil {
+				return fmt.Errorf("failed to generate reDKG message: %v", err)
+			}
+
+			reDKGBz, err := json.Marshal(reDKG)
+			if err != nil {
+				return fmt.Errorf("failed to encode reinit DKG message: %v", err)
+			}
+
+			outputFile, _ := cmd.Flags().GetString(flagOutputFile)
+			if len(outputFile) == 0 {
+				fmt.Println(string(reDKGBz))
+				return nil
+			}
+
+			if err = ioutil.WriteFile(outputFile, reDKGBz, 0666); err != nil {
+				return fmt.Errorf("failed to save reinit DKG JSON: %v", err)
+			}
+			return nil
+		},
+	}
+}
+
 func main() {
-	kafkaTrustStorePath := viper.GetString(flagKafkaTrustStorePath)
-	kafkaConsumerGroup := viper.GetString(flagKafkaConsumerGroup)
-	kafkaTimeout := viper.GetDuration(flagKafkaTimeout)
-	tlsConfig, err := kafka_storage.GetTLSConfig(kafkaTrustStorePath)
-	if err != nil {
-		log.Fatalf("failed to create tls config: %v", err)
-	}
-
-	storageTopic := viper.GetString(flagStorageTopic)
-
-	producerCredentials := viper.GetString(flagKafkaProducerCredentials)
-	producerCreds, err := parseKafkaSaslPlain(producerCredentials)
-	if err != nil {
-		log.Fatalf("failed to parse kafka credentials: %v", err)
-	}
-
-	consumerCredentials := viper.GetString(flagKafkaConsumerCredentials)
-	consumerCreds, err := parseKafkaSaslPlain(consumerCredentials)
-	if err != nil {
-		log.Fatalf("failed to parse kafka credentials: %v", err)
-	}
-
-	storageDBDSN := viper.GetString(flagStorageDBDSN)
-	stg, err := kafka_storage.NewKafkaStorage(storageDBDSN, storageTopic, kafkaConsumerGroup, tlsConfig,
-		producerCreds, consumerCreds, kafkaTimeout)
-	if err != nil {
-		log.Fatalf("failed to init storage: %v", err)
-	}
-
-	messages, err := stg.GetMessages(0)
-	if err != nil {
-		log.Fatalf("failed to get messages: %v", err)
-	}
-
-	reDKG, err := types.GenerateReDKGMessage(messages)
-	if err != nil {
-		log.Fatalf("failed to generate reDKG message: %v", err)
-	}
-
-	reDKGBz, err := json.Marshal(reDKG)
-	if err != nil {
-		log.Fatalf("failed to encode reinit DKG message: %v", err)
-	}
-
-	outputFile := viper.GetString(flagOutputFile)
-	if len(outputFile) == 0 {
-		fmt.Println(string(reDKGBz))
-		return
-	}
-
-	if err = ioutil.WriteFile(outputFile, reDKGBz, 0666); err != nil {
-		log.Fatalf("failed to save reinit DKG JSON: %v", err)
+	rootCmd.AddCommand(
+		reinit(),
+	)
+	if err := rootCmd.Execute(); err != nil {
+		log.Fatalf("Failed to execute root command: %v", err)
 	}
 }

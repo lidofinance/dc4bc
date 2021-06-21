@@ -529,56 +529,17 @@ func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	participants := make([]*requests.SignatureProposalParticipantsEntry, 0, len(req.Participants))
-	for _, reqParticipant := range req.Participants {
-		participants = append(participants, &requests.SignatureProposalParticipantsEntry{
-			Username:  reqParticipant.Name,
-			DkgPubKey: reqParticipant.DKGPubKey,
-			PubKey:    reqParticipant.NewCommPubKey,
-		})
-	}
-	startDKGReq := requests.SignatureProposalParticipantsListRequest{
-		Participants:     participants,
-		SigningThreshold: req.Threshold,
-		CreatedAt:        time.Now(),
-	}
-	startDKGReqBz, err := json.Marshal(startDKGReq)
+	message, err := c.buildMessage(req.DKGID, fsm.Event(types.ReinitDKG), reqBody)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to marshall startDKGRequest: %v", err))
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
 		return
 	}
 
-	// cause we can't verify messages with old pubkeys
-	if !c.GetSkipCommKeysVerification() {
-		c.SetSkipCommKeysVerification(true)
-		defer c.SetSkipCommKeysVerification(false)
+	if err = c.SendMessage(*message); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))
+		return
 	}
-
-	operations := make([]*types.Operation, 0)
-	for _, message := range req.Messages {
-		if fsm.Event(message.Event) == sif.EventSigningStart {
-			break
-		}
-		if fsm.Event(message.Event) == spf.EventInitProposal {
-			msg, err := c.buildMessage(req.DKGID, spf.EventInitProposal, startDKGReqBz)
-			if err != nil {
-				errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
-				return
-			}
-			message = *msg
-		}
-		if message.RecipientAddr == "" || message.RecipientAddr == c.GetUsername() {
-			operation, err := c.processMessage(message)
-			if err != nil {
-				c.Logger.Log("failed to process operation: %v", err)
-			}
-			if operation != nil {
-				operations = append(operations, operation)
-			}
-		}
-	}
-
-	successResponse(w, operations)
+	successResponse(w, "ok")
 }
 
 func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {

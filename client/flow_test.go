@@ -689,33 +689,12 @@ func TestReinitDKGFlow(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	for _, node := range newNodes {
-		resp, err := http.Post(fmt.Sprintf("http://%s/reinitDKG", node.listenAddr),
-			"application/json", bytes.NewReader(reInitDKGBz))
-		if err != nil {
-			t.Fatalf("failed to send HTTP request to reinit DKG: %v\n", err)
-		}
-		responseBody, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			t.Fatalf("failed to read HTTP response body: %v\n", err)
-		}
-		resp.Body.Close()
-
-		var reDKG ReDKG
-		if err := json.Unmarshal(responseBody, &reDKG); err != nil {
-			t.Fatalf("failed to unmarshal reDKGresponse: %v", err)
-		}
-
-		for _, operation := range reDKG.Result {
-			if !operation.Event.IsEmpty() || fsm.State(operation.Type) == spf.StateAwaitParticipantsConfirmations {
-				continue
-			}
-			if _, err := node.air.ProcessOperation(operation, false); err != nil {
-				t.Fatalf("failed to process operation: %v", err)
-			}
-		}
+	if _, err := http.Post(fmt.Sprintf("http://%s/reinitDKG", newNodes[0].listenAddr),
+		"application/json", bytes.NewReader(reInitDKGBz)); err != nil {
+		t.Fatalf("failed to send HTTP request to reinit DKG: %v\n", err)
 	}
 
+	time.Sleep(10 * time.Second)
 
 	messageDataBz, err = signMessage(messageDataBz, "message to sign", nodes[len(nodes)-1].listenAddr)
 	if err != nil {

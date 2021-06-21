@@ -185,7 +185,81 @@ func (c *BaseClient) processSignature(message storage.Message) error {
 	return c.getState().SaveSignature(signature)
 }
 
+func (c *BaseClient) reinitDKG(message storage.Message) error {
+	var req types.ReDKG
+	if err := json.Unmarshal(message.Data, &req); err != nil {
+		return fmt.Errorf("failed to umarshal request: %v", err)
+
+	}
+
+	participants := make([]*requests.SignatureProposalParticipantsEntry, 0, len(req.Participants))
+	for _, reqParticipant := range req.Participants {
+		participants = append(participants, &requests.SignatureProposalParticipantsEntry{
+			Username:  reqParticipant.Name,
+			DkgPubKey: reqParticipant.DKGPubKey,
+			PubKey:    reqParticipant.NewCommPubKey,
+		})
+	}
+	startDKGReq := requests.SignatureProposalParticipantsListRequest{
+		Participants:     participants,
+		SigningThreshold: req.Threshold,
+		CreatedAt:        time.Now(),
+	}
+	startDKGReqBz, err := json.Marshal(startDKGReq)
+	if err != nil {
+		return fmt.Errorf("failed to marshall startDKGRequest: %v", err)
+	}
+
+	// cause we can't verify messages with old pubkeys
+	if !c.GetSkipCommKeysVerification() {
+		c.SetSkipCommKeysVerification(true)
+		defer c.SetSkipCommKeysVerification(false)
+	}
+
+	operations := make([]*types.Operation, 0)
+	for _, msg := range req.Messages {
+		if fsm.Event(msg.Event) == sipf.EventSigningStart {
+			break
+		}
+		if fsm.Event(msg.Event) == spf.EventInitProposal {
+			m, err := c.buildMessage(req.DKGID, spf.EventInitProposal, startDKGReqBz)
+			if err != nil {
+				return fmt.Errorf("failed to build message: %v", err)
+			}
+			msg = *m
+		}
+		if msg.RecipientAddr == "" || msg.RecipientAddr == c.GetUsername() {
+			operation, err := c.processMessage(msg)
+			if err != nil {
+				c.Logger.Log("failed to process operation: %v", err)
+			}
+			if operation != nil {
+				operations = append(operations, operation)
+			}
+		}
+	}
+
+	operationsBz, err := json.Marshal(operations)
+	if err != nil {
+		return fmt.Errorf("failed to marshall operations")
+	}
+
+	operation := types.NewOperation(req.DKGID, operationsBz, types.ReinitDKG)
+	if err := c.getState().PutOperation(operation); err != nil {
+		return fmt.Errorf("failed to PutOperation: %w", err)
+	}
+
+	return nil
+}
+
 func (c *BaseClient) ProcessMessage(message storage.Message) error {
+	if fsm.State(message.Event) == types.ReinitDKG {
+		if err := c.reinitDKG(message); err != nil {
+			return fmt.Errorf("failed to reinitDKG")
+		}
+		return nil
+	}
+
 	operation, err := c.processMessage(message)
 	if err != nil {
 		return err
@@ -199,6 +273,18 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 }
 
 func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, error) {
+	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to getFSMInstance: %w", err)
+	}
+
+	// we can't verify a message at this moment, cause we don't have public keys of participants
+	if fsm.Event(message.Event) != spf.EventInitProposal {
+		if err := c.verifyMessage(fsmInstance, message); err != nil {
+			return nil, fmt.Errorf("failed to verifyMessage %+v: %w", message, err)
+		}
+	}
+
 	switch fsm.Event(message.Event) {
 	case types.SignatureReconstructed: // save broadcasted reconstructed signature
 		if err := c.processSignature(message); err != nil {
@@ -216,11 +302,6 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 		}
 		c.Logger.Log("Participant #%d got an error during signature reconstruction process: %v", errorRequestTyped.ParticipantId, errorRequestTyped.Error)
 		return nil, nil
-	}
-
-	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to getFSMInstance: %w", err)
 	}
 
 	//TODO: refactor the following checks
@@ -283,13 +364,6 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 			if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 				return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 			}
-		}
-	}
-
-	// we can't verify a message at this moment, cause we don't have public keys of participants
-	if fsm.Event(message.Event) != spf.EventInitProposal {
-		if err := c.verifyMessage(fsmInstance, message); err != nil {
-			return nil, fmt.Errorf("failed to verifyMessage %+v: %w", message, err)
 		}
 	}
 
@@ -452,7 +526,7 @@ func (c *BaseClient) GetOperationQRPath(operationID string) (string, error) {
 // It checks that the operation exists in an operation pool, signs the operation, sends it to an append-only log and
 // deletes it from the pool.
 func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
-	if len(operation.ResultMsgs) == 0 {
+	if operation.Event.IsEmpty() {
 		return errors.New("operation is request operation, provide result operation instead")
 	}
 
@@ -465,20 +539,22 @@ func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
 		return fmt.Errorf("processed operation does not match stored operation: %w", err)
 	}
 
-	for i, message := range operation.ResultMsgs {
-		message.SenderAddr = c.GetUsername()
+	// there are no result messages for OperationProcessed event type
+	if operation.Event != types.OperationProcessed {
+		for i, message := range operation.ResultMsgs {
+			message.SenderAddr = c.GetUsername()
 
-		sig, err := c.signMessage(message.Bytes())
-		if err != nil {
-			return fmt.Errorf("failed to sign a message: %w", err)
+			sig, err := c.signMessage(message.Bytes())
+			if err != nil {
+				return fmt.Errorf("failed to sign a message: %w", err)
+			}
+			message.Signature = sig
+
+			operation.ResultMsgs[i] = message
 		}
-		message.Signature = sig
-
-		operation.ResultMsgs[i] = message
-	}
-
-	if err := c.storage.Send(operation.ResultMsgs...); err != nil {
-		return fmt.Errorf("failed to post messages: %w", err)
+		if err := c.storage.Send(operation.ResultMsgs...); err != nil {
+			return fmt.Errorf("failed to post messages: %w", err)
+		}
 	}
 
 	if err := c.getState().DeleteOperation(&operation); err != nil {

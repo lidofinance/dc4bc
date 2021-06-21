@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/md5"
 	"crypto/sha256"
@@ -11,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -20,10 +22,11 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
 	"github.com/lidofinance/dc4bc/fsm/fsm"
-	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
+	"github.com/fatih/color"
 	"github.com/lidofinance/dc4bc/client"
+	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/qr"
 	"github.com/spf13/cobra"
@@ -105,6 +108,7 @@ func getOperationsCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
+
 			operations, err := getOperationsRequest(listenAddr)
 			if err != nil {
 				return fmt.Errorf("failed to get operations: %w", err)
@@ -112,29 +116,82 @@ func getOperationsCommand() *cobra.Command {
 			if operations.ErrorMessage != "" {
 				return fmt.Errorf("failed to get operations: %s", operations.ErrorMessage)
 			}
-			for _, operation := range operations.Result {
-				fmt.Printf("DKG round ID: %s\n", operation.DKGIdentifier)
-				fmt.Printf("Operation ID: %s\n", operation.ID)
-				fmt.Printf("Description: %s\n", getShortOperationDescription(operation.Type))
-				if fsm.State(operation.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
+
+			if len(operations.Result) == 0 {
+				color.New(color.Bold).Println("The are no available operations yet")
+				return nil
+			}
+
+			colorTitle := color.New(color.Bold)
+			colorDKG := color.New(color.FgCyan)
+			colorOperationId := color.New(color.FgGreen)
+			colorTitle.Println("Please, select operation:")
+			fmt.Println("-----------------------------------------------------")
+
+			actionsMap := map[string]string{}
+			actionId := 1
+			for operationId, operation := range operations.Result {
+				actionsMap[strconv.Itoa(actionId)] = operationId
+				fmt.Printf(" %s)\t\t", color.YellowString("%d", actionId))
+
+				colorTitle.Print("DKG round ID:")
+				colorDKG.Printf(" %s\n", operation.DKGIdentifier)
+
+				colorTitle.Print("\t\tOperation ID:")
+				colorOperationId.Printf(" %s\n", operation.ID)
+
+				colorTitle.Print("\t\tDescription:")
+				fmt.Printf(" %s\n", getShortOperationDescription(operation.Type))
+
+				/*  Moved to actions selection
+					if fsm.State(operation.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
 					payloadHash, err := calcStartDKGMessageHash(operation.Payload)
 					if err != nil {
 						return fmt.Errorf("failed to get hash of start DKG message: %w", err)
 					}
-					fmt.Printf("Hash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
-					fmt.Print("You don't need to process this operation in an airgapped machine. Just execute the approve_participation command\n")
-				}
+					fmt.Printf("\t\tHash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
+					fmt.Print("\t\tYou don't need to process this operation in an airgapped machine. Just execute the approve_participation command\n")
+				}*/
 				if strings.HasPrefix(string(operation.Type), "state_signing_") {
 					var payload responses.SigningProposalParticipantInvitationsResponse
 					if err := json.Unmarshal(operation.Payload, &payload); err != nil {
 						return fmt.Errorf("failed to unmarshal operation payload")
 					}
 					msgHash := sha256.Sum256(payload.SrcPayload)
-					fmt.Printf("Hash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
-					fmt.Printf("Signing ID: %s\n", payload.SigningId)
+					fmt.Printf("\t\tHash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
+					fmt.Printf("\t\tSigning ID: %s\n", payload.SigningId)
 				}
 				fmt.Println("-----------------------------------------------------")
+				actionId++
 			}
+
+			colorTitle.Println("Select operation and press Enter. Ctrl+C for cancel")
+
+			scanner := bufio.NewScanner(os.Stdin)
+			for scanner.Scan() {
+				if operationId, ok := actionsMap[scanner.Text()]; ok {
+					colorTitle.Print("Processing operation")
+					colorOperationId.Printf(" %s\n", operationId)
+
+					qrCmd := &cobra.Command{}
+
+					switch fsm.State(operations.Result[operationId].Type) {
+					case spf.StateAwaitParticipantsConfirmations:
+						qrCmd = approveDKGParticipationCommand()
+					default:
+						qrCmd = getOperationQRPathCommand()
+
+					}
+
+					qrCmd.SetArgs([]string{operationId})
+					qrCmd.Flags().AddFlagSet(cmd.Flags())
+					qrCmd.Execute()
+					return nil
+				} else {
+					color.New(color.FgRed).Println("Unknown operation action")
+				}
+			}
+
 			return nil
 		},
 	}
@@ -331,23 +388,11 @@ func reinitDKGQRPathCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reinit_dkg [reDKG JSON file path]",
 		Args:  cobra.ExactArgs(1),
-		Short: "returns path to QR codes which contains a reDKG message for airgapped",
+		Short: "send reinitDKG message to a storage",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
-			}
-			framesDelay, err := cmd.Flags().GetInt(flagFramesDelay)
-			if err != nil {
-				return fmt.Errorf("failed to read configuration: %w", err)
-			}
-			chunkSize, err := cmd.Flags().GetInt(flagChunkSize)
-			if err != nil {
-				return fmt.Errorf("failed to read configuration: %w", err)
-			}
-			qrCodeFolder, err := cmd.Flags().GetString(flagQRCodesFolder)
-			if err != nil {
-				return fmt.Errorf("failed to read configuration: %w", err)
 			}
 
 			reDKGFile := args[0]
@@ -357,27 +402,10 @@ func reinitDKGQRPathCommand() *cobra.Command {
 				return fmt.Errorf("failed to read file %s: %w", reDKGFile, err)
 			}
 
-			resp, err := rawPostRequest(fmt.Sprintf("http://%s/reinitDKG", listenAddr),
-				"application/json", reDKGDData)
-
-			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_reinit_DKG-request"))
-
-			qrPath := fmt.Sprintf("%s.gif", operationQRPath)
-
-			processor := qr.NewCameraProcessor()
-			processor.SetChunkSize(chunkSize)
-			processor.SetDelay(framesDelay)
-
-			respBz, err := json.Marshal(resp)
-			if err != nil {
-				return fmt.Errorf("failed to marshal: %w", err)
+			if _, err := rawPostRequest(fmt.Sprintf("http://%s/reinitDKG", listenAddr),
+				"application/json", reDKGDData); err != nil {
+				return fmt.Errorf("failed to reinit DKG: %w", err)
 			}
-
-			if err = processor.WriteQR(qrPath, respBz); err != nil {
-				return fmt.Errorf("failed to save QR gif: %w", err)
-			}
-
-			fmt.Printf("QR code was saved to: %s\n", qrPath)
 			return nil
 		},
 	}
