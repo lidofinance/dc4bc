@@ -718,7 +718,7 @@ func TestReinitDKGFlow(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	for _, n := range newNodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 65); matches != 4 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 40); matches != 4 {
 			t.Fatalf("not enough checks: %d", matches)
 		} else {
 			fmt.Println("message signed successfully")
@@ -733,7 +733,7 @@ func TestReinitDKGFlow(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	for _, n := range newNodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches < 4 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 40); matches < 4 {
 			t.Fatalf("not enough checks: %d", matches)
 		} else {
 			fmt.Println("messaged signed successfully")
