@@ -37,11 +37,9 @@ var (
 	roundToIgnore             string
 )
 
-var sigReconstructedRegexp =
- 	regexp.MustCompile(`(?m)\[node_\d] Successfully processed message with offset \d{0,3}, type signature_reconstructed`)
+var sigReconstructedRegexp = regexp.MustCompile(`(?m)\[node_\d] Successfully processed message with offset \d{0,3}, type signature_reconstructed`)
 
-var dkgAbortedRegexp =
- 	regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
+var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
 
 type node struct {
 	client       Client
@@ -66,7 +64,7 @@ type processedOperationCallback func(n *node, processedOperation *types.Operatio
 
 type savingLogger struct {
 	userName string
-	logs []string
+	logs     []string
 }
 
 func (l *savingLogger) Log(format string, args ...interface{}) {
@@ -236,19 +234,32 @@ func startDkg(nodes []*node, threshold int) ([]byte, error) {
 	return messageDataBz, nil
 }
 
-func signMessage(messageDataBz []byte, msg, addr string) ([]byte, error) {
-	dkgRoundID := md5.Sum(messageDataBz)
+func signMessage(dkgID []byte, msg, addr string) ([]byte, error) {
 	messageDataBz, err := json.Marshal(map[string][]byte{"data": []byte(msg),
-		"dkgID": dkgRoundID[:]})
+		"dkgID": dkgID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)
 	}
 
-	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignMessage", addr),
-		"application/json", bytes.NewReader(messageDataBz)); err != nil {
+	resp, err := http.Post(fmt.Sprintf("http://%s/proposeSignMessage", addr),
+		"application/json", bytes.NewReader(messageDataBz))
+	if err != nil {
 		return nil, fmt.Errorf("failed to send HTTP request to sign message: %v\n", err)
 	}
 
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read HTTP response body: %w", err)
+	}
+
+	var response Response
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal HTTP response body: %w", err)
+	}
+
+	if len(response.ErrorMessage) != 0 {
+		return nil, fmt.Errorf("failed to propose sign message: %s", response.ErrorMessage)
+	}
 	return messageDataBz, nil
 }
 
@@ -402,7 +413,8 @@ func TestStandardFlow(t *testing.T) {
 
 	log.Println("Propose message to sign")
 
-	messageDataBz, err = signMessage(messageDataBz, "message to sign", nodes[len(nodes)-1].listenAddr)
+	dkgID := md5.Sum(messageDataBz)
+	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[len(nodes)-1].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -430,7 +442,6 @@ func TestStandardFlow(t *testing.T) {
 			fmt.Println("messaged signed successfully")
 		}
 	}
-
 
 	runCancel()
 	for _, node := range nodes {
@@ -493,6 +504,7 @@ func TestResetStateFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+	dkgID := md5.Sum(messageDataBz)
 
 	time.Sleep(20 * time.Second)
 
@@ -529,7 +541,7 @@ func TestResetStateFlow(t *testing.T) {
 		t.Fatalf("failed to marshal ResetStateRequest: %v\n", err)
 	}
 
-	for i := startingPort; i < startingPort + numNodes; i++ {
+	for i := startingPort; i < startingPort+numNodes; i++ {
 		if _, err := http.Post(fmt.Sprintf("http://localhost:%d/resetState", i),
 			"application/json", bytes.NewReader(resetReqBz)); err != nil {
 			t.Fatalf("failed to send HTTP request to reset state: %v\n", err)
@@ -549,7 +561,7 @@ func TestResetStateFlow(t *testing.T) {
 
 	log.Println("Propose message to sign")
 
-	messageDataBz, err = signMessage(messageDataBz, "message to sign", nodes[len(nodes)-1].listenAddr)
+	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[len(nodes)-1].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -614,12 +626,13 @@ func TestReinitDKGFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+	dkgID := md5.Sum(messageDataBz)
 
 	time.Sleep(30 * time.Second)
 
 	log.Println("Propose message to sign")
 
-	messageDataBz, err = signMessage(messageDataBz, "message to sign", nodes[len(nodes)-1].listenAddr)
+	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[len(nodes)-1].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -657,7 +670,9 @@ func TestReinitDKGFlow(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
-	_ = RemoveContents("/tmp", "dc4bc_*")
+	if err = RemoveContents("/tmp", "dc4bc_*"); err != nil {
+		t.Fatalf(err.Error())
+	}
 
 	time.Sleep(10 * time.Second)
 
@@ -696,28 +711,28 @@ func TestReinitDKGFlow(t *testing.T) {
 
 	time.Sleep(10 * time.Second)
 
-	messageDataBz, err = signMessage(messageDataBz, "message to sign", nodes[len(nodes)-1].listenAddr)
+	messageDataBz, err = signMessage(dkgID[:], "message to sign", newNodes[len(newNodes)-1].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
 	time.Sleep(10 * time.Second)
 
-	for _, n := range nodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 4 {
+	for _, n := range newNodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 65); matches != 4 {
 			t.Fatalf("not enough checks: %d", matches)
 		} else {
-			fmt.Println("messaged signed successfully")
+			fmt.Println("message signed successfully")
 		}
 	}
 
 	fmt.Println("Sign message again")
-	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignMessage", nodes[len(nodes)-1].listenAddr),
+	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignMessage", newNodes[len(newNodes)-1].listenAddr),
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
 	time.Sleep(10 * time.Second)
 
-	for _, n := range nodes {
+	for _, n := range newNodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches < 4 {
 			t.Fatalf("not enough checks: %d", matches)
 		} else {
@@ -726,9 +741,8 @@ func TestReinitDKGFlow(t *testing.T) {
 	}
 
 	runCancel()
-	for _, node := range nodes {
+	for _, node := range newNodes {
 		node.client.StopHTTPServer()
 		node.clientCancel()
 	}
 }
-
