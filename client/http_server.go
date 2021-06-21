@@ -88,6 +88,7 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/startDKG", c.startDKGHandler)
 	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
 	mux.HandleFunc("/approveDKGParticipation", c.approveParticipationHandler)
+	mux.HandleFunc("/reinitDKG", c.reinitDKGHandler)
 
 	mux.HandleFunc("/saveOffset", c.saveOffsetHandler)
 	mux.HandleFunc("/getOffset", c.getOffsetHandler)
@@ -505,6 +506,33 @@ func (c *BaseClient) handleJSONOperationHandler(w http.ResponseWriter, r *http.R
 }
 
 func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
+  if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to read body: %v", err))
+		return
+	}
+	defer r.Body.Close()
+  
+  var req ResetStateRequest
+  if err = json.Unmarshal(reqBody, &req); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
+		return
+	}
+  
+  newStateDbPath, err := c.ResetState(req.NewStateDBDSN, req.KafkaConsumerGroup, req.Messages, req.UseOffset)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to reset state: %v", err))
+		return
+	}
+
+	successResponse(w, newStateDbPath)
+}
+
+func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -516,19 +544,23 @@ func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	var req ResetStateRequest
+	var req types.ReDKG
 	if err = json.Unmarshal(reqBody, &req); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
 		return
 	}
 
-	newStateDbPath, err := c.ResetState(req.NewStateDBDSN, req.KafkaConsumerGroup, req.Messages, req.UseOffset)
+	message, err := c.buildMessage(req.DKGID, fsm.Event(types.ReinitDKG), reqBody)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to reset state: %v", err))
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
 		return
 	}
 
-	successResponse(w, newStateDbPath)
+	if err = c.SendMessage(*message); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))
+		return
+	}
+	successResponse(w, "ok")
 }
 
 func (c *BaseClient) buildMessage(dkgRoundID string, event fsm.Event, data []byte) (*storage.Message, error) {

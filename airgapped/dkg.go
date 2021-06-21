@@ -4,6 +4,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 
 	bls "github.com/corestario/kyber/pairing/bls12381"
 
@@ -28,6 +30,24 @@ func createMessage(o client.Operation, data []byte) storage.Message {
 
 func (am *Machine) GetPubKey() kyber.Point {
 	return am.pubKey
+}
+
+func (am *Machine) handleReinitDKG(operation *client.Operation) error {
+	var operations []client.Operation
+	if err := json.Unmarshal(operation.Payload, &operations); err != nil {
+		return fmt.Errorf("failed to unmarshal operation payload: %w", err)
+	}
+
+	for _, o := range operations {
+		if !o.Event.IsEmpty() || fsm.State(o.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
+			continue
+		}
+		if _, err := am.GetOperationResult(o); err != nil {
+			return fmt.Errorf("failed to process operation: %w", err)
+		}
+	}
+	operation.Event = client.OperationProcessed
+	return nil
 }
 
 // handleStateDkgCommitsAwaitConfirmations takes a list of participants DKG pub keys as payload and
