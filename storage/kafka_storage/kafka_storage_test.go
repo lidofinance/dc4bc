@@ -13,7 +13,7 @@ import (
 
 var (
 	testBrokerEndpoint      = "94.130.57.249:9093"
-	testTopic               = fmt.Sprintf("long_test_topic_%d", time.Now().Unix())
+	testTopic               = "long_test_topic"
 	testConsumerGroup       = "test_consumer_group"
 	testTruststorePath      = "../../ca.crt"
 	testTimeout             = time.Second * 10
@@ -37,6 +37,28 @@ func getTestStorage() storage.Storage {
 		tlsConfig, testProducerCredentials, testConsumerCredentials, testTimeout)
 	if err != nil {
 		panic(err)
+	}
+
+	msgs, err := stg.GetMessages(0)
+	if err != nil {
+		panic(err)
+	}
+
+	msgIdsToIgnore := make([]string, 0, len(msgs))
+	for _, msg := range msgs {
+		msgIdsToIgnore = append(msgIdsToIgnore, msg.ID)
+	}
+
+	if err = stg.IgnoreMessages(msgIdsToIgnore, false); err != nil {
+		panic(err)
+	}
+
+	msgs, err = stg.GetMessages(0)
+	if err != nil {
+		panic(err)
+	}
+	if len(msgs) > 0 {
+		panic(fmt.Errorf("GetMessages() should not return any messages but it did"))
 	}
 
 	return stg

@@ -28,6 +28,13 @@ type Response struct {
 	Result       interface{} `json:"result"`
 }
 
+type ResetStateRequest struct {
+	NewStateDBDSN      string   `json:"new_state_dbdsn,omitempty"`
+	UseOffset          bool     `json:"use_offset"`
+	KafkaConsumerGroup string   `json:"kafka_consumer_group"`
+	Messages           []string `json:"messages,omitempty"`
+}
+
 func rawResponse(w http.ResponseWriter, response []byte) {
 	if _, err := w.Write(response); err != nil {
 		panic(fmt.Sprintf("failed to write response: %v", err))
@@ -89,6 +96,8 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/getFSMDump", c.getFSMDumpHandler)
 	mux.HandleFunc("/getFSMList", c.getFSMList)
 
+	mux.HandleFunc("/resetState", c.resetStateHandler)
+
 	c.Logger.Log("HTTP server started on address: %s", listenAddr)
 	return http.ListenAndServe(listenAddr, mux)
 }
@@ -111,7 +120,7 @@ func (c *BaseClient) getFSMList(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
-	fsmInstances, err := c.state.GetAllFSM()
+	fsmInstances, err := c.getState().GetAllFSM()
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get all FSM instances: %v", err))
 		return
@@ -149,7 +158,7 @@ func (c *BaseClient) getOffsetHandler(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
-	offset, err := c.state.LoadOffset()
+	offset, err := c.getState().LoadOffset()
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to load offset: %v", err))
 		return
@@ -178,7 +187,7 @@ func (c *BaseClient) saveOffsetHandler(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("offset cannot be null: %v", err))
 		return
 	}
-	if err = c.state.SaveOffset(req["offset"]); err != nil {
+	if err = c.getState().SaveOffset(req["offset"]); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to save offset: %v", err))
 		return
 	}
@@ -494,6 +503,33 @@ func (c *BaseClient) handleJSONOperationHandler(w http.ResponseWriter, r *http.R
 	}
 
 	successResponse(w, "ok")
+}
+
+func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
+  if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to read body: %v", err))
+		return
+	}
+	defer r.Body.Close()
+  
+  var req ResetStateRequest
+  if err = json.Unmarshal(reqBody, &req); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
+		return
+	}
+  
+  newStateDbPath, err := c.ResetState(req.NewStateDBDSN, req.KafkaConsumerGroup, req.Messages, req.UseOffset)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to reset state: %v", err))
+		return
+	}
+
+	successResponse(w, newStateDbPath)
 }
 
 func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {

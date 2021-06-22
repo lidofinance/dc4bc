@@ -2,6 +2,8 @@ package client_test
 
 import (
 	"os"
+	"regexp"
+	"strconv"
 	"testing"
 	"time"
 
@@ -118,4 +120,44 @@ func TestLevelDBState_DeleteOperation(t *testing.T) {
 
 	_, err = stg.GetOperationByID(operation.ID)
 	req.Error(err)
+}
+
+func TestLevelDBState_NewStateFromOld(t *testing.T) {
+	var (
+		req    = require.New(t)
+		dbPath = "/tmp/dc4bc_test_NewStateFromOld"
+		topic  = "test_topic"
+		re = regexp.MustCompile(dbPath + `_(?P<ts>\d+)`)
+	)
+	defer os.RemoveAll(dbPath)
+
+	state, err := client.NewLevelDBState(dbPath, topic)
+	req.NoError(err)
+
+	var offset uint64 = 1
+	err = state.SaveOffset(offset)
+	req.NoError(err)
+
+	loadedOffset, err := state.LoadOffset()
+	req.NoError(err)
+	req.Equal(offset, loadedOffset)
+
+	timeBefore := time.Now().Unix()
+	newState, newStateDbPath, err := state.NewStateFromOld("")
+	timeAfter := time.Now().Unix()
+
+	req.NoError(err)
+	//req.Equal(newStateDbPath, dbPath + "_new")
+
+	submatches := re.FindStringSubmatch(newStateDbPath)
+	req.Greater(len(submatches), 0)
+
+	ts, err := strconv.Atoi(submatches[1])
+	req.NoError(err)
+	req.GreaterOrEqual(int64(ts), timeBefore)
+	req.LessOrEqual(int64(ts), timeAfter)
+
+	newLoadedOffset, err := newState.LoadOffset()
+	req.NoError(err)
+	req.NotEqual(newLoadedOffset, loadedOffset)
 }

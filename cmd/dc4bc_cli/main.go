@@ -33,10 +33,29 @@ import (
 )
 
 const (
-	flagListenAddr    = "listen_addr"
-	flagFramesDelay   = "frames_delay"
-	flagChunkSize     = "chunk_size"
-	flagQRCodesFolder = "qr_codes_folder"
+	flagListenAddr         = "listen_addr"
+	flagFramesDelay        = "frames_delay"
+	flagChunkSize          = "chunk_size"
+	flagQRCodesFolder      = "qr_codes_folder"
+	flagNewStateDBDSN      = "new_state_dbdsn"
+	flagUseOffsetInsteadId = "use_offset_instead_id"
+	flagKafkaConsumerGroup = "kafka_consumer_group"
+)
+
+var (
+	useOffset          bool
+	newStateDBDSN      string
+	kafkaConsumerGroup string
+
+	rootCmd = &cobra.Command{
+		Use:   "dc4bc_cli",
+		Short: "dc4bc client cli utilities implementation",
+	}
+
+	refreshStateCmd = &cobra.Command{
+		Use:   "refresh_state [--use_offset_instead_id | -o] [--new_state_dbsn | -s] [--kafka_consumer_group | -g] [messageId...]",
+		Short: "drops current state and replays it from storage ignoring messages with provided ids or offsets",
+	}
 )
 
 func init() {
@@ -44,11 +63,13 @@ func init() {
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
 	rootCmd.PersistentFlags().String(flagQRCodesFolder, "/tmp", "Folder to save QR codes")
-}
 
-var rootCmd = &cobra.Command{
-	Use:   "dc4bc_cli",
-	Short: "dc4bc client cli utilities implementation",
+	refreshStateCmd.Flags().BoolVarP(&useOffset, flagUseOffsetInsteadId, "o", false,
+		"Ignore messages by offset instead of ids")
+	refreshStateCmd.Flags().StringVarP(&newStateDBDSN, flagNewStateDBDSN, "s", "",
+		"State DBDSN")
+	refreshStateCmd.Flags().StringVarP(&kafkaConsumerGroup, flagKafkaConsumerGroup, "g", "",
+		"Kafka consumer group")
 }
 
 func main() {
@@ -70,6 +91,7 @@ func main() {
 		getFSMStatusCommand(),
 		getFSMListCommand(),
 		getSignatureDataCommand(),
+		refreshState(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
@@ -858,4 +880,50 @@ func getFSMListCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func refreshState() *cobra.Command {
+	runFunc := func(cmd *cobra.Command, args []string) error {
+		listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+		if err != nil {
+			return fmt.Errorf("failed to read listen address: %v", err)
+		}
+
+		if len(kafkaConsumerGroup) < 1 {
+			username, err := getUsername(listenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to get client's username: %w", err)
+			}
+
+			kafkaConsumerGroup = fmt.Sprintf("%s_%d", username, time.Now().Unix())
+		}
+
+		req := client.ResetStateRequest{
+			NewStateDBDSN:      newStateDBDSN,
+			UseOffset:          useOffset,
+			KafkaConsumerGroup: kafkaConsumerGroup,
+		}
+		reqBytes, err := json.Marshal(req)
+		if err != nil {
+			return fmt.Errorf("failed to marshal reset state request: %w", err)
+		}
+
+		resp, err := rawPostRequest(fmt.Sprintf("http://%s/resetState", listenAddr),
+			"application/json", reqBytes)
+		if err != nil {
+			return fmt.Errorf("failed to make HTTP request to reset state: %w", err)
+		}
+		if resp.ErrorMessage != "" {
+			return fmt.Errorf("failed to make HTTP request to reset state: %v", resp.ErrorMessage)
+		}
+
+		dir := resp.Result.(string)
+		fmt.Printf("New state was saved to %s directory", dir)
+
+		return nil
+	}
+
+	refreshStateCmd.RunE = runFunc
+
+	return refreshStateCmd
 }

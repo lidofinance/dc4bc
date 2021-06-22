@@ -204,3 +204,49 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 	req.NoError(err)
 	req.Equal(expectedQrPath, qrPath)
 }
+
+func TestClient_ResetState(t *testing.T) {
+	var (
+		ctx  = context.Background()
+		req  = require.New(t)
+		ctrl = gomock.NewController(t)
+	)
+	defer ctrl.Finish()
+
+	userName := "test_client"
+
+	keyStore := clientMocks.NewMockKeyStore(ctrl)
+	testClientKeyPair := client.NewKeyPair()
+	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
+
+	state := clientMocks.NewMockState(ctrl)
+	stg := storageMocks.NewMockStorage(ctrl)
+	qrProcessor := qrMocks.NewMockProcessor(ctrl)
+
+	clt, err := client.NewClient(
+		ctx,
+		userName,
+		state,
+		stg,
+		keyStore,
+		qrProcessor,
+	)
+	req.NoError(err)
+
+	resetReq := &client.ResetStateRequest{
+		NewStateDBDSN:      "./dc4bc_client_state_new",
+		UseOffset:          true,
+		KafkaConsumerGroup: fmt.Sprintf("%s_%d", userName, time.Now().Unix()),
+		Messages:           []string{"11", "12"},
+	}
+
+	stg.EXPECT().IgnoreMessages(resetReq.Messages, resetReq.UseOffset).Times(1).Return(errors.New(""))
+	_, err = clt.ResetState(resetReq.NewStateDBDSN, resetReq.KafkaConsumerGroup, resetReq.Messages, resetReq.UseOffset)
+	req.Error(err)
+
+	stg.EXPECT().IgnoreMessages(resetReq.Messages, resetReq.UseOffset).Times(1).Return(nil)
+	state.EXPECT().NewStateFromOld(resetReq.NewStateDBDSN).Times(1).Return(state, resetReq.NewStateDBDSN, nil)
+	newStatePath, err := clt.ResetState(resetReq.NewStateDBDSN, resetReq.KafkaConsumerGroup, resetReq.Messages, resetReq.UseOffset)
+	req.NoError(err)
+	req.Equal(newStatePath, resetReq.NewStateDBDSN)
+}
