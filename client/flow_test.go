@@ -56,10 +56,6 @@ type OperationsResponse struct {
 	Result       map[string]*types.Operation `json:"result"`
 }
 
-type ReDKG struct {
-	Result []types.Operation `json:"result"`
-}
-
 type processedOperationCallback func(n *node, processedOperation *types.Operation)
 
 type savingLogger struct {
@@ -456,7 +452,7 @@ func TestResetStateFlow(t *testing.T) {
 
 	numNodes := 4
 	threshold := 2
-	startingPort := 8085
+	startingPort := 8090
 	topic := "test_topic"
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil)
@@ -610,7 +606,7 @@ func TestReinitDKGFlow(t *testing.T) {
 
 	numNodes := 4
 	threshold := 2
-	startingPort := 8085
+	startingPort := 8095
 	topic := "test_topic"
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, mnemonics)
