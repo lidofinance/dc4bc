@@ -487,7 +487,7 @@ func TestFullFlow(t *testing.T) {
 		startingPort++
 	}
 
-	// Each node starts to Poll().
+	runCtx, cancel = context.WithCancel(context.Background())
 	for nodeID, n := range newNodes {
 		go func(nodeID int, node *node) {
 			if err := node.client.StartHTTPServer(node.listenAddr); err != nil {
@@ -495,7 +495,7 @@ func TestFullFlow(t *testing.T) {
 			}
 		}(nodeID, n)
 		time.Sleep(1 * time.Second)
-		go newNodes[nodeID].run()
+		go nodes[nodeID].run(runCtx)
 
 		go func(nodeID int, node Client) {
 			if err := node.Poll(); err != nil {
