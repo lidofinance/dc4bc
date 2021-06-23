@@ -570,33 +570,6 @@ func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, "ok")
 }
 
-func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
-		return
-	}
-	reqBody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to read body: %v", err))
-		return
-	}
-	defer r.Body.Close()
-
-	var req ResetStateRequest
-	if err = json.Unmarshal(reqBody, &req); err != nil {
-		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
-		return
-	}
-
-	newStateDbPath, err := c.ResetState(req.NewStateDBDSN, req.Messages, req.UseOffset)
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to reset state: %v", err))
-		return
-	}
-
-	successResponse(w, newStateDbPath)
-}
-
 func (c *BaseClient) buildMessage(dkgRoundID string, event fsm.Event, data []byte) (*storage.Message, error) {
 	message := storage.Message{
 		ID:         uuid.New().String(),
