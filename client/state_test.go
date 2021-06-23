@@ -115,7 +115,7 @@ func TestLevelDBState_DeleteOperation(t *testing.T) {
 	_, err = stg.GetOperationByID(operation.ID)
 	req.NoError(err)
 
-	err = stg.DeleteOperation(operation.ID)
+	err = stg.DeleteOperation(operation)
 	req.NoError(err)
 
 	_, err = stg.GetOperationByID(operation.ID)
@@ -147,7 +147,6 @@ func TestLevelDBState_NewStateFromOld(t *testing.T) {
 	timeAfter := time.Now().Unix()
 
 	req.NoError(err)
-	//req.Equal(newStateDbPath, dbPath + "_new")
 
 	submatches := re.FindStringSubmatch(newStateDbPath)
 	req.Greater(len(submatches), 0)

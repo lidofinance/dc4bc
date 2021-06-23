@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/lidofinance/dc4bc/storage/kafka_storage"
 	"log"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -37,7 +38,7 @@ const (
 
 type Client interface {
 	Poll() error
-	GetLogger() *logger
+	GetLogger() Logger
 	GetPubKey() ed25519.PublicKey
 	GetUsername() string
 	SendMessage(message storage.Message) error
@@ -45,13 +46,15 @@ type Client interface {
 	GetOperations() (map[string]*types.Operation, error)
 	GetOperationQRPath(operationID string) (string, error)
 	StartHTTPServer(listenAddr string) error
+	StopHTTPServer()
 	SetSkipCommKeysVerification(bool)
 	ResetState(newStateDBPath string, consumerGroup string, messages []string, useOffset bool) (string, error)
 }
 
 type BaseClient struct {
 	sync.Mutex
-	Logger                   *logger
+	server                   *http.Server
+	Logger                   Logger
 	userName                 string
 	pubKey                   ed25519.PublicKey
 	ctx                      context.Context
@@ -95,7 +98,8 @@ func (c *BaseClient) getState() State {
 	return c.state
 }
 
-func (c *BaseClient) GetLogger() *logger {
+
+func (c *BaseClient) GetLogger() Logger {
 	return c.Logger
 }
 
@@ -243,7 +247,7 @@ func (c *BaseClient) reinitDKG(message storage.Message) error {
 	}
 
 	operation := types.NewOperation(req.DKGID, operationsBz, types.ReinitDKG)
-	if err := c.state.PutOperation(operation); err != nil {
+	if err := c.getState().PutOperation(operation); err != nil {
 		return fmt.Errorf("failed to PutOperation: %w", err)
 	}
 
@@ -263,7 +267,7 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 		return err
 	}
 	if operation != nil {
-		if err := c.state.PutOperation(operation); err != nil {
+		if err := c.getState().PutOperation(operation); err != nil {
 			return fmt.Errorf("failed to PutOperation: %w", err)
 		}
 	}
@@ -308,7 +312,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 		if fsmInstance.FSMDump().Payload.DKGProposalPayload != nil {
 			for _, participant := range fsmInstance.FSMDump().Payload.DKGProposalPayload.Quorum {
 				if participant.Error != nil {
-					log.Printf("Participant %s got an error during DKG process: %s. DKG aborted\n",
+					c.Logger.Log("Participant %s got an error during DKG process: %s. DKG aborted\n",
 						participant.Username, participant.Error.Error())
 					// if we have an error during DKG, abort the whole DKG procedure.
 					return nil, nil
@@ -318,7 +322,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 		if fsmInstance.FSMDump().Payload.SigningProposalPayload != nil {
 			for _, participant := range fsmInstance.FSMDump().Payload.SigningProposalPayload.Quorum {
 				if participant.Error != nil {
-					log.Printf("Participant %s got an error during signing procedure: %s. Signing procedure aborted\n",
+					c.Logger.Log("Participant %s got an error during signing procedure: %s. Signing procedure aborted\n",
 						participant.Username, participant.Error.Error())
 					break
 				}
@@ -333,6 +337,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 
       if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 				return nil, fmt.Errorf("failed to SaveFSM: %w", err)
+
 			}
 		}
 	}
@@ -341,13 +346,13 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 	if strings.HasSuffix(string(fsmInstance.FSMDump().State), "_timeout") {
 		if strings.HasPrefix(string(fsmInstance.FSMDump().State), "state_sig_") ||
 			strings.HasPrefix(string(fsmInstance.FSMDump().State), "state_dkg") {
-			log.Printf("DKG process with ID \"%s\" aborted cause of timeout\n",
+			c.Logger.Log("DKG process with ID \"%s\" aborted cause of timeout\n",
 				fsmInstance.FSMDump().Payload.DkgId)
 			// if we have an error during DKG, abort the whole DKG procedure.
 			return nil, nil
 		}
 		if strings.HasPrefix(string(fsmInstance.FSMDump().State), "state_signing_") {
-			log.Printf("Signing process with ID \"%s\" aborted cause of timeout\n",
+			c.Logger.Log("Signing process with ID \"%s\" aborted cause of timeout\n",
 				fsmInstance.FSMDump().Payload.SigningProposalPayload.SigningId)
 
 			//if we have an error during signing procedure, start a new signing procedure
@@ -554,7 +559,7 @@ func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
 		}
 	}
 
-	if err := c.getState().DeleteOperation(operation.ID); err != nil {
+	if err := c.getState().DeleteOperation(&operation); err != nil {
 		return fmt.Errorf("failed to DeleteOperation: %w", err)
 	}
 

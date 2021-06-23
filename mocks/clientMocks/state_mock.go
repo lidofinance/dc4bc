@@ -37,17 +37,17 @@ func (m *MockState) EXPECT() *MockStateMockRecorder {
 }
 
 // DeleteOperation mocks base method.
-func (m *MockState) DeleteOperation(operationID string) error {
+func (m *MockState) DeleteOperation(operation *types.Operation) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteOperation", operationID)
+	ret := m.ctrl.Call(m, "DeleteOperation", operation)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteOperation indicates an expected call of DeleteOperation.
-func (mr *MockStateMockRecorder) DeleteOperation(operationID interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) DeleteOperation(operation interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOperation", reflect.TypeOf((*MockState)(nil).DeleteOperation), operationID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOperation", reflect.TypeOf((*MockState)(nil).DeleteOperation), operation)
 }
 
 // GetAllFSM mocks base method.
