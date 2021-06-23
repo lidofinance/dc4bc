@@ -414,7 +414,7 @@ func TestStandardFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 4 {
@@ -429,7 +429,7 @@ func TestStandardFlow(t *testing.T) {
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 100); matches != 8 {
@@ -561,7 +561,7 @@ func TestResetStateFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 4 {
@@ -576,7 +576,7 @@ func TestResetStateFlow(t *testing.T) {
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 8 {
@@ -632,7 +632,7 @@ func TestReinitDKGFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 4 {
@@ -710,7 +710,7 @@ func TestReinitDKGFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	for _, n := range newNodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 40); matches != 4 {
@@ -725,7 +725,7 @@ func TestReinitDKGFlow(t *testing.T) {
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	for _, n := range newNodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 40); matches < 4 {
