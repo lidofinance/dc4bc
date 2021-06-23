@@ -492,9 +492,13 @@ func TestResetStateFlow(t *testing.T) {
 		}
 	}
 
+	// node_3 will produce event_dkg_confirm_cancelled_by_error
+	errEvent = dkg_proposal_fsm.EventDKGCommitConfirmationError
+	errSendingNode = nodes[3].client.GetUsername()
+
 	// Each node starts to Poll().
 	runCancel := startServerRunAndPoll(nodes, processedOperationCallback)
-
+  
 	// Last node tells other participants to start DKG.
 	messageDataBz, err := startDkg(nodes, threshold)
 	if err != nil {
@@ -644,7 +648,7 @@ func TestReinitDKGFlow(t *testing.T) {
 
 	fmt.Println("Reinit DKG...")
 	fmt.Println("-----------------------------------------------------------------------------------")
-
+  
 	runCancel()
 	for _, node := range nodes {
 		node.client.StopHTTPServer()

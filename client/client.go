@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lidofinance/dc4bc/storage/kafka_storage"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -47,7 +48,7 @@ type Client interface {
 	StartHTTPServer(listenAddr string) error
 	StopHTTPServer()
 	SetSkipCommKeysVerification(bool)
-	ResetState(newStateDBPath string, messages []string, useOffset bool) (string, error)
+	ResetState(newStateDBPath string, consumerGroup string, messages []string, useOffset bool) (string, error)
 }
 
 type BaseClient struct {
@@ -96,6 +97,7 @@ func (c *BaseClient) getState() State {
 
 	return c.state
 }
+
 
 func (c *BaseClient) GetLogger() Logger {
 	return c.Logger
@@ -333,7 +335,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 				return nil, fmt.Errorf("failed to Do operation in FSM: %w", err)
 			}
 
-			if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+      if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 				return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 
 			}
@@ -622,13 +624,20 @@ func (c *BaseClient) GetFSMDump(dkgID string) (*state_machines.FSMDump, error) {
 	return fsmInstance.FSMDump(), nil
 }
 
-func (c *BaseClient) ResetState(newStateDBPath string, messages []string, useOffset bool) (stateDb string, err error) {
+func (c *BaseClient) ResetState(newStateDBPath string, cg string, messages []string, useOffset bool) (stateDb string, err error) {
 	c.stateMu.Lock()
 	defer c.stateMu.Unlock()
 
 	if err = c.storage.IgnoreMessages(messages, useOffset); err != nil {
-		err = fmt.Errorf("failed to reset state: %v", err)
-		return
+		return stateDb, fmt.Errorf("failed to ignore messages while resetting state: %v", err)
+	}
+
+	switch c.storage.(type) {
+	case *kafka_storage.KafkaStorage:
+		stg := c.storage.(*kafka_storage.KafkaStorage)
+		if err = stg.SetConsumerGroup(cg); err != nil {
+			return stateDb, fmt.Errorf("failed to set consumer group while reseting state: %v", err)
+		}
 	}
 
 	var newState State

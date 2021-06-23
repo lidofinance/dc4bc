@@ -234,18 +234,19 @@ func TestClient_ResetState(t *testing.T) {
 	req.NoError(err)
 
 	resetReq := &client.ResetStateRequest{
-		NewStateDBDSN: "./dc4bc_client_state_new",
-		UseOffset: true,
-		Messages: []string{"11", "12"},
+		NewStateDBDSN:      "./dc4bc_client_state_new",
+		UseOffset:          true,
+		KafkaConsumerGroup: fmt.Sprintf("%s_%d", userName, time.Now().Unix()),
+		Messages:           []string{"11", "12"},
 	}
 
 	stg.EXPECT().IgnoreMessages(resetReq.Messages, resetReq.UseOffset).Times(1).Return(errors.New(""))
-	_, err = clt.ResetState(resetReq.NewStateDBDSN, resetReq.Messages, resetReq.UseOffset)
+	_, err = clt.ResetState(resetReq.NewStateDBDSN, resetReq.KafkaConsumerGroup, resetReq.Messages, resetReq.UseOffset)
 	req.Error(err)
 
 	stg.EXPECT().IgnoreMessages(resetReq.Messages, resetReq.UseOffset).Times(1).Return(nil)
 	state.EXPECT().NewStateFromOld(resetReq.NewStateDBDSN).Times(1).Return(state, resetReq.NewStateDBDSN, nil)
-	newStatePath, err := clt.ResetState(resetReq.NewStateDBDSN, resetReq.Messages, resetReq.UseOffset)
+	newStatePath, err := clt.ResetState(resetReq.NewStateDBDSN, resetReq.KafkaConsumerGroup, resetReq.Messages, resetReq.UseOffset)
 	req.NoError(err)
 	req.Equal(newStatePath, resetReq.NewStateDBDSN)
 }

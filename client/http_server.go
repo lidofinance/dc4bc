@@ -30,9 +30,10 @@ type Response struct {
 }
 
 type ResetStateRequest struct {
-	NewStateDBDSN string   `json:"new_state_dbdsn,omitempty"`
-	UseOffset     bool     `json:"use_offset"`
-	Messages      []string `json:"messages,omitempty"`
+	NewStateDBDSN      string   `json:"new_state_dbdsn,omitempty"`
+	UseOffset          bool     `json:"use_offset"`
+	KafkaConsumerGroup string   `json:"kafka_consumer_group"`
+	Messages           []string `json:"messages,omitempty"`
 }
 
 func rawResponse(w http.ResponseWriter, response []byte) {
@@ -99,7 +100,7 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/resetState", c.resetStateHandler)
 
 	c.server = &http.Server{Addr: listenAddr, Handler: mux}
-
+  
 	c.Logger.Log("HTTP server started on address: %s", listenAddr)
 	return c.server.ListenAndServe()
 }
@@ -509,6 +510,33 @@ func (c *BaseClient) handleJSONOperationHandler(w http.ResponseWriter, r *http.R
 	}
 
 	successResponse(w, "ok")
+}
+
+func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
+  if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to read body: %v", err))
+		return
+	}
+	defer r.Body.Close()
+  
+  var req ResetStateRequest
+  if err = json.Unmarshal(reqBody, &req); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
+		return
+	}
+  
+  newStateDbPath, err := c.ResetState(req.NewStateDBDSN, req.KafkaConsumerGroup, req.Messages, req.UseOffset)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to reset state: %v", err))
+		return
+	}
+
+	successResponse(w, newStateDbPath)
 }
 
 func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {

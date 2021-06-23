@@ -39,6 +39,23 @@ const (
 	flagQRCodesFolder      = "qr_codes_folder"
 	flagNewStateDBDSN      = "new_state_dbdsn"
 	flagUseOffsetInsteadId = "use_offset_instead_id"
+	flagKafkaConsumerGroup = "kafka_consumer_group"
+)
+
+var (
+	useOffset          bool
+	newStateDBDSN      string
+	kafkaConsumerGroup string
+
+	rootCmd = &cobra.Command{
+		Use:   "dc4bc_cli",
+		Short: "dc4bc client cli utilities implementation",
+	}
+
+	refreshStateCmd = &cobra.Command{
+		Use:   "refresh_state [--use_offset_instead_id | -o] [--new_state_dbsn | -s] [--kafka_consumer_group | -g] [messageId...]",
+		Short: "drops current state and replays it from storage ignoring messages with provided ids or offsets",
+	}
 )
 
 func init() {
@@ -46,13 +63,13 @@ func init() {
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
 	rootCmd.PersistentFlags().String(flagQRCodesFolder, "/tmp", "Folder to save QR codes")
-}
 
-var rootCmd = &cobra.Command{
-	Use:   "dc4bc_cli",
-	Short: "dc4bc client cli utilities implementation",
-
-	TraverseChildren: true,
+	refreshStateCmd.Flags().BoolVarP(&useOffset, flagUseOffsetInsteadId, "o", false,
+		"Ignore messages by offset instead of ids")
+	refreshStateCmd.Flags().StringVarP(&newStateDBDSN, flagNewStateDBDSN, "s", "",
+		"State DBDSN")
+	refreshStateCmd.Flags().StringVarP(&kafkaConsumerGroup, flagKafkaConsumerGroup, "g", "",
+		"Kafka consumer group")
 }
 
 func main() {
@@ -866,28 +883,25 @@ func getFSMListCommand() *cobra.Command {
 }
 
 func refreshState() *cobra.Command {
-	refreshStateCmd := &cobra.Command{
-		Use:   "refresh_state [--use_offset_instead_id] [messageId...]",
-		Short: "drops current state and replays it from storage ignoring messages with provided ids or offsets",
-	}
-
 	runFunc := func(cmd *cobra.Command, args []string) error {
 		listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 		if err != nil {
 			return fmt.Errorf("failed to read listen address: %v", err)
 		}
 
-		var useOffset bool
-		refreshStateCmd.Flags().BoolVarP(&useOffset, flagUseOffsetInsteadId, "o", false,
-			"Ignore messages by offset instead of ids")
+		if len(kafkaConsumerGroup) < 1 {
+			username, err := getUsername(listenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to get client's username: %w", err)
+			}
 
-		var newStateDBDSN string
-		refreshStateCmd.Flags().StringVarP(&newStateDBDSN, flagNewStateDBDSN, "s", "",
-			"State DBDSN")
+			kafkaConsumerGroup = fmt.Sprintf("%s_%d", username, time.Now().Unix())
+		}
 
 		req := client.ResetStateRequest{
-			NewStateDBDSN: newStateDBDSN,
-			UseOffset:     useOffset,
+			NewStateDBDSN:      newStateDBDSN,
+			UseOffset:          useOffset,
+			KafkaConsumerGroup: kafkaConsumerGroup,
 		}
 		reqBytes, err := json.Marshal(req)
 		if err != nil {

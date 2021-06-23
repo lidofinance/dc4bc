@@ -153,6 +153,15 @@ func (ks *KafkaStorage) UnignoreMessages() {
 	ks.offsetIgnoreList = map[uint64]struct{}{}
 }
 
+func (ks *KafkaStorage) SetConsumerGroup(cg string) error {
+	ks.consumerGroup = cg
+	if err := ks.reset(); err != nil {
+		return fmt.Errorf("failed to reset kafka storage after setting consumer group: %w", err)
+	}
+
+	return nil
+}
+
 func (ks *KafkaStorage) storageToKafkaMessages(messages ...storage.Message) ([]kafka.Message, error) {
 	kafkaMessages := make([]kafka.Message, len(messages))
 	for i, m := range messages {
