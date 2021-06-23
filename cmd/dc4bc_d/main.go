@@ -220,7 +220,6 @@ func startClientCommand() *cobra.Command {
 				return fmt.Errorf("failed to ignore messages in storage: %w", err)
 			}
 
-			username := viper.GetString(flagUserName)
 			keyStoreDBDSN := viper.GetString(flagStoreDBDSN)
 			keyStore, err := client.NewLevelDBKeyStore(username, keyStoreDBDSN)
 			if err != nil {
