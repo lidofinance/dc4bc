@@ -1,4 +1,4 @@
-package client
+package http_api
 
 import (
 	"context"
@@ -7,127 +7,108 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 
+	"github.com/lidofinance/dc4bc/client/operations"
+
+	"github.com/lidofinance/dc4bc/common"
+
 	"github.com/google/uuid"
+	"github.com/lidofinance/dc4bc/client"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	sif "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
-
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/qr"
 	"github.com/lidofinance/dc4bc/storage"
 )
 
-type Response struct {
-	ErrorMessage string      `json:"error_message,omitempty"`
-	Result       interface{} `json:"result"`
+type API interface {
+	Start(listenAddr string) error
+	Stop() error
 }
 
-type ResetStateRequest struct {
-	NewStateDBDSN      string   `json:"new_state_dbdsn,omitempty"`
-	UseOffset          bool     `json:"use_offset"`
-	KafkaConsumerGroup string   `json:"kafka_consumer_group"`
-	Messages           []string `json:"messages,omitempty"`
+type NaiveHttpAPI struct {
+	server      *http.Server
+	Logger      types.Logger
+	Client      client.Client
+	QrProcessor qr.Processor
 }
 
-func rawResponse(w http.ResponseWriter, response []byte) {
-	if _, err := w.Write(response); err != nil {
-		panic(fmt.Sprintf("failed to write response: %v", err))
+func NewNaiveHttpAPI(client client.Client, qrProcessor qr.Processor) API {
+	return &NaiveHttpAPI{
+		Logger:      common.NewLogger(client.GetUsername()),
+		Client:      client,
+		QrProcessor: qrProcessor,
 	}
 }
 
-func errorResponse(w http.ResponseWriter, statusCode int, error string) {
-	w.WriteHeader(statusCode)
-	w.Header().Set("Content-Type", "application/json")
-	resp := Response{ErrorMessage: error}
-	respBz, err := json.Marshal(resp)
-	if err != nil {
-		log.Printf("Failed to marshal response: %v\n", err)
-		return
-	}
-	if _, err := w.Write(respBz); err != nil {
-		panic(fmt.Sprintf("failed to write response: %v", err))
-	}
-}
-
-func successResponse(w http.ResponseWriter, response interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	resp := Response{Result: response}
-	respBz, err := json.Marshal(resp)
-	if err != nil {
-		log.Printf("Failed to marshal response: %v\n", err)
-		return
-	}
-	if _, err := w.Write(respBz); err != nil {
-		panic(fmt.Sprintf("failed to write response: %v", err))
-	}
-}
-
-func (c *BaseClient) StartHTTPServer(listenAddr string) error {
+func (api *NaiveHttpAPI) Start(listenAddr string) error {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/getUsername", c.getUsernameHandler)
-	mux.HandleFunc("/getPubKey", c.getPubkeyHandler)
+	mux.HandleFunc("/getUsername", api.getUsernameHandler)
+	mux.HandleFunc("/getPubKey", api.getPubkeyHandler)
 
-	mux.HandleFunc("/sendMessage", c.sendMessageHandler)
-	mux.HandleFunc("/getOperations", c.getOperationsHandler)
-	mux.HandleFunc("/getOperationQRPath", c.getOperationQRPathHandler)
+	mux.HandleFunc("/sendMessage", api.sendMessageHandler)
+	mux.HandleFunc("/getOperations", api.getOperationsHandler)
+	mux.HandleFunc("/getOperationQRPath", api.getOperationQRPathHandler)
 
-	mux.HandleFunc("/getSignatures", c.getSignaturesHandler)
-	mux.HandleFunc("/getSignatureByID", c.getSignatureByIDHandler)
+	mux.HandleFunc("/getSignatures", api.getSignaturesHandler)
+	mux.HandleFunc("/getSignatureByID", api.getSignatureByIDHandler)
 
-	mux.HandleFunc("/getOperationQR", c.getOperationQRToBodyHandler)
-	mux.HandleFunc("/handleProcessedOperationJSON", c.handleJSONOperationHandler)
-	mux.HandleFunc("/getOperation", c.getOperationHandler)
+	mux.HandleFunc("/getOperationQR", api.getOperationQRToBodyHandler)
+	mux.HandleFunc("/handleProcessedOperationJSON", api.handleJSONOperationHandler)
+	mux.HandleFunc("/getOperation", api.getOperationHandler)
 
-	mux.HandleFunc("/startDKG", c.startDKGHandler)
-	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
-	mux.HandleFunc("/approveDKGParticipation", c.approveParticipationHandler)
-	mux.HandleFunc("/reinitDKG", c.reinitDKGHandler)
+	mux.HandleFunc("/startDKG", api.startDKGHandler)
+	mux.HandleFunc("/proposeSignMessage", api.proposeSignDataHandler)
+	mux.HandleFunc("/approveDKGParticipation", api.approveParticipationHandler)
+	mux.HandleFunc("/reinitDKG", api.reinitDKGHandler)
 
-	mux.HandleFunc("/saveOffset", c.saveOffsetHandler)
-	mux.HandleFunc("/getOffset", c.getOffsetHandler)
+	mux.HandleFunc("/saveOffset", api.saveOffsetHandler)
+	mux.HandleFunc("/getOffset", api.getOffsetHandler)
 
-	mux.HandleFunc("/getFSMDump", c.getFSMDumpHandler)
-	mux.HandleFunc("/getFSMList", c.getFSMList)
+	mux.HandleFunc("/getFSMDump", api.getFSMDumpHandler)
+	mux.HandleFunc("/getFSMList", api.getFSMList)
 
-	mux.HandleFunc("/resetState", c.resetStateHandler)
+	mux.HandleFunc("/resetState", api.resetStateHandler)
 
-	c.server = &http.Server{Addr: listenAddr, Handler: mux}
-  
-	c.Logger.Log("HTTP server started on address: %s", listenAddr)
-	return c.server.ListenAndServe()
+	api.server = &http.Server{Addr: listenAddr, Handler: mux}
+	api.Logger.Log("HTTP server started on address: %s", listenAddr)
+
+	return api.server.ListenAndServe()
 }
 
-func (c *BaseClient) StopHTTPServer() {
-	c.server.Shutdown(context.Background())
+func (api *NaiveHttpAPI) Stop() error {
+	return api.server.Shutdown(context.Background())
 }
 
-func (c *BaseClient) getFSMDumpHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) getFSMDumpHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
-	dump, err := c.GetFSMDump(r.URL.Query().Get("dkgID"))
+	fsmInstance, err := api.Client.GetFSMInstance(r.URL.Query().Get("dkgID"))
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	successResponse(w, dump)
+
+	fsmDump, _ := fsmInstance.Dump()
+
+	successResponse(w, fsmDump)
 }
 
-func (c *BaseClient) getFSMList(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) getFSMList(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
-	fsmInstances, err := c.getState().GetAllFSM()
+	fsmInstances, err := api.Client.GetState().GetAllFSM()
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get all FSM instances: %v", err))
 		return
@@ -144,28 +125,28 @@ func (c *BaseClient) getFSMList(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, fsmInstancesStates)
 }
 
-func (c *BaseClient) getUsernameHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) getUsernameHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
-	successResponse(w, c.GetUsername())
+	successResponse(w, api.Client.GetUsername())
 }
 
-func (c *BaseClient) getPubkeyHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) getPubkeyHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
-	successResponse(w, c.GetPubKey())
+	successResponse(w, api.Client.GetPubKey())
 }
 
-func (c *BaseClient) getOffsetHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) getOffsetHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
-	offset, err := c.getState().LoadOffset()
+	offset, err := api.Client.GetState().LoadOffset()
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to load offset: %v", err))
 		return
@@ -173,7 +154,7 @@ func (c *BaseClient) getOffsetHandler(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, offset)
 }
 
-func (c *BaseClient) saveOffsetHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) saveOffsetHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -194,14 +175,14 @@ func (c *BaseClient) saveOffsetHandler(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("offset cannot be null: %v", err))
 		return
 	}
-	if err = c.getState().SaveOffset(req["offset"]); err != nil {
+	if err = api.Client.GetState().SaveOffset(req["offset"]); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to save offset: %v", err))
 		return
 	}
 	successResponse(w, "ok")
 }
 
-func (c *BaseClient) sendMessageHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) sendMessageHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -219,7 +200,7 @@ func (c *BaseClient) sendMessageHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err = c.SendMessage(msg); err != nil {
+	if err = api.Client.SendMessage(msg); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message to the storage: %v", err))
 		return
 	}
@@ -227,13 +208,13 @@ func (c *BaseClient) sendMessageHandler(w http.ResponseWriter, r *http.Request) 
 	successResponse(w, "ok")
 }
 
-func (c *BaseClient) getOperationsHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) getOperationsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
 
-	operations, err := c.GetOperations()
+	operations, err := api.Client.GetState().GetOperations()
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operations: %v", err))
 		return
@@ -242,13 +223,13 @@ func (c *BaseClient) getOperationsHandler(w http.ResponseWriter, r *http.Request
 	successResponse(w, operations)
 }
 
-func (c *BaseClient) getSignaturesHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) getSignaturesHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
 
-	signatures, err := c.GetSignatures(r.URL.Query().Get("dkgID"))
+	signatures, err := api.Client.GetState().GetSignatures(r.URL.Query().Get("dkgID"))
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get signatures: %v", err))
 		return
@@ -257,13 +238,13 @@ func (c *BaseClient) getSignaturesHandler(w http.ResponseWriter, r *http.Request
 	successResponse(w, signatures)
 }
 
-func (c *BaseClient) getSignatureByIDHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) getSignatureByIDHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
 
-	signature, err := c.GetSignatureByID(r.URL.Query().Get("dkgID"), r.URL.Query().Get("id"))
+	signature, err := api.Client.GetState().GetSignatureByID(r.URL.Query().Get("dkgID"), r.URL.Query().Get("id"))
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get signature: %v", err))
 		return
@@ -272,30 +253,42 @@ func (c *BaseClient) getSignatureByIDHandler(w http.ResponseWriter, r *http.Requ
 	successResponse(w, signature)
 }
 
-func (c *BaseClient) getOperationQRPathHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) getOperationQRPathHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
-	operationID := r.URL.Query().Get("operationID")
 
-	qrPaths, err := c.GetOperationQRPath(operationID)
+	operationID := r.URL.Query().Get("operationID")
+	operation, err := api.Client.GetState().GetOperationByID(operationID)
 	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operation: %v", err))
+		return
+	}
+
+	qrPath := qr.GetDefaultGIFPath(operation)
+	operationJSON, err := operation.ToJson()
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operation JSON: %v", err))
+		return
+	}
+
+	if err := api.QrProcessor.WriteQR(qrPath, operationJSON); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operation QR path: %v", err))
 		return
 	}
 
-	successResponse(w, qrPaths)
+	successResponse(w, qrPath)
 }
 
-func (c *BaseClient) getOperationHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) getOperationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
 	operationID := r.URL.Query().Get("operationID")
 
-	operation, err := c.getOperationJSON(operationID)
+	operation, err := api.Client.GetState().GetOperationByID(operationID)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operation: %v", err))
 		return
@@ -304,20 +297,25 @@ func (c *BaseClient) getOperationHandler(w http.ResponseWriter, r *http.Request)
 	successResponse(w, operation)
 }
 
-func (c *BaseClient) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
 	operationID := r.URL.Query().Get("operationID")
 
-	operationJSON, err := c.getOperationJSON(operationID)
+	operation, err := api.Client.GetState().GetOperationByID(operationID)
 	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operation in JSON: %v", err))
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operation: %v", err))
 		return
 	}
 
-	encodedData, err := qr.EncodeQR(operationJSON)
+	operationJson, err := operation.ToJson()
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operation JSON: %v", err))
+	}
+
+	encodedData, err := qr.EncodeQR(operationJson)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to encode operation: %v", err))
 		return
@@ -328,7 +326,7 @@ func (c *BaseClient) getOperationQRToBodyHandler(w http.ResponseWriter, r *http.
 	rawResponse(w, encodedData)
 }
 
-func (c *BaseClient) startDKGHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) startDKGHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -341,19 +339,19 @@ func (c *BaseClient) startDKGHandler(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	dkgRoundID := md5.Sum(reqBody)
-	message, err := c.buildMessage(hex.EncodeToString(dkgRoundID[:]), spf.EventInitProposal, reqBody)
+	message, err := api.Client.SignMessage(hex.EncodeToString(dkgRoundID[:]), spf.EventInitProposal, reqBody)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
 		return
 	}
-	if err = c.SendMessage(*message); err != nil {
+	if err = api.Client.SendMessage(*message); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))
 		return
 	}
 	successResponse(w, "ok")
 }
 
-func (c *BaseClient) approveParticipationHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) approveParticipationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -373,7 +371,7 @@ func (c *BaseClient) approveParticipationHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
-	operations, err := c.GetOperations()
+	operations, err := api.Client.GetState().GetOperations()
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get operations: %v", err))
 		return
@@ -397,7 +395,7 @@ func (c *BaseClient) approveParticipationHandler(w http.ResponseWriter, r *http.
 
 	pid := -1
 	for _, p := range payload {
-		if c.GetPubKey().Equal(ed25519.PublicKey(p.PubKey)) {
+		if api.Client.GetPubKey().Equal(ed25519.PublicKey(p.PubKey)) {
 			pid = p.ParticipantId
 			break
 		}
@@ -425,7 +423,7 @@ func (c *BaseClient) approveParticipationHandler(w http.ResponseWriter, r *http.
 		RecipientAddr: operation.To,
 	})
 
-	if err = c.handleProcessedOperation(*operation); err != nil {
+	if err = api.Client.HandleProcessedOperation(*operation); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to handle processed operation: %v", err))
 		return
 	}
@@ -433,7 +431,7 @@ func (c *BaseClient) approveParticipationHandler(w http.ResponseWriter, r *http.
 	successResponse(w, "ok")
 }
 
-func (c *BaseClient) proposeSignDataHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) proposeSignDataHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -451,12 +449,12 @@ func (c *BaseClient) proposeSignDataHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	fsmInstance, err := c.getFSMInstance(hex.EncodeToString(req["dkgID"]))
+	fsmInstance, err := api.Client.GetFSMInstance(hex.EncodeToString(req["dkgID"]))
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get FSM instance: %v", err))
 		return
 	}
-	participantID, err := fsmInstance.GetIDByUsername(c.GetUsername())
+	participantID, err := fsmInstance.GetIDByUsername(api.Client.GetUsername())
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get participantID: %v", err))
 		return
@@ -474,19 +472,19 @@ func (c *BaseClient) proposeSignDataHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	message, err := c.buildMessage(hex.EncodeToString(req["dkgID"]), sif.EventSigningStart, messageDataSignBz)
+	message, err := api.Client.SignMessage(hex.EncodeToString(req["dkgID"]), sif.EventSigningStart, messageDataSignBz)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
 		return
 	}
-	if err = c.SendMessage(*message); err != nil {
+	if err = api.Client.SendMessage(*message); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))
 		return
 	}
 	successResponse(w, "ok")
 }
 
-func (c *BaseClient) handleJSONOperationHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) handleJSONOperationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -498,13 +496,13 @@ func (c *BaseClient) handleJSONOperationHandler(w http.ResponseWriter, r *http.R
 	}
 	defer r.Body.Close()
 
-	var req types.Operation
+	var req operations.Operation
 	if err = json.Unmarshal(reqBody, &req); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
 		return
 	}
 
-	if err = c.handleProcessedOperation(req); err != nil {
+	if err = api.Client.HandleProcessedOperation(req); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to handle processed operation: %v", err))
 		return
 	}
@@ -512,8 +510,8 @@ func (c *BaseClient) handleJSONOperationHandler(w http.ResponseWriter, r *http.R
 	successResponse(w, "ok")
 }
 
-func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
-  if r.Method != http.MethodPost {
+func (api *NaiveHttpAPI) resetStateHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
@@ -523,14 +521,14 @@ func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-  
-  var req ResetStateRequest
-  if err = json.Unmarshal(reqBody, &req); err != nil {
+
+	var req ResetStateRequest
+	if err = json.Unmarshal(reqBody, &req); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
 		return
 	}
-  
-  newStateDbPath, err := c.ResetState(req.NewStateDBDSN, req.KafkaConsumerGroup, req.Messages, req.UseOffset)
+
+	newStateDbPath, err := api.Client.ResetState(req.NewStateDBDSN, req.KafkaConsumerGroup, req.Messages, req.UseOffset)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to reset state: %v", err))
 		return
@@ -539,7 +537,7 @@ func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
 	successResponse(w, newStateDbPath)
 }
 
-func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {
+func (api *NaiveHttpAPI) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
@@ -551,37 +549,21 @@ func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	var req types.ReDKG
+	var req operations.ReDKG
 	if err = json.Unmarshal(reqBody, &req); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
 		return
 	}
 
-	message, err := c.buildMessage(req.DKGID, fsm.Event(types.ReinitDKG), reqBody)
+	message, err := api.Client.SignMessage(req.DKGID, fsm.Event(operations.ReinitDKG), reqBody)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
 		return
 	}
 
-	if err = c.SendMessage(*message); err != nil {
+	if err = api.Client.SendMessage(*message); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))
 		return
 	}
 	successResponse(w, "ok")
-}
-
-func (c *BaseClient) buildMessage(dkgRoundID string, event fsm.Event, data []byte) (*storage.Message, error) {
-	message := storage.Message{
-		ID:         uuid.New().String(),
-		DkgRoundID: dkgRoundID,
-		Event:      string(event),
-		Data:       data,
-		SenderAddr: c.GetUsername(),
-	}
-	signature, err := c.signMessage(message.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("failed to sign message: %w", err)
-	}
-	message.Signature = signature
-	return &message, nil
 }

@@ -5,36 +5,49 @@
 package clientMocks
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	client "github.com/lidofinance/dc4bc/client"
+	reflect "reflect"
 )
 
-// MockKeyStore is a mock of KeyStore interface.
+// MockKeyStore is a mock of KeyStore interface
 type MockKeyStore struct {
 	ctrl     *gomock.Controller
 	recorder *MockKeyStoreMockRecorder
 }
 
-// MockKeyStoreMockRecorder is the mock recorder for MockKeyStore.
+// MockKeyStoreMockRecorder is the mock recorder for MockKeyStore
 type MockKeyStoreMockRecorder struct {
 	mock *MockKeyStore
 }
 
-// NewMockKeyStore creates a new mock instance.
+// NewMockKeyStore creates a new mock instance
 func NewMockKeyStore(ctrl *gomock.Controller) *MockKeyStore {
 	mock := &MockKeyStore{ctrl: ctrl}
 	mock.recorder = &MockKeyStoreMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockKeyStore) EXPECT() *MockKeyStoreMockRecorder {
 	return m.recorder
 }
 
-// LoadKeys mocks base method.
+// PutKeys mocks base method
+func (m *MockKeyStore) PutKeys(username string, keyPair *client.KeyPair) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PutKeys", username, keyPair)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PutKeys indicates an expected call of PutKeys
+func (mr *MockKeyStoreMockRecorder) PutKeys(username, keyPair interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutKeys", reflect.TypeOf((*MockKeyStore)(nil).PutKeys), username, keyPair)
+}
+
+// LoadKeys mocks base method
 func (m *MockKeyStore) LoadKeys(userName, password string) (*client.KeyPair, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LoadKeys", userName, password)
@@ -43,22 +56,8 @@ func (m *MockKeyStore) LoadKeys(userName, password string) (*client.KeyPair, err
 	return ret0, ret1
 }
 
-// LoadKeys indicates an expected call of LoadKeys.
+// LoadKeys indicates an expected call of LoadKeys
 func (mr *MockKeyStoreMockRecorder) LoadKeys(userName, password interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadKeys", reflect.TypeOf((*MockKeyStore)(nil).LoadKeys), userName, password)
-}
-
-// PutKeys mocks base method.
-func (m *MockKeyStore) PutKeys(username string, keyPair *client.KeyPair) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PutKeys", username, keyPair)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// PutKeys indicates an expected call of PutKeys.
-func (mr *MockKeyStoreMockRecorder) PutKeys(username, keyPair interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutKeys", reflect.TypeOf((*MockKeyStore)(nil).PutKeys), username, keyPair)
 }

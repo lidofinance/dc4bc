@@ -10,54 +10,30 @@ import (
 	gomock "github.com/golang/mock/gomock"
 )
 
-// MockProcessor is a mock of Processor interface.
+// MockProcessor is a mock of Processor interface
 type MockProcessor struct {
 	ctrl     *gomock.Controller
 	recorder *MockProcessorMockRecorder
 }
 
-// MockProcessorMockRecorder is the mock recorder for MockProcessor.
+// MockProcessorMockRecorder is the mock recorder for MockProcessor
 type MockProcessorMockRecorder struct {
 	mock *MockProcessor
 }
 
-// NewMockProcessor creates a new mock instance.
+// NewMockProcessor creates a new mock instance
 func NewMockProcessor(ctrl *gomock.Controller) *MockProcessor {
 	mock := &MockProcessor{ctrl: ctrl}
 	mock.recorder = &MockProcessorMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockProcessor) EXPECT() *MockProcessorMockRecorder {
 	return m.recorder
 }
 
-// SetChunkSize mocks base method.
-func (m *MockProcessor) SetChunkSize(chunkSize int) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetChunkSize", chunkSize)
-}
-
-// SetChunkSize indicates an expected call of SetChunkSize.
-func (mr *MockProcessorMockRecorder) SetChunkSize(chunkSize interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetChunkSize", reflect.TypeOf((*MockProcessor)(nil).SetChunkSize), chunkSize)
-}
-
-// SetDelay mocks base method.
-func (m *MockProcessor) SetDelay(delay int) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetDelay", delay)
-}
-
-// SetDelay indicates an expected call of SetDelay.
-func (mr *MockProcessorMockRecorder) SetDelay(delay interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDelay", reflect.TypeOf((*MockProcessor)(nil).SetDelay), delay)
-}
-
-// WriteQR mocks base method.
+// WriteQR mocks base method
 func (m *MockProcessor) WriteQR(path string, data []byte) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "WriteQR", path, data)
@@ -65,8 +41,32 @@ func (m *MockProcessor) WriteQR(path string, data []byte) error {
 	return ret0
 }
 
-// WriteQR indicates an expected call of WriteQR.
-func (mr *MockProcessorMockRecorder) WriteQR(path, data interface{}) *gomock.Call {
+// WriteQR indicates an expected call of WriteQR
+func (mr *MockProcessorMockRecorder) WriteGIF(path, data interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WriteQR", reflect.TypeOf((*MockProcessor)(nil).WriteQR), path, data)
+}
+
+// SetDelay mocks base method
+func (m *MockProcessor) SetDelay(delay int) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetDelay", delay)
+}
+
+// SetDelay indicates an expected call of SetDelay
+func (mr *MockProcessorMockRecorder) SetDelay(delay interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDelay", reflect.TypeOf((*MockProcessor)(nil).SetDelay), delay)
+}
+
+// SetChunkSize mocks base method
+func (m *MockProcessor) SetChunkSize(chunkSize int) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "SetChunkSize", chunkSize)
+}
+
+// SetChunkSize indicates an expected call of SetChunkSize
+func (mr *MockProcessorMockRecorder) SetChunkSize(chunkSize interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetChunkSize", reflect.TypeOf((*MockProcessor)(nil).SetChunkSize), chunkSize)
 }

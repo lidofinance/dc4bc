@@ -4,17 +4,18 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"os"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/lidofinance/dc4bc/client/operations"
+	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
+
 	"github.com/stretchr/testify/require"
 
 	"github.com/google/uuid"
-	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
@@ -42,7 +43,7 @@ type Node struct {
 	responses                  []requests.DKGProposalResponseConfirmationRequest
 	masterKeys                 []requests.DKGProposalMasterKeyConfirmationRequest
 	partialSigns               []requests.SigningProposalPartialSignRequest
-	reconstructedSignatures    []client.ReconstructedSignature
+	reconstructedSignatures    []operations.ReconstructedSignature
 }
 
 func (n *Node) storeOperation(msg storage.Message) error {
@@ -83,8 +84,8 @@ func (n *Node) storeOperation(msg storage.Message) error {
 			return fmt.Errorf("failed to unmarshal fsm req: %w", err)
 		}
 		n.partialSigns = append(n.partialSigns, req)
-	case client.SignatureReconstructed:
-		var req client.ReconstructedSignature
+	case operations.SignatureReconstructed:
+		var req operations.ReconstructedSignature
 		if err := json.Unmarshal(msg.Data, &req); err != nil {
 			return fmt.Errorf("failed to unmarshal fsm req: %w", err)
 		}
@@ -131,14 +132,14 @@ func createTransport(participants []string) (*Transport, error) {
 	return tr, nil
 }
 
-func createOperation(opType string, to string, req interface{}) (*client.Operation, error) {
+func createOperation(opType string, to string, req interface{}) (*operations.Operation, error) {
 	reqBz, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %v", err)
 	}
-	op := &client.Operation{
+	op := &operations.Operation{
 		ID:            uuid.New().String(),
-		Type:          client.OperationType(opType),
+		Type:          operations.OperationType(opType),
 		Payload:       reqBz,
 		CreatedAt:     time.Now(),
 		DKGIdentifier: DKGIdentifier,
@@ -147,7 +148,7 @@ func createOperation(opType string, to string, req interface{}) (*client.Operati
 	return op, nil
 }
 
-func (tr *Transport) processOperation(n *Node, op client.Operation) error {
+func (tr *Transport) processOperation(n *Node, op operations.Operation) error {
 	operation, err := n.Machine.GetOperationResult(op)
 	if err != nil {
 		return fmt.Errorf("%s: failed to handle operation %s: %w", n.Participant, op.Type, err)
@@ -560,7 +561,7 @@ func TestAirgappedMachine_ClearOperations(t *testing.T) {
 	//save operation logs of all nodes
 	//at this moment the log contains operations of unfinished signature process
 	//and all operations of DKG process
-	oldOperationLogs := make([][]client.Operation, 0, len(tr.nodes))
+	oldOperationLogs := make([][]operations.Operation, 0, len(tr.nodes))
 	for _, n := range tr.nodes {
 		storedOperations, err := n.Machine.getOperationsLog(DKGIdentifier)
 		if err != nil {

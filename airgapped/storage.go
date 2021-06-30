@@ -8,9 +8,8 @@ import (
 	"fmt"
 	"log"
 
-	bls12381 "github.com/corestario/kyber/pairing/bls12381"
-
-	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/corestario/kyber/pairing/bls12381"
+	ops "github.com/lidofinance/dc4bc/client/operations"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/pbkdf2"
@@ -25,7 +24,7 @@ const (
 	mnemonicSalt       = "mnemonic"
 )
 
-type RoundOperationLog map[string][]client.Operation
+type RoundOperationLog map[string][]ops.Operation
 
 func (am *Machine) loadBaseSeed() error {
 	seed, err := am.getBaseSeed()
@@ -48,7 +47,7 @@ func (am *Machine) loadBaseSeed() error {
 		}
 
 		log.Println("Successfully generated a new seed")
-		log.Println("Write down your mnemonic: ", mnemonic)
+		log.Println("WriteQR down your mnemonic: ", mnemonic)
 	} else if err != nil {
 		return fmt.Errorf("failed to getBaseSeed: %w", err)
 	}
@@ -95,7 +94,7 @@ func (am *Machine) getBaseSeed() ([]byte, error) {
 	return seed, nil
 }
 
-func (am *Machine) storeOperation(o client.Operation) error {
+func (am *Machine) storeOperation(o ops.Operation) error {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -120,7 +119,7 @@ func (am *Machine) storeOperation(o client.Operation) error {
 	return nil
 }
 
-func (am *Machine) getOperationsLog(dkgIdentifier string) ([]client.Operation, error) {
+func (am *Machine) getOperationsLog(dkgIdentifier string) ([]ops.Operation, error) {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -137,7 +136,7 @@ func (am *Machine) getOperationsLog(dkgIdentifier string) ([]client.Operation, e
 	return operationsLog, nil
 }
 
-func (am *Machine) clearOperationsLog(dkgIdentifier string, remove func(o client.Operation) bool) error {
+func (am *Machine) clearOperationsLog(dkgIdentifier string, remove func(o ops.Operation) bool) error {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -148,7 +147,7 @@ func (am *Machine) clearOperationsLog(dkgIdentifier string, remove func(o client
 
 	operations := roundOperationsLog[dkgIdentifier]
 
-	savedOperations := make([]client.Operation, 0)
+	savedOperations := make([]ops.Operation, 0)
 	for _, o := range operations {
 		if remove(o) {
 			continue
@@ -178,7 +177,7 @@ func (am *Machine) dropRoundOperationLog(dkgIdentifier string) error {
 		return fmt.Errorf("failed to get operationsLogBz from db: %w", err)
 	}
 
-	roundOperationsLog[dkgIdentifier] = []client.Operation{}
+	roundOperationsLog[dkgIdentifier] = []ops.Operation{}
 	roundOperationsLogBz, err := json.Marshal(roundOperationsLog)
 	if err != nil {
 		return fmt.Errorf("failed to marshal operationsLog: %w", err)

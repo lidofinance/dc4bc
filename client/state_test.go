@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/client/operations"
 
 	"github.com/lidofinance/dc4bc/client"
 	"github.com/stretchr/testify/require"
@@ -44,9 +44,9 @@ func TestLevelDBState_PutOperation(t *testing.T) {
 	stg, err := client.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
-	operation := &types.Operation{
+	operation := &operations.Operation{
 		ID:        "operation_id",
-		Type:      types.DKGCommits,
+		Type:      operations.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		CreatedAt: time.Now(),
 	}
@@ -74,9 +74,9 @@ func TestLevelDBState_GetOperations(t *testing.T) {
 	stg, err := client.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
-	operation := &types.Operation{
+	operation := &operations.Operation{
 		ID:        "operation_1",
-		Type:      types.DKGCommits,
+		Type:      operations.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		CreatedAt: time.Now(),
 	}
@@ -103,9 +103,9 @@ func TestLevelDBState_DeleteOperation(t *testing.T) {
 	stg, err := client.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
-	operation := &types.Operation{
+	operation := &operations.Operation{
 		ID:        "operation_id",
-		Type:      types.DKGCommits,
+		Type:      operations.DKGCommits,
 		Payload:   []byte("operation_payload"),
 		CreatedAt: time.Now(),
 	}
@@ -127,7 +127,7 @@ func TestLevelDBState_NewStateFromOld(t *testing.T) {
 		req    = require.New(t)
 		dbPath = "/tmp/dc4bc_test_NewStateFromOld"
 		topic  = "test_topic"
-		re = regexp.MustCompile(dbPath + `_(?P<ts>\d+)`)
+		re     = regexp.MustCompile(dbPath + `_(?P<ts>\d+)`)
 	)
 	defer os.RemoveAll(dbPath)
 

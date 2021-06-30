@@ -1,4 +1,4 @@
-package types
+package operations
 
 import (
 	"bytes"
@@ -69,6 +69,15 @@ func NewOperation(
 		DKGIdentifier: dkgRoundID,
 		CreatedAt:     time.Now(),
 	}
+}
+
+func (o *Operation) ToJson() ([]byte, error) {
+	operationJSON, err := json.Marshal(o)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal operation: %w", err)
+	}
+
+	return operationJSON, nil
 }
 
 func (o *Operation) Check(o2 *Operation) error {

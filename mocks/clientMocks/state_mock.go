@@ -5,158 +5,37 @@
 package clientMocks
 
 import (
-	reflect "reflect"
-
 	gomock "github.com/golang/mock/gomock"
 	client "github.com/lidofinance/dc4bc/client"
-	types "github.com/lidofinance/dc4bc/client/types"
+	operations "github.com/lidofinance/dc4bc/client/operations"
 	state_machines "github.com/lidofinance/dc4bc/fsm/state_machines"
+	reflect "reflect"
 )
 
-// MockState is a mock of State interface.
+// MockState is a mock of State interface
 type MockState struct {
 	ctrl     *gomock.Controller
 	recorder *MockStateMockRecorder
 }
 
-// MockStateMockRecorder is the mock recorder for MockState.
+// MockStateMockRecorder is the mock recorder for MockState
 type MockStateMockRecorder struct {
 	mock *MockState
 }
 
-// NewMockState creates a new mock instance.
+// NewMockState creates a new mock instance
 func NewMockState(ctrl *gomock.Controller) *MockState {
 	mock := &MockState{ctrl: ctrl}
 	mock.recorder = &MockStateMockRecorder{mock}
 	return mock
 }
 
-// EXPECT returns an object that allows the caller to indicate expected use.
+// EXPECT returns an object that allows the caller to indicate expected use
 func (m *MockState) EXPECT() *MockStateMockRecorder {
 	return m.recorder
 }
 
-// DeleteOperation mocks base method.
-func (m *MockState) DeleteOperation(operation *types.Operation) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteOperation", operation)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// DeleteOperation indicates an expected call of DeleteOperation.
-func (mr *MockStateMockRecorder) DeleteOperation(operation interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOperation", reflect.TypeOf((*MockState)(nil).DeleteOperation), operation)
-}
-
-// GetAllFSM mocks base method.
-func (m *MockState) GetAllFSM() (map[string]*state_machines.FSMInstance, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAllFSM")
-	ret0, _ := ret[0].(map[string]*state_machines.FSMInstance)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetAllFSM indicates an expected call of GetAllFSM.
-func (mr *MockStateMockRecorder) GetAllFSM() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllFSM", reflect.TypeOf((*MockState)(nil).GetAllFSM))
-}
-
-// GetOperationByID mocks base method.
-func (m *MockState) GetOperationByID(operationID string) (*types.Operation, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOperationByID", operationID)
-	ret0, _ := ret[0].(*types.Operation)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetOperationByID indicates an expected call of GetOperationByID.
-func (mr *MockStateMockRecorder) GetOperationByID(operationID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperationByID", reflect.TypeOf((*MockState)(nil).GetOperationByID), operationID)
-}
-
-// GetOperations mocks base method.
-func (m *MockState) GetOperations() (map[string]*types.Operation, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOperations")
-	ret0, _ := ret[0].(map[string]*types.Operation)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetOperations indicates an expected call of GetOperations.
-func (mr *MockStateMockRecorder) GetOperations() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperations", reflect.TypeOf((*MockState)(nil).GetOperations))
-}
-
-// GetSignatureByID mocks base method.
-func (m *MockState) GetSignatureByID(dkgID, signatureID string) ([]types.ReconstructedSignature, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSignatureByID", dkgID, signatureID)
-	ret0, _ := ret[0].([]types.ReconstructedSignature)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSignatureByID indicates an expected call of GetSignatureByID.
-func (mr *MockStateMockRecorder) GetSignatureByID(dkgID, signatureID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignatureByID", reflect.TypeOf((*MockState)(nil).GetSignatureByID), dkgID, signatureID)
-}
-
-// GetSignatures mocks base method.
-func (m *MockState) GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSignatures", dkgID)
-	ret0, _ := ret[0].(map[string][]types.ReconstructedSignature)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSignatures indicates an expected call of GetSignatures.
-func (mr *MockStateMockRecorder) GetSignatures(dkgID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignatures", reflect.TypeOf((*MockState)(nil).GetSignatures), dkgID)
-}
-
-// LoadFSM mocks base method.
-func (m *MockState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LoadFSM", dkgRoundID)
-	ret0, _ := ret[0].(*state_machines.FSMInstance)
-	ret1, _ := ret[1].(bool)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// LoadFSM indicates an expected call of LoadFSM.
-func (mr *MockStateMockRecorder) LoadFSM(dkgRoundID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadFSM", reflect.TypeOf((*MockState)(nil).LoadFSM), dkgRoundID)
-}
-
-// LoadOffset mocks base method.
-func (m *MockState) LoadOffset() (uint64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LoadOffset")
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// LoadOffset indicates an expected call of LoadOffset.
-func (mr *MockStateMockRecorder) LoadOffset() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadOffset", reflect.TypeOf((*MockState)(nil).LoadOffset))
-}
-
-// NewStateFromOld mocks base method.
+// NewStateFromOld mocks base method
 func (m *MockState) NewStateFromOld(stateDbPath string) (client.State, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewStateFromOld", stateDbPath)
@@ -166,41 +45,13 @@ func (m *MockState) NewStateFromOld(stateDbPath string) (client.State, string, e
 	return ret0, ret1, ret2
 }
 
-// NewStateFromOld indicates an expected call of NewStateFromOld.
+// NewStateFromOld indicates an expected call of NewStateFromOld
 func (mr *MockStateMockRecorder) NewStateFromOld(stateDbPath interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewStateFromOld", reflect.TypeOf((*MockState)(nil).NewStateFromOld), stateDbPath)
 }
 
-// PutOperation mocks base method.
-func (m *MockState) PutOperation(operation *types.Operation) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PutOperation", operation)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// PutOperation indicates an expected call of PutOperation.
-func (mr *MockStateMockRecorder) PutOperation(operation interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutOperation", reflect.TypeOf((*MockState)(nil).PutOperation), operation)
-}
-
-// SaveFSM mocks base method.
-func (m *MockState) SaveFSM(dkgRoundID string, dump []byte) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveFSM", dkgRoundID, dump)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SaveFSM indicates an expected call of SaveFSM.
-func (mr *MockStateMockRecorder) SaveFSM(dkgRoundID, dump interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveFSM", reflect.TypeOf((*MockState)(nil).SaveFSM), dkgRoundID, dump)
-}
-
-// SaveOffset mocks base method.
+// SaveOffset mocks base method
 func (m *MockState) SaveOffset(arg0 uint64) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveOffset", arg0)
@@ -208,22 +59,170 @@ func (m *MockState) SaveOffset(arg0 uint64) error {
 	return ret0
 }
 
-// SaveOffset indicates an expected call of SaveOffset.
+// SaveOffset indicates an expected call of SaveOffset
 func (mr *MockStateMockRecorder) SaveOffset(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveOffset", reflect.TypeOf((*MockState)(nil).SaveOffset), arg0)
 }
 
-// SaveSignature mocks base method.
-func (m *MockState) SaveSignature(signature types.ReconstructedSignature) error {
+// LoadOffset mocks base method
+func (m *MockState) LoadOffset() (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LoadOffset")
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LoadOffset indicates an expected call of LoadOffset
+func (mr *MockStateMockRecorder) LoadOffset() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadOffset", reflect.TypeOf((*MockState)(nil).LoadOffset))
+}
+
+// SaveFSM mocks base method
+func (m *MockState) SaveFSM(dkgRoundID string, dump []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveFSM", dkgRoundID, dump)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveFSM indicates an expected call of SaveFSM
+func (mr *MockStateMockRecorder) SaveFSM(dkgRoundID, dump interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveFSM", reflect.TypeOf((*MockState)(nil).SaveFSM), dkgRoundID, dump)
+}
+
+// LoadFSM mocks base method
+func (m *MockState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LoadFSM", dkgRoundID)
+	ret0, _ := ret[0].(*state_machines.FSMInstance)
+	ret1, _ := ret[1].(bool)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// LoadFSM indicates an expected call of LoadFSM
+func (mr *MockStateMockRecorder) LoadFSM(dkgRoundID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadFSM", reflect.TypeOf((*MockState)(nil).LoadFSM), dkgRoundID)
+}
+
+// GetAllFSM mocks base method
+func (m *MockState) GetAllFSM() (map[string]*state_machines.FSMInstance, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetAllFSM")
+	ret0, _ := ret[0].(map[string]*state_machines.FSMInstance)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetAllFSM indicates an expected call of GetAllFSM
+func (mr *MockStateMockRecorder) GetAllFSM() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllFSM", reflect.TypeOf((*MockState)(nil).GetAllFSM))
+}
+
+// PutOperation mocks base method
+func (m *MockState) PutOperation(operation *operations.Operation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PutOperation", operation)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PutOperation indicates an expected call of PutOperation
+func (mr *MockStateMockRecorder) PutOperation(operation interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutOperation", reflect.TypeOf((*MockState)(nil).PutOperation), operation)
+}
+
+// DeleteOperation mocks base method
+func (m *MockState) DeleteOperation(operation *operations.Operation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteOperation", operation)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteOperation indicates an expected call of DeleteOperation
+func (mr *MockStateMockRecorder) DeleteOperation(operation interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOperation", reflect.TypeOf((*MockState)(nil).DeleteOperation), operation)
+}
+
+// GetOperations mocks base method
+func (m *MockState) GetOperations() (map[string]*operations.Operation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOperations")
+	ret0, _ := ret[0].(map[string]*operations.Operation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOperations indicates an expected call of GetOperations
+func (mr *MockStateMockRecorder) GetOperations() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperations", reflect.TypeOf((*MockState)(nil).GetOperations))
+}
+
+// GetOperationByID mocks base method
+func (m *MockState) GetOperationByID(operationID string) (*operations.Operation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOperationByID", operationID)
+	ret0, _ := ret[0].(*operations.Operation)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOperationByID indicates an expected call of GetOperationByID
+func (mr *MockStateMockRecorder) GetOperationByID(operationID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperationByID", reflect.TypeOf((*MockState)(nil).GetOperationByID), operationID)
+}
+
+// SaveSignature mocks base method
+func (m *MockState) SaveSignature(signature operations.ReconstructedSignature) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SaveSignature", signature)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SaveSignature indicates an expected call of SaveSignature.
+// SaveSignature indicates an expected call of SaveSignature
 func (mr *MockStateMockRecorder) SaveSignature(signature interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSignature", reflect.TypeOf((*MockState)(nil).SaveSignature), signature)
+}
+
+// GetSignatureByID mocks base method
+func (m *MockState) GetSignatureByID(dkgID, signatureID string) ([]operations.ReconstructedSignature, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSignatureByID", dkgID, signatureID)
+	ret0, _ := ret[0].([]operations.ReconstructedSignature)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSignatureByID indicates an expected call of GetSignatureByID
+func (mr *MockStateMockRecorder) GetSignatureByID(dkgID, signatureID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignatureByID", reflect.TypeOf((*MockState)(nil).GetSignatureByID), dkgID, signatureID)
+}
+
+// GetSignatures mocks base method
+func (m *MockState) GetSignatures(dkgID string) (map[string][]operations.ReconstructedSignature, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSignatures", dkgID)
+	ret0, _ := ret[0].(map[string][]operations.ReconstructedSignature)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSignatures indicates an expected call of GetSignatures
+func (mr *MockStateMockRecorder) GetSignatures(dkgID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignatures", reflect.TypeOf((*MockState)(nil).GetSignatures), dkgID)
 }

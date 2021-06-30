@@ -6,63 +6,58 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/storage/kafka_storage"
 	"log"
-	"net/http"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/lidofinance/dc4bc/fsm/types/responses"
-
-	sipf "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
-
+	"github.com/google/uuid"
+	ops "github.com/lidofinance/dc4bc/client/operations"
 	"github.com/lidofinance/dc4bc/client/types"
-	"github.com/lidofinance/dc4bc/fsm/types/requests"
-
-	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
-
-	"github.com/lidofinance/dc4bc/fsm/state_machines"
-
+	"github.com/lidofinance/dc4bc/common"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	dpf "github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/lidofinance/dc4bc/qr"
+	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	sipf "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/storage"
+	"github.com/lidofinance/dc4bc/storage/kafka_storage"
 )
 
 const (
 	pollingPeriod = time.Second
-	QrCodesDir    = "/tmp"
 )
 
 type Client interface {
 	Poll() error
-	GetLogger() Logger
+
+	GetLogger() types.Logger
 	GetPubKey() ed25519.PublicKey
 	GetUsername() string
+
+	GetState() State
+	GetFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error)
+
 	SendMessage(message storage.Message) error
-	ProcessMessage(message storage.Message) error
-	GetOperations() (map[string]*types.Operation, error)
-	GetOperationQRPath(operationID string) (string, error)
-	StartHTTPServer(listenAddr string) error
-	StopHTTPServer()
+	SignMessage(dkgRoundID string, event fsm.Event, data []byte) (*storage.Message, error)
+	HandleProcessedOperation(operation ops.Operation) error
+
 	SetSkipCommKeysVerification(bool)
 	ResetState(newStateDBPath string, consumerGroup string, messages []string, useOffset bool) (string, error)
 }
 
 type BaseClient struct {
 	sync.Mutex
-	server                   *http.Server
-	Logger                   Logger
-	userName                 string
-	pubKey                   ed25519.PublicKey
-	ctx                      context.Context
 	stateMu                  sync.RWMutex
-	state                    State
-	storage                  storage.Storage
-	keyStore                 KeyStore
-	qrProcessor              qr.Processor
+	Ctx                      context.Context
+	Logger                   common.Logger
+	UserName                 string
+	PubKey                   ed25519.PublicKey
+	State                    State
+	Storage                  storage.Storage
+	KeyStore                 KeyStore
 	SkipCommKeysVerification bool
 }
 
@@ -72,7 +67,6 @@ func NewClient(
 	state State,
 	storage storage.Storage,
 	keyStore KeyStore,
-	qrProcessor qr.Processor,
 ) (Client, error) {
 	keyPair, err := keyStore.LoadKeys(userName, "")
 	if err != nil {
@@ -80,34 +74,33 @@ func NewClient(
 	}
 
 	return &BaseClient{
-		ctx:         ctx,
-		Logger:      newLogger(userName),
-		userName:    userName,
-		pubKey:      keyPair.Pub,
-		state:       state,
-		storage:     storage,
-		keyStore:    keyStore,
-		qrProcessor: qrProcessor,
+		Ctx:      ctx,
+		Logger:   types.NewLogger(userName),
+		UserName: userName,
+		PubKey:   keyPair.Pub,
+		State:    state,
+		Storage:  storage,
+		KeyStore: keyStore,
 	}, nil
 }
 
-func (c *BaseClient) getState() State {
+func (c *BaseClient) GetState() State {
 	c.stateMu.RLock()
 	defer c.stateMu.RUnlock()
 
-	return c.state
+	return c.State
 }
 
-func (c *BaseClient) GetLogger() Logger {
+func (c *BaseClient) GetLogger() types.Logger {
 	return c.Logger
 }
 
 func (c *BaseClient) GetUsername() string {
-	return c.userName
+	return c.UserName
 }
 
 func (c *BaseClient) GetPubKey() ed25519.PublicKey {
-	return c.pubKey
+	return c.PubKey
 }
 
 func (c *BaseClient) GetSkipCommKeysVerification() bool {
@@ -130,12 +123,12 @@ func (c *BaseClient) Poll() error {
 	for {
 		select {
 		case <-tk.C:
-			offset, err := c.getState().LoadOffset()
+			offset, err := c.GetState().LoadOffset()
 			if err != nil {
 				return fmt.Errorf("failed to LoadOffset: %w", err)
 			}
 
-			messages, err := c.storage.GetMessages(offset)
+			messages, err := c.Storage.GetMessages(offset)
 			if err != nil {
 				return fmt.Errorf("failed to GetMessages: %w", err)
 			}
@@ -153,11 +146,11 @@ func (c *BaseClient) Poll() error {
 					c.Logger.Log("Message with offset %d, type %s is not intended for us, skip it",
 						message.Offset, message.Event)
 				}
-				if err := c.getState().SaveOffset(message.Offset + 1); err != nil {
+				if err := c.GetState().SaveOffset(message.Offset + 1); err != nil {
 					c.Logger.Log("Failed to save offset: %v", err)
 				}
 			}
-		case <-c.ctx.Done():
+		case <-c.Ctx.Done():
 			log.Println("Context closed, stop polling...")
 			return nil
 		}
@@ -165,17 +158,17 @@ func (c *BaseClient) Poll() error {
 }
 
 func (c *BaseClient) SendMessage(message storage.Message) error {
-	if err := c.storage.Send(message); err != nil {
+	if err := c.Storage.Send(message); err != nil {
 		return fmt.Errorf("failed to post message: %w", err)
 	}
 
 	return nil
 }
 
-// processSignature saves a broadcasted reconstructed signature to a LevelDB
+// processSignature saves a broadcast reconstructed signature to a LevelDB
 func (c *BaseClient) processSignature(message storage.Message) error {
 	var (
-		signature types.ReconstructedSignature
+		signature ops.ReconstructedSignature
 		err       error
 	)
 	if err = json.Unmarshal(message.Data, &signature); err != nil {
@@ -183,17 +176,17 @@ func (c *BaseClient) processSignature(message storage.Message) error {
 	}
 	signature.Username = message.SenderAddr
 	signature.DKGRoundID = message.DkgRoundID
-	return c.getState().SaveSignature(signature)
+	return c.GetState().SaveSignature(signature)
 }
 
 func (c *BaseClient) reinitDKG(message storage.Message) error {
-	var req types.ReDKG
+	var req ops.ReDKG
 	if err := json.Unmarshal(message.Data, &req); err != nil {
 		return fmt.Errorf("failed to umarshal request: %v", err)
 
 	}
 
-	operations := make([]*types.Operation, 0)
+	operations := make([]*ops.Operation, 0)
 	for _, msg := range req.Messages {
 		if fsm.Event(msg.Event) == sipf.EventSigningStart {
 			break
@@ -214,13 +207,13 @@ func (c *BaseClient) reinitDKG(message storage.Message) error {
 		return fmt.Errorf("failed to marshall operations")
 	}
 
-	operation := types.NewOperation(req.DKGID, operationsBz, types.ReinitDKG)
-	if err := c.getState().PutOperation(operation); err != nil {
+	operation := ops.NewOperation(req.DKGID, operationsBz, ops.ReinitDKG)
+	if err := c.GetState().PutOperation(operation); err != nil {
 		return fmt.Errorf("failed to PutOperation: %w", err)
 	}
 
 	// save new comm keys into FSM to verify future messages
-	fsmInstance, err := c.getFSMInstance(req.DKGID)
+	fsmInstance, err := c.GetFSMInstance(req.DKGID)
 	if err != nil {
 		return fmt.Errorf("failed to get FSM instance: %w", err)
 	}
@@ -232,7 +225,7 @@ func (c *BaseClient) reinitDKG(message storage.Message) error {
 		return fmt.Errorf("failed to get FSM dump")
 	}
 
-	if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+	if err := c.GetState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 		return fmt.Errorf("failed to SaveFSM: %w", err)
 	}
 
@@ -240,7 +233,7 @@ func (c *BaseClient) reinitDKG(message storage.Message) error {
 }
 
 func (c *BaseClient) ProcessMessage(message storage.Message) error {
-	if fsm.State(message.Event) == types.ReinitDKG {
+	if fsm.State(message.Event) == ops.ReinitDKG {
 		if err := c.reinitDKG(message); err != nil {
 			return fmt.Errorf("failed to reinitDKG")
 		}
@@ -252,17 +245,17 @@ func (c *BaseClient) ProcessMessage(message storage.Message) error {
 		return err
 	}
 	if operation != nil {
-		if err := c.getState().PutOperation(operation); err != nil {
+		if err := c.GetState().PutOperation(operation); err != nil {
 			return fmt.Errorf("failed to PutOperation: %w", err)
 		}
 	}
 	return nil
 }
 
-func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, error) {
-	fsmInstance, err := c.getFSMInstance(message.DkgRoundID)
+func (c *BaseClient) processMessage(message storage.Message) (*ops.Operation, error) {
+	fsmInstance, err := c.GetFSMInstance(message.DkgRoundID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to getFSMInstance: %w", err)
+		return nil, fmt.Errorf("failed to GetFSMInstance: %w", err)
 	}
 
 	// we can't verify a message at this moment, cause we don't have public keys of participants
@@ -273,13 +266,13 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 	}
 
 	switch fsm.Event(message.Event) {
-	case types.SignatureReconstructed: // save broadcasted reconstructed signature
+	case ops.SignatureReconstructed: // save broadcast reconstructed signature
 		if err := c.processSignature(message); err != nil {
 			return nil, fmt.Errorf("failed to process signature: %w", err)
 		}
 		return nil, nil
-	case types.SignatureReconstructionFailed:
-		errorRequest, err := types.FSMRequestFromMessage(message)
+	case ops.SignatureReconstructionFailed:
+		errorRequest, err := ops.FSMRequestFromMessage(message)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
 		}
@@ -320,7 +313,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 				return nil, fmt.Errorf("failed to Do operation in FSM: %w", err)
 			}
 
-			if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+			if err := c.GetState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 				return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 
 			}
@@ -348,13 +341,13 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 				return nil, fmt.Errorf("failed to Do operation in FSM: %w", err)
 			}
 
-			if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+			if err := c.GetState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 				return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 			}
 		}
 	}
 
-	fsmReq, err := types.FSMRequestFromMessage(message)
+	fsmReq, err := ops.FSMRequestFromMessage(message)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
 	}
@@ -366,7 +359,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 
 	c.Logger.Log("message %s done successfully from %s", message.Event, message.SenderAddr)
 
-	// switch FSM state by hand due to implementation specifics
+	// switch FSM State by hand due to implementation specifics
 	if resp.State == spf.StateSignatureProposalCollected {
 		fsmInstance, err = state_machines.FromDump(fsmDump)
 		if err != nil {
@@ -392,9 +385,9 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 		}
 	}
 
-	var operation *types.Operation
+	var operation *ops.Operation
 	switch resp.State {
-	// if the new state is waiting for RPC to airgapped machine
+	// if the new State is waiting for RPC to airgapped machine
 	case
 		spf.StateAwaitParticipantsConfirmations,
 		dpf.StateDkgCommitsAwaitConfirmations,
@@ -422,7 +415,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 				return nil, fmt.Errorf("failed to marshal FSM response: %w", err)
 			}
 
-			operation = types.NewOperation(
+			operation = ops.NewOperation(
 				message.DkgRoundID,
 				operationPayloadBz,
 				resp.State,
@@ -432,7 +425,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 		c.Logger.Log("State %s does not require an operation", resp.State)
 	}
 
-	// switch FSM state by hand due to implementation specifics
+	// switch FSM State by hand due to implementation specifics
 	if resp.State == sipf.StateSigningPartialSignsCollected {
 		fsmInstance, err = state_machines.FromDump(fsmDump)
 		if err != nil {
@@ -446,7 +439,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 		}
 	}
 
-	// save signing data to the same storage as we save signatures
+	// save signing data to the same Storage as we save signatures
 	// This allows easy to view signing data by CLI-command
 	if fsm.Event(message.Event) == sipf.EventSigningStart {
 		if err := c.processSignature(message); err != nil {
@@ -454,70 +447,27 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 		}
 	}
 
-	if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+	if err := c.GetState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 		return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 	}
 
 	return operation, nil
 }
 
-func (c *BaseClient) GetOperations() (map[string]*types.Operation, error) {
-	return c.getState().GetOperations()
+//GetSignatureByDataHash returns a list of reconstructed signatures of the signed data broadcast by users
+func (c *BaseClient) GetSignatureByID(dkgID, sigID string) ([]ops.ReconstructedSignature, error) {
+	return c.GetState().GetSignatureByID(dkgID, sigID)
 }
 
-//GetSignatures returns all signatures for the given DKG round that were reconstructed on the airgapped machine and
-// broadcasted by users
-func (c *BaseClient) GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
-	return c.getState().GetSignatures(dkgID)
-}
-
-//GetSignatureByDataHash returns a list of reconstructed signatures of the signed data broadcasted by users
-func (c *BaseClient) GetSignatureByID(dkgID, sigID string) ([]types.ReconstructedSignature, error) {
-	return c.getState().GetSignatureByID(dkgID, sigID)
-}
-
-// getOperationJSON returns a specific JSON-encoded operation
-func (c *BaseClient) getOperationJSON(operationID string) ([]byte, error) {
-	operation, err := c.getState().GetOperationByID(operationID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get operation: %w", err)
-	}
-
-	operationJSON, err := json.Marshal(operation)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal operation: %w", err)
-	}
-	return operationJSON, nil
-}
-
-// GetOperationQRPath returns a path to the image with the QR generated
-// for the specified operation. It is supposed that the user will open
-// this file herself.
-func (c *BaseClient) GetOperationQRPath(operationID string) (string, error) {
-	operationJSON, err := c.getOperationJSON(operationID)
-	if err != nil {
-		return "", fmt.Errorf("failed to get operation in JSON: %w", err)
-	}
-
-	operationQRPath := filepath.Join(QrCodesDir, fmt.Sprintf("dc4bc_qr_%s", operationID))
-
-	qrPath := fmt.Sprintf("%s.gif", operationQRPath)
-	if err = c.qrProcessor.WriteQR(qrPath, operationJSON); err != nil {
-		return "", err
-	}
-
-	return qrPath, nil
-}
-
-// handleProcessedOperation handles an operation which was processed by the airgapped machine
+// HandleProcessedOperation handles an operation which was processed by the airgapped machine
 // It checks that the operation exists in an operation pool, signs the operation, sends it to an append-only log and
 // deletes it from the pool.
-func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
+func (c *BaseClient) HandleProcessedOperation(operation ops.Operation) error {
 	if operation.Event.IsEmpty() {
 		return errors.New("operation is request operation, provide result operation instead")
 	}
 
-	storedOperation, err := c.getState().GetOperationByID(operation.ID)
+	storedOperation, err := c.GetState().GetOperationByID(operation.ID)
 	if err != nil {
 		return fmt.Errorf("failed to find matching operation: %w", err)
 	}
@@ -527,11 +477,11 @@ func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
 	}
 
 	// there are no result messages for OperationProcessed event type
-	if operation.Event != types.OperationProcessed {
+	if operation.Event != ops.OperationProcessed {
 		for i, message := range operation.ResultMsgs {
 			message.SenderAddr = c.GetUsername()
 
-			sig, err := c.signMessage(message.Bytes())
+			sig, err := c.getMessageSignature(message.Bytes())
 			if err != nil {
 				return fmt.Errorf("failed to sign a message: %w", err)
 			}
@@ -539,22 +489,22 @@ func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
 
 			operation.ResultMsgs[i] = message
 		}
-		if err := c.storage.Send(operation.ResultMsgs...); err != nil {
+		if err := c.Storage.Send(operation.ResultMsgs...); err != nil {
 			return fmt.Errorf("failed to post messages: %w", err)
 		}
 	}
 
-	if err := c.getState().DeleteOperation(&operation); err != nil {
+	if err := c.GetState().DeleteOperation(&operation); err != nil {
 		return fmt.Errorf("failed to DeleteOperation: %w", err)
 	}
 
 	return nil
 }
 
-// getFSMInstance returns a FSM for a necessary DKG round.
-func (c *BaseClient) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error) {
+// GetFSMInstance returns a FSM for a necessary DKG round.
+func (c *BaseClient) GetFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error) {
 	var err error
-	fsmInstance, ok, err := c.getState().LoadFSM(dkgRoundID)
+	fsmInstance, ok, err := c.GetState().LoadFSM(dkgRoundID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to LoadFSM: %w", err)
 	}
@@ -568,21 +518,12 @@ func (c *BaseClient) getFSMInstance(dkgRoundID string) (*state_machines.FSMInsta
 		if err != nil {
 			return nil, fmt.Errorf("failed to Dump FSM instance: %w", err)
 		}
-		if err := c.getState().SaveFSM(dkgRoundID, bz); err != nil {
+		if err := c.GetState().SaveFSM(dkgRoundID, bz); err != nil {
 			return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 		}
 	}
 
 	return fsmInstance, nil
-}
-
-func (c *BaseClient) signMessage(message []byte) ([]byte, error) {
-	keyPair, err := c.keyStore.LoadKeys(c.userName, "")
-	if err != nil {
-		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
-	}
-
-	return ed25519.Sign(keyPair.Priv, message), nil
 }
 
 func (c *BaseClient) verifyMessage(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
@@ -601,37 +542,54 @@ func (c *BaseClient) verifyMessage(fsmInstance *state_machines.FSMInstance, mess
 	return nil
 }
 
-func (c *BaseClient) GetFSMDump(dkgID string) (*state_machines.FSMDump, error) {
-	fsmInstance, err := c.getFSMInstance(dkgID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get FSM instance for DKG round ID %s: %w", dkgID, err)
-	}
-	return fsmInstance.FSMDump(), nil
-}
-
 func (c *BaseClient) ResetState(newStateDBPath string, cg string, messages []string, useOffset bool) (stateDb string, err error) {
 	c.stateMu.Lock()
 	defer c.stateMu.Unlock()
 
-	if err = c.storage.IgnoreMessages(messages, useOffset); err != nil {
-		return stateDb, fmt.Errorf("failed to ignore messages while resetting state: %v", err)
+	if err = c.Storage.IgnoreMessages(messages, useOffset); err != nil {
+		return stateDb, fmt.Errorf("failed to ignore messages while resetting State: %v", err)
 	}
 
-	switch c.storage.(type) {
+	switch c.Storage.(type) {
 	case *kafka_storage.KafkaStorage:
-		stg := c.storage.(*kafka_storage.KafkaStorage)
+		stg := c.Storage.(*kafka_storage.KafkaStorage)
 		if err = stg.SetConsumerGroup(cg); err != nil {
-			return stateDb, fmt.Errorf("failed to set consumer group while reseting state: %v", err)
+			return stateDb, fmt.Errorf("failed to set consumer group while reseting State: %v", err)
 		}
 	}
 
 	var newState State
-	newState, stateDb, err = c.state.NewStateFromOld(newStateDBPath)
+	newState, stateDb, err = c.State.NewStateFromOld(newStateDBPath)
 	if err != nil {
-		return stateDb, fmt.Errorf("failed to create new state from old: %v", err)
+		return stateDb, fmt.Errorf("failed to create new State from old: %v", err)
 	}
 
-	c.state = newState
+	c.State = newState
 
 	return stateDb, err
+}
+
+func (c *BaseClient) SignMessage(dkgRoundID string, event fsm.Event, data []byte) (*storage.Message, error) {
+	message := storage.Message{
+		ID:         uuid.New().String(),
+		DkgRoundID: dkgRoundID,
+		Event:      string(event),
+		Data:       data,
+		SenderAddr: c.GetUsername(),
+	}
+	signature, err := c.getMessageSignature(message.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("failed to sign message: %w", err)
+	}
+	message.Signature = signature
+	return &message, nil
+}
+
+func (c *BaseClient) getMessageSignature(message []byte) ([]byte, error) {
+	keyPair, err := c.KeyStore.LoadKeys(c.UserName, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
+	}
+
+	return ed25519.Sign(keyPair.Priv, message), nil
 }
