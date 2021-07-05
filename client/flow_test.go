@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/storage"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -17,6 +16,8 @@ import (
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/lidofinance/dc4bc/storage"
 
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
@@ -305,7 +306,6 @@ func (n *node) run(callback processedOperationCallback, ctx context.Context) {
 					}
 					continue
 				}
-
 				n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
 				processedOperation, err := n.air.GetOperationResult(*operation)
 				if err != nil {
@@ -494,7 +494,6 @@ func TestResetStateFlow(t *testing.T) {
 
 	// Each node starts to Poll().
 	runCancel := startServerRunAndPoll(nodes, processedOperationCallback)
-  
 	// Last node tells other participants to start DKG.
 	messageDataBz, err := startDkg(nodes, threshold)
 	if err != nil {
@@ -593,7 +592,25 @@ func TestResetStateFlow(t *testing.T) {
 	}
 }
 
-func TestReinitDKGFlow(t *testing.T) {
+func convertDKGMessageto0_1_4(orig types.ReDKG) types.ReDKG {
+	newDKG := types.ReDKG{}
+	newDKG.DKGID = orig.DKGID
+	newDKG.Participants = orig.Participants
+	newDKG.Threshold = orig.Threshold
+	newDKG.Messages = []storage.Message{}
+	var newOffset uint64
+	for _, m := range orig.Messages {
+		if fsm.Event(m.Event) == dkg_proposal_fsm.EventDKGDealConfirmationReceived && m.SenderAddr == m.RecipientAddr {
+			continue
+		}
+		m.Offset = newOffset
+		newDKG.Messages = append(newDKG.Messages, m)
+		newOffset++
+	}
+	return newDKG
+}
+
+func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 	_ = RemoveContents("/tmp", "dc4bc_*")
 	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
 
@@ -686,6 +703,20 @@ func TestReinitDKGFlow(t *testing.T) {
 		t.Fatalf(err.Error())
 	}
 
+	if convertDKGTo10_1_4 {
+		// removing dkg_proposal_fsm.EventDKGDealConfirmationReceived self-confirm messages
+		// to make reInitDKG message looks like in release 0.1.4
+		newDKG := convertDKGMessageto0_1_4(*reInitDKG)
+
+		// adding back self-confirm messages
+		// this is our test target
+		adaptedReDKG, err := GetAdaptedReDKG(newDKG)
+		if err != nil {
+			t.Fatalf(err.Error())
+		}
+		reInitDKG = &adaptedReDKG
+	}
+
 	for _, node := range newNodes {
 		for i, participant := range reInitDKG.Participants {
 			if participant.Name == node.client.GetUsername() {
@@ -740,4 +771,12 @@ func TestReinitDKGFlow(t *testing.T) {
 		node.client.StopHTTPServer()
 		node.clientCancel()
 	}
+}
+
+func TestReinitDKGFlow(t *testing.T) {
+	testReinitDKGFlow(t, false)
+}
+
+func TestReinitDKGFlowWithDump0_1_4(t *testing.T) {
+	testReinitDKGFlow(t, true)
 }

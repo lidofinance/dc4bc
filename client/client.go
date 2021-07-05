@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/storage/kafka_storage"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -14,8 +13,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/lidofinance/dc4bc/storage/kafka_storage"
+
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
+	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	sipf "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
 	"github.com/lidofinance/dc4bc/client/types"
@@ -97,7 +100,6 @@ func (c *BaseClient) getState() State {
 
 	return c.state
 }
-
 
 func (c *BaseClient) GetLogger() Logger {
 	return c.Logger
@@ -335,7 +337,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 				return nil, fmt.Errorf("failed to Do operation in FSM: %w", err)
 			}
 
-      if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+			if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 				return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 
 			}
@@ -649,4 +651,61 @@ func (c *BaseClient) ResetState(newStateDBPath string, cg string, messages []str
 	c.state = newState
 
 	return stateDb, err
+}
+
+func createMessage(origMesage storage.Message) (storage.Message, error) {
+	fsmReq, err := types.FSMRequestFromMessage(origMesage)
+	if err != nil {
+		return storage.Message{}, fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
+	}
+	request, ok := fsmReq.(requests.DKGProposalDealConfirmationRequest)
+	if !ok {
+		return storage.Message{}, errors.New("cannot cast message request  to type {DKGProposalDealConfirmationRequest}")
+	}
+	req := requests.DKGProposalDealConfirmationRequest{
+		ParticipantId: request.ParticipantId,
+		Deal:          []byte("self-confirm"),
+		CreatedAt:     request.CreatedAt,
+	}
+	data, err := json.Marshal(req)
+	if err != nil {
+		return storage.Message{}, fmt.Errorf("failed to encode FSMRequest: %v", err)
+	}
+	newMsg := storage.Message{
+		ID:            uuid.New().String(),
+		DkgRoundID:    origMesage.DkgRoundID,
+		Event:         string(dkg_proposal_fsm.EventDKGDealConfirmationReceived),
+		Data:          data,
+		SenderAddr:    origMesage.SenderAddr,
+		RecipientAddr: origMesage.SenderAddr,
+	}
+
+	return newMsg, nil
+}
+
+func GetAdaptedReDKG(originalDKR types.ReDKG) (types.ReDKG, error) {
+	adaptedReDKG := types.ReDKG{}
+
+	adaptedReDKG.DKGID = originalDKR.DKGID
+	adaptedReDKG.Participants = originalDKR.Participants
+	adaptedReDKG.Threshold = originalDKR.Threshold
+	adaptedReDKG.Messages = []storage.Message{}
+	var newOffset uint64
+	fixedSenders := map[string]struct{}{}
+	for _, m := range originalDKR.Messages {
+		if _, found := fixedSenders[m.SenderAddr]; !found && fsm.Event(m.Event) == dkg_proposal_fsm.EventDKGDealConfirmationReceived {
+			fixedSenders[m.SenderAddr] = struct{}{}
+			workAroundMessage, err := createMessage(m)
+			if err != nil {
+				return types.ReDKG{}, fmt.Errorf("failed to construct new message for adapted reinit DKG message: %v", err)
+			}
+			workAroundMessage.Offset = newOffset
+			newOffset++
+			adaptedReDKG.Messages = append(adaptedReDKG.Messages, workAroundMessage)
+		}
+		m.Offset = newOffset
+		newOffset++
+		adaptedReDKG.Messages = append(adaptedReDKG.Messages, m)
+	}
+	return adaptedReDKG, nil
 }
