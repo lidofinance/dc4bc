@@ -98,7 +98,6 @@ func (c *BaseClient) getState() State {
 	return c.state
 }
 
-
 func (c *BaseClient) GetLogger() Logger {
 	return c.Logger
 }
@@ -194,41 +193,10 @@ func (c *BaseClient) reinitDKG(message storage.Message) error {
 
 	}
 
-	participants := make([]*requests.SignatureProposalParticipantsEntry, 0, len(req.Participants))
-	for _, reqParticipant := range req.Participants {
-		participants = append(participants, &requests.SignatureProposalParticipantsEntry{
-			Username:  reqParticipant.Name,
-			DkgPubKey: reqParticipant.DKGPubKey,
-			PubKey:    reqParticipant.NewCommPubKey,
-		})
-	}
-	startDKGReq := requests.SignatureProposalParticipantsListRequest{
-		Participants:     participants,
-		SigningThreshold: req.Threshold,
-		CreatedAt:        time.Now(),
-	}
-	startDKGReqBz, err := json.Marshal(startDKGReq)
-	if err != nil {
-		return fmt.Errorf("failed to marshall startDKGRequest: %v", err)
-	}
-
-	// cause we can't verify messages with old pubkeys
-	if !c.GetSkipCommKeysVerification() {
-		c.SetSkipCommKeysVerification(true)
-		defer c.SetSkipCommKeysVerification(false)
-	}
-
 	operations := make([]*types.Operation, 0)
 	for _, msg := range req.Messages {
 		if fsm.Event(msg.Event) == sipf.EventSigningStart {
 			break
-		}
-		if fsm.Event(msg.Event) == spf.EventInitProposal {
-			m, err := c.buildMessage(req.DKGID, spf.EventInitProposal, startDKGReqBz)
-			if err != nil {
-				return fmt.Errorf("failed to build message: %v", err)
-			}
-			msg = *m
 		}
 		if msg.RecipientAddr == "" || msg.RecipientAddr == c.GetUsername() {
 			operation, err := c.processMessage(msg)
@@ -249,6 +217,23 @@ func (c *BaseClient) reinitDKG(message storage.Message) error {
 	operation := types.NewOperation(req.DKGID, operationsBz, types.ReinitDKG)
 	if err := c.getState().PutOperation(operation); err != nil {
 		return fmt.Errorf("failed to PutOperation: %w", err)
+	}
+
+	// save new comm keys into FSM to verify future messages
+	fsmInstance, err := c.getFSMInstance(req.DKGID)
+	if err != nil {
+		return fmt.Errorf("failed to get FSM instance: %w", err)
+	}
+	for _, reqParticipant := range req.Participants {
+		fsmInstance.FSMDump().Payload.SetPubKeyUsername(reqParticipant.Name, reqParticipant.NewCommPubKey)
+	}
+	fsmDump, err := fsmInstance.Dump()
+	if err != nil {
+		return fmt.Errorf("failed to get FSM dump")
+	}
+
+	if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+		return fmt.Errorf("failed to SaveFSM: %w", err)
 	}
 
 	return nil
@@ -335,7 +320,7 @@ func (c *BaseClient) processMessage(message storage.Message) (*types.Operation, 
 				return nil, fmt.Errorf("failed to Do operation in FSM: %w", err)
 			}
 
-      if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+			if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 				return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 
 			}
