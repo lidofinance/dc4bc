@@ -177,11 +177,15 @@ Now you have a pending operation in your operation pool. That is an operation to
 Get the list of pending operations:
 ```
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
-DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
-Operation ID: 30fa9c21-b79f-4a53-a84b-e7ad574c1a51
-Description: confirm participation in the new DKG round
-Hash of the proposing DKG message - a60bd47a831cd58a96bdd4381ee15afc
+Please, select operation:
 -----------------------------------------------------
+1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
+   Operation ID: 30fa9c21-b79f-4a53-a84b-e7ad574c1a51
+   Description: confirm participation in the new DKG round
+   Hash of the proposing DKG message - a60bd47a831cd58a96bdd4381ee15afc
+-----------------------------------------------------
+Select operation and press Enter. Ctrl+C for cancel
+
 ```
 
 You can check the hash of the proposing DKG message:
@@ -191,15 +195,35 @@ a60bd47a831cd58a96bdd4381ee15afc
 ```
 The command returns a hash of the proposing message. If it is not equal to the hash from the list of pending operations, that means the person who proposed to start the DKG round changed the parameters that you agreed on the Conferce Call.
 
-Copy the Operation ID and make the node produce a QR-code for it:
+Select an operation by typing its number and press Enter. This operation requires only a confirmation of user, so it's just sends a message to the append-only log.
+
+When all participants perform the necessary operations, the node will proceed to the next step:
 ```
-$ ./dc4bc_cli get_operation_qr 6d98f39d-1b24-49ce-8473-4f5d934ab2dc --listen_addr localhost:8080
-QR code was saved to: /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0.gif
+[john_doe] message event_sig_proposal_confirm_by_participant done successfully from john_doe
+```
+
+Now you have a new operation:
+
+```
+$ ./dc4bc_cli get_operations --listen_addr localhost:8080
+Please, select operation:
+-----------------------------------------------------
+1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
+   Operation ID: 2f217f58-a94f-47d8-b871-f35a15275184
+   Description:  send commits for the DKG round
+-----------------------------------------------------
+Select operation and press Enter. Ctrl+C for cancel
+
+```
+
+Select an operation to make the node produce a QR-code for it:
+```
+QR code was saved to: /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184.gif
 ```
 
 Open the GIF-animation in any gif viewer and take a video of it:
 ```
-open -a Safari /tmp/dc4bc_qr_c76396a6-fcd8-4dd2-a85c-085b8dc91494-response.gif
+open -a Safari /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184-request.gif
 ```
 
 After that, you need to scan the GIF. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser on an airgapped machine (firefox from plaintext media in case of Tails airapped machine setup), allow the page to use your camera and demonstrate the recorded video to the camera. After the GIF is scanned, you'll see the operation JSON. Click on that JSON, and it will be saved to your Downloads folder.
@@ -209,7 +233,7 @@ Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains 
 ```
 >>> read_operation
 > Enter the path to Operation JSON file: ./operation.json
-Operation GIF was handled successfully, the result Operation GIF was saved to: /tmp/dc4bc_qr_61ae668f-be5f-4173-bb56-c2ba5221ee8c-response.gif
+Operation GIF was handled successfully, the result Operation GIF was saved to: /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184-response.gif
 ```
 
 Open the response QR-gif in any gif viewer and take a video of it. Open the `./qr_reader_bundle/index.html` page in your web browser on a hot node and scan the GIF. You may want to give the downloaded file a new name, e.g., `operation_response.json`.
@@ -219,19 +243,9 @@ Then go to the node and run:
 $ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 ~/Downloads/operation_response.json
 ```
 
-After reading the response, a message is send to the message board. When all participants perform the necessary operations, the node will proceed to the next step:
+When all participants perform the necessary operations, the node will proceed to the next step:
 ```
-[john_doe] message event_sig_proposal_confirm_by_participant done successfully from john_doe
-```
-Further actions are repetitive. For each step check for new pending operations:
-```
-$ ./dc4bc_cli get_operations --listen_addr localhost:8080
-```
-
-Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that DKG is finished (`event_dkg_master_key_confirm_received`):
-```
-[john_doe] State stage_signing_idle does not require an operation
-[john_doe] Successfully processed message with offset 10, type event_dkg_master_key_confirm_received
+[john_doe] message event_dkg_commit_confirm_received done successfully from john_doe
 ```
 
 Next steps are:
@@ -239,6 +253,28 @@ Next steps are:
 - Broadcast commits  - you'll be broadcasting a public derivative of your secret seed for the key shards that will be used to check that you don't try to cheat at DKG
 - Collect commits and broadcast deals - you'll be collecting each other's commits and sending each participant a private message that will be used to construct your key shard
 - Collect deals and broadcast reconstructed public key  - you'll be using private messages from other people to generate your key shard
+
+Further actions are repetitive:
+
+For each step check for new pending operations:
+
+```
+$ ./dc4bc_cli get_operations --listen_addr localhost:8080
+Please, select operation:
+-----------------------------------------------------
+1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
+   Operation ID: 2f217f58-a94f-47d8-b871-f35a15275184
+   Description:  send commits for the DKG round
+-----------------------------------------------------
+Select operation and press Enter. Ctrl+C for cancel
+
+```
+
+Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that DKG is finished (`event_dkg_master_key_confirm_received`):
+```
+[john_doe] State stage_signing_idle does not require an operation
+[john_doe] Successfully processed message with offset 10, type event_dkg_master_key_confirm_received
+```
 
 Key generation ceremony is over.  `exit` airgapped dkg tool prompt and backup your airapped machine db multiple times to different media. 
 
