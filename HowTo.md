@@ -282,8 +282,40 @@ Signature is correct!
 
 Now the ceremony is  over. 
 
+#### Reinitialize DKG
 
-### Patching old(from 0.1.4 relaese) appendlog for reinit procedure
+If you've lost all your states, communication keys, but your mnemonic for private DKG key is safe, it is possible to
+reinitialize the whole DKG to recover DKG master key.
+
+To do this, each participant must generate a new pair of communication keys (see above) and share a public one with other participants.
+On your airgapped machine each participant must recover a private DKG key-pair:
+
+```shell
+>>> set_seed
+> WARNING! this will overwrite your old seed, which might make DKGs you've done with it unusable.
+> Only do this on a fresh db_path. Type 'ok' to  continue: ok
+> Enter the BIP39 mnemonic for a random seed:
+```
+
+Then someone must use ```dkg_reinitializer``` utility to generate a reinit message for dc4bc_d:
+
+```shell
+$ ./dkg_reinitializer reinit --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic <DKG_TOPIC> --kafka_consumer_group <YOUR USERNAME>_group -o reinit.json
+```
+In this example the message will be saved to ```reinit.json``` file.
+Now someone needs to open this file and paste shared communication public keys in relevant "new_comm_pub_key" fields.
+
+Then someone must use ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
+
+```shell
+$ ./dc4bc_cli reinit_dkg reinit.json
+```
+
+The command will send the message to the append-only log, dc4bc_d process it and will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.).
+
+After you have processed the operation in airgapped, you have your master DKG pubkey recovered, so you can sign any messages!
+
+#### Patching old(from 0.1.4 relaese) appendlog for reinit procedure
 
 To make the old append log from `dkg_reinitializer` compatible with the latest `dc4bc_d` release, you need to patch it by running the `dkg_reinit_log_adapter` utility with original old log file as the first argument and a name for the new patched file as the second argument
 ```bash
