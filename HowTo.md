@@ -332,4 +332,5 @@ To make the old append log from `dkg_reinitializer` compatible with the latest `
 ```bash
 ./dkg_reinit_log_adapter old_reinit_log_file.json new_reinit_log_file.json 
 ```
-Since we are unable to sign the patched log file with the old priv key, it is nessesary to disable keys verification for the reinit step by setting `skip_comm_keys_verification` to true when you start a node.
+
+Then, before running `./dc4bc_cli reinit_dkg new_reinit_log_file.json` from the previous _Reinitialize DKG_ section, you need to disable keys verification for the reinit step with the `--skip_comm_keys_verification` flag when re-running the node. After `./dc4bc_cli reinit_dkg new_reinit_log_file.json` has done its job, you need to restart the node once again, without the `--skip_comm_keys_verification` flag, and continue the procedure from the _Reinitialize DKG_ section.
