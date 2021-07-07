@@ -669,16 +669,16 @@ func createMessage(origMesage storage.Message) (storage.Message, error) {
 	return newMsg, nil
 }
 
-func GetAdaptedReDKG(originalDKR types.ReDKG) (types.ReDKG, error) {
+func GetAdaptedReDKG(originalDKG types.ReDKG) (types.ReDKG, error) {
 	adaptedReDKG := types.ReDKG{}
 
-	adaptedReDKG.DKGID = originalDKR.DKGID
-	adaptedReDKG.Participants = originalDKR.Participants
-	adaptedReDKG.Threshold = originalDKR.Threshold
+	adaptedReDKG.DKGID = originalDKG.DKGID
+	adaptedReDKG.Participants = originalDKG.Participants
+	adaptedReDKG.Threshold = originalDKG.Threshold
 	adaptedReDKG.Messages = []storage.Message{}
 	var newOffset uint64
 	fixedSenders := map[string]struct{}{}
-	for _, m := range originalDKR.Messages {
+	for _, m := range originalDKG.Messages {
 		if _, found := fixedSenders[m.SenderAddr]; !found && fsm.Event(m.Event) == dkg_proposal_fsm.EventDKGDealConfirmationReceived {
 			fixedSenders[m.SenderAddr] = struct{}{}
 			workAroundMessage, err := createMessage(m)

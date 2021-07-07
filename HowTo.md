@@ -281,3 +281,12 @@ Signature is correct!
 ```
 
 Now the ceremony is  over. 
+
+
+### Patching old(from 0.1.4 relaese) appendlog for reinit procedure
+
+To make the old append log from `dkg_reinitializer` compatible with the latest `dc4bc_d` release, you need to patch it by running the `dkg_reinit_log_adapter` utility with original old log file as the first argument and a name for the new patched file as the second argument
+```bash
+./dkg_reinit_log_adapter old_reinit_log_file.json new_reinit_log_file.json 
+```
+Since we are unable to sign the patched log file by the old priv key, it is nessesary to disable keys verification for the reinit step by setting `skip_comm_keys_verification` to true when you start a node.
