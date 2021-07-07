@@ -197,7 +197,7 @@ The command returns a hash of the proposing message. If it is not equal to the h
 
 Select an operation by typing its number and press Enter. This operation requires only a confirmation of user, so it's just sends a message to the append-only log.
 
-When all participants perform the necessary operations, the node will proceed to the next step:
+When all participants confirm their participation in DKG round, the node will proceed to the next step:
 ```
 [john_doe] message event_sig_proposal_confirm_by_participant done successfully from john_doe
 ```
