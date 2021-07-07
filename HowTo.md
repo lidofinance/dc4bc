@@ -321,4 +321,4 @@ To make the old append log from `dkg_reinitializer` compatible with the latest `
 ```bash
 ./dkg_reinit_log_adapter old_reinit_log_file.json new_reinit_log_file.json 
 ```
-Since we are unable to sign the patched log file by the old priv key, it is nessesary to disable keys verification for the reinit step by setting `skip_comm_keys_verification` to true when you start a node.
+Since we are unable to sign the patched log file with the old priv key, it is nessesary to disable keys verification for the reinit step by setting `skip_comm_keys_verification` to true when you start a node.
