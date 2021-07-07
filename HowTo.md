@@ -313,7 +313,18 @@ $ ./dc4bc_cli reinit_dkg reinit.json
 
 The command will send the message to the append-only log, dc4bc_d process it and will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.).
 
-After you have processed the operation in airgapped, you have your master DKG pubkey recovered, so you can sign any messages!
+```
+$ ./dc4bc_cli get_operations
+Please, select operation:
+-----------------------------------------------------
+ 1)		DKG round ID: d62c6c478d39d4239c6c5ceb0aea6792
+		Operation ID: 34799e2301ae794c0b4f5bc9886ed5fa
+		Description: reinit DKG
+-----------------------------------------------------
+Select operation and press Enter. Ctrl+C for cancel
+```
+
+After you have processed the operation in airgapped, you have your master DKG pubkey recovered, so you can sign new messages!
 
 #### Patching old(from 0.1.4 relaese) appendlog for reinit procedure
 
