@@ -11,6 +11,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lidofinance/dc4bc/http_api"
+
 	"github.com/segmentio/kafka-go/sasl/plain"
 
 	"github.com/lidofinance/dc4bc/fsm/config"
@@ -66,7 +68,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, flagConfig, "", "path to your config file")
 	rootCmd.PersistentFlags().Bool(flagSkipCommKeysVerification, false, "verify messages from append-log or not")
 	rootCmd.PersistentFlags().String(flagStorageIgnoreMessages, "", "Messages ids or offsets separated by comma (id_1,id_2,...,id_n) to ignore when reading from storage")
-	rootCmd.PersistentFlags().Bool(flagOffsetsToIgnoreMessages, false, "Consider values provided in " + flagStorageIgnoreMessages + " flag to be message offsets instead of ids")
+	rootCmd.PersistentFlags().Bool(flagOffsetsToIgnoreMessages, false, "Consider values provided in "+flagStorageIgnoreMessages+" flag to be message offsets instead of ids")
 
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 	exitIfError(viper.BindPFlag(flagListenAddr, rootCmd.PersistentFlags().Lookup(flagListenAddr)))
@@ -154,7 +156,7 @@ func parseMessagesToIgnore(messages string, useOffset bool) (msgs []string, err 
 	if useOffset {
 		for _, msg := range msgs {
 			if _, err = strconv.ParseUint(msg, 10, 64); err != nil {
-				return nil, fmt.Errorf("when %s flag is specified, values provided in %s flag should be" +
+				return nil, fmt.Errorf("when %s flag is specified, values provided in %s flag should be"+
 					" parsable into uint64. error: %w", flagOffsetsToIgnoreMessages, flagStorageIgnoreMessages, err)
 			}
 		}
@@ -233,11 +235,11 @@ func startClientCommand() *cobra.Command {
 			processor.SetDelay(framesDelay)
 			processor.SetChunkSize(chunkSize)
 
-			cli, err := client.NewClient(ctx, username, state, stg, keyStore, processor)
+			client, err := client.NewClient(ctx, username, state, stg, keyStore)
 			if err != nil {
 				return fmt.Errorf("failed to init client: %w", err)
 			}
-			cli.SetSkipCommKeysVerification(viper.GetBool(flagSkipCommKeysVerification))
+			client.SetSkipCommKeysVerification(viper.GetBool(flagSkipCommKeysVerification))
 
 			sigs := make(chan os.Signal, 1)
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -254,16 +256,17 @@ func startClientCommand() *cobra.Command {
 			listenAddress := viper.GetString(flagListenAddr)
 
 			go func() {
-				if err := cli.StartHTTPServer(listenAddress); err != nil {
+				httpAPI := http_api.NewNaiveHttpAPI(client, processor)
+				if err := httpAPI.Start(listenAddress); err != nil {
 					log.Fatalf("HTTP server error: %v", err)
 				}
 			}()
-			cli.GetLogger().Log("Client started to poll messages from append-only log")
-			cli.GetLogger().Log("Waiting for messages from append-only log...")
-			if err = cli.Poll(); err != nil {
+			client.GetLogger().Log("Client started to poll messages from append-only log")
+			client.GetLogger().Log("Waiting for messages from append-only log...")
+			if err = client.Poll(); err != nil {
 				return fmt.Errorf("error while handling operations: %w", err)
 			}
-			cli.GetLogger().Log("polling is stopped")
+			client.GetLogger().Log("polling is stopped")
 			return nil
 		},
 	}

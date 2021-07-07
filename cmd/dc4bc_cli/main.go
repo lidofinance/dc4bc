@@ -20,12 +20,12 @@ import (
 	"time"
 
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
+	"github.com/lidofinance/dc4bc/http_api"
 
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
 	"github.com/fatih/color"
-	"github.com/lidofinance/dc4bc/client"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/qr"
@@ -135,14 +135,14 @@ func getOperationsCommand() *cobra.Command {
 			}
 
 			if len(operations.Result) == 0 {
-				color.New(color.Bold).Println("The are no available operations yet")
+				_, _ = color.New(color.Bold).Println("The are no available operations yet")
 				return nil
 			}
 
 			colorTitle := color.New(color.Bold)
 			colorDKG := color.New(color.FgCyan)
 			colorOperationId := color.New(color.FgGreen)
-			colorTitle.Println("Please, select operation:")
+			_, _ = colorTitle.Println("Please, select operation:")
 			fmt.Println("-----------------------------------------------------")
 
 			actionsMap := map[string]string{}
@@ -151,13 +151,13 @@ func getOperationsCommand() *cobra.Command {
 				actionsMap[strconv.Itoa(actionId)] = operationId
 				fmt.Printf(" %s)\t\t", color.YellowString("%d", actionId))
 
-				colorTitle.Print("DKG round ID:")
-				colorDKG.Printf(" %s\n", operation.DKGIdentifier)
+				_, _ = colorTitle.Print("DKG round ID:")
+				_, _ = colorDKG.Printf(" %s\n", operation.DKGIdentifier)
 
-				colorTitle.Print("\t\tOperation ID:")
-				colorOperationId.Printf(" %s\n", operation.ID)
+				_, _ = colorTitle.Print("\t\tOperation ID:")
+				_, _ = colorOperationId.Printf(" %s\n", operation.ID)
 
-				colorTitle.Print("\t\tDescription:")
+				_, _ = colorTitle.Print("\t\tDescription:")
 				fmt.Printf(" %s\n", getShortOperationDescription(operation.Type))
 
 				/*  Moved to actions selection
@@ -182,13 +182,13 @@ func getOperationsCommand() *cobra.Command {
 				actionId++
 			}
 
-			colorTitle.Println("Select operation and press Enter. Ctrl+C for cancel")
+			_, _ = colorTitle.Println("Select operation and press Enter. Ctrl+C for cancel")
 
 			scanner := bufio.NewScanner(os.Stdin)
 			for scanner.Scan() {
 				if operationId, ok := actionsMap[scanner.Text()]; ok {
-					colorTitle.Print("Processing operation")
-					colorOperationId.Printf(" %s\n", operationId)
+					_, _ = colorTitle.Print("Processing operation")
+					_, _ = colorOperationId.Printf(" %s\n", operationId)
 
 					qrCmd := &cobra.Command{}
 
@@ -202,10 +202,10 @@ func getOperationsCommand() *cobra.Command {
 
 					qrCmd.SetArgs([]string{operationId})
 					qrCmd.Flags().AddFlagSet(cmd.Flags())
-					qrCmd.Execute()
+					_ = qrCmd.Execute()
 					return nil
 				} else {
-					color.New(color.FgRed).Println("Unknown operation action")
+					_, _ = color.New(color.FgRed).Println("Unknown operation action")
 				}
 			}
 
@@ -428,7 +428,7 @@ func reinitDKGQRPathCommand() *cobra.Command {
 	}
 }
 
-func rawGetRequest(url string) (*client.Response, error) {
+func rawGetRequest(url string) (*http_api.Response, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operations for node %w", err)
@@ -439,7 +439,7 @@ func rawGetRequest(url string) (*client.Response, error) {
 		return nil, fmt.Errorf("failed to read body %w", err)
 	}
 
-	var response client.Response
+	var response http_api.Response
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
@@ -556,7 +556,7 @@ func getUsernameCommand() *cobra.Command {
 	}
 }
 
-func rawPostRequest(url string, contentType string, data []byte) (*client.Response, error) {
+func rawPostRequest(url string, contentType string, data []byte) (*http_api.Response, error) {
 	resp, err := http.Post(url,
 		contentType, bytes.NewReader(data))
 	if err != nil {
@@ -568,7 +568,7 @@ func rawPostRequest(url string, contentType string, data []byte) (*client.Respon
 		return nil, fmt.Errorf("failed to read body %w", err)
 	}
 
-	var response client.Response
+	var response http_api.Response
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
@@ -898,7 +898,7 @@ func refreshState() *cobra.Command {
 			kafkaConsumerGroup = fmt.Sprintf("%s_%d", username, time.Now().Unix())
 		}
 
-		req := client.ResetStateRequest{
+		req := http_api.ResetStateRequest{
 			NewStateDBDSN:      newStateDBDSN,
 			UseOffset:          useOffset,
 			KafkaConsumerGroup: kafkaConsumerGroup,

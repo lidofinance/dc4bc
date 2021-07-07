@@ -5,7 +5,9 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/types"
+	"sort"
+
+	"github.com/lidofinance/dc4bc/client/operations"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -13,7 +15,6 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
-	"sort"
 )
 
 type DKGInvitationResponse responses.SignatureProposalParticipantInvitationsResponse
@@ -29,8 +30,8 @@ func (d DKGParticipants) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
 func (d DKGParticipants) Less(i, j int) bool { return d[i].Username < d[j].Username }
 
 type OperationsResponse struct {
-	ErrorMessage string                      `json:"error_message,omitempty"`
-	Result       map[string]*types.Operation `json:"result"`
+	ErrorMessage string                           `json:"error_message,omitempty"`
+	Result       map[string]*operations.Operation `json:"result"`
 }
 
 type FSMDumpResponse struct {
@@ -39,13 +40,13 @@ type FSMDumpResponse struct {
 }
 
 type SignaturesResponse struct {
-	ErrorMessage string                                    `json:"error_message,omitempty"`
-	Result       map[string][]types.ReconstructedSignature `json:"result"`
+	ErrorMessage string                                         `json:"error_message,omitempty"`
+	Result       map[string][]operations.ReconstructedSignature `json:"result"`
 }
 
 type SignatureResponse struct {
-	ErrorMessage string                         `json:"error_message,omitempty"`
-	Result       []types.ReconstructedSignature `json:"result"`
+	ErrorMessage string                              `json:"error_message,omitempty"`
+	Result       []operations.ReconstructedSignature `json:"result"`
 }
 
 type OperationResponse struct {
@@ -82,7 +83,7 @@ func calcStartDKGMessageHash(payload []byte) ([]byte, error) {
 	return hash[:], nil
 }
 
-func getShortOperationDescription(operationType types.OperationType) string {
+func getShortOperationDescription(operationType operations.OperationType) string {
 	switch fsm.State(operationType) {
 	case signature_proposal_fsm.StateAwaitParticipantsConfirmations:
 		return "confirm participation in the new DKG round"
@@ -100,7 +101,7 @@ func getShortOperationDescription(operationType types.OperationType) string {
 		return "send your partial sign for the message"
 	case signing_proposal_fsm.StateSigningPartialSignsCollected:
 		return "recover full signature for the message"
-	case types.ReinitDKG:
+	case operations.ReinitDKG:
 		return "reinit DKG"
 	default:
 		return "unknown operation"

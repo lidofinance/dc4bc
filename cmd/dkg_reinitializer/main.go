@@ -3,13 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/types"
-	"github.com/lidofinance/dc4bc/storage/kafka_storage"
-	"github.com/segmentio/kafka-go/sasl/plain"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"log"
 	"strings"
+
+	"github.com/lidofinance/dc4bc/client/operations"
+	"github.com/lidofinance/dc4bc/storage/kafka_storage"
+	"github.com/segmentio/kafka-go/sasl/plain"
+	"github.com/spf13/cobra"
 )
 
 const (
@@ -89,7 +90,7 @@ func reinit() *cobra.Command {
 				return fmt.Errorf("failed to get messages: %v", err)
 			}
 
-			reDKG, err := types.GenerateReDKGMessage(messages)
+			reDKG, err := operations.GenerateReDKGMessage(messages)
 			if err != nil {
 				return fmt.Errorf("failed to generate reDKG message: %v", err)
 			}

@@ -3,17 +3,18 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"log"
 	"path/filepath"
 	"strings"
 	"sync"
 
+	"github.com/lidofinance/dc4bc/client/operations"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
+
 	vss "github.com/corestario/kyber/share/vss/rabin"
 
 	"github.com/corestario/kyber"
 	"github.com/corestario/kyber/encrypt/ecies"
-	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/dkg"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -155,7 +156,7 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	return nil
 }
 
-func (am *Machine) removeSignatureOperations(o *client.Operation) error {
+func (am *Machine) removeSignatureOperations(o *operations.Operation) error {
 	var (
 		payload responses.SigningProcessParticipantResponse
 		err     error
@@ -165,7 +166,7 @@ func (am *Machine) removeSignatureOperations(o *client.Operation) error {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
 
-	removeSignatureOperationsFunc := func(op client.Operation) bool {
+	removeSignatureOperationsFunc := func(op operations.Operation) bool {
 		type signingPayload struct {
 			SigningId string
 		}
@@ -182,7 +183,7 @@ func (am *Machine) removeSignatureOperations(o *client.Operation) error {
 	return am.clearOperationsLog(o.DKGIdentifier, removeSignatureOperationsFunc)
 }
 
-func (am *Machine) ProcessOperation(operation client.Operation, storeOperation bool) (string, error) {
+func (am *Machine) ProcessOperation(operation operations.Operation, storeOperation bool) (string, error) {
 	resultOperation, err := am.GetOperationResult(operation)
 	if err != nil {
 		return "", fmt.Errorf(
@@ -202,13 +203,13 @@ func (am *Machine) ProcessOperation(operation client.Operation, storeOperation b
 		}
 	}
 
-	operationBz, err := json.Marshal(resultOperation)
+	qrPath := filepath.Join(am.ResultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
+	operationJSON, err := operation.ToJson()
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal operation: %w", err)
+		return "", fmt.Errorf("failed to get operation JSON: %w", err)
 	}
 
-	qrPath := filepath.Join(am.ResultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
-	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
+	if err = am.qrProcessor.WriteQR(qrPath, operationJSON); err != nil {
 		return "", fmt.Errorf("failed to write QR: %w", err)
 	}
 
@@ -256,7 +257,7 @@ func (am *Machine) decryptDataFromParticipant(data []byte) ([]byte, error) {
 	return decryptedData, nil
 }
 
-func (am *Machine) GetOperationResult(operation client.Operation) (client.Operation, error) {
+func (am *Machine) GetOperationResult(operation operations.Operation) (operations.Operation, error) {
 	var (
 		err error
 	)
@@ -264,7 +265,7 @@ func (am *Machine) GetOperationResult(operation client.Operation) (client.Operat
 	// handler gets a pointer to an operation, do necessary things
 	// and write a result (or an error) to .Result field of operation
 	switch fsm.State(operation.Type) {
-	case client.ReinitDKG:
+	case operations.ReinitDKG:
 		err = am.handleReinitDKG(&operation)
 	case dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:
 		err = am.handleStateDkgCommitsAwaitConfirmations(&operation)
@@ -297,7 +298,7 @@ func (am *Machine) GetOperationResult(operation client.Operation) (client.Operat
 }
 
 // writeErrorRequestToOperation writes error to a operation if some bad things happened
-func (am *Machine) writeErrorRequestToOperation(o *client.Operation, handlerError error) error {
+func (am *Machine) writeErrorRequestToOperation(o *operations.Operation, handlerError error) error {
 	// each type of request should have a required event even error
 	// maybe should be global?
 	eventToErrorMap := map[fsm.State]fsm.Event{
@@ -308,7 +309,7 @@ func (am *Machine) writeErrorRequestToOperation(o *client.Operation, handlerErro
 		dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:       dkg_proposal_fsm.EventDKGMasterKeyConfirmationError,
 		signing_proposal_fsm.StateSigningAwaitConfirmations:        signing_proposal_fsm.EventDeclineSigningConfirmation,
 		signing_proposal_fsm.StateSigningAwaitPartialSigns:         signing_proposal_fsm.EventSigningPartialSignError,
-		signing_proposal_fsm.StateSigningPartialSignsCollected:     client.SignatureReconstructionFailed,
+		signing_proposal_fsm.StateSigningPartialSignsCollected:     operations.SignatureReconstructionFailed,
 	}
 	pid, err := am.getParticipantID(o.DKGIdentifier)
 	if err != nil {

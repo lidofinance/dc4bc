@@ -11,16 +11,19 @@ import (
 	bls "github.com/corestario/kyber/pairing/bls12381"
 
 	"github.com/corestario/kyber"
+	bls "github.com/corestario/kyber/pairing/bls12381"
 	dkgPedersen "github.com/corestario/kyber/share/dkg/pedersen"
-	client "github.com/lidofinance/dc4bc/client/types"
+	ops "github.com/lidofinance/dc4bc/client/operations"
 	"github.com/lidofinance/dc4bc/dkg"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/storage"
 )
 
-func createMessage(o client.Operation, data []byte) storage.Message {
+func createMessage(o ops.Operation, data []byte) storage.Message {
 	return storage.Message{
 		Event:         string(o.Event),
 		Data:          data,
@@ -33,8 +36,8 @@ func (am *Machine) GetPubKey() kyber.Point {
 	return am.pubKey
 }
 
-func (am *Machine) handleReinitDKG(operation *client.Operation) error {
-	var operations []client.Operation
+func (am *Machine) handleReinitDKG(operation *ops.Operation) error {
+	var operations []ops.Operation
 	if err := json.Unmarshal(operation.Payload, &operations); err != nil {
 		return fmt.Errorf("failed to unmarshal operation payload: %w", err)
 	}
@@ -47,13 +50,13 @@ func (am *Machine) handleReinitDKG(operation *client.Operation) error {
 			return fmt.Errorf("failed to process operation: %w", err)
 		}
 	}
-	operation.Event = client.OperationProcessed
+	operation.Event = ops.OperationProcessed
 	return nil
 }
 
 // handleStateDkgCommitsAwaitConfirmations takes a list of participants DKG pub keys as payload and
 // returns DKG commits to broadcast
-func (am *Machine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) error {
+func (am *Machine) handleStateDkgCommitsAwaitConfirmations(o *ops.Operation) error {
 	var (
 		payload responses.DKGProposalPubKeysParticipantResponse
 		err     error
@@ -139,7 +142,7 @@ func (am *Machine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) 
 // handleStateDkgDealsAwaitConfirmations takes broadcasted participants commits as payload and
 // returns a private deal for every participant.
 // Each deal is encrypted with a participant's public key which received on the previous step
-func (am *Machine) handleStateDkgDealsAwaitConfirmations(o *client.Operation) error {
+func (am *Machine) handleStateDkgDealsAwaitConfirmations(o *ops.Operation) error {
 	var (
 		payload responses.DKGProposalCommitParticipantResponse
 		err     error
@@ -221,7 +224,7 @@ func (am *Machine) handleStateDkgDealsAwaitConfirmations(o *client.Operation) er
 
 // handleStateDkgResponsesAwaitConfirmations takes deals sent to us as payload, decrypt and process them and
 // returns responses to broadcast
-func (am *Machine) handleStateDkgResponsesAwaitConfirmations(o *client.Operation) error {
+func (am *Machine) handleStateDkgResponsesAwaitConfirmations(o *ops.Operation) error {
 	var (
 		payload responses.DKGProposalDealParticipantResponse
 		err     error
@@ -282,7 +285,7 @@ func (am *Machine) handleStateDkgResponsesAwaitConfirmations(o *client.Operation
 
 // handleStateDkgMasterKeyAwaitConfirmations takes broadcasted responses from the previous step, process them,
 // reconstructs a distributed DKG public key to broadcast and saves a private part of the key
-func (am *Machine) handleStateDkgMasterKeyAwaitConfirmations(o *client.Operation) error {
+func (am *Machine) handleStateDkgMasterKeyAwaitConfirmations(o *ops.Operation) error {
 	var (
 		payload responses.DKGProposalResponseParticipantResponse
 		err     error

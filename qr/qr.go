@@ -7,6 +7,9 @@ import (
 	"image/draw"
 	"image/gif"
 	"os"
+	"path/filepath"
+
+	"github.com/lidofinance/dc4bc/client/operations"
 
 	encoder "github.com/skip2/go-qrcode"
 
@@ -14,7 +17,10 @@ import (
 	"github.com/makiuchi-d/gozxing/qrcode"
 )
 
-const defaultChunkSize = 512
+const (
+	QRsDir           = "/tmp"
+	defaultChunkSize = 512
+)
 
 var palette = color.Palette{
 	image.Transparent,
@@ -58,6 +64,7 @@ func (p *CameraProcessor) WriteQR(path string, data []byte) error {
 		return fmt.Errorf("failed to divide data on chunks: %w", err)
 	}
 	outGif := &gif.GIF{}
+
 	for _, c := range chunks {
 		code, err := encoder.New(string(c), encoder.Medium)
 		if err != nil {
@@ -71,14 +78,17 @@ func (p *CameraProcessor) WriteQR(path string, data []byte) error {
 		outGif.Image = append(outGif.Image, palettedImage)
 		outGif.Delay = append(outGif.Delay, p.gifFramesDelay)
 	}
+
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
 	}
 	defer f.Close()
+
 	if err := gif.EncodeAll(f, outGif); err != nil {
 		return fmt.Errorf("failed to encode qr gif: %w", err)
 	}
+
 	return nil
 }
 
@@ -99,4 +109,9 @@ func ReadDataFromQR(img image.Image) ([]byte, error) {
 
 func EncodeQR(data []byte) ([]byte, error) {
 	return encoder.Encode(string(data), encoder.Medium, 512)
+}
+
+func GetDefaultGIFPath(operation *operations.Operation) string {
+	operationQRPath := filepath.Join(QRsDir, fmt.Sprintf("dc4bc_qr_%s", operation.ID))
+	return fmt.Sprintf("%s.gif", operationQRPath)
 }

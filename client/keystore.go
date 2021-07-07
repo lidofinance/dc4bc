@@ -19,7 +19,7 @@ type KeyStore interface {
 }
 
 // LevelDBKeyStore is a temporary solution for keeping hot node keys.
-// The target state is an encrypted storage with password authentication.
+// The target State is an encrypted Storage with password authentication.
 type LevelDBKeyStore struct {
 	keystoreDb *leveldb.DB
 }
@@ -36,7 +36,7 @@ func NewLevelDBKeyStore(username, keystorePath string) (KeyStore, error) {
 
 	if _, err := keystore.keystoreDb.Get([]byte(secretsKey), nil); err != nil {
 		if err := keystore.initJsonKey(secretsKey, map[string]*KeyPair{}); err != nil {
-			return nil, fmt.Errorf("failed to init %s storage: %w", operationsKey, err)
+			return nil, fmt.Errorf("failed to init %s Storage: %w", operationsKey, err)
 		}
 	}
 
@@ -92,11 +92,11 @@ func (s *LevelDBKeyStore) initJsonKey(key string, data interface{}) error {
 	if _, err := s.keystoreDb.Get([]byte(key), nil); err != nil {
 		dataBz, err := json.Marshal(data)
 		if err != nil {
-			return fmt.Errorf("failed to marshal storage structure: %w", err)
+			return fmt.Errorf("failed to marshal Storage structure: %w", err)
 		}
 		err = s.keystoreDb.Put([]byte(key), dataBz, nil)
 		if err != nil {
-			return fmt.Errorf("failed to init state: %w", err)
+			return fmt.Errorf("failed to init State: %w", err)
 		}
 	}
 

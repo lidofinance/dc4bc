@@ -3,17 +3,18 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/corestario/kyber/pairing"
 	"github.com/corestario/kyber/sign/bls"
 	"github.com/corestario/kyber/sign/tbls"
-	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/client/operations"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 )
 
 // handleStateSigningAwaitConfirmations returns a confirmation of participation to create a threshold signature for a data
-func (am *Machine) handleStateSigningAwaitConfirmations(o *client.Operation) error {
+func (am *Machine) handleStateSigningAwaitConfirmations(o *operations.Operation) error {
 	var (
 		payload responses.SigningProposalParticipantInvitationsResponse
 		err     error
@@ -43,7 +44,7 @@ func (am *Machine) handleStateSigningAwaitConfirmations(o *client.Operation) err
 }
 
 // handleStateSigningAwaitPartialSigns takes a data to sign as payload and returns a partial sign for the data to broadcast
-func (am *Machine) handleStateSigningAwaitPartialSigns(o *client.Operation) error {
+func (am *Machine) handleStateSigningAwaitPartialSigns(o *operations.Operation) error {
 	var (
 		payload responses.SigningPartialSignsParticipantInvitationsResponse
 		err     error
@@ -79,7 +80,7 @@ func (am *Machine) handleStateSigningAwaitPartialSigns(o *client.Operation) erro
 }
 
 // reconstructThresholdSignature takes broadcasted partial signs from the previous step and reconstructs a full signature
-func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
+func (am *Machine) reconstructThresholdSignature(o *operations.Operation) error {
 	var (
 		payload responses.SigningProcessParticipantResponse
 		err     error
@@ -105,7 +106,7 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 		return fmt.Errorf("failed to reconsruct full signature for msg: %w", err)
 	}
 
-	response := client.ReconstructedSignature{
+	response := operations.ReconstructedSignature{
 		SigningID:  payload.SigningId,
 		SrcPayload: payload.SrcPayload,
 		Signature:  reconstructedSignature,
@@ -115,7 +116,7 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 	if err != nil {
 		return fmt.Errorf("failed to generate reconstructed signature response: %w", err)
 	}
-	o.Event = client.SignatureReconstructed
+	o.Event = operations.SignatureReconstructed
 	o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, respBz))
 	return nil
 }

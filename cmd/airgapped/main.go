@@ -20,8 +20,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/lidofinance/dc4bc/client/operations"
+
 	"github.com/lidofinance/dc4bc/airgapped"
-	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/qr"
 	"github.com/syndtr/goleveldb/leveldb"
 	"golang.org/x/crypto/ssh/terminal"
@@ -166,7 +167,7 @@ func (p *prompt) readOperationCommand() error {
 		return fmt.Errorf("failed to read Operation file: %w", err)
 	}
 
-	var operation client.Operation
+	var operation operations.Operation
 	if err := json.Unmarshal(operationBz, &operation); err != nil {
 		return fmt.Errorf("failed to unmarshal Operation: %w", err)
 	}

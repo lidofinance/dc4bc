@@ -8,10 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lidofinance/dc4bc/client/types"
-
+	ops "github.com/lidofinance/dc4bc/client/operations"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
-
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -27,7 +25,7 @@ func makeCompositeKey(prefix, key string) []byte {
 	return []byte(fmt.Sprintf("%s_%s", prefix, key))
 }
 
-// State is the client's state (it keeps the offset, the FSM state and
+// State is the client's State (it keeps the offset, the FSM State and
 // the Operation pool.
 type State interface {
 	NewStateFromOld(stateDbPath string) (State, string, error)
@@ -39,14 +37,14 @@ type State interface {
 	LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error)
 	GetAllFSM() (map[string]*state_machines.FSMInstance, error)
 
-	PutOperation(operation *types.Operation) error
-	DeleteOperation(operation *types.Operation) error
-	GetOperations() (map[string]*types.Operation, error)
-	GetOperationByID(operationID string) (*types.Operation, error)
+	PutOperation(operation *ops.Operation) error
+	DeleteOperation(operation *ops.Operation) error
+	GetOperations() (map[string]*ops.Operation, error)
+	GetOperationByID(operationID string) (*ops.Operation, error)
 
-	SaveSignature(signature types.ReconstructedSignature) error
-	GetSignatureByID(dkgID, signatureID string) ([]types.ReconstructedSignature, error)
-	GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error)
+	SaveSignature(signature ops.ReconstructedSignature) error
+	GetSignatureByID(dkgID, signatureID string) ([]ops.ReconstructedSignature, error)
+	GetSignatures(dkgID string) (map[string][]ops.ReconstructedSignature, error)
 }
 
 type LevelDBState struct {
@@ -68,36 +66,36 @@ func NewLevelDBState(stateDbPath string, topic string) (State, error) {
 		stateDbPath: stateDbPath,
 	}
 
-	// Init state key for operations JSON.
+	// Init State key for operations JSON.
 	operationsCompositeKey := makeCompositeKey(topic, operationsKey)
 	if _, err := state.stateDb.Get(operationsCompositeKey, nil); err != nil {
-		if err := state.initJsonKey(operationsCompositeKey, map[string]*types.Operation{}); err != nil {
-			return nil, fmt.Errorf("failed to init %s storage: %w", string(operationsCompositeKey), err)
+		if err := state.initJsonKey(operationsCompositeKey, map[string]*ops.Operation{}); err != nil {
+			return nil, fmt.Errorf("failed to init %s Storage: %w", string(operationsCompositeKey), err)
 		}
 	}
 
-	// Init state key for operations JSON.
+	// Init State key for operations JSON.
 	deleteOperationsCompositeKey := makeCompositeKey(topic, deletedOperationsKey)
 	if _, err := state.stateDb.Get(deleteOperationsCompositeKey, nil); err != nil {
-		if err := state.initJsonKey(deleteOperationsCompositeKey, map[string]*types.Operation{}); err != nil {
-			return nil, fmt.Errorf("failed to init %s storage: %w", string(deleteOperationsCompositeKey), err)
+		if err := state.initJsonKey(deleteOperationsCompositeKey, map[string]*ops.Operation{}); err != nil {
+			return nil, fmt.Errorf("failed to init %s Storage: %w", string(deleteOperationsCompositeKey), err)
 		}
 	}
 
-	// Init state key for offset bytes.
+	// Init State key for offset bytes.
 	offsetCompositeKey := makeCompositeKey(topic, offsetKey)
 	if _, err := state.stateDb.Get(offsetCompositeKey, nil); err != nil {
 		bz := make([]byte, 8)
 		binary.LittleEndian.PutUint64(bz, 0)
 		if err := db.Put(offsetCompositeKey, bz, nil); err != nil {
-			return nil, fmt.Errorf("failed to init %s storage: %w", string(offsetCompositeKey), err)
+			return nil, fmt.Errorf("failed to init %s Storage: %w", string(offsetCompositeKey), err)
 		}
 	}
 
 	fsmStateCompositeKey := makeCompositeKey(topic, fsmStateKey)
 	if _, err := state.stateDb.Get(fsmStateCompositeKey, nil); err != nil {
 		if err := db.Put(fsmStateCompositeKey, []byte{}, nil); err != nil {
-			return nil, fmt.Errorf("failed to init %s storage: %w", string(fsmStateCompositeKey), err)
+			return nil, fmt.Errorf("failed to init %s Storage: %w", string(fsmStateCompositeKey), err)
 		}
 	}
 
@@ -118,11 +116,11 @@ func (s *LevelDBState) initJsonKey(key []byte, data interface{}) error {
 	if _, err := s.stateDb.Get(key, nil); err != nil {
 		operationsBz, err := json.Marshal(data)
 		if err != nil {
-			return fmt.Errorf("failed to marshal storage structure: %w", err)
+			return fmt.Errorf("failed to marshal Storage structure: %w", err)
 		}
-		err = s.stateDb.Put([]byte(key), operationsBz, nil)
+		err = s.stateDb.Put(key, operationsBz, nil)
 		if err != nil {
-			return fmt.Errorf("failed to init state: %w", err)
+			return fmt.Errorf("failed to init State: %w", err)
 		}
 	}
 
@@ -172,7 +170,7 @@ func (s *LevelDBState) SaveFSM(dkgRoundID string, dump []byte) error {
 	}
 
 	if err := s.stateDb.Put(makeCompositeKey(s.topic, fsmStateKey), fsmInstancesBz, nil); err != nil {
-		return fmt.Errorf("failed to save fsm state: %w", err)
+		return fmt.Errorf("failed to save fsm State: %w", err)
 	}
 
 	return nil
@@ -225,7 +223,7 @@ func (s *LevelDBState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, 
 	return fsmInstance, ok, nil
 }
 
-func (s *LevelDBState) PutOperation(operation *types.Operation) error {
+func (s *LevelDBState) PutOperation(operation *ops.Operation) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -261,7 +259,7 @@ func (s *LevelDBState) PutOperation(operation *types.Operation) error {
 }
 
 // DeleteOperation deletes operation from an operation pool
-func (s *LevelDBState) DeleteOperation(operation *types.Operation) error {
+func (s *LevelDBState) DeleteOperation(operation *ops.Operation) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -304,14 +302,14 @@ func (s *LevelDBState) DeleteOperation(operation *types.Operation) error {
 }
 
 // GetOperations returns all operations from an operation pool
-func (s *LevelDBState) GetOperations() (map[string]*types.Operation, error) {
+func (s *LevelDBState) GetOperations() (map[string]*ops.Operation, error) {
 	s.Lock()
 	defer s.Unlock()
 
 	return s.getOperations()
 }
 
-func (s *LevelDBState) GetOperationByID(operationID string) (*types.Operation, error) {
+func (s *LevelDBState) GetOperationByID(operationID string) (*ops.Operation, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -328,7 +326,7 @@ func (s *LevelDBState) GetOperationByID(operationID string) (*types.Operation, e
 	return operation, nil
 }
 
-func (s *LevelDBState) getOperations() (map[string]*types.Operation, error) {
+func (s *LevelDBState) getOperations() (map[string]*ops.Operation, error) {
 	deletedOperations, err := s.getDeletedOperations()
 	if err != nil {
 		return nil, fmt.Errorf("failed to getDeletedOperations: %w", err)
@@ -340,12 +338,12 @@ func (s *LevelDBState) getOperations() (map[string]*types.Operation, error) {
 		return nil, fmt.Errorf("failed to get Operations (key: %s): %w", string(operationsCompositeKey), err)
 	}
 
-	var operations map[string]*types.Operation
+	var operations map[string]*ops.Operation
 	if err := json.Unmarshal(bz, &operations); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal Operations: %w", err)
 	}
 
-	result := make(map[string]*types.Operation)
+	result := make(map[string]*ops.Operation)
 	for id, operation := range operations {
 		if _, ok := deletedOperations[id]; !ok {
 			result[id] = operation
@@ -355,14 +353,14 @@ func (s *LevelDBState) getOperations() (map[string]*types.Operation, error) {
 	return result, nil
 }
 
-func (s *LevelDBState) getDeletedOperations() (map[string]*types.Operation, error) {
+func (s *LevelDBState) getDeletedOperations() (map[string]*ops.Operation, error) {
 	deletedOperationsCompositeKey := makeCompositeKey(s.topic, deletedOperationsKey)
 	bz, err := s.stateDb.Get(deletedOperationsCompositeKey, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deleted Operations (key: %s): %w", string(deletedOperationsCompositeKey), err)
 	}
 
-	var operations map[string]*types.Operation
+	var operations map[string]*ops.Operation
 	if err := json.Unmarshal(bz, &operations); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal deleted Operations: %w", err)
 	}
@@ -370,7 +368,7 @@ func (s *LevelDBState) getDeletedOperations() (map[string]*types.Operation, erro
 	return operations, nil
 }
 
-func (s *LevelDBState) getSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
+func (s *LevelDBState) getSignatures(dkgID string) (map[string][]ops.ReconstructedSignature, error) {
 	bz, err := s.stateDb.Get(makeCompositeKey(signaturesKeyPrefix, dkgID), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
@@ -379,7 +377,7 @@ func (s *LevelDBState) getSignatures(dkgID string) (map[string][]types.Reconstru
 		return nil, fmt.Errorf("failed to get signatures for dkgID %s: %w", dkgID, err)
 	}
 
-	var signatures map[string][]types.ReconstructedSignature
+	var signatures map[string][]ops.ReconstructedSignature
 	if err := json.Unmarshal(bz, &signatures); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal Operations: %w", err)
 	}
@@ -387,14 +385,14 @@ func (s *LevelDBState) getSignatures(dkgID string) (map[string][]types.Reconstru
 	return signatures, nil
 }
 
-func (s *LevelDBState) GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
+func (s *LevelDBState) GetSignatures(dkgID string) (map[string][]ops.ReconstructedSignature, error) {
 	s.Lock()
 	defer s.Unlock()
 
 	return s.getSignatures(dkgID)
 }
 
-func (s *LevelDBState) GetSignatureByID(dkgID, signatureID string) ([]types.ReconstructedSignature, error) {
+func (s *LevelDBState) GetSignatureByID(dkgID, signatureID string) ([]ops.ReconstructedSignature, error) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -411,7 +409,7 @@ func (s *LevelDBState) GetSignatureByID(dkgID, signatureID string) ([]types.Reco
 	return signature, nil
 }
 
-func (s *LevelDBState) SaveSignature(signature types.ReconstructedSignature) error {
+func (s *LevelDBState) SaveSignature(signature ops.ReconstructedSignature) error {
 	s.Lock()
 	defer s.Unlock()
 
@@ -420,7 +418,7 @@ func (s *LevelDBState) SaveSignature(signature types.ReconstructedSignature) err
 		return fmt.Errorf("failed to getSignatures: %w", err)
 	}
 	if signatures == nil {
-		signatures = make(map[string][]types.ReconstructedSignature)
+		signatures = make(map[string][]ops.ReconstructedSignature)
 	}
 
 	sig := signatures[signature.SigningID]

@@ -2,10 +2,11 @@ package airgapped
 
 import (
 	"fmt"
-	client "github.com/lidofinance/dc4bc/client/types"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	"github.com/lidofinance/dc4bc/client/operations"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMachine_DropOperationsLog(t *testing.T) {
@@ -17,9 +18,9 @@ func TestMachine_DropOperationsLog(t *testing.T) {
 		t.Fatalf("failed to create airgapped machine: %v", err)
 	}
 
-	err = am.storeOperation(client.Operation{DKGIdentifier: dkgIdentifier, ID: "id_1"})
+	err = am.storeOperation(operations.Operation{DKGIdentifier: dkgIdentifier, ID: "id_1"})
 	require.NoError(t, err)
-	err = am.storeOperation(client.Operation{DKGIdentifier: dkgIdentifier, ID: "id_2"})
+	err = am.storeOperation(operations.Operation{DKGIdentifier: dkgIdentifier, ID: "id_2"})
 	require.NoError(t, err)
 
 	ops, err := am.getOperationsLog(dkgIdentifier)
