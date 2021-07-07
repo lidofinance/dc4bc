@@ -330,6 +330,5 @@ After you have processed the operation in airgapped, you have your master DKG pu
 
 To make the old append log from `dkg_reinitializer` compatible with the latest `dc4bc_d` release, you need to patch it by running the `dkg_reinit_log_adapter` utility with original old log file as the first argument and a name for the new patched file as the second argument
 ```shell
-./dkg_reinit_log_adapter adapt old_reinit_log_file.json new_reinit_log_file.json 
+./dkg_reinit_log_adapter adapt -i old_reinit_log_file.json -o new_reinit_log_file.json --username TestUser --key_storage_dbdsn ./stores/test_user_new_key_store
 ```
-Since we are unable to sign the patched log file with the old priv key, it is nessesary to disable keys verification for the reinit step by setting `skip_comm_keys_verification` to true when you start a node.
