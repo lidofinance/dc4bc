@@ -665,14 +665,6 @@ func createMessage(origMesage storage.Message) (storage.Message, error) {
 		SenderAddr:    origMesage.SenderAddr,
 		RecipientAddr: origMesage.SenderAddr,
 	}
-	// func (c *BaseClient) signMessage(message []byte) ([]byte, error) {
-	// 	keyPair, err := c.keyStore.LoadKeys(c.userName, "")
-	// 	if err != nil {
-	// 		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
-	// 	}
-
-	// 	return ed25519.Sign(keyPair.Priv, message), nil
-	// }
 
 	return newMsg, nil
 }
