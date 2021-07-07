@@ -50,6 +50,7 @@ type node struct {
 	keyPair      *KeyPair
 	air          *airgapped.Machine
 	listenAddr   string
+	KeyStore     KeyStore
 }
 
 type OperationsResponse struct {
@@ -149,6 +150,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			keyPair:      keyPair,
 			air:          airgappedMachine,
 			listenAddr:   fmt.Sprintf("localhost:%d", startingPort),
+			KeyStore:     keyStore,
 		}
 		startingPort++
 	}
@@ -708,18 +710,15 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		// to make reInitDKG message looks like in release 0.1.4
 		newDKG := convertDKGMessageto0_1_4(*reInitDKG)
 
-		// adding back self-confirm messages
+		// adding back self-confirm messages from each node to common adaptedDKG
 		// this is our test target
-		adaptedReDKG, err := GetAdaptedReDKG(newDKG)
-		if err != nil {
-			t.Fatalf(err.Error())
+		for i, n := range newNodes {
+			newDKG, err = GetAdaptedReDKG(newDKG, fmt.Sprintf("node_%d", i), n.KeyStore)
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
 		}
-		reInitDKG = &adaptedReDKG
-
-		// skip messages signature verification, since we are unable to sign self-confirm messages by old priv key
-		for _, node := range newNodes {
-			node.client.SetSkipCommKeysVerification(true)
-		}
+		reInitDKG = &newDKG
 	}
 
 	for _, node := range newNodes {
