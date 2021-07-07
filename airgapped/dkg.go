@@ -5,11 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/lidofinance/dc4bc/fsm/fsm"
-	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
-
-	bls "github.com/corestario/kyber/pairing/bls12381"
-
 	"github.com/corestario/kyber"
 	bls "github.com/corestario/kyber/pairing/bls12381"
 	dkgPedersen "github.com/corestario/kyber/share/dkg/pedersen"

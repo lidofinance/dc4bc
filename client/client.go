@@ -12,19 +12,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/lidofinance/dc4bc/storage/kafka_storage"
-
-	"github.com/lidofinance/dc4bc/fsm/types/responses"
-
-	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	sipf "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
-
-	"github.com/google/uuid"
 	ops "github.com/lidofinance/dc4bc/client/operations"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/common"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	dpf "github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	sipf "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
@@ -578,7 +571,7 @@ func (c *BaseClient) ResetState(newStateDBPath string, cg string, messages []str
 }
 
 func createMessage(origMesage storage.Message) (storage.Message, error) {
-	fsmReq, err := types.FSMRequestFromMessage(origMesage)
+	fsmReq, err := ops.FSMRequestFromMessage(origMesage)
 	if err != nil {
 		return storage.Message{}, fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
 	}
@@ -607,8 +600,8 @@ func createMessage(origMesage storage.Message) (storage.Message, error) {
 	return newMsg, nil
 }
 
-func GetAdaptedReDKG(originalDKG types.ReDKG) (types.ReDKG, error) {
-	adaptedReDKG := types.ReDKG{}
+func GetAdaptedReDKG(originalDKG ops.ReDKG) (ops.ReDKG, error) {
+	adaptedReDKG := ops.ReDKG{}
 
 	adaptedReDKG.DKGID = originalDKG.DKGID
 	adaptedReDKG.Participants = originalDKG.Participants
@@ -621,7 +614,7 @@ func GetAdaptedReDKG(originalDKG types.ReDKG) (types.ReDKG, error) {
 			fixedSenders[m.SenderAddr] = struct{}{}
 			workAroundMessage, err := createMessage(m)
 			if err != nil {
-				return types.ReDKG{}, fmt.Errorf("failed to construct new message for adapted reinit DKG message: %v", err)
+				return ops.ReDKG{}, fmt.Errorf("failed to construct new message for adapted reinit DKG message: %v", err)
 			}
 			workAroundMessage.Offset = newOffset
 			newOffset++

@@ -6,8 +6,9 @@ import (
 	"io/ioutil"
 	"log"
 
+	"github.com/lidofinance/dc4bc/client/operations"
+
 	"github.com/lidofinance/dc4bc/client"
-	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/spf13/cobra"
 )
 
@@ -40,7 +41,7 @@ func adapt() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read input file: %v", err)
 			}
-			var reDKG types.ReDKG
+			var reDKG operations.ReDKG
 
 			err = json.Unmarshal(data, &reDKG)
 			if err != nil {

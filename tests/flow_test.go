@@ -17,19 +17,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lidofinance/dc4bc/storage"
-
-	"github.com/lidofinance/dc4bc/qr"
-
-	"github.com/lidofinance/dc4bc/client/operations"
-
 	"github.com/lidofinance/dc4bc/airgapped"
 	"github.com/lidofinance/dc4bc/client"
+	"github.com/lidofinance/dc4bc/client/operations"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/http_api"
+	"github.com/lidofinance/dc4bc/qr"
 	"github.com/lidofinance/dc4bc/storage"
 	"github.com/lidofinance/dc4bc/storage/file_storage"
 )
@@ -602,8 +598,8 @@ func TestResetStateFlow(t *testing.T) {
 	}
 }
 
-func convertDKGMessageto0_1_4(orig types.ReDKG) types.ReDKG {
-	newDKG := types.ReDKG{}
+func convertDKGMessageto0_1_4(orig operations.ReDKG) operations.ReDKG {
+	newDKG := operations.ReDKG{}
 	newDKG.DKGID = orig.DKGID
 	newDKG.Participants = orig.Participants
 	newDKG.Threshold = orig.Threshold
@@ -722,7 +718,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 
 		// adding back self-confirm messages
 		// this is our test target
-		adaptedReDKG, err := GetAdaptedReDKG(newDKG)
+		adaptedReDKG, err := client.GetAdaptedReDKG(newDKG)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
