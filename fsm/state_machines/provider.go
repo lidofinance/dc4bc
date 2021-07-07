@@ -92,7 +92,7 @@ func FromDump(data []byte) (*FSMInstance, error) {
 	return i, err
 }
 
-func (i *FSMInstance) GetPubKeyByUsername(username string) (ed25519.PublicKey, error) {
+func (i *FSMInstance) GetPubKeyByUsername(username string) ([]ed25519.PublicKey, error) {
 	if i.dump == nil {
 		return nil, errors.New("dump not initialized")
 	}

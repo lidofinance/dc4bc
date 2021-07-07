@@ -21,7 +21,7 @@ type DumpedMachineStatePayload struct {
 	SignatureProposalPayload *SignatureConfirmation
 	DKGProposalPayload       *DKGConfirmation
 	SigningProposalPayload   *SigningConfirmation
-	PubKeys                  map[string]ed25519.PublicKey
+	PubKeys                  map[string][]ed25519.PublicKey
 	IDs                      map[string]int
 }
 
@@ -124,9 +124,9 @@ func (p *DumpedMachineStatePayload) SigningQuorumUpdate(id int, participant *Sig
 
 func (p *DumpedMachineStatePayload) SetPubKeyUsername(username string, pubKey ed25519.PublicKey) {
 	if p.PubKeys == nil {
-		p.PubKeys = make(map[string]ed25519.PublicKey)
+		p.PubKeys = make(map[string][]ed25519.PublicKey)
 	}
-	p.PubKeys[username] = pubKey
+	p.PubKeys[username] = append(p.PubKeys[username], pubKey)
 }
 
 func (p *DumpedMachineStatePayload) SetIDUsername(username string, id int) {
@@ -136,19 +136,19 @@ func (p *DumpedMachineStatePayload) SetIDUsername(username string, id int) {
 	p.IDs[username] = id
 }
 
-func (p *DumpedMachineStatePayload) GetPubKeyByUsername(username string) (ed25519.PublicKey, error) {
+func (p *DumpedMachineStatePayload) GetPubKeyByUsername(username string) ([]ed25519.PublicKey, error) {
 	if p.PubKeys == nil {
 		return nil, errors.New("{PubKeys} not initialized")
 	}
 	if username == "" {
 		return nil, errors.New("{username} cannot be empty")
 	}
-	pubKey, ok := p.PubKeys[username]
+	pubKeys, ok := p.PubKeys[username]
 	if !ok {
 		return nil, errors.New("cannot find public key by {username}")
 	}
 
-	return pubKey, nil
+	return pubKeys, nil
 }
 
 func (p *DumpedMachineStatePayload) GetIDByUsername(username string) (int, error) {

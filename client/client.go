@@ -196,6 +196,23 @@ func (c *BaseClient) reinitDKG(message storage.Message) error {
 
 	}
 
+	// save new comm keys into FSM to verify new messages
+	fsmInstance, err := c.getFSMInstance(req.DKGID)
+	if err != nil {
+		return fmt.Errorf("failed to get FSM instance: %w", err)
+	}
+	for _, reqParticipant := range req.Participants {
+		fsmInstance.FSMDump().Payload.SetPubKeyUsername(reqParticipant.Name, reqParticipant.NewCommPubKey)
+	}
+	fsmDump, err := fsmInstance.Dump()
+	if err != nil {
+		return fmt.Errorf("failed to get FSM dump")
+	}
+
+	if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+		return fmt.Errorf("failed to SaveFSM: %w", err)
+	}
+
 	operations := make([]*types.Operation, 0)
 	for _, msg := range req.Messages {
 		if fsm.Event(msg.Event) == sipf.EventSigningStart {
@@ -220,23 +237,6 @@ func (c *BaseClient) reinitDKG(message storage.Message) error {
 	operation := types.NewOperation(req.DKGID, operationsBz, types.ReinitDKG)
 	if err := c.getState().PutOperation(operation); err != nil {
 		return fmt.Errorf("failed to PutOperation: %w", err)
-	}
-
-	// save new comm keys into FSM to verify future messages
-	fsmInstance, err := c.getFSMInstance(req.DKGID)
-	if err != nil {
-		return fmt.Errorf("failed to get FSM instance: %w", err)
-	}
-	for _, reqParticipant := range req.Participants {
-		fsmInstance.FSMDump().Payload.SetPubKeyUsername(reqParticipant.Name, reqParticipant.NewCommPubKey)
-	}
-	fsmDump, err := fsmInstance.Dump()
-	if err != nil {
-		return fmt.Errorf("failed to get FSM dump")
-	}
-
-	if err := c.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
-		return fmt.Errorf("failed to SaveFSM: %w", err)
 	}
 
 	return nil
@@ -592,16 +592,18 @@ func (c *BaseClient) verifyMessage(fsmInstance *state_machines.FSMInstance, mess
 	if c.GetSkipCommKeysVerification() {
 		return nil
 	}
-	senderPubKey, err := fsmInstance.GetPubKeyByUsername(message.SenderAddr)
+	senderPubKeys, err := fsmInstance.GetPubKeyByUsername(message.SenderAddr)
 	if err != nil {
 		return fmt.Errorf("failed to GetPubKeyByUsername: %w", err)
 	}
 
-	if !ed25519.Verify(senderPubKey, message.Bytes(), message.Signature) {
-		return errors.New("signature is corrupt")
+	for _, pubkey := range senderPubKeys {
+		if ed25519.Verify(pubkey, message.Bytes(), message.Signature) {
+			return nil
+		}
 	}
 
-	return nil
+	return errors.New("signature is corrupt")
 }
 
 func (c *BaseClient) GetFSMDump(dkgID string) (*state_machines.FSMDump, error) {
