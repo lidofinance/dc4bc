@@ -300,12 +300,12 @@ On your airgapped machine each participant must recover a private DKG key-pair:
 Then someone must use ```dkg_reinitializer``` utility to generate a reinit message for dc4bc_d:
 
 ```shell
-$ ./dkg_reinitializer reinit --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic <DKG_TOPIC> --kafka_consumer_group <YOUR USERNAME>_group -o reinit.json
+$ ./dkg_reinitializer reinit --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic <NEW_DKG_TOPIC> --kafka_consumer_group <YOUR USERNAME>_group -o reinit.json
 ```
-In this example the message will be saved to ```reinit.json``` file.
+In this example the message will be saved to ```reinit.json``` file. Note that you have to provide a new topic **with no messages**.
 Now someone needs to open this file and paste shared communication public keys in relevant "new_comm_pub_key" fields.
 
-Then someone must use ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
+Then someone must use ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log.
 
 ```shell
 $ ./dc4bc_cli reinit_dkg reinit.json
