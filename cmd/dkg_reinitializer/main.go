@@ -1,26 +1,29 @@
 package main
 
 import (
+	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/types"
-	"github.com/lidofinance/dc4bc/storage/kafka_storage"
-	"github.com/segmentio/kafka-go/sasl/plain"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"log"
-	"strings"
+	"os"
+
+	"github.com/lidofinance/dc4bc/client"
+
+	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/storage"
+	"github.com/spf13/cobra"
 )
 
 const (
-	flagStorageDBDSN             = "storage_dbdsn"
-	flagKafkaProducerCredentials = "producer_credentials"
-	flagKafkaConsumerCredentials = "consumer_credentials"
-	flagKafkaTrustStorePath      = "kafka_truststore_path"
-	flagKafkaConsumerGroup       = "kafka_consumer_group"
-	flagKafkaTimeout             = "kafka_timeout"
-	flagStorageTopic             = "storage_topic"
-	flagOutputFile               = "output"
+	flagInputFile   = "input"
+	flagOutputFile  = "output"
+	flagKeysFile    = "keys"
+	flagSeparator   = "separator"
+	flagColumnIndex = "column"
+	flagSkipHeader  = "skip-header"
+	flagAdapt140    = "adapt_1_4_0"
 )
 
 var rootCmd = &cobra.Command{
@@ -29,72 +32,55 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().String(flagStorageDBDSN, "./dc4bc_file_storage", "Storage DBDSN")
-	rootCmd.PersistentFlags().String(flagKafkaProducerCredentials, "producer:producerpass", "Producer credentials for Kafka: username:password")
-	rootCmd.PersistentFlags().String(flagKafkaConsumerCredentials, "consumer:consumerpass", "Consumer credentials for Kafka: username:password")
-	rootCmd.PersistentFlags().String(flagKafkaTrustStorePath, "certs/ca.pem", "Path to kafka truststore")
-	rootCmd.PersistentFlags().String(flagKafkaConsumerGroup, "testUser_consumer_group", "Kafka consumer group")
-	rootCmd.PersistentFlags().String(flagKafkaTimeout, "60s", "Kafka I/O Timeout")
-	rootCmd.PersistentFlags().String(flagStorageTopic, "messages", "Storage Topic (Kafka)")
-	rootCmd.PersistentFlags().StringP(flagOutputFile, "o", "", "Output file")
-}
-
-func parseKafkaSaslPlain(creds string) (*plain.Mechanism, error) {
-	credsSplit := strings.SplitN(creds, ":", 2)
-	if len(credsSplit) == 1 {
-		return nil, fmt.Errorf("failed to parse credentials")
-	}
-	return &plain.Mechanism{
-		Username: credsSplit[0],
-		Password: credsSplit[1],
-	}, nil
+	rootCmd.PersistentFlags().StringP(flagInputFile, "i", "", "Input file")
+	rootCmd.PersistentFlags().StringP(flagOutputFile, "o", "./reinit.json", "Output file")
+	rootCmd.PersistentFlags().StringP(flagKeysFile, "k", "./keys.json", "File with new keys (JSON)")
+	rootCmd.PersistentFlags().StringP(flagSeparator, "s", ";", "Separator")
+	rootCmd.PersistentFlags().IntP(flagColumnIndex, "p", 4, "Column index (with message JSON)")
+	rootCmd.PersistentFlags().Bool(flagSkipHeader, false, "Skip header (if present)")
+	rootCmd.PersistentFlags().Bool(flagAdapt140, true, "Adapt 1.4.0 dump")
 }
 
 func reinit() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reinit",
-		Short: "reads a Kafka storage, gets all messages from there and returns DKG reinit JSON (to stdout by default).",
+		Short: "reads the input file (CSV-encoded) and returns DKG reinit JSON.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			kafkaTrustStorePath, _ := cmd.Flags().GetString(flagKafkaTrustStorePath)
-			kafkaConsumerGroup, _ := cmd.Flags().GetString(flagKafkaConsumerGroup)
-			kafkaTimeout, _ := cmd.Flags().GetDuration(flagKafkaTimeout)
-			tlsConfig, err := kafka_storage.GetTLSConfig(kafkaTrustStorePath)
+			messages, err := readMessages(cmd)
 			if err != nil {
-				return fmt.Errorf("failed to create tls config: %v", err)
+				return fmt.Errorf("failed to readMessages: %w", err)
 			}
 
-			storageTopic, _ := cmd.Flags().GetString(flagStorageTopic)
-
-			producerCredentials, _ := cmd.Flags().GetString(flagKafkaProducerCredentials)
-			producerCreds, err := parseKafkaSaslPlain(producerCredentials)
+			// Load the new communication public keys.
+			newKeysFilePath, _ := cmd.Flags().GetString(flagKeysFile)
+			newKeysFile, err := os.Open(newKeysFilePath)
 			if err != nil {
-				return fmt.Errorf("failed to parse kafka credentials: %v", err)
+				return fmt.Errorf("failed to Open keys file: %w", err)
+			}
+			defer newKeysFile.Close()
+
+			var newCommPubKeys = map[string][]byte{}
+			var dec = json.NewDecoder(newKeysFile)
+			if err := dec.Decode(&newCommPubKeys); err != nil {
+				return fmt.Errorf("failed to json.Decode keys: %w", err)
 			}
 
-			consumerCredentials, _ := cmd.Flags().GetString(flagKafkaConsumerCredentials)
-			consumerCreds, err := parseKafkaSaslPlain(consumerCredentials)
-			if err != nil {
-				return fmt.Errorf("failed to parse kafka credentials: %v", err)
-			}
-
-			storageDBDSN, _ := cmd.Flags().GetString(flagStorageDBDSN)
-			stg, err := kafka_storage.NewKafkaStorage(storageDBDSN, storageTopic, kafkaConsumerGroup, tlsConfig,
-				producerCreds, consumerCreds, kafkaTimeout)
-			if err != nil {
-				return fmt.Errorf("failed to init storage: %v", err)
-			}
-
-			messages, err := stg.GetMessages(0)
-			if err != nil {
-				return fmt.Errorf("failed to get messages: %v", err)
-			}
-
-			reDKG, err := types.GenerateReDKGMessage(messages)
+			// Generate the re-DKG message.
+			reDKG, err := types.GenerateReDKGMessage(messages, newCommPubKeys)
 			if err != nil {
 				return fmt.Errorf("failed to generate reDKG message: %v", err)
 			}
 
-			reDKGBz, err := json.Marshal(reDKG)
+			// Adapt from 1.4.0 if required.
+			if adapt140, _ := cmd.Flags().GetBool(flagAdapt140); adapt140 {
+				reDKG, err = client.GetAdaptedReDKG(reDKG)
+				if err != nil {
+					return fmt.Errorf("failed to adapt reinit DKG message from 1.4.0: %v", err)
+				}
+			}
+
+			// Save to disk.
+			reDKGBz, err := json.MarshalIndent(reDKG, "", "  ")
 			if err != nil {
 				return fmt.Errorf("failed to encode reinit DKG message: %v", err)
 			}
@@ -108,9 +94,55 @@ func reinit() *cobra.Command {
 			if err = ioutil.WriteFile(outputFile, reDKGBz, 0666); err != nil {
 				return fmt.Errorf("failed to save reinit DKG JSON: %v", err)
 			}
+
 			return nil
 		},
 	}
+}
+
+func readMessages(cmd *cobra.Command) ([]storage.Message, error) {
+	inputFilePath, _ := cmd.Flags().GetString(flagInputFile)
+	inputFile, err := os.Open(inputFilePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to Open input file: %w", err)
+	}
+	defer inputFile.Close()
+
+	separator, _ := cmd.Flags().GetString(flagSeparator)
+	if len(separator) < 1 {
+		return nil, errors.New("invalid (empty) separator")
+	}
+
+	columnIndex, _ := cmd.Flags().GetInt(flagColumnIndex)
+	if columnIndex < 0 {
+		return nil, errors.New("invalid (negative) column index")
+	}
+
+	reader := csv.NewReader(inputFile)
+	reader.Comma = rune(separator[0])
+	reader.LazyQuotes = true
+
+	lines, err := reader.ReadAll()
+	if err != nil {
+		return nil, fmt.Errorf("failed to read dump CSV): %w", err)
+	}
+
+	skipHeader, _ := cmd.Flags().GetBool(flagSkipHeader)
+	if skipHeader {
+		lines = lines[1:]
+	}
+
+	var message storage.Message
+	var messages []storage.Message
+	for _, line := range lines {
+		if err := json.Unmarshal([]byte(line[columnIndex]), &message); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal line `%s`: %w", line[columnIndex], err)
+		}
+
+		messages = append(messages, message)
+	}
+
+	return messages, nil
 }
 
 func main() {
