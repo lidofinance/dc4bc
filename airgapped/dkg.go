@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+
 	bls "github.com/corestario/kyber/pairing/bls12381"
 
 	"github.com/corestario/kyber"
@@ -12,7 +15,6 @@ import (
 	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/dkg"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
-	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/storage"
@@ -27,17 +29,35 @@ func createMessage(o client.Operation, data []byte) storage.Message {
 	}
 }
 
-// handleStateAwaitParticipantsConfirmations inits DKG instance for a new DKG round and returns a confirmation of
-// participation in the round
-func (am *Machine) handleStateAwaitParticipantsConfirmations(o *client.Operation) error {
+func (am *Machine) GetPubKey() kyber.Point {
+	return am.pubKey
+}
+
+func (am *Machine) handleReinitDKG(operation *client.Operation) error {
+	var operations []client.Operation
+	if err := json.Unmarshal(operation.Payload, &operations); err != nil {
+		return fmt.Errorf("failed to unmarshal operation payload: %w", err)
+	}
+
+	for _, o := range operations {
+		if !o.Event.IsEmpty() || fsm.State(o.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
+			continue
+		}
+		if _, err := am.GetOperationResult(o); err != nil {
+			return fmt.Errorf("failed to process operation: %w", err)
+		}
+	}
+	operation.Event = client.OperationProcessed
+	return nil
+}
+
+// handleStateDkgCommitsAwaitConfirmations takes a list of participants DKG pub keys as payload and
+// returns DKG commits to broadcast
+func (am *Machine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) error {
 	var (
-		payload responses.SignatureProposalParticipantInvitationsResponse
+		payload responses.DKGProposalPubKeysParticipantResponse
 		err     error
 	)
-
-	if _, ok := am.dkgInstances[o.DKGIdentifier]; ok {
-		return fmt.Errorf("dkg instance %s already exists", o.DKGIdentifier)
-	}
 
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
@@ -72,41 +92,6 @@ func (am *Machine) handleStateAwaitParticipantsConfirmations(o *client.Operation
 	dkgInstance := dkg.Init(suite, am.pubKey, am.secKey)
 	dkgInstance.Threshold = payload[0].Threshold //same for everyone
 	dkgInstance.N = len(payload)
-	am.dkgInstances[o.DKGIdentifier] = dkgInstance
-	req := requests.SignatureProposalParticipantRequest{
-		ParticipantId: pid,
-		CreatedAt:     o.CreatedAt,
-	}
-	reqBz, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("failed to generate fsm request: %w", err)
-	}
-
-	o.Event = signature_proposal_fsm.EventConfirmSignatureProposal
-	o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, reqBz))
-	return nil
-}
-
-func (am *Machine) GetPubKey() kyber.Point {
-	return am.pubKey
-}
-
-// handleStateDkgCommitsAwaitConfirmations takes a list of participants DKG pub keys as payload and
-// returns DKG commits to broadcast
-func (am *Machine) handleStateDkgCommitsAwaitConfirmations(o *client.Operation) error {
-	var (
-		payload responses.DKGProposalPubKeysParticipantResponse
-		err     error
-	)
-
-	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
-	if !ok {
-		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
-	}
-
-	if err = json.Unmarshal(o.Payload, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
-	}
 
 	for _, entry := range payload {
 		pubKey := am.baseSuite.Point()

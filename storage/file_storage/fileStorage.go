@@ -1,4 +1,4 @@
-package storage
+package file_storage
 
 import (
 	"bufio"
@@ -6,17 +6,23 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+
+	"github.com/lidofinance/dc4bc/storage"
 
 	"github.com/google/uuid"
 	"github.com/juju/fslock"
 )
 
-var _ Storage = (*FileStorage)(nil)
+var _ storage.Storage = (*FileStorage)(nil)
 
 type FileStorage struct {
 	lockFile *fslock.Lock
 
 	dataFile *os.File
+
+	idIgnoreList     map[string]struct{}
+	offsetIgnoreList map[uint64]struct{}
 }
 
 const (
@@ -36,7 +42,7 @@ func countLines(r io.Reader) uint64 {
 
 // NewFileStorage inits append-only file storage
 // It takes two arguments: filename - path to a data file, lockFilename (optional) - path to a lock file
-func NewFileStorage(filename string, lockFilename ...string) (Storage, error) {
+func NewFileStorage(filename string, lockFilename ...string) (storage.Storage, error) {
 	var (
 		fs  FileStorage
 		err error
@@ -50,11 +56,14 @@ func NewFileStorage(filename string, lockFilename ...string) (Storage, error) {
 	if fs.dataFile, err = os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644); err != nil {
 		return nil, fmt.Errorf("failed to open a data file: %v", err)
 	}
+
+	fs.idIgnoreList = map[string]struct{}{}
+	fs.offsetIgnoreList = map[uint64]struct{}{}
 	return &fs, nil
 }
 
 // Send sends a message to an append-only data file, returns a message with offset and id
-func (fs *FileStorage) Send(m Message) (Message, error) {
+func (fs *FileStorage) send(m storage.Message) (storage.Message, error) {
 	var (
 		data []byte
 		err  error
@@ -81,29 +90,31 @@ func (fs *FileStorage) Send(m Message) (Message, error) {
 	return m, err
 }
 
-func (fs *FileStorage) SendBatch(msgs ...Message) ([]Message, error) {
+func (fs *FileStorage) Send(msgs ...storage.Message) error {
 	var err error
 	for i, m := range msgs {
-		msgs[i], err = fs.Send(m)
+		msgs[i], err = fs.send(m)
 		if err != nil {
-			return msgs, err
+			return err
 		}
 	}
-	return msgs, nil
+	return nil
 }
 
 // GetMessages returns a slice of messages from append-only data file with given offset
-func (fs *FileStorage) GetMessages(offset uint64) ([]Message, error) {
+func (fs *FileStorage) GetMessages(offset uint64) ([]storage.Message, error) {
 	var (
-		msgs []Message
+		msgs []storage.Message
 		err  error
 		row  []byte
-		data Message
+		data storage.Message
 	)
 	if _, err = fs.dataFile.Seek(0, 0); err != nil {
 		return nil, fmt.Errorf("failed to seek a offset to the start of a data file: %v", err)
 	}
 	scanner := bufio.NewScanner(fs.dataFile)
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
 	for scanner.Scan() {
 		if offset > 0 {
 			offset--
@@ -114,14 +125,42 @@ func (fs *FileStorage) GetMessages(offset uint64) ([]Message, error) {
 		if err = json.Unmarshal(row, &data); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal a message %s: %v", string(row), err)
 		}
-		msgs = append(msgs, data)
+
+		_, idOk := fs.idIgnoreList[data.ID]
+		_, offsetOk := fs.offsetIgnoreList[data.Offset]
+		if !idOk && !offsetOk {
+			msgs = append(msgs, data)
+		}
 	}
 	if scanner.Err() != nil {
-		return nil, fmt.Errorf("failed to read a data file: %v", err)
+		return nil, fmt.Errorf("failed to read a data file: %v", scanner.Err())
 	}
 	return msgs, nil
 }
 
 func (fs *FileStorage) Close() error {
 	return fs.dataFile.Close()
+}
+
+func (fs *FileStorage) IgnoreMessages(messages []string, useOffset bool) error {
+	for _, msg := range messages {
+		if useOffset {
+			offset, err := strconv.ParseUint(msg, 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse message offset: %v", err)
+			}
+			fs.offsetIgnoreList[offset] = struct{}{}
+
+			continue
+		}
+
+		fs.idIgnoreList[msg] = struct{}{}
+	}
+
+	return nil
+}
+
+func (fs *FileStorage) UnignoreMessages() {
+	fs.idIgnoreList = map[string]struct{}{}
+	fs.offsetIgnoreList = map[uint64]struct{}{}
 }

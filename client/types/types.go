@@ -24,6 +24,10 @@ const (
 	DKGCommits                    OperationType = "dkg_commits"
 	SignatureReconstructed        fsm.Event     = "signature_reconstructed"
 	SignatureReconstructionFailed fsm.Event     = "signature_reconstruction_failed"
+	ReinitDKG                     fsm.State     = "reinit_dkg"
+
+	// OperationProcessed common event type for successfully processed operations but with an empty result
+	OperationProcessed fsm.Event = "operation_processed_successfully"
 )
 
 type ReconstructedSignature struct {
@@ -159,4 +163,50 @@ func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 	}
 
 	return resolvedValue, nil
+}
+
+type Participant struct {
+	DKGPubKey     []byte `json:"dkg_pub_key"`
+	OldCommPubKey []byte `json:"old_comm_pub_key"`
+	NewCommPubKey []byte `json:"new_comm_pub_key"`
+	Name          string `json:"name"`
+}
+
+type ReDKG struct {
+	DKGID        string            `json:"dkg_id"`
+	Threshold    int               `json:"threshold"`
+	Participants []Participant     `json:"participants"`
+	Messages     []storage.Message `json:"messages"`
+}
+
+func GenerateReDKGMessage(messages []storage.Message) (*ReDKG, error) {
+	var reDKG ReDKG
+
+	for _, msg := range messages {
+		if fsm.Event(msg.Event) == signature_proposal_fsm.EventInitProposal {
+			req, err := FSMRequestFromMessage(msg)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get FSM request from message: %v", err)
+			}
+			request, ok := req.(requests.SignatureProposalParticipantsListRequest)
+			if !ok {
+				return nil, fmt.Errorf("invalid request")
+			}
+			reDKG.DKGID = msg.DkgRoundID
+			reDKG.Threshold = request.SigningThreshold
+			for _, participant := range request.Participants {
+				reDKG.Participants = append(reDKG.Participants, Participant{
+					DKGPubKey:     participant.DkgPubKey,
+					OldCommPubKey: participant.PubKey,
+					Name:          participant.Username,
+				})
+			}
+		}
+		if fsm.Event(msg.Event) == signing_proposal_fsm.EventSigningStart {
+			break
+		}
+
+		reDKG.Messages = append(reDKG.Messages, msg)
+	}
+	return &reDKG, nil
 }

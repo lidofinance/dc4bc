@@ -28,8 +28,10 @@ func (m *Message) Verify(pubKey ed25519.PublicKey) bool {
 }
 
 type Storage interface {
-	Send(message Message) (Message, error)
-	SendBatch(messages ...Message) ([]Message, error) //expected to be an atomic operation
+	// Send is expected to be an atomic operation.
+	Send(messages ...Message) error
 	GetMessages(offset uint64) ([]Message, error)
 	Close() error
+	IgnoreMessages(messages []string, useOffset bool) error
+	UnignoreMessages()
 }

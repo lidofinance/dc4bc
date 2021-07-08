@@ -115,14 +115,14 @@ Backup the generated bip39 seed on a paper wallet; if you need to restore it, us
 
 After you have the keys, start the node:
 ```
-$ ./dc4bc_d start --username <YOUR USERNAME> --key_store_dbdsn ./stores/dc4bc_<YOUR USERNAME>_key_store --state_dbdsn ./stores/dc4bc_<YOUR USERNAME>_state --listen_addr localhost:8080 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_dbdsn 51.158.98.208:9093 --storage_topic <DKG_TOPIC>
+$ ./dc4bc_d start --username <YOUR USERNAME> --key_store_dbdsn ./stores/dc4bc_<YOUR USERNAME>_key_store --state_dbdsn ./stores/dc4bc_<YOUR USERNAME>_state --listen_addr localhost:8080 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_dbdsn 51.158.98.208:9093 --storage_topic <DKG_TOPIC> --kafka_consumer_group <YOUR USERNAME>_group
 ```
 * `--username` — This username will be used to identify you during DKG and signing
 * `--key_store_dbdsn` — This is where the keys that are used for signing messages that will go to the Bulletin Board will be stored. Do not store these keys in `/tmp/` for production runs and make sure that you have a backup
 * `--state_dbdsn` This is where your Client node's state (including the FSM state) will be kept. If you delete this directory, you will have to re-read the whole message board topic, which might result in odd states
 * `--storage_dbdsn` This argument specifies the storage endpoint. This storage is going to be used by all participants to exchange messages
 * `--storage_topic` Specifies the topic (a "directory" inside the storage) that you are going to use. Typically participants will agree on a new topic for each new signature or DKG round to avoid confusion
-
+* `--kafka_consumer_group` Specifies your consumer group. This allows you to restart the Client and read the messages starting from the last one you saw.
 
 Print your communication public key and encryption public key. *You will have to publish them during the [Conference call](https://github.com/lidofinance/dc4bc-conference-call) along with the `--username` that you specified during the Client node setup).*
 ```
@@ -177,11 +177,15 @@ Now you have a pending operation in your operation pool. That is an operation to
 Get the list of pending operations:
 ```
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
-DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
-Operation ID: 30fa9c21-b79f-4a53-a84b-e7ad574c1a51
-Description: confirm participation in the new DKG round
-Hash of the proposing DKG message - a60bd47a831cd58a96bdd4381ee15afc
+Please, select operation:
 -----------------------------------------------------
+1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
+   Operation ID: 30fa9c21-b79f-4a53-a84b-e7ad574c1a51
+   Description: confirm participation in the new DKG round
+   Hash of the proposing DKG message - a60bd47a831cd58a96bdd4381ee15afc
+-----------------------------------------------------
+Select operation and press Enter. Ctrl+C for cancel
+
 ```
 
 You can check the hash of the proposing DKG message:
@@ -191,15 +195,35 @@ a60bd47a831cd58a96bdd4381ee15afc
 ```
 The command returns a hash of the proposing message. If it is not equal to the hash from the list of pending operations, that means the person who proposed to start the DKG round changed the parameters that you agreed on the Conferce Call.
 
-Copy the Operation ID and make the node produce a QR-code for it:
+Select an operation by typing its number and press Enter. This operation requires only a confirmation of user, so it's just sends a message to the append-only log.
+
+When all participants confirm their participation in DKG round, the node will proceed to the next step:
 ```
-$ ./dc4bc_cli get_operation_qr 6d98f39d-1b24-49ce-8473-4f5d934ab2dc --listen_addr localhost:8080
-QR code was saved to: /tmp/dc4bc_qr_6d98f39d-1b24-49ce-8473-4f5d934ab2dc-0.gif
+[john_doe] message event_sig_proposal_confirm_by_participant done successfully from john_doe
+```
+
+Now you have a new operation:
+
+```
+$ ./dc4bc_cli get_operations --listen_addr localhost:8080
+Please, select operation:
+-----------------------------------------------------
+1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
+   Operation ID: 2f217f58-a94f-47d8-b871-f35a15275184
+   Description:  send commits for the DKG round
+-----------------------------------------------------
+Select operation and press Enter. Ctrl+C for cancel
+
+```
+
+Select an operation to make the node produce a QR-code for it:
+```
+QR code was saved to: /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184.gif
 ```
 
 Open the GIF-animation in any gif viewer and take a video of it:
 ```
-open -a Safari /tmp/dc4bc_qr_c76396a6-fcd8-4dd2-a85c-085b8dc91494-response.gif
+open -a Safari /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184-request.gif
 ```
 
 After that, you need to scan the GIF. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser on an airgapped machine (firefox from plaintext media in case of Tails airapped machine setup), allow the page to use your camera and demonstrate the recorded video to the camera. After the GIF is scanned, you'll see the operation JSON. Click on that JSON, and it will be saved to your Downloads folder.
@@ -209,7 +233,7 @@ Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains 
 ```
 >>> read_operation
 > Enter the path to Operation JSON file: ./operation.json
-Operation GIF was handled successfully, the result Operation GIF was saved to: /tmp/dc4bc_qr_61ae668f-be5f-4173-bb56-c2ba5221ee8c-response.gif
+Operation GIF was handled successfully, the result Operation GIF was saved to: /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184-response.gif
 ```
 
 Open the response QR-gif in any gif viewer and take a video of it. Open the `./qr_reader_bundle/index.html` page in your web browser on a hot node and scan the GIF. You may want to give the downloaded file a new name, e.g., `operation_response.json`.
@@ -219,19 +243,9 @@ Then go to the node and run:
 $ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 ~/Downloads/operation_response.json
 ```
 
-After reading the response, a message is send to the message board. When all participants perform the necessary operations, the node will proceed to the next step:
+When all participants perform the necessary operations, the node will proceed to the next step:
 ```
-[john_doe] message event_sig_proposal_confirm_by_participant done successfully from john_doe
-```
-Further actions are repetitive. For each step check for new pending operations:
-```
-$ ./dc4bc_cli get_operations --listen_addr localhost:8080
-```
-
-Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that DKG is finished (`event_dkg_master_key_confirm_received`):
-```
-[john_doe] State stage_signing_idle does not require an operation
-[john_doe] Successfully processed message with offset 10, type event_dkg_master_key_confirm_received
+[john_doe] message event_dkg_commit_confirm_received done successfully from john_doe
 ```
 
 Next steps are:
@@ -239,6 +253,28 @@ Next steps are:
 - Broadcast commits  - you'll be broadcasting a public derivative of your secret seed for the key shards that will be used to check that you don't try to cheat at DKG
 - Collect commits and broadcast deals - you'll be collecting each other's commits and sending each participant a private message that will be used to construct your key shard
 - Collect deals and broadcast reconstructed public key  - you'll be using private messages from other people to generate your key shard
+
+Further actions are repetitive:
+
+For each step check for new pending operations:
+
+```
+$ ./dc4bc_cli get_operations --listen_addr localhost:8080
+Please, select operation:
+-----------------------------------------------------
+1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
+   Operation ID: 2f217f58-a94f-47d8-b871-f35a15275184
+   Description:  send commits for the DKG round
+-----------------------------------------------------
+Select operation and press Enter. Ctrl+C for cancel
+
+```
+
+Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that DKG is finished (`event_dkg_master_key_confirm_received`):
+```
+[john_doe] State stage_signing_idle does not require an operation
+[john_doe] Successfully processed message with offset 10, type event_dkg_master_key_confirm_received
+```
 
 Key generation ceremony is over.  `exit` airgapped dkg tool prompt and backup your airapped machine db multiple times to different media. 
 
@@ -281,3 +317,53 @@ Signature is correct!
 ```
 
 Now the ceremony is  over. 
+
+#### Reinitialize DKG
+
+If you've lost all your states, communication keys, but your mnemonic for private DKG key is safe, it is possible to
+reinitialize the whole DKG to recover DKG master key.
+
+To do this, each participant must generate a new pair of communication keys (see above) and share a public one with other participants.
+On your airgapped machine each participant must recover a private DKG key-pair:
+
+```shell
+>>> set_seed
+> WARNING! this will overwrite your old seed, which might make DKGs you've done with it unusable.
+> Only do this on a fresh db_path. Type 'ok' to  continue: ok
+> Enter the BIP39 mnemonic for a random seed:
+```
+
+Then someone must use ```dkg_reinitializer``` utility to generate a reinit message for dc4bc_d:
+
+```shell
+$ ./dkg_reinitializer reinit --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic <OLD_DKG_TOPIC> --kafka_consumer_group <YOUR USERNAME>_group -o reinit.json
+```
+In this example the message will be saved to ```reinit.json``` file. Now someone needs to open this file and paste shared communication public keys in relevant "new_comm_pub_key" fields.
+
+Then someone must use ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log.
+
+```shell
+$ ./dc4bc_cli reinit_dkg reinit.json
+```
+
+The command will send the message to the append-only log, dc4bc_d process it and will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.).
+
+```
+$ ./dc4bc_cli get_operations
+Please, select operation:
+-----------------------------------------------------
+ 1)		DKG round ID: d62c6c478d39d4239c6c5ceb0aea6792
+		Operation ID: 34799e2301ae794c0b4f5bc9886ed5fa
+		Description: reinit DKG
+-----------------------------------------------------
+Select operation and press Enter. Ctrl+C for cancel
+```
+
+After you have processed the operation in airgapped, you have your master DKG pubkey recovered, so you can sign new messages!
+
+#### Patching old(from 0.1.4 relaese) appendlog for reinit procedure
+
+To make the old append log from `dkg_reinitializer` compatible with the latest `dc4bc_d` release, you need to patch it by running the `dkg_reinit_log_adapter` utility with original old log file as the first argument and a name for the new patched file as the second argument
+```bash
+./dkg_reinit_log_adapter old_reinit_log_file.json new_reinit_log_file.json 
+```

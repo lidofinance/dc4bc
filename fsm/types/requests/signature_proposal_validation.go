@@ -12,8 +12,11 @@ func (r *SignatureProposalParticipantsListRequest) Validate() error {
 		return fmt.Errorf("too few participants, minimum is {%d}", config.ParticipantsMinCount)
 	}
 
-	if r.SigningThreshold < 2 {
-		return errors.New("{SigningThreshold} minimum count is {2}")
+	if r.SigningThreshold < config.SignatureProposalSigningThresholdMinCount {
+		return fmt.Errorf(
+			"{SigningThreshold} minimum count is {%d}",
+			config.SignatureProposalSigningThresholdMinCount,
+		)
 	}
 
 	if r.SigningThreshold > len(r.Participants) {
@@ -29,19 +32,19 @@ func (r *SignatureProposalParticipantsListRequest) Validate() error {
 	}
 
 	for _, participant := range r.Participants {
-		if len(participant.Username) < 3 {
-			return errors.New("{Username} minimum length is {3}")
+		if len(participant.Username) < config.UsernameMinLength {
+			return fmt.Errorf("{Username} minimum length is {%d}", config.UsernameMinLength)
 		}
 
-		if len(participant.Username) > 150 {
-			return errors.New("{Username} maximum length is {150}")
+		if len(participant.Username) > config.UsernameMaxLength {
+			return fmt.Errorf("{Username} maximum length is {%d}", config.UsernameMaxLength)
 		}
 
-		if len(participant.PubKey) < 10 {
+		if len(participant.PubKey) < config.ParticipantPubKeyMinLength {
 			return errors.New("{PubKey} too short")
 		}
 
-		if len(participant.DkgPubKey) < 10 {
+		if len(participant.DkgPubKey) < config.DkgPubKeyMinLength {
 			return errors.New("{DkgPubKey} too short")
 		}
 	}

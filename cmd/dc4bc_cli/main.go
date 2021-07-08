@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/md5"
 	"crypto/sha256"
@@ -11,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -20,20 +22,40 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
 	"github.com/lidofinance/dc4bc/fsm/fsm"
-	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
+	"github.com/fatih/color"
 	"github.com/lidofinance/dc4bc/client"
+	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/qr"
 	"github.com/spf13/cobra"
 )
 
 const (
-	flagListenAddr    = "listen_addr"
-	flagFramesDelay   = "frames_delay"
-	flagChunkSize     = "chunk_size"
-	flagQRCodesFolder = "qr_codes_folder"
+	flagListenAddr         = "listen_addr"
+	flagFramesDelay        = "frames_delay"
+	flagChunkSize          = "chunk_size"
+	flagQRCodesFolder      = "qr_codes_folder"
+	flagNewStateDBDSN      = "new_state_dbdsn"
+	flagUseOffsetInsteadId = "use_offset_instead_id"
+	flagKafkaConsumerGroup = "kafka_consumer_group"
+)
+
+var (
+	useOffset          bool
+	newStateDBDSN      string
+	kafkaConsumerGroup string
+
+	rootCmd = &cobra.Command{
+		Use:   "dc4bc_cli",
+		Short: "dc4bc client cli utilities implementation",
+	}
+
+	refreshStateCmd = &cobra.Command{
+		Use:   "refresh_state [--use_offset_instead_id | -o] [--new_state_dbsn | -s] [--kafka_consumer_group | -g] [messageId...]",
+		Short: "drops current state and replays it from storage ignoring messages with provided ids or offsets",
+	}
 )
 
 func init() {
@@ -41,18 +63,22 @@ func init() {
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
 	rootCmd.PersistentFlags().String(flagQRCodesFolder, "/tmp", "Folder to save QR codes")
-}
 
-var rootCmd = &cobra.Command{
-	Use:   "dc4bc_cli",
-	Short: "dc4bc client cli utilities implementation",
+	refreshStateCmd.Flags().BoolVarP(&useOffset, flagUseOffsetInsteadId, "o", false,
+		"Ignore messages by offset instead of ids")
+	refreshStateCmd.Flags().StringVarP(&newStateDBDSN, flagNewStateDBDSN, "s", "",
+		"State DBDSN")
+	refreshStateCmd.Flags().StringVarP(&kafkaConsumerGroup, flagKafkaConsumerGroup, "g", "",
+		"Kafka consumer group")
 }
 
 func main() {
 	rootCmd.AddCommand(
 		getOperationsCommand(),
+		reinitDKGQRPathCommand(),
 		getOperationQRPathCommand(),
 		readOperationResultCommand(),
+		approveDKGParticipationCommand(),
 		startDKGCommand(),
 		proposeSignMessageCommand(),
 		getUsernameCommand(),
@@ -65,6 +91,7 @@ func main() {
 		getFSMStatusCommand(),
 		getFSMListCommand(),
 		getSignatureDataCommand(),
+		refreshState(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
@@ -98,6 +125,7 @@ func getOperationsCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
+
 			operations, err := getOperationsRequest(listenAddr)
 			if err != nil {
 				return fmt.Errorf("failed to get operations: %w", err)
@@ -105,28 +133,82 @@ func getOperationsCommand() *cobra.Command {
 			if operations.ErrorMessage != "" {
 				return fmt.Errorf("failed to get operations: %s", operations.ErrorMessage)
 			}
-			for _, operation := range operations.Result {
-				fmt.Printf("DKG round ID: %s\n", operation.DKGIdentifier)
-				fmt.Printf("Operation ID: %s\n", operation.ID)
-				fmt.Printf("Description: %s\n", getShortOperationDescription(operation.Type))
-				if fsm.State(operation.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
+
+			if len(operations.Result) == 0 {
+				color.New(color.Bold).Println("The are no available operations yet")
+				return nil
+			}
+
+			colorTitle := color.New(color.Bold)
+			colorDKG := color.New(color.FgCyan)
+			colorOperationId := color.New(color.FgGreen)
+			colorTitle.Println("Please, select operation:")
+			fmt.Println("-----------------------------------------------------")
+
+			actionsMap := map[string]string{}
+			actionId := 1
+			for operationId, operation := range operations.Result {
+				actionsMap[strconv.Itoa(actionId)] = operationId
+				fmt.Printf(" %s)\t\t", color.YellowString("%d", actionId))
+
+				colorTitle.Print("DKG round ID:")
+				colorDKG.Printf(" %s\n", operation.DKGIdentifier)
+
+				colorTitle.Print("\t\tOperation ID:")
+				colorOperationId.Printf(" %s\n", operation.ID)
+
+				colorTitle.Print("\t\tDescription:")
+				fmt.Printf(" %s\n", getShortOperationDescription(operation.Type))
+
+				/*  Moved to actions selection
+					if fsm.State(operation.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
 					payloadHash, err := calcStartDKGMessageHash(operation.Payload)
 					if err != nil {
 						return fmt.Errorf("failed to get hash of start DKG message: %w", err)
 					}
-					fmt.Printf("Hash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
-				}
+					fmt.Printf("\t\tHash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
+					fmt.Print("\t\tYou don't need to process this operation in an airgapped machine. Just execute the approve_participation command\n")
+				}*/
 				if strings.HasPrefix(string(operation.Type), "state_signing_") {
 					var payload responses.SigningProposalParticipantInvitationsResponse
 					if err := json.Unmarshal(operation.Payload, &payload); err != nil {
 						return fmt.Errorf("failed to unmarshal operation payload")
 					}
 					msgHash := sha256.Sum256(payload.SrcPayload)
-					fmt.Printf("Hash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
-					fmt.Printf("Signing ID: %s\n", payload.SigningId)
+					fmt.Printf("\t\tHash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
+					fmt.Printf("\t\tSigning ID: %s\n", payload.SigningId)
 				}
 				fmt.Println("-----------------------------------------------------")
+				actionId++
 			}
+
+			colorTitle.Println("Select operation and press Enter. Ctrl+C for cancel")
+
+			scanner := bufio.NewScanner(os.Stdin)
+			for scanner.Scan() {
+				if operationId, ok := actionsMap[scanner.Text()]; ok {
+					colorTitle.Print("Processing operation")
+					colorOperationId.Printf(" %s\n", operationId)
+
+					qrCmd := &cobra.Command{}
+
+					switch fsm.State(operations.Result[operationId].Type) {
+					case spf.StateAwaitParticipantsConfirmations:
+						qrCmd = approveDKGParticipationCommand()
+					default:
+						qrCmd = getOperationQRPathCommand()
+
+					}
+
+					qrCmd.SetArgs([]string{operationId})
+					qrCmd.Flags().AddFlagSet(cmd.Flags())
+					qrCmd.Execute()
+					return nil
+				} else {
+					color.New(color.FgRed).Println("Unknown operation action")
+				}
+			}
+
 			return nil
 		},
 	}
@@ -314,6 +396,33 @@ func getOperationQRPathCommand() *cobra.Command {
 			}
 
 			fmt.Printf("QR code was saved to: %s\n", qrPath)
+			return nil
+		},
+	}
+}
+
+func reinitDKGQRPathCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "reinit_dkg [reDKG JSON file path]",
+		Args:  cobra.ExactArgs(1),
+		Short: "send reinitDKG message to a storage",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			reDKGFile := args[0]
+
+			reDKGDData, err := ioutil.ReadFile(reDKGFile)
+			if err != nil {
+				return fmt.Errorf("failed to read file %s: %w", reDKGFile, err)
+			}
+
+			if _, err := rawPostRequest(fmt.Sprintf("http://%s/reinitDKG", listenAddr),
+				"application/json", reDKGDData); err != nil {
+				return fmt.Errorf("failed to reinit DKG: %w", err)
+			}
 			return nil
 		},
 	}
@@ -540,6 +649,35 @@ func startDKGCommand() *cobra.Command {
 	}
 }
 
+func approveDKGParticipationCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "approve_participation [OPERATION_ID]",
+		Args:  cobra.ExactArgs(1),
+		Short: "approve participation in a DKG process",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			operationID := args[0]
+
+			payloadBz, err := json.Marshal(map[string]string{"operationID": operationID})
+			if err != nil {
+				return fmt.Errorf("failed to marshal payload: %v", err)
+			}
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/approveDKGParticipation", listenAddr), "application/json", payloadBz)
+			if err != nil {
+				return fmt.Errorf("failed to approve participation: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to approve participation: %v", resp.ErrorMessage)
+			}
+			return nil
+		},
+	}
+}
+
 func getHashOfStartDKGCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get_start_dkg_file_hash [proposing_file]",
@@ -742,4 +880,50 @@ func getFSMListCommand() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func refreshState() *cobra.Command {
+	runFunc := func(cmd *cobra.Command, args []string) error {
+		listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+		if err != nil {
+			return fmt.Errorf("failed to read listen address: %v", err)
+		}
+
+		if len(kafkaConsumerGroup) < 1 {
+			username, err := getUsername(listenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to get client's username: %w", err)
+			}
+
+			kafkaConsumerGroup = fmt.Sprintf("%s_%d", username, time.Now().Unix())
+		}
+
+		req := client.ResetStateRequest{
+			NewStateDBDSN:      newStateDBDSN,
+			UseOffset:          useOffset,
+			KafkaConsumerGroup: kafkaConsumerGroup,
+		}
+		reqBytes, err := json.Marshal(req)
+		if err != nil {
+			return fmt.Errorf("failed to marshal reset state request: %w", err)
+		}
+
+		resp, err := rawPostRequest(fmt.Sprintf("http://%s/resetState", listenAddr),
+			"application/json", reqBytes)
+		if err != nil {
+			return fmt.Errorf("failed to make HTTP request to reset state: %w", err)
+		}
+		if resp.ErrorMessage != "" {
+			return fmt.Errorf("failed to make HTTP request to reset state: %v", resp.ErrorMessage)
+		}
+
+		dir := resp.Result.(string)
+		fmt.Printf("New state was saved to %s directory", dir)
+
+		return nil
+	}
+
+	refreshStateCmd.RunE = runFunc
+
+	return refreshStateCmd
 }

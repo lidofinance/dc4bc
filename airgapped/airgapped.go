@@ -264,8 +264,8 @@ func (am *Machine) GetOperationResult(operation client.Operation) (client.Operat
 	// handler gets a pointer to an operation, do necessary things
 	// and write a result (or an error) to .Result field of operation
 	switch fsm.State(operation.Type) {
-	case signature_proposal_fsm.StateAwaitParticipantsConfirmations:
-		err = am.handleStateAwaitParticipantsConfirmations(&operation)
+	case client.ReinitDKG:
+		err = am.handleReinitDKG(&operation)
 	case dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:
 		err = am.handleStateDkgCommitsAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:
