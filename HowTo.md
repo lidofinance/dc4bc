@@ -374,7 +374,8 @@ In this example the message will be saved to ```reinit.json``` file.
 ./dc4bc_cli get_reinit_dkg_file_hash reinit.json
 f65e4d87dce889df00ecebeed184ee601c23e531
 ```
-Then Bob must use the ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
+
+Then someone must use the ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
 ```shell
 $ ./dc4bc_cli reinit_dkg reinit.json
 ```
