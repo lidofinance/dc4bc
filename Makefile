@@ -22,9 +22,9 @@ build-darwin:
 	@echo "Building dc4bc_prysm_compatibility_checker..."
 	GOOS=darwin GOARCH=amd64 go build -o dc4bc_prysm_compatibility_checker_darwin ./cmd/prysm_compatibility_checker/
 	@echo "Building dkg_reinitializer..."
-	GOOS=darwin GOARCH=amd64 go build -o dkg_reinitializer_darwin ./cmd/dkg_reinitializer/
+	GOOS=darwin GOARCH=amd64 go build -o dc4bc_dkg_reinitializer_darwin ./cmd/dkg_reinitializer/
 	@echo "Building dkg_reinit_log_adapter..."
-	GOOS=darwin GOARCH=amd64 go build -o dkg_reinit_log_adapter_darwin ./cmd/dkg_reinit_log_adapter/
+	GOOS=darwin GOARCH=amd64 go build -o dc4bc_dkg_reinit_log_adapter_darwin ./cmd/dkg_reinit_log_adapter/
 
 build-linux:
 	@echo "Building dc4bc_d..."
@@ -36,9 +36,9 @@ build-linux:
 	@echo "Building dc4bc_prysm_compatibility_checker..."
 	GOOS=linux GOARCH=amd64 go build -o dc4bc_prysm_compatibility_checker_linux ./cmd/prysm_compatibility_checker/
 	@echo "Building dkg_reinitializer..."
-	GOOS=linux GOARCH=amd64 go build -o dkg_reinitializer_linux ./cmd/dkg_reinitializer/
+	GOOS=linux GOARCH=amd64 go build -o dc4bc_dkg_reinitializer_linux ./cmd/dkg_reinitializer/
 	@echo "Building dkg_reinit_log_adapter..."
-	GOOS=linux GOARCH=amd64 go build -o dkg_reinit_log_adapter_linux ./cmd/dkg_reinit_log_adapter/
+	GOOS=linux GOARCH=amd64 go build -o dc4bc_dkg_reinit_log_adapter_linux ./cmd/dkg_reinit_log_adapter/
 
 build:
 	@echo "Building dc4bc_d..."
@@ -50,8 +50,8 @@ build:
 	@echo "Building dc4bc_prysm_compatibility_checker..."
 	go build -o dc4bc_prysm_compatibility_checker ./cmd/prysm_compatibility_checker/
 	@echo "Building dkg_reinitializer..."
-	go build -o dkg_reinitializer ./cmd/dkg_reinitializer/
+	go build -o dc4bc_dkg_reinitializer ./cmd/dkg_reinitializer/
 	@echo "Building dkg_reinit_log_adapter..."
-	go build -o dkg_reinit_log_adapter ./cmd/dkg_reinit_log_adapter/
+	go build -o dc4bc_dkg_reinit_log_adapter ./cmd/dkg_reinit_log_adapter/
 
 .PHONY: mocks
