@@ -239,11 +239,25 @@ func CalcStartReInitDKGMessageHash(payload []byte) ([]byte, error) {
 		}
 	}
 	for _, m := range msg.Messages {
-		mBz, err := json.Marshal(m)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal Message: %w", err)
+		if _, err := hashPayload.Write(m.Data); err != nil {
+			return nil, err
 		}
-		if _, err := hashPayload.Write(mBz); err != nil {
+		if _, err := hashPayload.Write(m.Signature); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(m.RecipientAddr)); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(m.Event)); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(m.SenderAddr)); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(m.DkgRoundID)); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(fmt.Sprintf("%d", m.Offset))); err != nil {
 			return nil, err
 		}
 	}
