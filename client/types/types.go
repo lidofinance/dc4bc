@@ -179,7 +179,9 @@ type ReDKG struct {
 	Messages     []storage.Message `json:"messages"`
 }
 
-func GenerateReDKGMessage(messages []storage.Message) (*ReDKG, error) {
+// GenerateReDKGMessage returns a ReDKG message based on an append log dump. newCommPubKeys will be used
+// add new public communication keys to each participant; this value can be nil.
+func GenerateReDKGMessage(messages []storage.Message, newCommPubKeys map[string][]byte) (*ReDKG, error) {
 	var reDKG ReDKG
 
 	for _, msg := range messages {
@@ -188,16 +190,20 @@ func GenerateReDKGMessage(messages []storage.Message) (*ReDKG, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to get FSM request from message: %v", err)
 			}
+
 			request, ok := req.(requests.SignatureProposalParticipantsListRequest)
 			if !ok {
 				return nil, fmt.Errorf("invalid request")
 			}
+
 			reDKG.DKGID = msg.DkgRoundID
 			reDKG.Threshold = request.SigningThreshold
 			for _, participant := range request.Participants {
 				reDKG.Participants = append(reDKG.Participants, Participant{
 					DKGPubKey:     participant.DkgPubKey,
 					OldCommPubKey: participant.PubKey,
+					// Use default value if username is missing.
+					NewCommPubKey: newCommPubKeys[participant.Username],
 					Name:          participant.Username,
 				})
 			}
@@ -208,5 +214,6 @@ func GenerateReDKGMessage(messages []storage.Message) (*ReDKG, error) {
 
 		reDKG.Messages = append(reDKG.Messages, msg)
 	}
+
 	return &reDKG, nil
 }

@@ -698,7 +698,8 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 	// Each node starts to Poll().
 	runCancel = startServerRunAndPoll(newNodes, nil)
 
-	reInitDKG, err := types.GenerateReDKGMessage(oldMessages)
+	var newCommPubKeys = map[string][]byte{}
+	reInitDKG, err := types.GenerateReDKGMessage(oldMessages, newCommPubKeys)
 	if err != nil {
 		t.Fatalf(err.Error())
 	}
@@ -710,11 +711,11 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 
 		// adding back self-confirm messages
 		// this is our test target
-		adaptedReDKG, err := GetAdaptedReDKG(newDKG)
+		adaptedReDKG, err := GetAdaptedReDKG(&newDKG)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
-		reInitDKG = &adaptedReDKG
+		reInitDKG = adaptedReDKG
 
 		// skip messages signature verification, since we are unable to sign self-confirm messages by old priv key
 		//for _, node := range newNodes {
