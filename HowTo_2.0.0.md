@@ -51,7 +51,12 @@ $ ./dc4bc_dkg_reinitializer reinit --storage_dbdsn 51.158.98.208:9093 --producer
 ```
 In this example the message will be saved to ```reinit.json``` file. The <OLD_DKG_TOPIC> is the topic with the messages from the old DKG; it will be provided by the Lido team.
 
-All participants must share their public communication keys. Now Bob needs to open ```reinit.json``` and paste the shared communication public keys in relevant "new_comm_pub_key" fields:
+All participants must share their public communication keys. Run the command below to get your public communication key:
+```
+$ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
+EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
+```
+Now Bob needs to open ```reinit.json``` and paste the shared communication public keys in relevant "new_comm_pub_key" fields:
 
 ```
 {
