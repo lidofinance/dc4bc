@@ -22,7 +22,7 @@ const (
 	flagKeysFile    = "keys"
 	flagSeparator   = "separator"
 	flagColumnIndex = "column"
-	flagSkipHeader  = "skip_header"
+	flagSkipHeader  = "skip-header"
 	flagAdapt140    = "adapt_1_4_0"
 )
 
@@ -37,7 +37,7 @@ func init() {
 	rootCmd.PersistentFlags().StringP(flagKeysFile, "k", "./keys.json", "File with new keys (JSON)")
 	rootCmd.PersistentFlags().StringP(flagSeparator, "s", ";", "Separator")
 	rootCmd.PersistentFlags().IntP(flagColumnIndex, "p", 4, "Column index (with message JSON)")
-	rootCmd.PersistentFlags().Bool(flagSkipHeader, true, "Skip header (if present)")
+	rootCmd.PersistentFlags().Bool(flagSkipHeader, false, "Skip header (if present)")
 	rootCmd.PersistentFlags().Bool(flagAdapt140, true, "Adapt 1.4.0 dump")
 }
 
