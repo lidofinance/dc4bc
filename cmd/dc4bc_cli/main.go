@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/types"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -84,6 +85,7 @@ func main() {
 		getUsernameCommand(),
 		getPubKeyCommand(),
 		getHashOfStartDKGCommand(),
+		getHashOfReinitDKGMessageCommand(),
 		getSignaturesCommand(),
 		getSignatureCommand(),
 		saveOffsetCommand(),
@@ -177,6 +179,9 @@ func getOperationsCommand() *cobra.Command {
 					msgHash := sha256.Sum256(payload.SrcPayload)
 					fmt.Printf("\t\tHash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
 					fmt.Printf("\t\tSigning ID: %s\n", payload.SigningId)
+				}
+				if fsm.State(operation.Type) == types.ReinitDKG {
+					fmt.Printf("\t\tHash of the reinit DKG message - %s\n", hex.EncodeToString(operation.ExtraData))
 				}
 				fmt.Println("-----------------------------------------------------")
 				actionId++
@@ -713,6 +718,27 @@ func getHashOfStartDKGCommand() *cobra.Command {
 				}
 			}
 			hash := md5.Sum(hashPayload.Bytes())
+			fmt.Println(hex.EncodeToString(hash[:]))
+			return nil
+		},
+	}
+}
+
+func getHashOfReinitDKGMessageCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_reinit_dkg_file_hash [reinit_file]",
+		Args:  cobra.ExactArgs(1),
+		Short: "returns hash of reinit message for DKG reinit to verify correctness",
+		RunE: func(cmd *cobra.Command, args []string) error {
+
+			dkgReinitFileData, err := ioutil.ReadFile(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to read file: %w", err)
+			}
+			hash, err := types.CalcStartReInitDKGMessageHash(dkgReinitFileData)
+			if err != nil {
+				return err
+			}
 			fmt.Println(hex.EncodeToString(hash[:]))
 			return nil
 		},

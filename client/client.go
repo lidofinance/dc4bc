@@ -193,7 +193,6 @@ func (c *BaseClient) reinitDKG(message storage.Message) error {
 	var req types.ReDKG
 	if err := json.Unmarshal(message.Data, &req); err != nil {
 		return fmt.Errorf("failed to umarshal request: %v", err)
-
 	}
 
 	// temporarily fix cause we can't verify patch messages
@@ -225,6 +224,10 @@ func (c *BaseClient) reinitDKG(message storage.Message) error {
 	}
 
 	operation := types.NewOperation(req.DKGID, operationsBz, types.ReinitDKG)
+	operation.ExtraData, err = types.CalcStartReInitDKGMessageHash(message.Data)
+	if err != nil {
+		return fmt.Errorf("failed to calculat reinitDKG message hash: %w", err)
+	}
 	if err := c.getState().PutOperation(operation); err != nil {
 		return fmt.Errorf("failed to PutOperation: %w", err)
 	}

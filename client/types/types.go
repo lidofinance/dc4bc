@@ -49,6 +49,9 @@ type Operation struct {
 	DKGIdentifier string
 	To            string
 	Event         fsm.Event
+
+	// field for some additional helping data
+	ExtraData []byte
 }
 
 func NewOperation(
@@ -209,4 +212,41 @@ func GenerateReDKGMessage(messages []storage.Message) (*ReDKG, error) {
 		reDKG.Messages = append(reDKG.Messages, msg)
 	}
 	return &reDKG, nil
+}
+
+func CalcStartReInitDKGMessageHash(payload []byte) ([]byte, error) {
+	var msg ReDKG
+	if err := json.Unmarshal(payload, &msg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal payload: %w", err)
+	}
+
+	hashPayload := bytes.NewBuffer([]byte(msg.DKGID))
+	if _, err := hashPayload.Write([]byte(fmt.Sprintf("%d", msg.Threshold))); err != nil {
+		return nil, err
+	}
+	for _, p := range msg.Participants {
+		if _, err := hashPayload.Write(p.NewCommPubKey); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write(p.OldCommPubKey); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write(p.DKGPubKey); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(p.Name)); err != nil {
+			return nil, err
+		}
+	}
+	for _, m := range msg.Messages {
+		mBz, err := json.Marshal(m)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal Message: %w", err)
+		}
+		if _, err := hashPayload.Write(mBz); err != nil {
+			return nil, err
+		}
+	}
+	hash := md5.Sum(hashPayload.Bytes())
+	return hash[:], nil
 }
