@@ -369,7 +369,7 @@ In this example the message will be saved to ```reinit.json``` file.
 * `--adapt_1_4_0`: this flag patches the old append log so that it is compatible with the latest version. You can see the utility source code [here](https://github.com/lidofinance/dc4bc/blob/eb72f74e25d910fc70c4a77158fed07435d48d7c/client/client.go#L679);
 * `-k keys.json`: new communication public keys from this file will be added to `reinit.json`.
 
-**Note: all participants should run this command and check the `reinit.json` file checksum:**
+**Note: all participants can run this command and check the `reinit.json` file checksum:**
 ```
 ./dc4bc_cli get_reinit_dkg_file_hash reinit.json
 f65e4d87dce889df00ecebeed184ee601c23e531
@@ -392,6 +392,6 @@ Please, select operation:
 Select operation and press Enter. Ctrl+C for cancel
 ```
 
-There is a hash of the reinit DKG message and if it's not equal to a hash from ```get_reinit_dkg_file_hash``` command, that means that person who started reinit process has changes some parameters.
+There is a hash of the reinit DKG message in a reinitDKG operation and if it's not equal to the hash from ```get_reinit_dkg_file_hash``` command, that means that person who started the reinit process has changed some parameters.
 
 After you have processed the operation in airgapped, you have your master DKG pubkey recovered, so you can sign new messages!
