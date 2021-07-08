@@ -332,13 +332,48 @@ On your airgapped machine each participant must recover a private DKG key-pair:
 > Only do this on a fresh db_path. Type 'ok' to  continue: ok
 > Enter the BIP39 mnemonic for a random seed:
 ```
-
-Then someone must use ```dkg_reinitializer``` utility to generate a reinit message for dc4bc_d:
-
-```shell
-$ ./dkg_reinitializer reinit --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic <OLD_DKG_TOPIC> --kafka_consumer_group <YOUR USERNAME>_group -o reinit.json
+All participants must now share their public communication keys. Run the command below to get your public communication key:
 ```
-In this example the message will be saved to ```reinit.json``` file. Now someone needs to open this file and paste shared communication public keys in relevant "new_comm_pub_key" fields.
+$ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
+EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
+```
+Someone must put those keys to `keys.json` in the following format and send that file to all participants:
+```
+{
+  "gergold": "8beWWNydtmEPISNXSC+Vp7U8nJrk23m9goW2hCX/eOo=",
+  "svanevik": "r6cAAXor6iSy6nRipvLvfrNQe2BAVDQp8UN9Z+gZCNc=",
+  "staking_facilities": "EYdeAeCJLNUXufn6SOFbdr0HWp3f0YwurHcVE2yGLvY=",
+  "chorusone": "n/xcqib0t5bsyQ93Vfk4DXgahiEqrh4pEVKtWxH64UA=",
+  "will": "qK3DvQ4S52/D8OLXDw3rue510A4GsEA7ZffVIuPoUyk=",
+  "musalbas": "STFn4nporJXEPa+ftdztVo7zKa7Z4nG2eEV0jGJf2Mc=",
+  "certus_one": "/QInqEyNBq0JZJuEQf1ZKLgQtTZJSdWJHr3KV5YAc0A=",
+  "banteg": "ME06OxCRYZjz/sNv5mpBNRq2SHiVOAfmdaSyreSaEkk=",
+  "k06a": "fK6y9yk06VNh8PZTwVQjEdyl40yta2aGlu0VXNYJfhM=",
+  "rune": "v94jhyVQRRRaLiH4uxUljEeAC0uRzQERzCOsbU8lvYk=",
+  "michwill": "FoiZGSPRFZTRZ98fTjjgeLs3fU8QRdXEadagcDW5zdY="
+}
+```
+
+Someone then must use the ```dc4bc_dkg_reinitializer``` utility (available with the `darwin` or `linux` suffix on the release page, see above) to generate a reinit message for dc4bc_d. First you need to check the dump (downloaded at step 3 from `Initial setup`) and the `keys.json` checksum:
+```
+shasum dc4bc_async_ceremony_13_12_2020_dump.csv
+b9934eeb7abf7a5563ad2ad06ede87ff58c89b0c  dc4bc_async_ceremony_13_12_2020_dump.csv
+shasum keys.json
+9c08507c073642c0e97efc87a685c908e871ef8a  keys.json
+```
+If the checksum is correct for all participants, run:
+```shell
+./dc4bc_dkg_reinitializer reinit -i dc4bc_async_ceremony_13_12_2020_dump.csv -o reinit.json -k keys.json --adapt_1_4_0 --skip-header
+```
+In this example the message will be saved to ```reinit.json``` file.
+* `--adapt_1_4_0`: this flag patches the old append log so that it is compatible with the latest version. You can see the utility source code [here](https://github.com/lidofinance/dc4bc/blob/eb72f74e25d910fc70c4a77158fed07435d48d7c/client/client.go#L679);
+* `-k keys.json`: new communication public keys from this file will be added to `reinit.json`.
+
+**Note: all participants can run this command and check the `reinit.json` file checksum:**
+```
+shasum reinit.json
+cdfc9fb1c6632198818ecaeeb1dc61928fc8f990  reinit.json
+```
 
 Then someone must use ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log.
 
@@ -347,7 +382,6 @@ $ ./dc4bc_cli reinit_dkg reinit.json
 ```
 
 The command will send the message to the append-only log, dc4bc_d process it and will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.).
-
 ```
 $ ./dc4bc_cli get_operations
 Please, select operation:
@@ -360,10 +394,3 @@ Select operation and press Enter. Ctrl+C for cancel
 ```
 
 After you have processed the operation in airgapped, you have your master DKG pubkey recovered, so you can sign new messages!
-
-#### Patching old(from 0.1.4 relaese) appendlog for reinit procedure
-
-To make the old append log from `dkg_reinitializer` compatible with the latest `dc4bc_d` release, you need to patch it by running the `dkg_reinit_log_adapter` utility with original old log file as the first argument and a name for the new patched file as the second argument
-```bash
-./dkg_reinit_log_adapter old_reinit_log_file.json new_reinit_log_file.json 
-```

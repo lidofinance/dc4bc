@@ -676,8 +676,8 @@ func createMessage(origMesage storage.Message) (storage.Message, error) {
 	return newMsg, nil
 }
 
-func GetAdaptedReDKG(originalDKG types.ReDKG) (types.ReDKG, error) {
-	adaptedReDKG := types.ReDKG{}
+func GetAdaptedReDKG(originalDKG *types.ReDKG) (*types.ReDKG, error) {
+	adaptedReDKG := &types.ReDKG{}
 
 	adaptedReDKG.DKGID = originalDKG.DKGID
 	adaptedReDKG.Participants = originalDKG.Participants
@@ -690,7 +690,7 @@ func GetAdaptedReDKG(originalDKG types.ReDKG) (types.ReDKG, error) {
 			fixedSenders[m.SenderAddr] = struct{}{}
 			workAroundMessage, err := createMessage(m)
 			if err != nil {
-				return types.ReDKG{}, fmt.Errorf("failed to construct new message for adapted reinit DKG message: %v", err)
+				return nil, fmt.Errorf("failed to construct new message for adapted reinit DKG message: %v", err)
 			}
 			workAroundMessage.Offset = newOffset
 			newOffset++
