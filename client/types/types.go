@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"crypto/md5"
+	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -49,6 +50,9 @@ type Operation struct {
 	DKGIdentifier string
 	To            string
 	Event         fsm.Event
+
+	// field for some additional helping data
+	ExtraData []byte
 }
 
 func NewOperation(
@@ -216,4 +220,55 @@ func GenerateReDKGMessage(messages []storage.Message, newCommPubKeys map[string]
 	}
 
 	return &reDKG, nil
+}
+
+func CalcStartReInitDKGMessageHash(payload []byte) ([]byte, error) {
+	var msg ReDKG
+	if err := json.Unmarshal(payload, &msg); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal payload: %w", err)
+	}
+
+	hashPayload := bytes.NewBuffer([]byte(msg.DKGID))
+	if _, err := hashPayload.Write([]byte(fmt.Sprintf("%d", msg.Threshold))); err != nil {
+		return nil, err
+	}
+	for _, p := range msg.Participants {
+		if _, err := hashPayload.Write(p.NewCommPubKey); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write(p.OldCommPubKey); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write(p.DKGPubKey); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(p.Name)); err != nil {
+			return nil, err
+		}
+	}
+	for _, m := range msg.Messages {
+		if _, err := hashPayload.Write(m.Data); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write(m.Signature); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(m.RecipientAddr)); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(m.Event)); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(m.SenderAddr)); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(m.DkgRoundID)); err != nil {
+			return nil, err
+		}
+		if _, err := hashPayload.Write([]byte(fmt.Sprintf("%d", m.Offset))); err != nil {
+			return nil, err
+		}
+	}
+	hash := sha1.Sum(hashPayload.Bytes())
+	return hash[:], nil
 }

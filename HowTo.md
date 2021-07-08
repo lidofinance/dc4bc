@@ -371,12 +371,11 @@ In this example the message will be saved to ```reinit.json``` file.
 
 **Note: all participants can run this command and check the `reinit.json` file checksum:**
 ```
-shasum reinit.json
-cdfc9fb1c6632198818ecaeeb1dc61928fc8f990  reinit.json
+./dc4bc_cli get_reinit_dkg_file_hash reinit.json
+f65e4d87dce889df00ecebeed184ee601c23e531
 ```
 
-Then someone must use ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log.
-
+Then someone must use ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
 ```shell
 $ ./dc4bc_cli reinit_dkg reinit.json
 ```
@@ -389,8 +388,11 @@ Please, select operation:
  1)		DKG round ID: d62c6c478d39d4239c6c5ceb0aea6792
 		Operation ID: 34799e2301ae794c0b4f5bc9886ed5fa
 		Description: reinit DKG
+		Hash of the reinit DKG message - f65e4d87dce889df00ecebeed184ee601c23e531
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 ```
+
+There is a hash of the reinit DKG message in a reinitDKG operation and if it's not equal to the hash from ```get_reinit_dkg_file_hash``` command, that means that person who started the reinit process has changed some parameters.
 
 After you have processed the operation in airgapped, you have your master DKG pubkey recovered, so you can sign new messages!
