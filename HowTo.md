@@ -369,19 +369,17 @@ In this example the message will be saved to ```reinit.json``` file.
 * `--adapt_1_4_0`: this flag patches the old append log so that it is compatible with the latest version. You can see the utility source code [here](https://github.com/lidofinance/dc4bc/blob/eb72f74e25d910fc70c4a77158fed07435d48d7c/client/client.go#L679);
 * `-k keys.json`: new communication public keys from this file will be added to `reinit.json`.
 
-**Note: all participants can run this command and check the `reinit.json` file checksum:**
+**All participants should run this command and check the `reinit.json` file checksum:**
 ```
-shasum reinit.json
-cdfc9fb1c6632198818ecaeeb1dc61928fc8f990  reinit.json
+./dc4bc_cli get_reinit_dkg_file_hash reinit.json
+f65e4d87dce889df00ecebeed184ee601c23e531
 ```
-
-Then someone must use ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log.
-
+Then Bob must use the ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
 ```shell
 $ ./dc4bc_cli reinit_dkg reinit.json
 ```
+This command will send the message to the append-only log. The Client node process it and then will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.). **This step is for all participants, not only for Bob.**
 
-The command will send the message to the append-only log, dc4bc_d process it and will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.).
 ```
 $ ./dc4bc_cli get_operations
 Please, select operation:
@@ -389,8 +387,11 @@ Please, select operation:
  1)		DKG round ID: d62c6c478d39d4239c6c5ceb0aea6792
 		Operation ID: 34799e2301ae794c0b4f5bc9886ed5fa
 		Description: reinit DKG
+		Hash of the reinit DKG message - f65e4d87dce889df00ecebeed184ee601c23e531
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 ```
+
+There is a hash of the reinit DKG message and if it's not equal to a hash from ```get_reinit_dkg_file_hash``` command, that means that person who started reinit process has changes some parameters.
 
 After you have processed the operation in airgapped, you have your master DKG pubkey recovered, so you can sign new messages!

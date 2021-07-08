@@ -3,6 +3,7 @@ package types
 import (
 	"bytes"
 	"crypto/md5"
+	"crypto/sha1"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -268,6 +269,6 @@ func CalcStartReInitDKGMessageHash(payload []byte) ([]byte, error) {
 			return nil, err
 		}
 	}
-	hash := md5.Sum(hashPayload.Bytes())
+	hash := sha1.Sum(hashPayload.Bytes())
 	return hash[:], nil
 }
