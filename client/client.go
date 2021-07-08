@@ -595,6 +595,34 @@ func (c *BaseClient) signMessage(message []byte) ([]byte, error) {
 	return ed25519.Sign(keyPair.Priv, message), nil
 }
 
+func (c *BaseClient) verifyParticipant(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
+	if message.Event == string(types.SignatureReconstructed) {
+		return nil
+	}
+
+	payloadData := map[string]interface{}{}
+	err := json.Unmarshal(message.Data, &payloadData)
+	if err != nil {
+		return fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
+	}
+	participantIdFromReq, found := payloadData["ParticipantId"]
+	if !found {
+		return fmt.Errorf("failed to get ParticipantId from data")
+	}
+	pID, err := fsmInstance.GetIDByUsername(message.SenderAddr)
+	if err != nil {
+		return fmt.Errorf("failed to get participantID from FSM by username(%s): %w", message.SenderAddr, err)
+	}
+	pIDFromReq, ok := participantIdFromReq.(float64)
+	if !ok {
+		return fmt.Errorf("failed to get participantID, expected float64, got %T", participantIdFromReq)
+	}
+	if pID != int(pIDFromReq) {
+		return fmt.Errorf("participantID(%d) from message does not match participantID(%d) from FSM", int(pIDFromReq), pID)
+	}
+	return nil
+}
+
 func (c *BaseClient) verifyMessage(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
 	if c.GetSkipCommKeysVerification() {
 		return nil
@@ -606,6 +634,11 @@ func (c *BaseClient) verifyMessage(fsmInstance *state_machines.FSMInstance, mess
 
 	if !ed25519.Verify(senderPubKey, message.Bytes(), message.Signature) {
 		return errors.New("signature is corrupt")
+	}
+
+	err = c.verifyParticipant(fsmInstance, message)
+	if err != nil {
+		return fmt.Errorf("failed to verify participant: %w", err)
 	}
 
 	return nil

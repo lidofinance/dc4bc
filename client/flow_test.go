@@ -716,11 +716,31 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		}
 		reInitDKG = &adaptedReDKG
 
-		// skip messages signature verification, since we are unable to sign self-confirm messages by old priv key
-		//for _, node := range newNodes {
-		//	node.client.SetSkipCommKeysVerification(true)
-		//}
 	}
+
+	// uncomment to broke test with participant verification error
+	// for i, m := range reInitDKG.Messages {
+	// 	if m.SenderAddr == "node_0" {
+	// 		d := map[string]interface{}{}
+	// 		err := json.Unmarshal(m.Data, &d)
+	// 		if err != nil {
+	// 			t.Fatalf(err.Error())
+	// 		}
+	// 		if _, found := d["ParticipantId"]; found {
+	// 			d["ParticipantId"] = 1
+	// 			data, err := json.Marshal(d)
+	// 			if err != nil {
+	// 				t.Fatalf(err.Error())
+	// 			}
+	// 			reInitDKG.Messages[i].Data = data
+	// 			reInitDKG.Messages[i].Signature, err = nodes[0].client.(*BaseClient).signMessage(data)
+	// 			if err != nil {
+	// 				t.Fatalf(err.Error())
+	// 			}
+	// 		}
+
+	// 	}
+	// }
 
 	for _, node := range newNodes {
 		for i, participant := range reInitDKG.Participants {
