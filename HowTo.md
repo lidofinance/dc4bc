@@ -332,3 +332,5 @@ To make the old append log from `dkg_reinitializer` compatible with the latest `
 ```shell
 ./dkg_reinit_log_adapter adapt -i old_reinit_log_file.json -o new_reinit_log_file.json --username TestUser --key_storage_dbdsn ./stores/test_user_new_key_store
 ```
+
+Then, before running `./dc4bc_cli reinit_dkg new_reinit_log_file.json` from the previous _Reinitialize DKG_ section, you need to disable keys verification for the reinit step with the `--skip_comm_keys_verification` flag when re-running the node. After `./dc4bc_cli reinit_dkg new_reinit_log_file.json` has done its job, you need to restart the node once again, without the `--skip_comm_keys_verification` flag, and continue the procedure from the _Reinitialize DKG_ section.

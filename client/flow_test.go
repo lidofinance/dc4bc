@@ -626,6 +626,9 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 	numNodes := 4
 	threshold := 2
 	startingPort := 8095
+	if convertDKGTo10_1_4 {
+		startingPort = 8100
+	}
 	topic := "test_topic"
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, mnemonics)
@@ -706,21 +709,16 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 	}
 
 	if convertDKGTo10_1_4 {
+		newDKG := convertDKGMessageto0_1_4(*reInitDKG)
 		// removing dkg_proposal_fsm.EventDKGDealConfirmationReceived self-confirm messages
 		// to make reInitDKG message looks like in release 0.1.4
-		newDKG := convertDKGMessageto0_1_4(*reInitDKG)
-
-		// adding back self-confirm messages from each node to common adaptedDKG
-		// this is our test target
-		for i, n := range newNodes {
-			newDKG, err = GetAdaptedReDKG(newDKG, fmt.Sprintf("node_%d", i), n.KeyStore)
-			if err != nil {
-				t.Fatalf(err.Error())
-			}
+		newDKG, err = GetAdaptedReDKG(newDKG, "node_0", newNodes[0].KeyStore)
+		if err != nil {
+			t.Fatalf(err.Error())
 		}
 		reInitDKG = &newDKG
-	}
 
+	}
 	for _, node := range newNodes {
 		for i, participant := range reInitDKG.Participants {
 			if participant.Name == node.client.GetUsername() {
