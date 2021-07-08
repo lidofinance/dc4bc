@@ -196,6 +196,13 @@ func (c *BaseClient) reinitDKG(message storage.Message) error {
 
 	}
 
+	// temporarily fix cause we can't verify patch messages
+	// TODO: remove later
+	if !c.GetSkipCommKeysVerification() {
+		c.SetSkipCommKeysVerification(true)
+		defer c.SetSkipCommKeysVerification(false)
+	}
+
 	operations := make([]*types.Operation, 0)
 	for _, msg := range req.Messages {
 		if fsm.Event(msg.Event) == sipf.EventSigningStart {

@@ -717,9 +717,9 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		reInitDKG = &adaptedReDKG
 
 		// skip messages signature verification, since we are unable to sign self-confirm messages by old priv key
-		for _, node := range newNodes {
-			node.client.SetSkipCommKeysVerification(true)
-		}
+		//for _, node := range newNodes {
+		//	node.client.SetSkipCommKeysVerification(true)
+		//}
 	}
 
 	for _, node := range newNodes {
