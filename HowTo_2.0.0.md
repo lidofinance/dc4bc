@@ -8,8 +8,9 @@ This document describes how to make a signature using:
 #### Initial setup
 
 1. Make sure that you have the Airgapped private key mnemonic;
-2. Download the release binaries (`dc4bc_dkg_reinitializer`, `dc4bc_airgapped`, `dc4bc_cli`, `dc4bc_d`, `dc4bc_dkg_reinit_log_adapter`) with appropriate platform suffix) from [the release page](https://github.com/lidofinance/dc4bc/releases/tag/2.0.0);
-3. Set up your cold and hot nodes using the old [instruction](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#setting-up-hot-and-airapped-nodes).
+2. Download the release binaries (`dc4bc_dkg_reinitializer`, `dc4bc_airgapped`, `dc4bc_cli`, `dc4bc_d`) with appropriate platform suffix) from [the release page](https://github.com/lidofinance/dc4bc/releases/tag/2.0.0);
+3. Download the old [append log dump](https://github.com/lidofinance/dc4bc/releases/download/2.0.0/dc4bc_async_ceremony_13_12_2020_dump.csv);
+4. Set up your cold and hot nodes using the old [instruction](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#setting-up-hot-and-airapped-nodes).
 
 #### 1.4.0 -> 2.0.0 Migration
 
@@ -44,54 +45,55 @@ After starting the Airgapped machine, you must recover your private DKG key-pair
 
 **After everyone has set up their Client and Airgapped machines, you must choose one participant (Bob) that will prepare the reinit Operation for everyone.**
 
-Bob must use the ```dc4bc_dkg_reinitializer``` utility (available with the `darwin` or `linux` suffix on the release page, see above) to generate a reinit message for dc4bc_d:
-
-```shell
-$ ./dc4bc_dkg_reinitializer reinit --storage_dbdsn 51.158.98.208:9093 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_topic <OLD_DKG_TOPIC> --kafka_consumer_group <YOUR USERNAME>_group -o reinit.json
-```
-In this example the message will be saved to ```reinit.json``` file. The <OLD_DKG_TOPIC> is the topic with the messages from the old DKG; it will be provided by the Lido team.
-
-All participants must share their public communication keys. Run the command below to get your public communication key:
+All participants must now share their public communication keys. Run the command below to get your public communication key:
 ```
 $ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
 EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 ```
-Now Bob needs to open ```reinit.json``` and paste the shared communication public keys in relevant "new_comm_pub_key" fields:
-
+Bob must put those keys to `keys.json` in the following format and send that file to all participants:
 ```
 {
-  "dkg_id": "d62c6c478d39d4239c6c5ceb0aea6792",
-  "threshold": 2,
-  "participants": [
-    {
-      "dkg_pub_key": "mY+odV9fqJA7TRNUrqQd29f3CmJoY/ug6mwG5CbnHdiHdmjHHGNjWgo/GXWiJ5sa",
-      "old_comm_pub_key": "ythrIEb8zqO56hO/SIeCXp0QIzV96VVg9nc6yIrIFdQ=",
-      "new_comm_pub_key": null, <<< PASTE HERE
-      "name": "alice"
-    },
-    {
-      "dkg_pub_key": "jx71Coo+EDkzWnAZLwRFX8rnJH5gwhTdldWHfNvK4NiOLixHck0JOepkgtjoNcRb",
-      "old_comm_pub_key": "8ogpX6PPWIS8Unx0XKC7gcEypPaJZdwVPbE24dVoRNo=",
-      "new_comm_pub_key": null, <<< PASTE HERE
-      "name": "bob"
-    }
-  ],
-  ...
+  "gergold": "8beWWNydtmEPISNXSC+Vp7U8nJrk23m9goW2hCX/eOo=",
+  "svanevik": "r6cAAXor6iSy6nRipvLvfrNQe2BAVDQp8UN9Z+gZCNc=",
+  "staking_facilities": "EYdeAeCJLNUXufn6SOFbdr0HWp3f0YwurHcVE2yGLvY=",
+  "chorusone": "n/xcqib0t5bsyQ93Vfk4DXgahiEqrh4pEVKtWxH64UA=",
+  "will": "qK3DvQ4S52/D8OLXDw3rue510A4GsEA7ZffVIuPoUyk=",
+  "musalbas": "STFn4nporJXEPa+ftdztVo7zKa7Z4nG2eEV0jGJf2Mc=",
+  "certus_one": "/QInqEyNBq0JZJuEQf1ZKLgQtTZJSdWJHr3KV5YAc0A=",
+  "banteg": "ME06OxCRYZjz/sNv5mpBNRq2SHiVOAfmdaSyreSaEkk=",
+  "k06a": "fK6y9yk06VNh8PZTwVQjEdyl40yta2aGlu0VXNYJfhM=",
+  "rune": "v94jhyVQRRRaLiH4uxUljEeAC0uRzQERzCOsbU8lvYk=",
+  "michwill": "FoiZGSPRFZTRZ98fTjjgeLs3fU8QRdXEadagcDW5zdY="
+}
 ```
 
-Now, to make the old append log from ```reinit.json``` compatible with the 2.0.0 release, Bob needs to patch it by running the `dkg_reinit_log_adapter` utility with original old log file as the first argument and a name for the new patched file as the second argument:
-```bash
-./dc4bc_dkg_reinit_log_adapter reinit.json new_reinit.json 
-```
-You can find the utility source code [here](https://github.com/lidofinance/dc4bc/tree/master/cmd/dkg_reinit_log_adapter).
+Bob then must use the ```dc4bc_dkg_reinitializer``` utility (available with the `darwin` or `linux` suffix on the release page, see above) to generate a reinit message for `dc4bc_d`.
 
+First everyone needs to check the old [append log dump](https://github.com/lidofinance/dc4bc/releases/download/2.0.0/dc4bc_async_ceremony_13_12_2020_dump.csv) and the `keys.json` checksum:
+```
+shasum dc4bc_async_ceremony_13_12_2020_dump.csv
+b9934eeb7abf7a5563ad2ad06ede87ff58c89b0c  dc4bc_async_ceremony_13_12_2020_dump.csv
+shasum keys.json
+9c08507c073642c0e97efc87a685c908e871ef8a  keys.json
+```
+If the checksum is correct for all participants, everyone should run:
+```shell
+./dc4bc_dkg_reinitializer reinit -i dc4bc_async_ceremony_13_12_2020_dump.csv -o reinit.json -k keys.json --adapt_1_4_0
+```
+In this example the message will be saved to ```reinit.json``` file.
+* `--adapt_1_4_0`: this flag patches the old append log so that it is compatible with the latest version. You can see the utility source code [here](https://github.com/lidofinance/dc4bc/blob/eb72f74e25d910fc70c4a77158fed07435d48d7c/client/client.go#L679);
+* `-k keys.json`: new communication public keys from this file will be added to `reinit.json`.
+
+**All participants should run this command and check the `reinit.json` file checksum:**
+```
+shasum reinit.json
+cdfc9fb1c6632198818ecaeeb1dc61928fc8f990  reinit.json
+```
 Then Bob must use the ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
-
 ```shell
 $ ./dc4bc_cli reinit_dkg reinit.json
 ```
-
-The command will send the message to the append-only log. The Client node process it and then will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.). **This step is for all participants, not only for Bob.**
+This command will send the message to the append-only log. The Client node process it and then will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.). **This step is for all participants, not only for Bob.**
 
 ```
 $ ./dc4bc_cli get_operations
