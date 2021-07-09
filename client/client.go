@@ -630,7 +630,7 @@ func (c *BaseClient) verifyMessage(fsmInstance *state_machines.FSMInstance, mess
 		return fmt.Errorf("failed to GetPubKeyByUsername: %w", err)
 	}
 
-	if fsm.Event(message.Event) != dkg_proposal_fsm.EventDKGDealConfirmationReceived && !ed25519.Verify(senderPubKey, message.Bytes(), message.Signature) {
+	if !ed25519.Verify(senderPubKey, message.Bytes(), message.Signature) {
 		return errors.New("signature is corrupt")
 	}
 
