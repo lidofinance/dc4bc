@@ -718,7 +718,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 
 	}
 
-	// uncomment to broke test with participant verification error
+	// uncomment to brake test with participant verification error in case of enabled keyverification
 	// for i, m := range reInitDKG.Messages {
 	// 	if m.SenderAddr == "node_0" {
 	// 		d := map[string]interface{}{}

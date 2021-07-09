@@ -600,25 +600,23 @@ func (c *BaseClient) verifyParticipant(fsmInstance *state_machines.FSMInstance, 
 		return nil
 	}
 
-	payloadData := map[string]interface{}{}
+	payloadData := struct {
+		ParticipantId *int
+	}{}
 	err := json.Unmarshal(message.Data, &payloadData)
 	if err != nil {
-		return fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
+		return fmt.Errorf("failed to unmarshal message data: %v", err)
 	}
-	participantIdFromReq, found := payloadData["ParticipantId"]
-	if !found {
-		return fmt.Errorf("failed to get ParticipantId from data")
+	if payloadData.ParticipantId == nil {
+		return fmt.Errorf("failed to get ParticipantId, field is missing")
 	}
+	participantIdFromReq := *payloadData.ParticipantId
 	pID, err := fsmInstance.GetIDByUsername(message.SenderAddr)
 	if err != nil {
 		return fmt.Errorf("failed to get participantID from FSM by username(%s): %w", message.SenderAddr, err)
 	}
-	pIDFromReq, ok := participantIdFromReq.(float64)
-	if !ok {
-		return fmt.Errorf("failed to get participantID, expected float64, got %T", participantIdFromReq)
-	}
-	if pID != int(pIDFromReq) {
-		return fmt.Errorf("participantID(%d) from message does not match participantID(%d) from FSM", int(pIDFromReq), pID)
+	if pID != participantIdFromReq {
+		return fmt.Errorf("participantID(%d) from message does not match participantID(%d) from FSM", participantIdFromReq, pID)
 	}
 	return nil
 }
@@ -632,7 +630,7 @@ func (c *BaseClient) verifyMessage(fsmInstance *state_machines.FSMInstance, mess
 		return fmt.Errorf("failed to GetPubKeyByUsername: %w", err)
 	}
 
-	if !ed25519.Verify(senderPubKey, message.Bytes(), message.Signature) {
+	if fsm.Event(message.Event) != dkg_proposal_fsm.EventDKGDealConfirmationReceived && !ed25519.Verify(senderPubKey, message.Bytes(), message.Signature) {
 		return errors.New("signature is corrupt")
 	}
 
