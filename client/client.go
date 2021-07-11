@@ -596,9 +596,6 @@ func (c *BaseClient) signMessage(message []byte) ([]byte, error) {
 }
 
 func (c *BaseClient) verifyParticipant(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
-	if message.Event == string(types.SignatureReconstructed) {
-		return nil
-	}
 
 	payloadData := struct {
 		ParticipantId *int

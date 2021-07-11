@@ -3,6 +3,7 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/corestario/kyber/pairing"
 	"github.com/corestario/kyber/sign/bls"
 	"github.com/corestario/kyber/sign/tbls"
@@ -104,12 +105,16 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 	if err != nil {
 		return fmt.Errorf("failed to reconsruct full signature for msg: %w", err)
 	}
-
+	participantID, err := am.getParticipantID(o.DKGIdentifier)
+	if err != nil {
+		return fmt.Errorf("failed to get paricipant id: %w", err)
+	}
 	response := client.ReconstructedSignature{
-		SigningID:  payload.SigningId,
-		SrcPayload: payload.SrcPayload,
-		Signature:  reconstructedSignature,
-		DKGRoundID: o.DKGIdentifier,
+		ParticipantId: participantID,
+		SigningID:     payload.SigningId,
+		SrcPayload:    payload.SrcPayload,
+		Signature:     reconstructedSignature,
+		DKGRoundID:    o.DKGIdentifier,
 	}
 	respBz, err := json.Marshal(response)
 	if err != nil {

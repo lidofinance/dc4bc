@@ -42,6 +42,8 @@ var sigReconstructedRegexp = regexp.MustCompile(`(?m)\[node_\d] Successfully pro
 
 var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
 
+var participantVerificationFailed = regexp.MustCompile(`failed to verify participant: participantID\(\d+\) from message does not match participantID\(\d+\) from FSM`)
+
 type node struct {
 	client       Client
 	clientCancel context.CancelFunc
@@ -624,6 +626,9 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 	numNodes := 4
 	threshold := 2
 	startingPort := 8095
+	if convertDKGTo10_1_4 {
+		startingPort = 8100
+	}
 	topic := "test_topic"
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, mnemonics)
@@ -718,30 +723,6 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 
 	}
 
-	// uncomment to brake test with participant verification error in case of enabled keyverification
-	// for i, m := range reInitDKG.Messages {
-	// 	if m.SenderAddr == "node_0" {
-	// 		d := map[string]interface{}{}
-	// 		err := json.Unmarshal(m.Data, &d)
-	// 		if err != nil {
-	// 			t.Fatalf(err.Error())
-	// 		}
-	// 		if _, found := d["ParticipantId"]; found {
-	// 			d["ParticipantId"] = 1
-	// 			data, err := json.Marshal(d)
-	// 			if err != nil {
-	// 				t.Fatalf(err.Error())
-	// 			}
-	// 			reInitDKG.Messages[i].Data = data
-	// 			reInitDKG.Messages[i].Signature, err = nodes[0].client.(*BaseClient).signMessage(data)
-	// 			if err != nil {
-	// 				t.Fatalf(err.Error())
-	// 			}
-	// 		}
-
-	// 	}
-	// }
-
 	for _, node := range newNodes {
 		for i, participant := range reInitDKG.Participants {
 			if participant.Name == node.client.GetUsername() {
@@ -804,4 +785,84 @@ func TestReinitDKGFlow(t *testing.T) {
 
 func TestReinitDKGFlowWithDump0_1_4(t *testing.T) {
 	testReinitDKGFlow(t, true)
+}
+
+func TestFailedParticipantVerificationFlow(t *testing.T) {
+	_ = RemoveContents("/tmp", "dc4bc_*")
+	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
+
+	numNodes := 4
+	threshold := 2
+	startingPort := 8105
+	topic := "test_topic"
+	storagePath := "/tmp/dc4bc_storage"
+	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil)
+	if err != nil {
+		t.Fatalf("Failed to init nodes, err: %v", err)
+	}
+
+	// injecting incorrect ParticipantID into processedOperation from airgapped machine to fail DKG
+	processedOperationCallback := func(n *node, processedOperation *types.Operation) {
+		if processedOperation.Event == dkg_proposal_fsm.EventDKGDealConfirmationReceived {
+			operationMsg := processedOperation.ResultMsgs[0]
+			if n.client.GetUsername() != "node_1" {
+				return
+			}
+			fsmReq, err := types.FSMRequestFromMessage(operationMsg)
+			if err != nil {
+				t.Fatalf("failed to get FSMRequestFromMessage: %v", err)
+			}
+			request, ok := fsmReq.(requests.DKGProposalDealConfirmationRequest)
+			if !ok {
+				t.Fatalf("cannot cast message request  to type {DKGProposalDealConfirmationRequest}")
+			}
+			request.ParticipantId = (request.ParticipantId + 1) % numNodes
+			reqBz, err := json.Marshal(request)
+			if err != nil {
+				n.client.GetLogger().Log("failed to generate fsm request: %v", err)
+			}
+			operationMsg.Data = reqBz
+			newSignature, err := n.client.(*BaseClient).signMessage(reqBz)
+			if err != nil {
+				t.Fatalf(err.Error())
+			}
+			operationMsg.Signature = newSignature
+
+			processedOperation.ResultMsgs[0] = operationMsg
+		}
+	}
+
+	// Each node starts to Poll().
+	runCancel := startServerRunAndPoll(nodes, processedOperationCallback)
+
+	// Last node tells other participants to start DKG.
+	messageDataBz, err := startDkg(nodes, threshold)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	time.Sleep(10 * time.Second)
+
+	log.Println("Propose message to sign")
+
+	dkgID := md5.Sum(messageDataBz)
+	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[len(nodes)-1].listenAddr)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	time.Sleep(15 * time.Second)
+	participantVerificationFailedMatches := 0
+	for _, n := range nodes {
+		participantVerificationFailedMatches += n.clientLogger.checkLogsWithRegexp(participantVerificationFailed, 70)
+	}
+	if participantVerificationFailedMatches == 0 {
+		t.Fatalf("not enough checks: %d", participantVerificationFailedMatches)
+	} else {
+		fmt.Println("incorrect participationID detected successfully")
+	}
+
+	runCancel()
+	for _, node := range nodes {
+		node.client.StopHTTPServer()
+		node.clientCancel()
+	}
 }
