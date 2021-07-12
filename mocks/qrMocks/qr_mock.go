@@ -8,7 +8,6 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	qrcode "github.com/skip2/go-qrcode"
 )
 
 // MockProcessor is a mock of Processor interface.
@@ -34,21 +33,6 @@ func (m *MockProcessor) EXPECT() *MockProcessorMockRecorder {
 	return m.recorder
 }
 
-// ReadQR mocks base method.
-func (m *MockProcessor) ReadQR(filename string) ([]byte, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ReadQR", filename)
-	ret0, _ := ret[0].([]byte)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// ReadQR indicates an expected call of ReadQR.
-func (mr *MockProcessorMockRecorder) ReadQR(filename interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadQR", reflect.TypeOf((*MockProcessor)(nil).ReadQR), filename)
-}
-
 // SetChunkSize mocks base method.
 func (m *MockProcessor) SetChunkSize(chunkSize int) {
 	m.ctrl.T.Helper()
@@ -71,18 +55,6 @@ func (m *MockProcessor) SetDelay(delay int) {
 func (mr *MockProcessorMockRecorder) SetDelay(delay interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetDelay", reflect.TypeOf((*MockProcessor)(nil).SetDelay), delay)
-}
-
-// SetRecoveryLevel mocks base method.
-func (m *MockProcessor) SetRecoveryLevel(recoveryLevel qrcode.RecoveryLevel) {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "SetRecoveryLevel", recoveryLevel)
-}
-
-// SetRecoveryLevel indicates an expected call of SetRecoveryLevel.
-func (mr *MockProcessorMockRecorder) SetRecoveryLevel(recoveryLevel interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRecoveryLevel", reflect.TypeOf((*MockProcessor)(nil).SetRecoveryLevel), recoveryLevel)
 }
 
 // WriteQR mocks base method.

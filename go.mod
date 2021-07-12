@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/PeterCxy/gozbar v0.0.0-20190326032822-3a1847c06661
 	github.com/corestario/kyber v1.6.1-0.20201110123848-0eac241a9f75
+	github.com/fatih/color v1.9.0
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.5.4
 	github.com/google/uuid v1.1.1

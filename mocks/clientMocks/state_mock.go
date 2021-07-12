@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	client "github.com/lidofinance/dc4bc/client"
 	types "github.com/lidofinance/dc4bc/client/types"
 	state_machines "github.com/lidofinance/dc4bc/fsm/state_machines"
 )
@@ -36,17 +37,17 @@ func (m *MockState) EXPECT() *MockStateMockRecorder {
 }
 
 // DeleteOperation mocks base method.
-func (m *MockState) DeleteOperation(operationID string) error {
+func (m *MockState) DeleteOperation(operation *types.Operation) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteOperation", operationID)
+	ret := m.ctrl.Call(m, "DeleteOperation", operation)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteOperation indicates an expected call of DeleteOperation.
-func (mr *MockStateMockRecorder) DeleteOperation(operationID interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) DeleteOperation(operation interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOperation", reflect.TypeOf((*MockState)(nil).DeleteOperation), operationID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOperation", reflect.TypeOf((*MockState)(nil).DeleteOperation), operation)
 }
 
 // GetAllFSM mocks base method.
@@ -153,6 +154,22 @@ func (m *MockState) LoadOffset() (uint64, error) {
 func (mr *MockStateMockRecorder) LoadOffset() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadOffset", reflect.TypeOf((*MockState)(nil).LoadOffset))
+}
+
+// NewStateFromOld mocks base method.
+func (m *MockState) NewStateFromOld(stateDbPath string) (client.State, string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewStateFromOld", stateDbPath)
+	ret0, _ := ret[0].(client.State)
+	ret1, _ := ret[1].(string)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
+}
+
+// NewStateFromOld indicates an expected call of NewStateFromOld.
+func (mr *MockStateMockRecorder) NewStateFromOld(stateDbPath interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewStateFromOld", reflect.TypeOf((*MockState)(nil).NewStateFromOld), stateDbPath)
 }
 
 // PutOperation mocks base method.

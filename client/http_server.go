@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/md5"
 	"encoding/hex"
@@ -26,6 +27,13 @@ import (
 type Response struct {
 	ErrorMessage string      `json:"error_message,omitempty"`
 	Result       interface{} `json:"result"`
+}
+
+type ResetStateRequest struct {
+	NewStateDBDSN      string   `json:"new_state_dbdsn,omitempty"`
+	UseOffset          bool     `json:"use_offset"`
+	KafkaConsumerGroup string   `json:"kafka_consumer_group"`
+	Messages           []string `json:"messages,omitempty"`
 }
 
 func rawResponse(w http.ResponseWriter, response []byte) {
@@ -81,6 +89,7 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/startDKG", c.startDKGHandler)
 	mux.HandleFunc("/proposeSignMessage", c.proposeSignDataHandler)
 	mux.HandleFunc("/approveDKGParticipation", c.approveParticipationHandler)
+	mux.HandleFunc("/reinitDKG", c.reinitDKGHandler)
 
 	mux.HandleFunc("/saveOffset", c.saveOffsetHandler)
 	mux.HandleFunc("/getOffset", c.getOffsetHandler)
@@ -88,8 +97,16 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/getFSMDump", c.getFSMDumpHandler)
 	mux.HandleFunc("/getFSMList", c.getFSMList)
 
+	mux.HandleFunc("/resetState", c.resetStateHandler)
+
+	c.server = &http.Server{Addr: listenAddr, Handler: mux}
+  
 	c.Logger.Log("HTTP server started on address: %s", listenAddr)
-	return http.ListenAndServe(listenAddr, mux)
+	return c.server.ListenAndServe()
+}
+
+func (c *BaseClient) StopHTTPServer() {
+	c.server.Shutdown(context.Background())
 }
 
 func (c *BaseClient) getFSMDumpHandler(w http.ResponseWriter, r *http.Request) {
@@ -110,7 +127,7 @@ func (c *BaseClient) getFSMList(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
-	fsmInstances, err := c.state.GetAllFSM()
+	fsmInstances, err := c.getState().GetAllFSM()
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to get all FSM instances: %v", err))
 		return
@@ -148,7 +165,7 @@ func (c *BaseClient) getOffsetHandler(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
-	offset, err := c.state.LoadOffset()
+	offset, err := c.getState().LoadOffset()
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to load offset: %v", err))
 		return
@@ -177,7 +194,7 @@ func (c *BaseClient) saveOffsetHandler(w http.ResponseWriter, r *http.Request) {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("offset cannot be null: %v", err))
 		return
 	}
-	if err = c.state.SaveOffset(req["offset"]); err != nil {
+	if err = c.getState().SaveOffset(req["offset"]); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to save offset: %v", err))
 		return
 	}
@@ -492,6 +509,64 @@ func (c *BaseClient) handleJSONOperationHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	successResponse(w, "ok")
+}
+
+func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
+  if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to read body: %v", err))
+		return
+	}
+	defer r.Body.Close()
+  
+  var req ResetStateRequest
+  if err = json.Unmarshal(reqBody, &req); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
+		return
+	}
+  
+  newStateDbPath, err := c.ResetState(req.NewStateDBDSN, req.KafkaConsumerGroup, req.Messages, req.UseOffset)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to reset state: %v", err))
+		return
+	}
+
+	successResponse(w, newStateDbPath)
+}
+
+func (c *BaseClient) reinitDKGHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
+		return
+	}
+	reqBody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to read body: %v", err))
+		return
+	}
+	defer r.Body.Close()
+
+	var req types.ReDKG
+	if err = json.Unmarshal(reqBody, &req); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
+		return
+	}
+
+	message, err := c.buildMessage(req.DKGID, fsm.Event(types.ReinitDKG), reqBody)
+	if err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to build message: %v", err))
+		return
+	}
+
+	if err = c.SendMessage(*message); err != nil {
+		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to send message: %v", err))
+		return
+	}
 	successResponse(w, "ok")
 }
 

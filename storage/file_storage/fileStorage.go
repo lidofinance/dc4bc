@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 
 	"github.com/lidofinance/dc4bc/storage"
 
@@ -19,6 +20,9 @@ type FileStorage struct {
 	lockFile *fslock.Lock
 
 	dataFile *os.File
+
+	idIgnoreList     map[string]struct{}
+	offsetIgnoreList map[uint64]struct{}
 }
 
 const (
@@ -52,6 +56,9 @@ func NewFileStorage(filename string, lockFilename ...string) (storage.Storage, e
 	if fs.dataFile, err = os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644); err != nil {
 		return nil, fmt.Errorf("failed to open a data file: %v", err)
 	}
+
+	fs.idIgnoreList = map[string]struct{}{}
+	fs.offsetIgnoreList = map[uint64]struct{}{}
 	return &fs, nil
 }
 
@@ -106,6 +113,8 @@ func (fs *FileStorage) GetMessages(offset uint64) ([]storage.Message, error) {
 		return nil, fmt.Errorf("failed to seek a offset to the start of a data file: %v", err)
 	}
 	scanner := bufio.NewScanner(fs.dataFile)
+	buf := make([]byte, 0, 64*1024)
+	scanner.Buffer(buf, 1024*1024)
 	for scanner.Scan() {
 		if offset > 0 {
 			offset--
@@ -116,14 +125,42 @@ func (fs *FileStorage) GetMessages(offset uint64) ([]storage.Message, error) {
 		if err = json.Unmarshal(row, &data); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal a message %s: %v", string(row), err)
 		}
-		msgs = append(msgs, data)
+
+		_, idOk := fs.idIgnoreList[data.ID]
+		_, offsetOk := fs.offsetIgnoreList[data.Offset]
+		if !idOk && !offsetOk {
+			msgs = append(msgs, data)
+		}
 	}
 	if scanner.Err() != nil {
-		return nil, fmt.Errorf("failed to read a data file: %v", err)
+		return nil, fmt.Errorf("failed to read a data file: %v", scanner.Err())
 	}
 	return msgs, nil
 }
 
 func (fs *FileStorage) Close() error {
 	return fs.dataFile.Close()
+}
+
+func (fs *FileStorage) IgnoreMessages(messages []string, useOffset bool) error {
+	for _, msg := range messages {
+		if useOffset {
+			offset, err := strconv.ParseUint(msg, 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse message offset: %v", err)
+			}
+			fs.offsetIgnoreList[offset] = struct{}{}
+
+			continue
+		}
+
+		fs.idIgnoreList[msg] = struct{}{}
+	}
+
+	return nil
+}
+
+func (fs *FileStorage) UnignoreMessages() {
+	fs.idIgnoreList = map[string]struct{}{}
+	fs.offsetIgnoreList = map[uint64]struct{}{}
 }

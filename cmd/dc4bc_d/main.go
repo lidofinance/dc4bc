@@ -6,8 +6,10 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/segmentio/kafka-go/sasl/plain"
 
@@ -37,6 +39,8 @@ const (
 	flagChunkSize                = "chunk_size"
 	flagConfig                   = "config"
 	flagSkipCommKeysVerification = "skip_comm_keys_verification"
+	flagStorageIgnoreMessages    = "storage_ignore_messages"
+	flagOffsetsToIgnoreMessages  = "offsets_to_ignore_messages"
 )
 
 var (
@@ -54,13 +58,15 @@ func init() {
 	rootCmd.PersistentFlags().String(flagKafkaProducerCredentials, "producer:producerpass", "Producer credentials for Kafka: username:password")
 	rootCmd.PersistentFlags().String(flagKafkaConsumerCredentials, "consumer:consumerpass", "Consumer credentials for Kafka: username:password")
 	rootCmd.PersistentFlags().String(flagKafkaTrustStorePath, "certs/ca.pem", "Path to kafka truststore")
-	rootCmd.PersistentFlags().String(flagKafkaConsumerGroup, "testUser_consumer_group", "Kafka consumer group")
+	rootCmd.PersistentFlags().String(flagKafkaConsumerGroup, "", "Kafka consumer group")
 	rootCmd.PersistentFlags().String(flagKafkaTimeout, "60s", "Kafka I/O Timeout")
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, flagConfig, "", "path to your config file")
 	rootCmd.PersistentFlags().Bool(flagSkipCommKeysVerification, false, "verify messages from append-log or not")
+	rootCmd.PersistentFlags().String(flagStorageIgnoreMessages, "", "Messages ids or offsets separated by comma (id_1,id_2,...,id_n) to ignore when reading from storage")
+	rootCmd.PersistentFlags().Bool(flagOffsetsToIgnoreMessages, false, "Consider values provided in " + flagStorageIgnoreMessages + " flag to be message offsets instead of ids")
 
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 	exitIfError(viper.BindPFlag(flagListenAddr, rootCmd.PersistentFlags().Lookup(flagListenAddr)))
@@ -77,6 +83,8 @@ func init() {
 	exitIfError(viper.BindPFlag(flagChunkSize, rootCmd.PersistentFlags().Lookup(flagChunkSize)))
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 	exitIfError(viper.BindPFlag(flagSkipCommKeysVerification, rootCmd.PersistentFlags().Lookup(flagSkipCommKeysVerification)))
+	exitIfError(viper.BindPFlag(flagStorageIgnoreMessages, rootCmd.PersistentFlags().Lookup(flagStorageIgnoreMessages)))
+	exitIfError(viper.BindPFlag(flagOffsetsToIgnoreMessages, rootCmd.PersistentFlags().Lookup(flagOffsetsToIgnoreMessages)))
 }
 
 func exitIfError(err error) {
@@ -136,6 +144,25 @@ func parseKafkaSaslPlain(creds string) (*plain.Mechanism, error) {
 	}, nil
 }
 
+func parseMessagesToIgnore(messages string, useOffset bool) (msgs []string, err error) {
+	if len(messages) == 0 {
+		return msgs, err
+	}
+
+	msgs = strings.Split(messages, ",")
+
+	if useOffset {
+		for _, msg := range msgs {
+			if _, err = strconv.ParseUint(msg, 10, 64); err != nil {
+				return nil, fmt.Errorf("when %s flag is specified, values provided in %s flag should be" +
+					" parsable into uint64. error: %w", flagOffsetsToIgnoreMessages, flagStorageIgnoreMessages, err)
+			}
+		}
+	}
+
+	return msgs, nil
+}
+
 func startClientCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
@@ -151,8 +178,13 @@ func startClientCommand() *cobra.Command {
 				return fmt.Errorf("failed to init state client: %w", err)
 			}
 
-			kafkaTrustStorePath := viper.GetString(flagKafkaTrustStorePath)
+			username := viper.GetString(flagUserName)
 			kafkaConsumerGroup := viper.GetString(flagKafkaConsumerGroup)
+			if len(kafkaConsumerGroup) < 1 {
+				kafkaConsumerGroup = fmt.Sprintf("%s_%d", username, time.Now().Unix())
+			}
+
+			kafkaTrustStorePath := viper.GetString(flagKafkaTrustStorePath)
 			kafkaTimeout := viper.GetDuration(flagKafkaTimeout)
 			tlsConfig, err := kafka_storage.GetTLSConfig(kafkaTrustStorePath)
 			if err != nil {
@@ -178,7 +210,16 @@ func startClientCommand() *cobra.Command {
 				return fmt.Errorf("failed to init storage client: %w", err)
 			}
 
-			username := viper.GetString(flagUserName)
+			msgsToIgnore := viper.GetString(flagStorageIgnoreMessages)
+			useOffsetInsteadId := viper.GetBool(flagOffsetsToIgnoreMessages)
+			ignoredMsgs, err := parseMessagesToIgnore(msgsToIgnore, useOffsetInsteadId)
+			if err != nil {
+				return fmt.Errorf("failed to ignore messages in storage: %w", err)
+			}
+			if err := stg.IgnoreMessages(ignoredMsgs, useOffsetInsteadId); err != nil {
+				return fmt.Errorf("failed to ignore messages in storage: %w", err)
+			}
+
 			keyStoreDBDSN := viper.GetString(flagStoreDBDSN)
 			keyStore, err := client.NewLevelDBKeyStore(username, keyStoreDBDSN)
 			if err != nil {

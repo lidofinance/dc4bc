@@ -100,6 +100,8 @@ func getShortOperationDescription(operationType types.OperationType) string {
 		return "send your partial sign for the message"
 	case signing_proposal_fsm.StateSigningPartialSignsCollected:
 		return "recover full signature for the message"
+	case types.ReinitDKG:
+		return "reinit DKG"
 	default:
 		return "unknown operation"
 	}

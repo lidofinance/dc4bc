@@ -315,6 +315,7 @@ func (p *prompt) setSeedCommand() error {
 		return fmt.Errorf("failed to read confirmation: %w", err)
 	}
 	if strings.Trim(ok, " \n") != "ok" {
+		p.println("Seed setting canceled!")
 		return nil
 	}
 

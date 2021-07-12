@@ -63,6 +63,20 @@ func (mr *MockStorageMockRecorder) GetMessages(offset interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMessages", reflect.TypeOf((*MockStorage)(nil).GetMessages), offset)
 }
 
+// IgnoreMessages mocks base method.
+func (m *MockStorage) IgnoreMessages(messages []string, useOffset bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IgnoreMessages", messages, useOffset)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// IgnoreMessages indicates an expected call of IgnoreMessages.
+func (mr *MockStorageMockRecorder) IgnoreMessages(messages, useOffset interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IgnoreMessages", reflect.TypeOf((*MockStorage)(nil).IgnoreMessages), messages, useOffset)
+}
+
 // Send mocks base method.
 func (m *MockStorage) Send(messages ...storage.Message) error {
 	m.ctrl.T.Helper()
@@ -79,4 +93,16 @@ func (m *MockStorage) Send(messages ...storage.Message) error {
 func (mr *MockStorageMockRecorder) Send(messages ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Send", reflect.TypeOf((*MockStorage)(nil).Send), messages...)
+}
+
+// UnignoreMessages mocks base method.
+func (m *MockStorage) UnignoreMessages() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "UnignoreMessages")
+}
+
+// UnignoreMessages indicates an expected call of UnignoreMessages.
+func (mr *MockStorageMockRecorder) UnignoreMessages() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UnignoreMessages", reflect.TypeOf((*MockStorage)(nil).UnignoreMessages))
 }
