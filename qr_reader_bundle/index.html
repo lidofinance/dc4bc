@@ -234,19 +234,20 @@ var app = new Vue({
     scanner: null,
     activeCameraId: null,
     cameras: [],
-    сhunks: {},
+    chunks: {},
     rawChunks: '',
     finished: false,
-    totalChunks: 0,
+    chunksTotalLabel: 0,
     decodedChunks: 0,
     scans: [],
   },
   mounted: function () {
-    var self = this;
+    const chunkHeaderSize = 8;
+    let self = this;
     self.chunks = {};
-    self.rawChunks = '';
+    self.chunksTotalLabel = 0;
     self.decodedChunks = 0;
-    self.totalChunks = 0;
+    self.chunksLength = 0;
     self.scanner = new Instascan.Scanner({
       video: document.getElementById("preview"),
       scanPeriod: 5,
@@ -255,36 +256,64 @@ var app = new Vue({
       if (self.finished) {
         return;
       }
+
       try {
-        JSON.parse(content);
+        let chunkRaw = content.split('').map(function (x) {
+          return x.charCodeAt(0);
+        });
+
+        let binData = new Uint8Array(chunkRaw);
+
+        if (binData.length <= chunkHeaderSize) {
+          return;
+        }
+
+        let chunkIndex = binData[1]<<8 | binData[0];
+        let chunksTotal = binData[3]<<8 | binData[2];
+
+        if (chunksTotal < 0 || chunkIndex >= chunksTotal) {
+          console.log("Cannot decode chunk header")
+          return;
+        }
+
+        if (!self.chunksTotalLabel) {
+          self.chunksTotalLabel = chunksTotal;
+        }
+
+        let chunkLength = binData[7] << 8 | binData[6];
+        let chunk = {
+          start: binData[5] << 8 | binData[4],
+          data: binData.slice(chunkHeaderSize, chunkHeaderSize + chunkLength)
+        }
+
+        if (chunk.start < 0 || chunkLength < 0 || chunk.data.length !== chunkLength) {
+          console.log("Cannot decode chunk body")
+          return;
+        }
+
+        if (!self.chunks[chunkIndex]) {
+
+          self.chunks[chunkIndex] = chunk;
+          self.decodedChunks = Object.keys(self.chunks).length;
+          self.chunksLength += chunkLength;
+        }
+
+        if (self.decodedChunks === chunksTotal) {
+          self.finished = true;
+
+          let compressedData = new Uint8Array(self.chunksLength);
+
+          for (let index in self.chunks) {
+            console.log("write " + self.chunks[index].data.length +  "   offset " + self.chunks[index].start);
+            compressedData.set(self.chunks[index].data, self.chunks[index].start);
+          }
+
+          let uncompressedData = pako.ungzip(compressedData, {to: "string"});
+          self.scans.unshift({date: +(Date.now()), content: uncompressedData});
+        }
       } catch (e) {
+        console.log(e)
         return;
-      }
-      chunk = JSON.parse(content);
-
-      if (!("Index" in chunk && "Total" in chunk && "Data" in chunk)) {
-        return;
-      }
-
-      if (!(chunk["Index"] in self.сhunks)) {
-        self.chunks[chunk["Index"]] = chunk;
-        self.decodedChunks = Object.keys(self.chunks).length;
-        self.totalChunks = chunk["Total"];
-      }
-
-      if (self.decodedChunks === self.totalChunks) {
-        self.finished = true;
-        for (var i = 0; i < self.totalChunks; ++i) {
-          self.rawChunks += window.atob(self.chunks[i]["Data"])
-        }
-        if (self.rawChunks) {
-          var charData = self.rawChunks.split('').map(function (x) {
-            return x.charCodeAt(0);
-          });
-          var binData = new Uint8Array(charData);
-          var originalData = pako.ungzip(binData, {to: "string"});
-          self.scans.unshift({date: +(Date.now()), content: originalData});
-        }
       }
     });
     Instascan.Camera.getCameras()
@@ -309,7 +338,7 @@ var app = new Vue({
       return content.substring(0, 24) + "...";
     },
     currentScanStats: function () {
-      return "Decoded: " + this.decodedChunks + "/" + this.totalChunks;
+      return "Decoded: " + this.decodedChunks + "/" + this.chunksTotalLabel;
     },
     selectCamera: function (camera) {
       this.activeCameraId = camera.id;
@@ -319,7 +348,7 @@ var app = new Vue({
       this.finished = false;
       this.chunks = [];
       this.decodedChunks = 0;
-      this.totalChunks = 0;
+      this.chunksTotalLabel = 0;
     },
     download: function (content) {
       let filename = "message.json";

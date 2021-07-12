@@ -21,6 +21,7 @@ import (
 const (
 	defaultChunkSize       = 512
 	defaultQrRecoveryLevel = encoder.Medium
+	defaultFramesDelay     = 10
 )
 
 var palette = color.Palette{
@@ -52,6 +53,7 @@ func NewCameraProcessor() Processor {
 		closeCameraReader: make(chan bool),
 		chunkSize:         defaultChunkSize,
 		qrRecoveryLevel:   defaultQrRecoveryLevel,
+		gifFramesDelay:    defaultFramesDelay,
 	}
 }
 
@@ -74,7 +76,10 @@ func (p *CameraProcessor) WriteQR(path string, data []byte) error {
 	}
 	outGif := &gif.GIF{}
 
-	for _, c := range chunks {
+	lastChunkIdx := len(chunks) - 1
+
+	totalLen := 0
+	for idx, c := range chunks {
 		code, err := encoder.New(string(c), encoder.Medium)
 
 		if err != nil {
@@ -86,7 +91,12 @@ func (p *CameraProcessor) WriteQR(path string, data []byte) error {
 		draw.Draw(palettedImage, palettedImage.Rect, frame, bounds.Min, draw.Src)
 
 		outGif.Image = append(outGif.Image, palettedImage)
-		outGif.Delay = append(outGif.Delay, p.gifFramesDelay)
+		if idx < lastChunkIdx {
+			outGif.Delay = append(outGif.Delay, p.gifFramesDelay)
+		} else {
+			outGif.Delay = append(outGif.Delay, p.gifFramesDelay*2)
+		}
+		totalLen += len(c)
 	}
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
@@ -133,27 +143,21 @@ func (p *CameraProcessor) ReadQR(filename string) ([]byte, error) {
 		return nil, fmt.Errorf("cannot decode qr file \"%s\"", err)
 	}
 
-	chunks := make([]*chunk, 0)
-	decodedChunksCount := uint(0)
+	chunks := Chunks{}
+	decodedChunksCount := uint32(0)
 	for idx, frame := range decodedGIF.Image {
 		data, err := ReadDataFromQR(frame)
 		if err != nil {
 			return nil, fmt.Errorf("cannot read frame %d", idx)
-			// continue
 		}
-		decodedChunk, err := decodeChunk(data)
+		chunk := &Chunk{}
+		err = chunk.UnmarshalBinary(data)
 		if err != nil {
-			return nil, fmt.Errorf("cannot decode chunk \"%s\"", err)
+			return nil, fmt.Errorf("cannot unmarshal data from frame %d", idx)
 		}
-		if cap(chunks) == 0 {
-			chunks = make([]*chunk, decodedChunk.Total)
-		}
-		if chunks[decodedChunk.Index] != nil {
-			continue
-		}
-		chunks[decodedChunk.Index] = decodedChunk
+		chunks = append(chunks, chunk)
 		decodedChunksCount++
-		if decodedChunksCount == decodedChunk.Total {
+		if decodedChunksCount == chunk.Header.Total {
 			break
 		}
 	}
