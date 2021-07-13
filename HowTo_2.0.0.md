@@ -8,7 +8,7 @@ This document describes how to make a signature using:
 #### Initial setup
 
 1. Make sure that you have the Airgapped private key mnemonic;
-2. Download the release binaries (`dc4bc_dkg_reinitializer`, `dc4bc_airgapped`, `dc4bc_cli`, `dc4bc_d`) with appropriate platform suffix) from [the release page](https://github.com/lidofinance/dc4bc/releases/tag/2.0.0);
+2. Download the release binaries (`dc4bc_dkg_reinitializer`, `dc4bc_airgapped`, `dc4bc_cli`, `dc4bc_d`, `index.tml`) for your platform from [the release page](https://github.com/lidofinance/dc4bc/releases/tag/2.0.0);
 3. Download the old [append log dump](https://github.com/lidofinance/dc4bc/releases/download/2.0.0/dc4bc_async_ceremony_13_12_2020_dump.csv);
 4. Set up your cold and hot nodes using the old [instruction](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#setting-up-hot-and-airapped-nodes).
 
@@ -109,7 +109,7 @@ Select operation and press Enter. Ctrl+C for cancel
 
 There is a hash of the reinit DKG message in a reinitDKG operation and if it's not equal to the hash from ```get_reinit_dkg_file_hash``` command, that means that person who started the reinit process has changed some parameters.
 
-Now you need to process the operation inside the Airgapped machine:
+Scan the operation using the QR-scanning web-app (open `index.html` in your browser). Now you need to process the operation inside the Airgapped machine:
 
 ```
 $ >>> read_operation
