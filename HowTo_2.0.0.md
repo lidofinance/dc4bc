@@ -109,7 +109,14 @@ Select operation and press Enter. Ctrl+C for cancel
 
 There is a hash of the reinit DKG message in a reinitDKG operation and if it's not equal to the hash from ```get_reinit_dkg_file_hash``` command, that means that person who started the reinit process has changed some parameters.
 
-After you have processed the operation in airgapped, you have your master DKG pubkey recovered, so you can sign new messages!
+Now you need to process the operation inside the Airgapped machine:
+
+```
+$ >>> read_operation
+> Enter the path to Operation JSON file: reinit_operation.json
+```
+
+Now you have your master DKG pubkey recovered, and you can sign new messages!
 
 #### Signature
 
