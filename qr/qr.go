@@ -22,6 +22,7 @@ const (
 	defaultChunkSize       = 512
 	defaultQrRecoveryLevel = encoder.Medium
 	defaultFramesDelay     = 10
+	endFramesDelay         = 200 // Number of frames to show after the last frame.
 )
 
 var palette = color.Palette{
@@ -94,10 +95,11 @@ func (p *CameraProcessor) WriteQR(path string, data []byte) error {
 		if idx < lastChunkIdx {
 			outGif.Delay = append(outGif.Delay, p.gifFramesDelay)
 		} else {
-			outGif.Delay = append(outGif.Delay, p.gifFramesDelay*2)
+			outGif.Delay = append(outGif.Delay, endFramesDelay)
 		}
 		totalLen += len(c)
 	}
+
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
 		return fmt.Errorf("failed to open file: %w", err)
