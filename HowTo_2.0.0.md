@@ -15,7 +15,7 @@ This document describes how to make a signature using:
 _Note that on latest macOS verssions the downloaded binaries might be marked as "quarantined". Usually there are two ways to mitigate that:_
 
 * Right click on application and click "Open" from the context menu. There will be a warning, just click "Open". OSX will remember your choice and next time it will open;
-* Remove 'quarantine attribute' from the app. In terminal run command: xattr -d com.apple.quarantine <your_app>.
+* Remove 'quarantine attribute' from the app. In terminal run command: `xattr -d com.apple.quarantine <your_app>`.
 
 #### 1.4.0 -> 2.0.0 Migration
 
