@@ -17,7 +17,7 @@ _Note that on latest macOS verssions the downloaded binaries might be marked as 
 * Right click on application and click "Open" from the context menu. There will be a warning, just click "Open". OSX will remember your choice and next time it will open;
 * Remove 'quarantine attribute' from the app. In terminal run command: `xattr -d com.apple.quarantine <your_app>`.
 
-#### 1.4.0 -> 2.0.0 Migration
+#### Generating new keys
 
 Each participant must generate a new pair of communication keys for you Client node. This means that you **don't need any of the old states**:
 ```
@@ -45,6 +45,8 @@ After starting the Airgapped machine, you must recover your private DKG key-pair
 > Only do this on a fresh db_path. Type 'ok' to  continue: ok
 > Enter the BIP39 mnemonic for a random seed:
 ```
+
+#### 1.4.0 -> 2.0.0 Migration
 
 **After everyone has set up their Client and Airgapped machines, you must choose one participant (Bob) that will prepare the reinit Operation for everyone.**
 
