@@ -46,16 +46,14 @@ After starting the Airgapped machine, you must recover your private DKG key-pair
 > Enter the BIP39 mnemonic for a random seed:
 ```
 
-#### 1.4.0 -> 2.0.0 Migration
-
-**After everyone has set up their Client and Airgapped machines, you must choose one participant (Bob) that will prepare the reinit Operation for everyone.**
+#### Preparing the reinit Operation
 
 All participants must now share their public communication keys. Run the command below to get your public communication key:
 ```
 $ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
 EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 ```
-Bob must put those keys to `keys.json` in the following format and send that file to all participants:
+Someone must put those keys to `keys.json` in the following format and send that file to all participants (possibly on Discord):
 ```
 {
   "gergold": "8beWWNydtmEPISNXSC+Vp7U8nJrk23m9goW2hCX/eOo=",
@@ -72,16 +70,16 @@ Bob must put those keys to `keys.json` in the following format and send that fil
 }
 ```
 
-Bob then must use the ```dc4bc_dkg_reinitializer``` utility (available with the `darwin` or `linux` suffix on the release page, see above) to generate a reinit message for `dc4bc_d`.
+Everyone then must use the ```dc4bc_dkg_reinitializer``` utility (available with the `darwin` or `linux` suffix on the release page, see above) to generate a reinit message for `dc4bc_d`.
 
-First everyone needs to check the old [append log dump](https://github.com/lidofinance/dc4bc/releases/download/2.0.0/dc4bc_async_ceremony_13_12_2020_dump.csv) and the `keys.json` checksum:
+First you need to check the old [append log dump](https://github.com/lidofinance/dc4bc/releases/download/2.0.0/dc4bc_async_ceremony_13_12_2020_dump.csv) and the `keys.json` checksum:
 ```
 shasum dc4bc_async_ceremony_13_12_2020_dump.csv
 b9934eeb7abf7a5563ad2ad06ede87ff58c89b0c  dc4bc_async_ceremony_13_12_2020_dump.csv
 shasum keys.json
 9c08507c073642c0e97efc87a685c908e871ef8a  keys.json
 ```
-If the checksum is correct for all participants, everyone should run:
+If the checksums are correct for all participants, everyone should run:
 ```shell
 ./dc4bc_dkg_reinitializer reinit -i dc4bc_async_ceremony_13_12_2020_dump.csv -o reinit.json -k keys.json --adapt_1_4_0 --skip-header
 ```
@@ -94,11 +92,14 @@ In this example the message will be saved to ```reinit.json``` file.
 ./dc4bc_cli get_reinit_dkg_file_hash reinit.json
 f65e4d87dce889df00ecebeed184ee601c23e531
 ```
-Then Bob must use the ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
+
+#### Running the reinit 
+
+After everyone has generated the reinit.json file and verified the checksum, you must choose **one** participant that will prepare the reinit Operation for everyone. She must use the ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
 ```shell
 $ ./dc4bc_cli reinit_dkg reinit.json
 ```
-This command will send the message to the append-only log. The Client node process it and then will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.). **This step is for all participants, not only for Bob.**
+This command will send the message to the append-only log. The Client node process it and then will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.). **This step is for all participants.**
 
 ```
 $ ./dc4bc_cli get_operations
