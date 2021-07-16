@@ -12,6 +12,11 @@ This document describes how to make a signature using:
 3. Download the old [append log dump](https://github.com/lidofinance/dc4bc/releases/download/2.0.0/dc4bc_async_ceremony_13_12_2020_dump.csv);
 4. Set up your cold and hot nodes using the old [instruction](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#setting-up-hot-and-airapped-nodes).
 
+_Note that on latest macOS verssions the downloaded binaries might be marked as "quarantined". Usually there are two ways to mitigate that:_
+
+* Right click on application and click "Open" from the context menu. There will be a warning, just click "Open". OSX will remember your choice and next time it will open;
+* Remove 'quarantine attribute' from the app. In terminal run command: xattr -d com.apple.quarantine <your_app>.
+
 #### 1.4.0 -> 2.0.0 Migration
 
 Each participant must generate a new pair of communication keys for you Client node. This means that you **don't need any of the old states**:
@@ -22,13 +27,11 @@ After you have the keys, start the node:
 ```
 $ ./dc4bc_d start --username <YOUR USERNAME> --key_store_dbdsn ./stores/dc4bc_<YOUR USERNAME>_key_store --state_dbdsn ./stores/dc4bc_<YOUR USERNAME>_state --listen_addr localhost:8080 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_dbdsn 94.130.57.249:9093 --storage_topic <DKG_TOPIC> --kafka_consumer_group <YOUR USERNAME>_group
 ```
-* `--username` — This username will be used to identify you during DKG and signing
-* `--key_store_dbdsn` — This is where the keys that are used for signing messages that will go to the Bulletin Board will be stored. Do not store these keys in `/tmp/` for production runs and make sure that you have a backup
-* `--state_dbdsn` This is where your Client node's state (including the FSM state) will be kept. If you delete this directory, you will have to re-read the whole message board topic, which might result in odd states
-* `--storage_dbdsn` This argument specifies the storage endpoint. This storage is going to be used by all participants to exchange messages
-* `--storage_topic` Specifies the topic (a "directory" inside the storage) that you are going to use. Typically participants will agree on a new topic for each new signature or DKG round to avoid confusion
-* `--kafka_consumer_group` Specifies your consumer group. This allows you to restart the Client and read the messages starting from the last one you saw.
-**Note that you have to set the `kafka_consumer_group` (this was not present in 1.4.0). The recommended value for user Alice would be `alice_group`.**
+* `--username` — This username will be used to identify you during DKG and signing;
+* `--key_store_dbdsn` — This is where the keys that are used for signing messages that will go to the Bulletin Board will be stored. Do not store these keys in `/tmp/` for production runs and make sure that you have a backup;
+* `--state_dbdsn` This is where your Client node's state (including the FSM state) will be kept. If you delete this directory, you will have to re-read the whole message board topic, which might result in odd states;
+* `--storage_dbdsn` This argument specifies the storage endpoint. This storage is going to be used by all participants to exchange messages;
+* `--storage_topic` Specifies the topic (a "directory" inside the storage) that you are going to use. Typically participants will agree on a new topic for each new signature or DKG round to avoid confusion.
 
 Then start the Airgapped machine:
 ```
