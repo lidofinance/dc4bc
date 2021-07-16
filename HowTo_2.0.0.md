@@ -5,7 +5,7 @@ This document describes how to make a signature using:
 2. Append log from version 1.4.0;
 3. The Airgapped private key mnemonic that was saved during the master ceremony setup.
 
-#### Initial setup
+### Initial setup
 
 1. Make sure that you have the Airgapped private key mnemonic;
 2. Download the release binaries (`dc4bc_dkg_reinitializer`, `dc4bc_airgapped`, `dc4bc_cli`, `dc4bc_d`, `index.tml`) for your platform from [the release page](https://github.com/lidofinance/dc4bc/releases/tag/2.0.0);
@@ -17,7 +17,7 @@ _Note that on latest macOS verssions the downloaded binaries might be marked as 
 * Right click on application and click "Open" from the context menu. There will be a warning, just click "Open". OSX will remember your choice and next time it will open;
 * Remove 'quarantine attribute' from the app. In terminal run command: `xattr -d com.apple.quarantine <your_app>`.
 
-#### Generating new keys
+### Generating new keys
 
 Each participant must generate a new pair of communication keys for you Client node. This means that you **don't need any of the old states**:
 ```
@@ -46,7 +46,7 @@ After starting the Airgapped machine, you must recover your private DKG key-pair
 > Enter the BIP39 mnemonic for a random seed:
 ```
 
-#### Preparing the reinit Operation
+### Preparing the reinit Operation
 
 All participants must now share their public communication keys. Run the command below to get your public communication key:
 ```
@@ -93,7 +93,7 @@ In this example the message will be saved to ```reinit.json``` file.
 f65e4d87dce889df00ecebeed184ee601c23e531
 ```
 
-#### Running the reinit 
+### Running the reinit 
 
 After everyone has generated the reinit.json file and verified the checksum, you must choose **one** participant that will prepare the reinit Operation for everyone. She must use the ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
 ```shell
@@ -124,7 +124,7 @@ $ >>> read_operation
 
 Now you have your master DKG pubkey recovered, and you can sign new messages!
 
-#### Signature
+### Signature
 
 Now we have to collectively sign a message. Some participant will run the command that sends an invitation to the message board:
 
