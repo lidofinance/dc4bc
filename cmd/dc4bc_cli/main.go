@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/types"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -20,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
 	"github.com/lidofinance/dc4bc/fsm/fsm"
@@ -388,16 +388,16 @@ func getOperationQRPathCommand() *cobra.Command {
 				return fmt.Errorf("failed to get operations: %s", operation.ErrorMessage)
 			}
 
-			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_%s-request", operationID))
+			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_json_%s-request", operationID))
 
-			qrPath := fmt.Sprintf("%s.gif", operationQRPath)
+			qrPath := fmt.Sprintf("%s.json", operationQRPath)
 
 			processor := qr.NewCameraProcessor()
 			processor.SetChunkSize(chunkSize)
 			processor.SetDelay(framesDelay)
 
 			if err = processor.WriteQR(qrPath, operation.Result); err != nil {
-				return fmt.Errorf("failed to save QR gif: %w", err)
+				return fmt.Errorf("failed to save json: %w", err)
 			}
 
 			fmt.Printf("QR code was saved to: %s\n", qrPath)

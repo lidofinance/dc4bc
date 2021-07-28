@@ -10,6 +10,7 @@ import (
 	"image/draw"
 	"image/gif"
 	"io"
+	"io/ioutil"
 	"os"
 
 	encoder "github.com/skip2/go-qrcode"
@@ -71,6 +72,14 @@ func (p *CameraProcessor) SetRecoveryLevel(recoveryLevel encoder.RecoveryLevel) 
 }
 
 func (p *CameraProcessor) WriteQR(path string, data []byte) error {
+	err := ioutil.WriteFile(path, data, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write json: %w", err)
+	}
+	return nil
+}
+
+func (p *CameraProcessor) WriteQR_(path string, data []byte) error {
 	chunks, err := DataToChunks(data, p.chunkSize)
 	if err != nil {
 		return fmt.Errorf("failed to divide data on chunks: %w", err)

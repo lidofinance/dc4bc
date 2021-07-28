@@ -512,9 +512,9 @@ func (c *BaseClient) GetOperationQRPath(operationID string) (string, error) {
 		return "", fmt.Errorf("failed to get operation in JSON: %w", err)
 	}
 
-	operationQRPath := filepath.Join(QrCodesDir, fmt.Sprintf("dc4bc_qr_%s", operationID))
+	operationQRPath := filepath.Join(QrCodesDir, fmt.Sprintf("dc4bc_json_%s", operationID))
 
-	qrPath := fmt.Sprintf("%s.gif", operationQRPath)
+	qrPath := fmt.Sprintf("%s.json", operationQRPath)
 	if err = c.qrProcessor.WriteQR(qrPath, operationJSON); err != nil {
 		return "", err
 	}
