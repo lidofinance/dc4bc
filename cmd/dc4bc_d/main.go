@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/modules/keystore"
+	state2 "github.com/lidofinance/dc4bc/client/modules/state"
 	"log"
 	"os"
 	"os/signal"
@@ -66,7 +68,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, flagConfig, "", "path to your config file")
 	rootCmd.PersistentFlags().Bool(flagSkipCommKeysVerification, false, "verify messages from append-log or not")
 	rootCmd.PersistentFlags().String(flagStorageIgnoreMessages, "", "Messages ids or offsets separated by comma (id_1,id_2,...,id_n) to ignore when reading from storage")
-	rootCmd.PersistentFlags().Bool(flagOffsetsToIgnoreMessages, false, "Consider values provided in " + flagStorageIgnoreMessages + " flag to be message offsets instead of ids")
+	rootCmd.PersistentFlags().Bool(flagOffsetsToIgnoreMessages, false, "Consider values provided in "+flagStorageIgnoreMessages+" flag to be message offsets instead of ids")
 
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 	exitIfError(viper.BindPFlag(flagListenAddr, rootCmd.PersistentFlags().Lookup(flagListenAddr)))
@@ -119,8 +121,8 @@ func genKeyPairCommand() *cobra.Command {
 
 			keyStoreDBDSN := viper.GetString(flagStoreDBDSN)
 
-			keyPair := client.NewKeyPair()
-			keyStore, err := client.NewLevelDBKeyStore(username, keyStoreDBDSN)
+			keyPair := keystore.NewKeyPair()
+			keyStore, err := keystore.NewLevelDBKeyStore(username, keyStoreDBDSN)
 			if err != nil {
 				return fmt.Errorf("failed to init key store: %w", err)
 			}
@@ -154,7 +156,7 @@ func parseMessagesToIgnore(messages string, useOffset bool) (msgs []string, err 
 	if useOffset {
 		for _, msg := range msgs {
 			if _, err = strconv.ParseUint(msg, 10, 64); err != nil {
-				return nil, fmt.Errorf("when %s flag is specified, values provided in %s flag should be" +
+				return nil, fmt.Errorf("when %s flag is specified, values provided in %s flag should be"+
 					" parsable into uint64. error: %w", flagOffsetsToIgnoreMessages, flagStorageIgnoreMessages, err)
 			}
 		}
@@ -173,7 +175,7 @@ func startClientCommand() *cobra.Command {
 
 			storageTopic := viper.GetString(flagStorageTopic)
 			stateDBDSN := viper.GetString(flagStateDBDSN)
-			state, err := client.NewLevelDBState(stateDBDSN, storageTopic)
+			state, err := state2.NewLevelDBState(stateDBDSN, storageTopic)
 			if err != nil {
 				return fmt.Errorf("failed to init state client: %w", err)
 			}
@@ -221,7 +223,7 @@ func startClientCommand() *cobra.Command {
 			}
 
 			keyStoreDBDSN := viper.GetString(flagStoreDBDSN)
-			keyStore, err := client.NewLevelDBKeyStore(username, keyStoreDBDSN)
+			keyStore, err := keystore.NewLevelDBKeyStore(username, keyStoreDBDSN)
 			if err != nil {
 				return fmt.Errorf("failed to init key store: %w", err)
 			}

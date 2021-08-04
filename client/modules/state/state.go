@@ -1,4 +1,4 @@
-package client
+package state
 
 import (
 	"encoding/binary"
@@ -16,11 +16,11 @@ import (
 )
 
 const (
-	offsetKey            = "offset"
-	operationsKey        = "operations"
-	deletedOperationsKey = "deleted_operations"
-	fsmStateKey          = "fsm_state"
-	signaturesKeyPrefix  = "signatures"
+	OffsetKey            = "offset"
+	OperationsKey        = "operations"
+	DeletedOperationsKey = "deleted_operations"
+	FSMStateKey          = "fsm_state"
+	SignaturesKeyPrefix  = "signatures"
 )
 
 func makeCompositeKey(prefix, key string) []byte {
@@ -69,7 +69,7 @@ func NewLevelDBState(stateDbPath string, topic string) (State, error) {
 	}
 
 	// Init state key for operations JSON.
-	operationsCompositeKey := makeCompositeKey(topic, operationsKey)
+	operationsCompositeKey := makeCompositeKey(topic, OperationsKey)
 	if _, err := state.stateDb.Get(operationsCompositeKey, nil); err != nil {
 		if err := state.initJsonKey(operationsCompositeKey, map[string]*types.Operation{}); err != nil {
 			return nil, fmt.Errorf("failed to init %s storage: %w", string(operationsCompositeKey), err)
@@ -77,7 +77,7 @@ func NewLevelDBState(stateDbPath string, topic string) (State, error) {
 	}
 
 	// Init state key for operations JSON.
-	deleteOperationsCompositeKey := makeCompositeKey(topic, deletedOperationsKey)
+	deleteOperationsCompositeKey := makeCompositeKey(topic, DeletedOperationsKey)
 	if _, err := state.stateDb.Get(deleteOperationsCompositeKey, nil); err != nil {
 		if err := state.initJsonKey(deleteOperationsCompositeKey, map[string]*types.Operation{}); err != nil {
 			return nil, fmt.Errorf("failed to init %s storage: %w", string(deleteOperationsCompositeKey), err)
@@ -85,7 +85,7 @@ func NewLevelDBState(stateDbPath string, topic string) (State, error) {
 	}
 
 	// Init state key for offset bytes.
-	offsetCompositeKey := makeCompositeKey(topic, offsetKey)
+	offsetCompositeKey := makeCompositeKey(topic, OffsetKey)
 	if _, err := state.stateDb.Get(offsetCompositeKey, nil); err != nil {
 		bz := make([]byte, 8)
 		binary.LittleEndian.PutUint64(bz, 0)
@@ -94,7 +94,7 @@ func NewLevelDBState(stateDbPath string, topic string) (State, error) {
 		}
 	}
 
-	fsmStateCompositeKey := makeCompositeKey(topic, fsmStateKey)
+	fsmStateCompositeKey := makeCompositeKey(topic, FSMStateKey)
 	if _, err := state.stateDb.Get(fsmStateCompositeKey, nil); err != nil {
 		if err := db.Put(fsmStateCompositeKey, []byte{}, nil); err != nil {
 			return nil, fmt.Errorf("failed to init %s storage: %w", string(fsmStateCompositeKey), err)
@@ -133,7 +133,7 @@ func (s *LevelDBState) SaveOffset(offset uint64) error {
 	bz := make([]byte, 8)
 	binary.LittleEndian.PutUint64(bz, offset)
 
-	if err := s.stateDb.Put(makeCompositeKey(s.topic, offsetKey), bz, nil); err != nil {
+	if err := s.stateDb.Put(makeCompositeKey(s.topic, OffsetKey), bz, nil); err != nil {
 		return fmt.Errorf("failed to set offset: %w", err)
 	}
 
@@ -141,7 +141,7 @@ func (s *LevelDBState) SaveOffset(offset uint64) error {
 }
 
 func (s *LevelDBState) LoadOffset() (uint64, error) {
-	bz, err := s.stateDb.Get(makeCompositeKey(s.topic, offsetKey), nil)
+	bz, err := s.stateDb.Get(makeCompositeKey(s.topic, OffsetKey), nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read offset: %w", err)
 	}
@@ -152,7 +152,7 @@ func (s *LevelDBState) LoadOffset() (uint64, error) {
 }
 
 func (s *LevelDBState) SaveFSM(dkgRoundID string, dump []byte) error {
-	bz, err := s.stateDb.Get(makeCompositeKey(s.topic, fsmStateKey), nil)
+	bz, err := s.stateDb.Get(makeCompositeKey(s.topic, FSMStateKey), nil)
 	if err != nil {
 		return fmt.Errorf("failed to get FSM instances: %w", err)
 	}
@@ -171,7 +171,7 @@ func (s *LevelDBState) SaveFSM(dkgRoundID string, dump []byte) error {
 		return fmt.Errorf("failed to marshal FSM instances: %w", err)
 	}
 
-	if err := s.stateDb.Put(makeCompositeKey(s.topic, fsmStateKey), fsmInstancesBz, nil); err != nil {
+	if err := s.stateDb.Put(makeCompositeKey(s.topic, FSMStateKey), fsmInstancesBz, nil); err != nil {
 		return fmt.Errorf("failed to save fsm state: %w", err)
 	}
 
@@ -179,7 +179,7 @@ func (s *LevelDBState) SaveFSM(dkgRoundID string, dump []byte) error {
 }
 
 func (s *LevelDBState) GetAllFSM() (map[string]*state_machines.FSMInstance, error) {
-	bz, err := s.stateDb.Get(makeCompositeKey(s.topic, fsmStateKey), nil)
+	bz, err := s.stateDb.Get(makeCompositeKey(s.topic, FSMStateKey), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get FSM instances: %w", err)
 	}
@@ -200,7 +200,7 @@ func (s *LevelDBState) GetAllFSM() (map[string]*state_machines.FSMInstance, erro
 }
 
 func (s *LevelDBState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error) {
-	bz, err := s.stateDb.Get(makeCompositeKey(s.topic, fsmStateKey), nil)
+	bz, err := s.stateDb.Get(makeCompositeKey(s.topic, FSMStateKey), nil)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to get FSM instances: %w", err)
 	}
@@ -253,7 +253,7 @@ func (s *LevelDBState) PutOperation(operation *types.Operation) error {
 		return fmt.Errorf("failed to marshal operations: %w", err)
 	}
 
-	if err := s.stateDb.Put(makeCompositeKey(s.topic, operationsKey), operationsJSON, nil); err != nil {
+	if err := s.stateDb.Put(makeCompositeKey(s.topic, OperationsKey), operationsJSON, nil); err != nil {
 		return fmt.Errorf("failed to put operations: %w", err)
 	}
 
@@ -280,7 +280,7 @@ func (s *LevelDBState) DeleteOperation(operation *types.Operation) error {
 		return fmt.Errorf("failed to marshal deleted operations: %w", err)
 	}
 
-	if err := s.stateDb.Put(makeCompositeKey(s.topic, deletedOperationsKey), deletedOperationsJSON, nil); err != nil {
+	if err := s.stateDb.Put(makeCompositeKey(s.topic, DeletedOperationsKey), deletedOperationsJSON, nil); err != nil {
 		return fmt.Errorf("failed to put deleted operations: %w", err)
 	}
 
@@ -296,7 +296,7 @@ func (s *LevelDBState) DeleteOperation(operation *types.Operation) error {
 		return fmt.Errorf("failed to marshal operations: %w", err)
 	}
 
-	if err := s.stateDb.Put(makeCompositeKey(s.topic, operationsKey), operationsJSON, nil); err != nil {
+	if err := s.stateDb.Put(makeCompositeKey(s.topic, OperationsKey), operationsJSON, nil); err != nil {
 		return fmt.Errorf("failed to put operations: %w", err)
 	}
 
@@ -334,7 +334,7 @@ func (s *LevelDBState) getOperations() (map[string]*types.Operation, error) {
 		return nil, fmt.Errorf("failed to getDeletedOperations: %w", err)
 	}
 
-	operationsCompositeKey := makeCompositeKey(s.topic, operationsKey)
+	operationsCompositeKey := makeCompositeKey(s.topic, OperationsKey)
 	bz, err := s.stateDb.Get(operationsCompositeKey, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Operations (key: %s): %w", string(operationsCompositeKey), err)
@@ -356,7 +356,7 @@ func (s *LevelDBState) getOperations() (map[string]*types.Operation, error) {
 }
 
 func (s *LevelDBState) getDeletedOperations() (map[string]*types.Operation, error) {
-	deletedOperationsCompositeKey := makeCompositeKey(s.topic, deletedOperationsKey)
+	deletedOperationsCompositeKey := makeCompositeKey(s.topic, DeletedOperationsKey)
 	bz, err := s.stateDb.Get(deletedOperationsCompositeKey, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deleted Operations (key: %s): %w", string(deletedOperationsCompositeKey), err)
@@ -371,7 +371,7 @@ func (s *LevelDBState) getDeletedOperations() (map[string]*types.Operation, erro
 }
 
 func (s *LevelDBState) getSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
-	bz, err := s.stateDb.Get(makeCompositeKey(signaturesKeyPrefix, dkgID), nil)
+	bz, err := s.stateDb.Get(makeCompositeKey(SignaturesKeyPrefix, dkgID), nil)
 	if err != nil {
 		if err == leveldb.ErrNotFound {
 			return nil, nil
@@ -432,7 +432,7 @@ func (s *LevelDBState) SaveSignature(signature types.ReconstructedSignature) err
 		return fmt.Errorf("failed to marshal signatures: %w", err)
 	}
 
-	if err := s.stateDb.Put(makeCompositeKey(signaturesKeyPrefix, signature.DKGRoundID), signaturesJSON, nil); err != nil {
+	if err := s.stateDb.Put(makeCompositeKey(SignaturesKeyPrefix, signature.DKGRoundID), signaturesJSON, nil); err != nil {
 		return fmt.Errorf("failed to save signatures: %w", err)
 	}
 

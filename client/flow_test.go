@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/modules/keystore"
+	state2 "github.com/lidofinance/dc4bc/client/modules/state"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -47,7 +49,7 @@ type node struct {
 	clientCancel context.CancelFunc
 	clientLogger *savingLogger
 	storage      storage.Storage
-	keyPair      *KeyPair
+	keyPair      *keystore.KeyPair
 	air          *airgapped.Machine
 	listenAddr   string
 }
@@ -86,7 +88,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 	for nodeID := 0; nodeID < numNodes; nodeID++ {
 		var ctx, cancel = context.WithCancel(context.Background())
 		var userName = fmt.Sprintf("node_%d", nodeID)
-		var state, err = NewLevelDBState(fmt.Sprintf("/tmp/dc4bc_node_%d_state", nodeID), topic)
+		var state, err = state2.NewLevelDBState(fmt.Sprintf("/tmp/dc4bc_node_%d_state", nodeID), topic)
 		if err != nil {
 			return nodes, fmt.Errorf("node %d failed to init state: %v\n", nodeID, err)
 		}
@@ -96,12 +98,12 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			return nodes, fmt.Errorf("node %d failed to init storage: %v\n", nodeID, err)
 		}
 
-		keyStore, err := NewLevelDBKeyStore(userName, fmt.Sprintf("/tmp/dc4bc_node_%d_key_store", nodeID))
+		keyStore, err := keystore.NewLevelDBKeyStore(userName, fmt.Sprintf("/tmp/dc4bc_node_%d_key_store", nodeID))
 		if err != nil {
 			return nodes, fmt.Errorf("Failed to init key store: %v", err)
 		}
 
-		keyPair := NewKeyPair()
+		keyPair := keystore.NewKeyPair()
 		if err := keyStore.PutKeys(userName, keyPair); err != nil {
 			return nodes, fmt.Errorf("Failed to PutKeys: %v\n", err)
 		}

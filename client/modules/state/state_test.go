@@ -1,6 +1,7 @@
-package client_test
+package state_test
 
 import (
+	"github.com/lidofinance/dc4bc/client/modules/state"
 	"os"
 	"regexp"
 	"strconv"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/lidofinance/dc4bc/client/types"
 
-	"github.com/lidofinance/dc4bc/client"
 	"github.com/stretchr/testify/require"
 )
 
@@ -21,7 +21,7 @@ func TestLevelDBState_SaveOffset(t *testing.T) {
 	)
 	defer os.RemoveAll(dbPath)
 
-	stg, err := client.NewLevelDBState(dbPath, topic)
+	stg, err := state.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
 	var offset uint64 = 1
@@ -41,7 +41,7 @@ func TestLevelDBState_PutOperation(t *testing.T) {
 	)
 	defer os.RemoveAll(dbPath)
 
-	stg, err := client.NewLevelDBState(dbPath, topic)
+	stg, err := state.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
 	operation := &types.Operation{
@@ -71,7 +71,7 @@ func TestLevelDBState_GetOperations(t *testing.T) {
 	)
 	defer os.RemoveAll(dbPath)
 
-	stg, err := client.NewLevelDBState(dbPath, topic)
+	stg, err := state.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
 	operation := &types.Operation{
@@ -100,7 +100,7 @@ func TestLevelDBState_DeleteOperation(t *testing.T) {
 	)
 	defer os.RemoveAll(dbPath)
 
-	stg, err := client.NewLevelDBState(dbPath, topic)
+	stg, err := state.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
 	operation := &types.Operation{
@@ -127,11 +127,11 @@ func TestLevelDBState_NewStateFromOld(t *testing.T) {
 		req    = require.New(t)
 		dbPath = "/tmp/dc4bc_test_NewStateFromOld"
 		topic  = "test_topic"
-		re = regexp.MustCompile(dbPath + `_(?P<ts>\d+)`)
+		re     = regexp.MustCompile(dbPath + `_(?P<ts>\d+)`)
 	)
 	defer os.RemoveAll(dbPath)
 
-	state, err := client.NewLevelDBState(dbPath, topic)
+	state, err := state.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
 	var offset uint64 = 1

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	"os"
 	"path/filepath"
 	"testing"
@@ -40,7 +41,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 	stg := storageMocks.NewMockStorage(ctrl)
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 
-	testClientKeyPair := client.NewKeyPair()
+	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
 	clt, err := client.NewClient(
@@ -58,7 +59,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 		req.NoError(err)
 		state.EXPECT().LoadFSM(dkgRoundID).Times(1).Return(fsm, true, nil)
 
-		senderKeyPair := client.NewKeyPair()
+		senderKeyPair := keystore.NewKeyPair()
 		senderAddr := senderKeyPair.GetAddr()
 		messageData := requests.SignatureProposalParticipantsListRequest{
 			Participants: []*requests.SignatureProposalParticipantsEntry{
@@ -69,17 +70,17 @@ func TestClient_ProcessMessage(t *testing.T) {
 				},
 				{
 					Username:  "111",
-					PubKey:    client.NewKeyPair().Pub,
+					PubKey:    keystore.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 				{
 					Username:  "222",
-					PubKey:    client.NewKeyPair().Pub,
+					PubKey:    keystore.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 				{
 					Username:  "333",
-					PubKey:    client.NewKeyPair().Pub,
+					PubKey:    keystore.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 			},
@@ -118,7 +119,7 @@ func TestClient_GetOperationsList(t *testing.T) {
 	userName := "test_client"
 
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
-	testClientKeyPair := client.NewKeyPair()
+	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
 	state := clientMocks.NewMockState(ctrl)
@@ -165,7 +166,7 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 	userName := "test_client"
 
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
-	testClientKeyPair := client.NewKeyPair()
+	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
 	state := clientMocks.NewMockState(ctrl)
@@ -216,7 +217,7 @@ func TestClient_ResetState(t *testing.T) {
 	userName := "test_client"
 
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
-	testClientKeyPair := client.NewKeyPair()
+	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
 	state := clientMocks.NewMockState(ctrl)

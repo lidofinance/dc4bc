@@ -5,10 +5,10 @@
 package clientMocks
 
 import (
+	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	client "github.com/lidofinance/dc4bc/client"
 )
 
 // MockKeyStore is a mock of KeyStore interface.
@@ -35,10 +35,10 @@ func (m *MockKeyStore) EXPECT() *MockKeyStoreMockRecorder {
 }
 
 // LoadKeys mocks base method.
-func (m *MockKeyStore) LoadKeys(userName, password string) (*client.KeyPair, error) {
+func (m *MockKeyStore) LoadKeys(userName, password string) (*keystore.KeyPair, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LoadKeys", userName, password)
-	ret0, _ := ret[0].(*client.KeyPair)
+	ret0, _ := ret[0].(*keystore.KeyPair)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -50,7 +50,7 @@ func (mr *MockKeyStoreMockRecorder) LoadKeys(userName, password interface{}) *go
 }
 
 // PutKeys mocks base method.
-func (m *MockKeyStore) PutKeys(username string, keyPair *client.KeyPair) error {
+func (m *MockKeyStore) PutKeys(username string, keyPair *keystore.KeyPair) error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "PutKeys", username, keyPair)
 	ret0, _ := ret[0].(error)

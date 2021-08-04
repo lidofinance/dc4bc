@@ -6,6 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/modules/keystore"
+	logger "github.com/lidofinance/dc4bc/client/modules/logger"
+	state "github.com/lidofinance/dc4bc/client/modules/state"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -41,7 +44,7 @@ const (
 
 type Client interface {
 	Poll() error
-	GetLogger() Logger
+	GetLogger() logger.Logger
 	GetPubKey() ed25519.PublicKey
 	GetUsername() string
 	SendMessage(message storage.Message) error
@@ -57,14 +60,14 @@ type Client interface {
 type BaseClient struct {
 	sync.Mutex
 	server                   *http.Server
-	Logger                   Logger
+	Logger                   logger.Logger
 	userName                 string
 	pubKey                   ed25519.PublicKey
 	ctx                      context.Context
 	stateMu                  sync.RWMutex
-	state                    State
+	state                    state.State
 	storage                  storage.Storage
-	keyStore                 KeyStore
+	keyStore                 keystore.KeyStore
 	qrProcessor              qr.Processor
 	SkipCommKeysVerification bool
 }
@@ -72,9 +75,9 @@ type BaseClient struct {
 func NewClient(
 	ctx context.Context,
 	userName string,
-	state State,
+	state state.State,
 	storage storage.Storage,
-	keyStore KeyStore,
+	keyStore keystore.KeyStore,
 	qrProcessor qr.Processor,
 ) (Client, error) {
 	keyPair, err := keyStore.LoadKeys(userName, "")
@@ -84,7 +87,7 @@ func NewClient(
 
 	return &BaseClient{
 		ctx:         ctx,
-		Logger:      newLogger(userName),
+		Logger:      logger.NewLogger(userName),
 		userName:    userName,
 		pubKey:      keyPair.Pub,
 		state:       state,
@@ -94,14 +97,14 @@ func NewClient(
 	}, nil
 }
 
-func (c *BaseClient) getState() State {
+func (c *BaseClient) getState() state.State {
 	c.stateMu.RLock()
 	defer c.stateMu.RUnlock()
 
 	return c.state
 }
 
-func (c *BaseClient) GetLogger() Logger {
+func (c *BaseClient) GetLogger() logger.Logger {
 	return c.Logger
 }
 
@@ -638,7 +641,7 @@ func (c *BaseClient) ResetState(newStateDBPath string, cg string, messages []str
 		}
 	}
 
-	var newState State
+	var newState state.State
 	newState, stateDb, err = c.state.NewStateFromOld(newStateDBPath)
 	if err != nil {
 		return stateDb, fmt.Errorf("failed to create new state from old: %v", err)

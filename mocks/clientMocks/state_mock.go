@@ -5,10 +5,10 @@
 package clientMocks
 
 import (
+	"github.com/lidofinance/dc4bc/client/modules/state"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	client "github.com/lidofinance/dc4bc/client"
 	types "github.com/lidofinance/dc4bc/client/types"
 	state_machines "github.com/lidofinance/dc4bc/fsm/state_machines"
 )
@@ -157,10 +157,10 @@ func (mr *MockStateMockRecorder) LoadOffset() *gomock.Call {
 }
 
 // NewStateFromOld mocks base method.
-func (m *MockState) NewStateFromOld(stateDbPath string) (client.State, string, error) {
+func (m *MockState) NewStateFromOld(stateDbPath string) (state.State, string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewStateFromOld", stateDbPath)
-	ret0, _ := ret[0].(client.State)
+	ret0, _ := ret[0].(state.State)
 	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
