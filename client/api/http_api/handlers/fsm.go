@@ -12,10 +12,10 @@ import (
 	"net/http"
 )
 
-func GetOperationQRPath(c echo.Context) error {
+func GetFSMDump(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
-	request := &req.OperationIdForm{}
+	request := &req.DkgIdForm{}
 
 	err := stx.Bind(request)
 
@@ -33,7 +33,7 @@ func GetOperationQRPath(c echo.Context) error {
 		)
 	}
 
-	formDTO := &OperationIdDTO{}
+	formDTO := &DkgIdDTO{}
 
 	err = dto.RequestToDTO(formDTO, request)
 
@@ -44,57 +44,31 @@ func GetOperationQRPath(c echo.Context) error {
 		)
 	}
 
-	operations, err := services.App().BaseClientService().GetOperationQRPath(formDTO)
+	fsmDump, err := services.App().BaseClientService().GetFSMDump(formDTO)
 
 	if err == nil {
 		return stx.Json(
 			http.StatusOK,
-			operations,
+			fsmDump,
 		)
 	} else {
 		return stx.JsonError(
 			http.StatusInternalServerError,
-			fmt.Errorf("failed to get operations: %v", err),
+			err,
 		)
 	}
 }
 
-func GetOperationQRFile(c echo.Context) error {
+func GetFSMList(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
-	request := &req.OperationIdForm{}
-
-	err := stx.Bind(request)
-
-	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			fmt.Errorf("failed to read request body: %v", err),
-		)
-	}
-
-	if err := validator.Validate(request); !err.IsEmpty() {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err.Error(),
-		)
-	}
-
-	formDTO := &OperationIdDTO{}
-
-	err = dto.RequestToDTO(formDTO, request)
-
-	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err,
-		)
-	}
-
-	encodedData, err := services.App().BaseClientService().GetOperationQRFile(formDTO)
+	fsmDump, err := services.App().BaseClientService().GetFSMList()
 
 	if err == nil {
-		return stx.Blob(http.StatusOK, "image/png", encodedData)
+		return stx.Json(
+			http.StatusOK,
+			fsmDump,
+		)
 	} else {
 		return stx.JsonError(
 			http.StatusInternalServerError,

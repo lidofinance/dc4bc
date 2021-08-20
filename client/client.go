@@ -538,7 +538,7 @@ func (c *BaseClient) handleProcessedOperation(operation types.Operation) error {
 		return fmt.Errorf("failed to find matching operation: %w", err)
 	}
 
-	if err := storedOperation.Check(&operation); err != nil {
+	if err := storedOperation.Equal(&operation); err != nil {
 		return fmt.Errorf("processed operation does not match stored operation: %w", err)
 	}
 

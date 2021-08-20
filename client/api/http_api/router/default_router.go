@@ -14,22 +14,22 @@ func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc) {
 	e.GET("/getOperationQRPath", h.GetOperationQRPath)
 
 	e.GET("/getSignatures", h.GetSignatures)
-	e.GET("/getSignatureByID", nil)
+	e.GET("/getSignatureByID", h.GetSignatureByID)
 
-	e.GET("/getOperationQR", nil)
-	e.GET("/handleProcessedOperationJSON", nil)
-	e.GET("/getOperation", nil)
+	e.GET("/getOperationQR", h.GetOperationQRFile)
+	e.POST("/handleProcessedOperationJSON", h.ProcessOperation)
+	e.GET("/getOperation", h.GetOperation)
 
-	e.GET("/startDKG", nil)
-	e.GET("/proposeSignMessage", nil)
-	e.GET("/approveDKGParticipation", nil)
-	e.GET("/reinitDKG", nil)
+	e.POST("/startDKG", h.StartDKG)
+	e.POST("/proposeSignMessage", h.ProposeSignData)
+	e.POST("/approveDKGParticipation", h.ApproveParticipation)
+	e.POST("/reinitDKG", h.ReInitDKG)
 
-	e.GET("/saveOffset", nil)
-	e.GET("/getOffset", nil)
+	e.POST("/saveOffset", h.SaveStateOffset)
+	e.POST("/getOffset", h.GetStateOffset)
 
-	e.GET("/getFSMDump", nil)
-	e.GET("/getFSMList", nil)
+	e.GET("/getFSMDump", h.GetFSMDump)
+	e.GET("/getFSMList", h.GetFSMList)
 
 	e.GET("/resetState", nil)
 

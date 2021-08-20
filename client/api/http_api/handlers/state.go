@@ -12,28 +12,10 @@ import (
 	"net/http"
 )
 
-func GetOperations(c echo.Context) error {
+func SaveStateOffset(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
-	operations, err := services.App().BaseClientService().GetOperations()
-
-	if err == nil {
-		return stx.Json(
-			http.StatusOK,
-			operations,
-		)
-	} else {
-		return stx.JsonError(
-			http.StatusInternalServerError,
-			err,
-		)
-	}
-}
-
-func ProcessOperation(c echo.Context) error {
-	stx := c.(*cs.ContextService)
-
-	request := &req.OperationForm{}
+	request := &req.StateOffsetForm{}
 
 	err := stx.Bind(request)
 
@@ -51,7 +33,7 @@ func ProcessOperation(c echo.Context) error {
 		)
 	}
 
-	formDTO := &OperationDTO{}
+	formDTO := &StateOffsetDTO{}
 
 	err = dto.RequestToDTO(formDTO, request)
 
@@ -62,7 +44,7 @@ func ProcessOperation(c echo.Context) error {
 		)
 	}
 
-	err = services.App().BaseClientService().ProcessOperation(formDTO)
+	err = services.App().BaseClientService().SaveOffset(formDTO)
 
 	if err == nil {
 		return stx.Json(
@@ -77,57 +59,27 @@ func ProcessOperation(c echo.Context) error {
 	}
 }
 
-func GetOperation(c echo.Context) error {
+func GetStateOffset(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
-	request := &req.OperationIdForm{}
-
-	err := stx.Bind(request)
-
-	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			fmt.Errorf("failed to read request body: %v", err),
-		)
-	}
-
-	if err := validator.Validate(request); !err.IsEmpty() {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err.Error(),
-		)
-	}
-
-	formDTO := &OperationIdDTO{}
-
-	err = dto.RequestToDTO(formDTO, request)
-
-	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err,
-		)
-	}
-
-	operation, err := services.App().BaseClientService().GetOperation(formDTO)
+	offset, err := services.App().BaseClientService().GetStateOffset()
 
 	if err == nil {
 		return stx.Json(
 			http.StatusOK,
-			operation,
+			offset,
 		)
 	} else {
 		return stx.JsonError(
 			http.StatusInternalServerError,
-			fmt.Errorf("failed to get operations: %v", err),
+			fmt.Errorf("failed to load offset: %v", err),
 		)
 	}
 }
-
-func ApproveParticipation(c echo.Context) error {
+func ResetState(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
-	request := &req.OperationIdForm{}
+	request := &req.ResetStateForm{}
 
 	err := stx.Bind(request)
 
@@ -145,7 +97,7 @@ func ApproveParticipation(c echo.Context) error {
 		)
 	}
 
-	formDTO := &OperationIdDTO{}
+	formDTO := &ResetStateDTO{}
 
 	err = dto.RequestToDTO(formDTO, request)
 
@@ -156,12 +108,12 @@ func ApproveParticipation(c echo.Context) error {
 		)
 	}
 
-	err = services.App().BaseClientService().ApproveParticipation(formDTO)
+	newStateDbPath, err := services.App().BaseClientService().ResetFSMState(formDTO)
 
 	if err == nil {
 		return stx.Json(
 			http.StatusOK,
-			"ok",
+			newStateDbPath,
 		)
 	} else {
 		return stx.JsonError(

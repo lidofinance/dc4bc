@@ -25,17 +25,17 @@ func main() {
 			ChunkSize:   256,
 		},
 		KafkaStorageConfig: &config.KafkaStorageConfig{
-			DBDSN:         "",
-			Topic:         "",
-			ConsumerGroup: "",
+			DBDSN:         "94.130.57.249:9093",
+			Topic:         "june_corx`ridor_4",
+			ConsumerGroup: "dima_a3",
 		},
-		Username:      "",
-		KeyStoreDBDSN: "",
+		Username:      "dima",
+		KeyStoreDBDSN: "./stores/dc4bc_dima_key_store",
 	}
 
-	conf.KafkaStorageConfig.TlsConfig, _ = kafka_storage.GetTLSConfig("")
-	conf.KafkaStorageConfig.ProducerCredentials, _ = parseKafkaSaslPlain("")
-	conf.KafkaStorageConfig.ConsumerCredentials, _ = parseKafkaSaslPlain("")
+	conf.KafkaStorageConfig.TlsConfig, _ = kafka_storage.GetTLSConfig("./ca.crt")
+	conf.KafkaStorageConfig.ProducerCredentials, _ = parseKafkaSaslPlain("producer:producerpass")
+	conf.KafkaStorageConfig.ConsumerCredentials, _ = parseKafkaSaslPlain("consumer:consumerpass")
 
 	err := services.InitServices(conf)
 

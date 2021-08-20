@@ -75,7 +75,7 @@ func NewOperation(
 	}
 }
 
-func (o *Operation) Check(o2 *Operation) error {
+func (o *Operation) Equal(o2 *Operation) error {
 	if o.ID != o2.ID {
 		return fmt.Errorf("o1.ID (%s) != o2.ID (%s)", o.ID, o2.ID)
 	}
