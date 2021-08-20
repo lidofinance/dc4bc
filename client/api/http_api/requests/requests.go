@@ -8,40 +8,40 @@ import (
 )
 
 type MessageForm struct {
-	ID            string `json:"id"`
-	DkgRoundID    string `json:"dkg_round_id" validate:"attr=dkg_round_id,min=3"`
-	Offset        uint64 `json:"offset"`
-	Event         string `json:"event"`
-	Data          []byte `json:"data"`
-	Signature     []byte `json:"signature"`
-	SenderAddr    string `json:"sender"`
+	ID            string `json:"id" validate:"attr=id,min=32,max=512"`
+	DkgRoundID    string `json:"dkg_round_id" validate:"attr=dkg_round_id,min=32,max=512"`
+	Offset        uint64 `json:"offset" validate:"attr=offset,min=0"`
+	Event         string `json:"event" validate:"attr=event,min=1s"`
+	Data          []byte `json:"data" validate:"attr=data,min=1"`
+	Signature     []byte `json:"signature" validate:"attr=signature,min=1"`
+	SenderAddr    string `json:"sender"  validate:"attr=signature,min=1"`
 	RecipientAddr string `json:"recipient"`
 }
 
 type OperationIdForm struct {
-	OperationID string `query:"operationID" json:"operationID"`
+	OperationID string `query:"operationID" json:"operationID" validate:"attr=operationID,min=32,max=512"`
 }
 
 type DkgIdForm struct {
-	DkgID string `query:"dkgID" json:"dkgID"`
+	DkgID string `query:"dkgID" json:"dkgID" validate:"attr=dkgID,min=32,max=512"`
 }
 
 type SignatureByIDForm struct {
-	ID    string `query:"id" json:"id"`
-	DkgID string `query:"dkgID" json:"dkgID"`
+	ID    string `query:"id" json:"id" validate:"attr=id,min=32,max=512"`
+	DkgID string `query:"dkgID" json:"dkgID" validate:"attr=dkgID,min=32,max=512"`
 }
 
 type OperationForm struct {
-	ID            string // UUID4
-	Type          string
-	Payload       []byte
-	ResultMsgs    []storage.Message
-	CreatedAt     time.Time
-	DKGIdentifier string
-	To            string
-	Event         fsm.Event
+	ID            string            `json:"ID" validate:"attr=ID,min=32,max=512"` // UUID4
+	Type          string            `json:"Type" validate:"attr=Type,min=1,max=512"`
+	Payload       []byte            `json:"Payload"`
+	ResultMsgs    []storage.Message `json:"ResultMsgs"`
+	CreatedAt     time.Time         `json:"CreatedAt"`
+	DKGIdentifier string            `json:"DKGIdentifier" validate:"attr=DKGIdentifier,min=32,max=512"`
+	To            string            `json:"To" validate:"attr=To,min=1"`
+	Event         fsm.Event         `json:"Event" validate:"attr=Event,min=1"`
 
-	ExtraData []byte
+	ExtraData []byte `json:"ExtraData"`
 }
 
 type StartDKGForm struct {

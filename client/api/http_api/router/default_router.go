@@ -31,6 +31,6 @@ func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc) {
 	e.GET("/getFSMDump", h.GetFSMDump)
 	e.GET("/getFSMList", h.GetFSMList)
 
-	e.GET("/resetState", nil)
+	e.POST("/resetState", h.ResetState)
 
 }
