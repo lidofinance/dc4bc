@@ -9,23 +9,24 @@ import (
 	. "github.com/lidofinance/dc4bc/client/api/dto"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
 	req "github.com/lidofinance/dc4bc/client/api/http_api/requests"
-	"github.com/lidofinance/dc4bc/client/services"
+	"io/ioutil"
 	"net/http"
 )
 
-func StartDKG(c echo.Context) error {
+func (a *HTTPApp) StartDKG(c echo.Context) error {
+	var err error
 	stx := c.(*cs.ContextService)
 
 	request := &req.StartDKGForm{}
 
-	err := stx.Bind(request)
-
+	request.Payload, err = ioutil.ReadAll(stx.Request().Body)
 	if err != nil {
 		return stx.JsonError(
 			http.StatusBadRequest,
 			fmt.Errorf("failed to read request body: %v", err),
 		)
 	}
+	defer stx.Request().Body.Close()
 
 	if err := validator.Validate(request); !err.IsEmpty() {
 		return stx.JsonError(
@@ -45,7 +46,7 @@ func StartDKG(c echo.Context) error {
 		)
 	}
 
-	err = services.App().BaseClientService().StartDKG(formDTO)
+	err = a.node.StartDKG(formDTO)
 
 	if err == nil {
 		return stx.Json(
@@ -60,7 +61,7 @@ func StartDKG(c echo.Context) error {
 	}
 }
 
-func ReInitDKG(c echo.Context) error {
+func (a *HTTPApp) ReInitDKG(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.ReInitDKGForm{}
@@ -94,7 +95,7 @@ func ReInitDKG(c echo.Context) error {
 		)
 	}
 
-	err = services.App().BaseClientService().ReInitDKG(formDTO)
+	err = a.node.ReInitDKG(formDTO)
 
 	if err == nil {
 		return stx.Json(

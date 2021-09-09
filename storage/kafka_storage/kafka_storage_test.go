@@ -2,12 +2,12 @@ package kafka_storage
 
 import (
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/config"
 	"math/rand"
 	"testing"
 	"time"
 
 	"github.com/lidofinance/dc4bc/storage"
-	"github.com/segmentio/kafka-go/sasl/plain"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,25 +16,23 @@ var (
 	testTopic               = "long_test_topic"
 	testConsumerGroup       = "test_consumer_group"
 	testTruststorePath      = "../../ca.crt"
-	testTimeout             = time.Second * 10
-	testProducerCredentials = &plain.Mechanism{
-		Username: "producer",
-		Password: "producerpass",
-	}
-	testConsumerCredentials = &plain.Mechanism{
-		Username: "consumer",
-		Password: "consumerpass",
-	}
+	testTimeout             = "10s"
+	testProducerCredentials = "producer:producerpass"
+	testConsumerCredentials = "consumer:consumerpass"
 )
 
 func getTestStorage() storage.Storage {
-	tlsConfig, err := GetTLSConfig(testTruststorePath)
-	if err != nil {
-		panic(err)
+	kafkaCfg := config.KafkaStorageConfig{
+		DBDSN:               testBrokerEndpoint,
+		Topic:               testTopic,
+		ConsumerGroup:       testConsumerGroup,
+		TlsConfig:           testTruststorePath,
+		ProducerCredentials: testProducerCredentials,
+		ConsumerCredentials: testConsumerCredentials,
+		Timeout:             testTimeout,
 	}
 
-	stg, err := NewKafkaStorage(testBrokerEndpoint, testTopic, testConsumerGroup,
-		tlsConfig, testProducerCredentials, testConsumerCredentials, testTimeout)
+	stg, err := NewKafkaStorage(&kafkaCfg)
 	if err != nil {
 		panic(err)
 	}

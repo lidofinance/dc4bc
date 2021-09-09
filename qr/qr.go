@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/config"
 	"image"
 	"image/color"
 	"image/draw"
@@ -49,12 +50,19 @@ type CameraProcessor struct {
 	qrRecoveryLevel   encoder.RecoveryLevel
 }
 
-func NewCameraProcessor() Processor {
+func NewCameraProcessor(cfg *config.QrProcessorConfig) Processor {
+	chunkSize := defaultChunkSize
+	frameSize := defaultFramesDelay
+	if cfg != nil {
+		chunkSize = cfg.ChunkSize
+		frameSize = cfg.FramesDelay
+	}
+
 	return &CameraProcessor{
 		closeCameraReader: make(chan bool),
-		chunkSize:         defaultChunkSize,
+		chunkSize:         chunkSize,
 		qrRecoveryLevel:   defaultQrRecoveryLevel,
-		gifFramesDelay:    defaultFramesDelay,
+		gifFramesDelay:    frameSize,
 	}
 }
 

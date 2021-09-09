@@ -8,11 +8,10 @@ import (
 	. "github.com/lidofinance/dc4bc/client/api/dto"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
 	req "github.com/lidofinance/dc4bc/client/api/http_api/requests"
-	"github.com/lidofinance/dc4bc/client/services"
 	"net/http"
 )
 
-func GetSignatures(c echo.Context) error {
+func (a *HTTPApp) GetSignatures(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.DkgIdForm{}
@@ -44,7 +43,7 @@ func GetSignatures(c echo.Context) error {
 		)
 	}
 
-	signatures, err := services.App().BaseClientService().GetSignatures(formDTO)
+	signatures, err := a.node.GetSignatures(formDTO)
 
 	if err == nil {
 		return stx.Json(
@@ -59,7 +58,7 @@ func GetSignatures(c echo.Context) error {
 	}
 }
 
-func GetSignatureByID(c echo.Context) error {
+func (a *HTTPApp) GetSignatureByID(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.SignatureByIDForm{}
@@ -91,7 +90,7 @@ func GetSignatureByID(c echo.Context) error {
 		)
 	}
 
-	signatures, err := services.App().BaseClientService().GetSignatureByID(formDTO)
+	signatures, err := a.node.GetSignatureByID(formDTO)
 
 	if err == nil {
 		return stx.Json(
@@ -106,11 +105,10 @@ func GetSignatureByID(c echo.Context) error {
 	}
 }
 
-func ProposeSignData(c echo.Context) error {
+func (a *HTTPApp) ProposeSignData(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.ProposeSignDataForm{}
-
 	err := stx.Bind(request)
 
 	if err != nil {
@@ -138,7 +136,7 @@ func ProposeSignData(c echo.Context) error {
 		)
 	}
 
-	err = services.App().BaseClientService().ProposeSignData(formDTO)
+	err = a.node.ProposeSignData(formDTO)
 
 	if err == nil {
 		return stx.Json(

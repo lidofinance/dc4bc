@@ -8,11 +8,10 @@ import (
 	. "github.com/lidofinance/dc4bc/client/api/dto"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
 	req "github.com/lidofinance/dc4bc/client/api/http_api/requests"
-	"github.com/lidofinance/dc4bc/client/services"
 	"net/http"
 )
 
-func SendMessage(c echo.Context) error {
+func (a *HTTPApp) SendMessage(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.MessageForm{}
@@ -44,7 +43,7 @@ func SendMessage(c echo.Context) error {
 		)
 	}
 
-	err = services.App().BaseClientService().SendMessage(formDTO)
+	err = a.node.SendMessage(formDTO)
 
 	if err == nil {
 		return stx.Json(

@@ -72,7 +72,7 @@ type BaseClient struct {
 	SkipCommKeysVerification bool
 }
 
-func NewClient(
+func NewClient1(
 	ctx context.Context,
 	userName string,
 	state state.State,
@@ -130,7 +130,7 @@ func (c *BaseClient) SetSkipCommKeysVerification(f bool) {
 	c.SkipCommKeysVerification = f
 }
 
-// Poll is a main client loop, which gets new messages from an append-only log and processes them
+// Poll is a main nodeInstance loop, which gets new messages from an append-only log and processes them
 func (c *BaseClient) Poll() error {
 	tk := time.NewTicker(pollingPeriod)
 	for {

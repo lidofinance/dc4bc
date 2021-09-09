@@ -8,11 +8,10 @@ import (
 	. "github.com/lidofinance/dc4bc/client/api/dto"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
 	req "github.com/lidofinance/dc4bc/client/api/http_api/requests"
-	"github.com/lidofinance/dc4bc/client/services"
 	"net/http"
 )
 
-func SaveStateOffset(c echo.Context) error {
+func (a *HTTPApp) SaveStateOffset(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.StateOffsetForm{}
@@ -44,7 +43,7 @@ func SaveStateOffset(c echo.Context) error {
 		)
 	}
 
-	err = services.App().BaseClientService().SaveOffset(formDTO)
+	err = a.node.SaveOffset(formDTO)
 
 	if err == nil {
 		return stx.Json(
@@ -59,10 +58,10 @@ func SaveStateOffset(c echo.Context) error {
 	}
 }
 
-func GetStateOffset(c echo.Context) error {
+func (a *HTTPApp) GetStateOffset(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
-	offset, err := services.App().BaseClientService().GetStateOffset()
+	offset, err := a.node.GetStateOffset()
 
 	if err == nil {
 		return stx.Json(
@@ -76,7 +75,7 @@ func GetStateOffset(c echo.Context) error {
 		)
 	}
 }
-func ResetState(c echo.Context) error {
+func (a *HTTPApp) ResetState(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.ResetStateForm{}
@@ -108,7 +107,7 @@ func ResetState(c echo.Context) error {
 		)
 	}
 
-	newStateDbPath, err := services.App().BaseClientService().ResetFSMState(formDTO)
+	newStateDbPath, err := a.node.ResetFSMState(formDTO)
 
 	if err == nil {
 		return stx.Json(

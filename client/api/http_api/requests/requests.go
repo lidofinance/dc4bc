@@ -37,8 +37,8 @@ type OperationForm struct {
 	Payload       []byte            `json:"Payload"`
 	ResultMsgs    []storage.Message `json:"ResultMsgs"`
 	CreatedAt     time.Time         `json:"CreatedAt"`
-	DKGIdentifier string            `json:"DKGIdentifier" validate:"attr=DKGIdentifier,min=32,max=512"`
-	To            string            `json:"To" validate:"attr=To,min=1"`
+	DKGIdentifier []byte            `json:"DKGIdentifier" validate:"attr=DKGIdentifier,min=32,max=512"`
+	To            string            `json:"To" validate:"attr=To,min=0"`
 	Event         fsm.Event         `json:"Event" validate:"attr=Event,min=1"`
 
 	ExtraData []byte `json:"ExtraData"`
@@ -49,7 +49,7 @@ type StartDKGForm struct {
 }
 
 type ProposeSignDataForm struct {
-	DkgId string `json:"dkgID"`
+	DkgID []byte `json:"dkgID"`
 	Data  []byte `json:"data"`
 }
 

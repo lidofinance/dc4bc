@@ -39,7 +39,7 @@ type OperationDTO struct {
 	Payload       []byte
 	ResultMsgs    []storage.Message
 	CreatedAt     time.Time
-	DKGIdentifier string
+	DKGIdentifier []byte
 	To            string
 	Event         fsm.Event
 
@@ -51,7 +51,7 @@ type StartDkgDTO struct {
 }
 
 type ProposeSignDataDTO struct {
-	DkgID string
+	DkgID []byte
 	Data  []byte
 }
 

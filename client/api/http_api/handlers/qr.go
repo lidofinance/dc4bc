@@ -8,11 +8,10 @@ import (
 	. "github.com/lidofinance/dc4bc/client/api/dto"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
 	req "github.com/lidofinance/dc4bc/client/api/http_api/requests"
-	"github.com/lidofinance/dc4bc/client/services"
 	"net/http"
 )
 
-func GetOperationQRPath(c echo.Context) error {
+func (a *HTTPApp) GetOperationQRPath(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.OperationIdForm{}
@@ -44,7 +43,7 @@ func GetOperationQRPath(c echo.Context) error {
 		)
 	}
 
-	operations, err := services.App().BaseClientService().GetOperationQRPath(formDTO)
+	operations, err := a.node.GetOperationQRPath(formDTO)
 
 	if err == nil {
 		return stx.Json(
@@ -59,7 +58,7 @@ func GetOperationQRPath(c echo.Context) error {
 	}
 }
 
-func GetOperationQRFile(c echo.Context) error {
+func (a *HTTPApp) GetOperationQRFile(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.OperationIdForm{}
@@ -91,7 +90,7 @@ func GetOperationQRFile(c echo.Context) error {
 		)
 	}
 
-	encodedData, err := services.App().BaseClientService().GetOperationQRFile(formDTO)
+	encodedData, err := a.node.GetOperationQRFile(formDTO)
 
 	if err == nil {
 		return stx.Blob(http.StatusOK, "image/png", encodedData)

@@ -2,10 +2,14 @@ package router
 
 import (
 	"github.com/labstack/echo/v4"
-	h "github.com/lidofinance/dc4bc/client/api/http_api/handlers"
+	"github.com/lidofinance/dc4bc/client/api/http_api/handlers"
+	"github.com/lidofinance/dc4bc/client/services/node"
 )
 
-func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc) {
+func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc, node node.NodeService) {
+
+	h := handlers.NewHTTPApp(node)
+
 	e.GET("/getUsername", h.GetUsername)
 	e.GET("/getPubKey", h.GetPubKey)
 

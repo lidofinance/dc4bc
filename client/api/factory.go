@@ -4,6 +4,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/lidofinance/dc4bc/client/api/http_api"
 	"github.com/lidofinance/dc4bc/client/config"
+	"github.com/lidofinance/dc4bc/client/services/node"
 	"os"
 )
 
@@ -17,17 +18,16 @@ type InstanceFactory struct {
 	apiFactory *http_api.RESTApiProvider
 }
 
-var (
-	factoryInstance InstanceFactory
-	done            chan bool
-)
-
-func Run(config *config.Config) {
+func Run(config *config.Config, node node.NodeService) {
+	var (
+		factoryInstance InstanceFactory
+		done            chan bool
+	)
 	factoryInstance = InstanceFactory{
 		apiFactory: &http_api.RESTApiProvider{},
 	}
 
-	err := factoryInstance.apiFactory.NewServer(config)
+	err := factoryInstance.apiFactory.NewServer(config, node)
 	if err != nil {
 		os.Exit(1)
 	}

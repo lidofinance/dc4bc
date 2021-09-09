@@ -3,7 +3,6 @@ package internal
 import (
 	"crypto/ed25519"
 	"errors"
-
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/fsm_pool"
 )

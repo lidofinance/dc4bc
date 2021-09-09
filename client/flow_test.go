@@ -3,13 +3,18 @@ package client
 import (
 	"bytes"
 	"context"
-	"crypto/md5"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/api/http_api"
+	"github.com/lidofinance/dc4bc/client/api/http_api/responses"
+	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	state2 "github.com/lidofinance/dc4bc/client/modules/state"
+	"github.com/lidofinance/dc4bc/client/services"
+	"github.com/lidofinance/dc4bc/client/services/node"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -25,11 +30,12 @@ import (
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/storage/file_storage"
 
+	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"
+
 	"github.com/lidofinance/dc4bc/airgapped"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
-	"github.com/lidofinance/dc4bc/qr"
 )
 
 var (
@@ -44,14 +50,16 @@ var sigReconstructedRegexp = regexp.MustCompile(`(?m)\[node_\d] Successfully pro
 
 var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
 
-type node struct {
-	client       Client
+type nodeInstance struct {
+	ctx          context.Context
+	client       node.NodeService
 	clientCancel context.CancelFunc
 	clientLogger *savingLogger
 	storage      storage.Storage
 	keyPair      *keystore.KeyPair
 	air          *airgapped.Machine
 	listenAddr   string
+	httpApi      *http_api.RESTApiProvider
 }
 
 type OperationsResponse struct {
@@ -59,7 +67,7 @@ type OperationsResponse struct {
 	Result       map[string]*types.Operation `json:"result"`
 }
 
-type processedOperationCallback func(n *node, processedOperation *types.Operation)
+type processedOperationCallback func(n *nodeInstance, processedOperation *types.Operation)
 
 type savingLogger struct {
 	userName string
@@ -69,11 +77,15 @@ type savingLogger struct {
 func (l *savingLogger) Log(format string, args ...interface{}) {
 	str := fmt.Sprintf("[%s] %s\n", l.userName, fmt.Sprintf(format, args...))
 	l.logs = append(l.logs, str)
-	fmt.Print(str)
+	log.Print(str)
 }
 
 func (l *savingLogger) checkLogsWithRegexp(re *regexp.Regexp, batchSize int) (matches int) {
-	logs := l.logs[len(l.logs)-batchSize:]
+	startPos := 0
+	if len(l.logs)-batchSize > 0 {
+		startPos = len(l.logs) - batchSize
+	}
+	logs := l.logs[startPos:]
 	for _, str := range logs {
 		if len(re.FindString(str)) > 0 {
 			matches++
@@ -83,19 +95,19 @@ func (l *savingLogger) checkLogsWithRegexp(re *regexp.Regexp, batchSize int) (ma
 	return matches
 }
 
-func initNodes(numNodes int, startingPort int, storagePath string, topic string, mnemonics []string) (nodes []*node, err error) {
-	nodes = make([]*node, numNodes)
+func initNodes(numNodes int, startingPort int, storagePath string, topic string, mnemonics []string) (nodes []*nodeInstance, err error) {
+	nodes = make([]*nodeInstance, numNodes)
 	for nodeID := 0; nodeID < numNodes; nodeID++ {
 		var ctx, cancel = context.WithCancel(context.Background())
 		var userName = fmt.Sprintf("node_%d", nodeID)
 		var state, err = state2.NewLevelDBState(fmt.Sprintf("/tmp/dc4bc_node_%d_state", nodeID), topic)
 		if err != nil {
-			return nodes, fmt.Errorf("node %d failed to init state: %v\n", nodeID, err)
+			return nodes, fmt.Errorf("nodeInstance %d failed to init state: %v\n", nodeID, err)
 		}
 
 		stg, err := file_storage.NewFileStorage(storagePath)
 		if err != nil {
-			return nodes, fmt.Errorf("node %d failed to init storage: %v\n", nodeID, err)
+			return nodes, fmt.Errorf("nodeInstance %d failed to init storage: %v\n", nodeID, err)
 		}
 
 		keyStore, err := keystore.NewLevelDBKeyStore(userName, fmt.Sprintf("/tmp/dc4bc_node_%d_key_store", nodeID))
@@ -113,24 +125,29 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			return nodes, fmt.Errorf("failed to create airgapped machine: %v", err)
 		}
 
-		kp, err := keyStore.LoadKeys(userName, "")
-		if err != nil {
-			return nodes, fmt.Errorf("node %d failed to init client: %v\n", nodeID, err)
-		}
-
 		logger := &savingLogger{userName: userName}
-
-		clt := &BaseClient{
-			ctx:         ctx,
-			Logger:      logger,
-			userName:    userName,
-			pubKey:      kp.Pub,
-			state:       state,
-			storage:     stg,
-			keyStore:    keyStore,
-			qrProcessor: qr.NewCameraProcessor(),
+		cfg := config.Config{
+			Username:      userName,
+			KeyStoreDBDSN: fmt.Sprintf("/tmp/dc4bc_node_%d_key_store", nodeID),
+			QrProcessorConfig: &config.QrProcessorConfig{
+				FramesDelay: 10,
+				ChunkSize:   256,
+			},
+			HttpApiConfig: &config.HttpApiConfig{
+				ListenAddr: fmt.Sprintf("localhost:%d",startingPort),
+				Debug: false,
+			},
 		}
+		sp := services.ServiceProvider{}
+		sp.SetLogger(logger)
+		sp.SetState(state)
+		sp.SetKeyStore(keyStore)
+		sp.SetStorage(stg)
 
+		clt, err := node.NewNode(ctx, &cfg, &sp)
+		if err != nil {
+			return nodes, fmt.Errorf("nodeInstance %d failed to init nodeInstance: %v\n", nodeID, err)
+		}
 		airgappedMachine.SetEncryptionKey([]byte("very_strong_password")) //just for testing
 
 		if len(mnemonics) != 0 {
@@ -143,7 +160,15 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			return nodes, err
 		}
 
-		nodes[nodeID] = &node{
+		server := http_api.RESTApiProvider{}
+
+		err = server.NewServer(&cfg, clt)
+		if err != nil {
+			return nodes, fmt.Errorf("nodeInstance %d failed to init nodeInstance: %v\n", nodeID, err)
+		}
+
+		nodes[nodeID] = &nodeInstance{
+			ctx:          ctx,
 			client:       clt,
 			clientCancel: cancel,
 			clientLogger: logger,
@@ -151,6 +176,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			keyPair:      keyPair,
 			air:          airgappedMachine,
 			listenAddr:   fmt.Sprintf("localhost:%d", startingPort),
+			httpApi:      &server,
 		}
 		startingPort++
 	}
@@ -161,7 +187,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 func getOperations(url string) (*OperationsResponse, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get operations for node %w", err)
+		return nil, fmt.Errorf("failed to get operations for nodeInstance %w", err)
 	}
 	defer resp.Body.Close()
 	responseBody, err := ioutil.ReadAll(resp.Body)
@@ -191,7 +217,7 @@ func handleProcessedOperation(url string, operation types.Operation) error {
 		return fmt.Errorf("failed to read body %v", err)
 	}
 
-	var response Response
+	var response responses.BaseResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return fmt.Errorf("failed to unmarshal response: %w", err)
 	}
@@ -201,7 +227,7 @@ func handleProcessedOperation(url string, operation types.Operation) error {
 	return nil
 }
 
-func startDkg(nodes []*node, threshold int) ([]byte, error) {
+func startDkg(nodes []*nodeInstance, threshold int) ([]byte, error) {
 	var participants []*requests.SignatureProposalParticipantsEntry
 	for _, node := range nodes {
 		dkgPubKey, err := node.air.GetPubKey().MarshalBinary()
@@ -251,7 +277,7 @@ func signMessage(dkgID []byte, msg, addr string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read HTTP response body: %w", err)
 	}
 
-	var response Response
+	var response responses.BaseResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal HTTP response body: %w", err)
 	}
@@ -262,11 +288,11 @@ func signMessage(dkgID []byte, msg, addr string) ([]byte, error) {
 	return messageDataBz, nil
 }
 
-func (n *node) run(callback processedOperationCallback, ctx context.Context) {
+func (n *nodeInstance) run(callback processedOperationCallback, ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			n.client.GetLogger().Log("node.run() stopped for %s", n.client.GetUsername())
+			n.client.GetLogger().Log("nodeInstance.run() stopped for %s", n.client.GetUsername())
 			return
 		default:
 			operationsResponse, err := getOperations(fmt.Sprintf("http://%s/getOperations", n.listenAddr))
@@ -299,7 +325,7 @@ func (n *node) run(callback processedOperationCallback, ctx context.Context) {
 					}
 					resp.Body.Close()
 
-					var response Response
+					var response responses.BaseResponse
 					if err = json.Unmarshal(responseBody, &response); err != nil {
 						panic(fmt.Sprintf("failed to unmarshal response: %v", err))
 					}
@@ -348,24 +374,27 @@ func (n *node) run(callback processedOperationCallback, ctx context.Context) {
 	}
 }
 
-func startServerRunAndPoll(nodes []*node, callback processedOperationCallback) context.CancelFunc {
+func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCallback) context.CancelFunc {
 	runCtx, runCancel := context.WithCancel(context.Background())
 	for nodeID, n := range nodes {
-		go func(nodeID int, node *node) {
-			if err := node.client.StartHTTPServer(node.listenAddr); err != nil && err != http.ErrServerClosed {
+		go func(nodeID int, node *nodeInstance) {
+			if err := node.httpApi.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 				panic(fmt.Sprintf("failed to start HTTP server for nodeID #%d: %v\n", nodeID, err))
 			}
+			//if err := node.client.StartHTTPServer(node.listenAddr); err != nil && err != http.ErrServerClosed {
+			//	panic(fmt.Sprintf("failed to start HTTP server for nodeID #%d: %v\n", nodeID, err))
+			//}
 		}(nodeID, n)
 		time.Sleep(1 * time.Second)
 		go nodes[nodeID].run(callback, runCtx)
 
-		go func(nodeID int, node Client) {
+		go func(nodeID int, node node.NodeService) {
 			if err := node.Poll(); err != nil {
-				panic(fmt.Sprintf("client %d poller failed: %v\n", nodeID, err))
+				panic(fmt.Sprintf("nodeInstance %d poller failed: %v\n", nodeID, err))
 			}
 		}(nodeID, n.client)
 
-		log.Printf("client %d started...\n", nodeID)
+		log.Printf("nodeInstance %d started...\n", nodeID)
 	}
 
 	return runCancel
@@ -399,19 +428,20 @@ func TestStandardFlow(t *testing.T) {
 		t.Fatalf("Failed to init nodes, err: %v", err)
 	}
 
-	// Each node starts to Poll().
+	// Each nodeInstance starts to Poll().
 	runCancel := startServerRunAndPoll(nodes, nil)
 
-	// Last node tells other participants to start DKG.
+	// Last nodeInstance tells other participants to start DKG.
 	messageDataBz, err := startDkg(nodes, threshold)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
+
 	time.Sleep(10 * time.Second)
 
 	log.Println("Propose message to sign")
 
-	dkgID := md5.Sum(messageDataBz)
+	dkgID := sha256.Sum256(messageDataBz)
 	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[len(nodes)-1].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -443,7 +473,7 @@ func TestStandardFlow(t *testing.T) {
 
 	runCancel()
 	for _, node := range nodes {
-		node.client.StopHTTPServer()
+		node.httpApi.Stop(node.ctx)
 		node.clientCancel()
 	}
 }
@@ -467,7 +497,7 @@ func TestResetStateFlow(t *testing.T) {
 	errSendingNode = nodes[0].client.GetUsername()
 
 	// injecting error into processedOperation from airgapped machine to abort DKG
-	processedOperationCallback := func(n *node, processedOperation *types.Operation) {
+	processedOperationCallback := func(n *nodeInstance, processedOperation *types.Operation) {
 		if n.client.GetUsername() == errSendingNode && !commitConfirmationErrSent &&
 			fsm.State(processedOperation.Type) == dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations {
 			processedOperation.Event = errEvent
@@ -494,14 +524,14 @@ func TestResetStateFlow(t *testing.T) {
 		}
 	}
 
-	// Each node starts to Poll().
+	// Each nodeInstance starts to Poll().
 	runCancel := startServerRunAndPoll(nodes, processedOperationCallback)
-	// Last node tells other participants to start DKG.
+	// Last nodeInstance tells other participants to start DKG.
 	messageDataBz, err := startDkg(nodes, threshold)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	dkgID := md5.Sum(messageDataBz)
+	dkgID := sha256.Sum256(messageDataBz)
 
 	time.Sleep(20 * time.Second)
 
@@ -528,7 +558,7 @@ func TestResetStateFlow(t *testing.T) {
 		}
 	}
 
-	resetReq := ResetStateRequest{
+	resetReq := httprequests.ResetStateForm{
 		NewStateDBDSN: "",
 		UseOffset:     false,
 		Messages:      []string{msgToIgnore},
@@ -589,7 +619,7 @@ func TestResetStateFlow(t *testing.T) {
 
 	runCancel()
 	for _, node := range nodes {
-		node.client.StopHTTPServer()
+		node.httpApi.Stop(node.ctx)
 		node.clientCancel()
 	}
 }
@@ -633,15 +663,15 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		t.Fatalf("Failed to init nodes, err: %v", err)
 	}
 
-	// Each node starts to Poll().
+	// Each nodeInstance starts to Poll().
 	runCancel := startServerRunAndPoll(nodes, nil)
 
-	// Last node tells other participants to start DKG.
+	// Last nodeInstance tells other participants to start DKG.
 	messageDataBz, err := startDkg(nodes, threshold)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	dkgID := md5.Sum(messageDataBz)
+	dkgID := sha256.Sum256(messageDataBz)
 
 	time.Sleep(30 * time.Second)
 
@@ -665,7 +695,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 	fmt.Println("-----------------------------------------------------------------------------------")
 	runCancel()
 	for _, node := range nodes {
-		node.client.StopHTTPServer()
+		node.httpApi.Stop(node.ctx)
 		node.clientCancel()
 	}
 
@@ -690,14 +720,14 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 
 	time.Sleep(10 * time.Second)
 
-	var newNodes = make([]*node, numNodes)
+	var newNodes = make([]*nodeInstance, numNodes)
 	var newStoragePath = "/tmp/dc4bc_new_storage"
 	newNodes, err = initNodes(numNodes, startingPort, newStoragePath, topic, mnemonics)
 	if err != nil {
 		t.Fatalf("Failed to init nodes, err: %v", err)
 	}
 
-	// Each node starts to Poll().
+	// Each nodeInstance starts to Poll().
 	runCancel = startServerRunAndPoll(newNodes, nil)
 
 	var newCommPubKeys = map[string][]byte{}
@@ -713,15 +743,15 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 
 		// adding back self-confirm messages
 		// this is our test target
-		adaptedReDKG, err := GetAdaptedReDKG(&newDKG)
+		adaptedReDKG, err := node.GetAdaptedReDKG(&newDKG)
 		if err != nil {
 			t.Fatalf(err.Error())
 		}
 		reInitDKG = adaptedReDKG
 
 		// skip messages signature verification, since we are unable to sign self-confirm messages by old priv key
-		//for _, node := range newNodes {
-		//	node.client.SetSkipCommKeysVerification(true)
+		//for _, nodeInstance := range newNodes {
+		//	nodeInstance.nodeInstance.SetSkipCommKeysVerification(true)
 		//}
 	}
 
@@ -776,7 +806,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 
 	runCancel()
 	for _, node := range newNodes {
-		node.client.StopHTTPServer()
+		node.httpApi.Stop(node.ctx)
 		node.clientCancel()
 	}
 }

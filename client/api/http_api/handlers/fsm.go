@@ -8,11 +8,10 @@ import (
 	. "github.com/lidofinance/dc4bc/client/api/dto"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
 	req "github.com/lidofinance/dc4bc/client/api/http_api/requests"
-	"github.com/lidofinance/dc4bc/client/services"
 	"net/http"
 )
 
-func GetFSMDump(c echo.Context) error {
+func (a *HTTPApp) GetFSMDump(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.DkgIdForm{}
@@ -44,7 +43,7 @@ func GetFSMDump(c echo.Context) error {
 		)
 	}
 
-	fsmDump, err := services.App().BaseClientService().GetFSMDump(formDTO)
+	fsmDump, err := a.node.GetFSMDump(formDTO)
 
 	if err == nil {
 		return stx.Json(
@@ -59,10 +58,10 @@ func GetFSMDump(c echo.Context) error {
 	}
 }
 
-func GetFSMList(c echo.Context) error {
+func (a *HTTPApp) GetFSMList(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
-	fsmDump, err := services.App().BaseClientService().GetFSMList()
+	fsmDump, err := a.node.GetFSMList()
 
 	if err == nil {
 		return stx.Json(

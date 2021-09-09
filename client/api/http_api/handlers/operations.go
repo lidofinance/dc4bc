@@ -8,14 +8,13 @@ import (
 	. "github.com/lidofinance/dc4bc/client/api/dto"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
 	req "github.com/lidofinance/dc4bc/client/api/http_api/requests"
-	"github.com/lidofinance/dc4bc/client/services"
 	"net/http"
 )
 
-func GetOperations(c echo.Context) error {
+func (a *HTTPApp) GetOperations(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
-	operations, err := services.App().BaseClientService().GetOperations()
+	operations, err := a.node.GetOperations()
 
 	if err == nil {
 		return stx.Json(
@@ -30,7 +29,7 @@ func GetOperations(c echo.Context) error {
 	}
 }
 
-func ProcessOperation(c echo.Context) error {
+func (a *HTTPApp) ProcessOperation(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.OperationForm{}
@@ -62,7 +61,7 @@ func ProcessOperation(c echo.Context) error {
 		)
 	}
 
-	err = services.App().BaseClientService().ProcessOperation(formDTO)
+	err = a.node.ProcessOperation(formDTO)
 
 	if err == nil {
 		return stx.Json(
@@ -77,7 +76,7 @@ func ProcessOperation(c echo.Context) error {
 	}
 }
 
-func GetOperation(c echo.Context) error {
+func (a *HTTPApp) GetOperation(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.OperationIdForm{}
@@ -109,7 +108,7 @@ func GetOperation(c echo.Context) error {
 		)
 	}
 
-	operation, err := services.App().BaseClientService().GetOperation(formDTO)
+	operation, err := a.node.GetOperation(formDTO)
 
 	if err == nil {
 		return stx.Json(
@@ -124,7 +123,7 @@ func GetOperation(c echo.Context) error {
 	}
 }
 
-func ApproveParticipation(c echo.Context) error {
+func (a *HTTPApp) ApproveParticipation(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.OperationIdForm{}
@@ -156,7 +155,7 @@ func ApproveParticipation(c echo.Context) error {
 		)
 	}
 
-	err = services.App().BaseClientService().ApproveParticipation(formDTO)
+	err = a.node.ApproveParticipation(formDTO)
 
 	if err == nil {
 		return stx.Json(

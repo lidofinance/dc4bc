@@ -27,7 +27,7 @@ func makeCompositeKey(prefix, key string) []byte {
 	return []byte(fmt.Sprintf("%s_%s", prefix, key))
 }
 
-// State is the client's state (it keeps the offset, the FSM state and
+// State is the node's state (it keeps the offset, the FSM state and
 // the Operation pool.
 type State interface {
 	NewStateFromOld(stateDbPath string) (State, string, error)

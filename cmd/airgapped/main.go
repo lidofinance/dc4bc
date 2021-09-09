@@ -386,7 +386,7 @@ func (p *prompt) generateDKGPubKeyQR() error {
 		return fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	qrProcessor := qr.NewCameraProcessor()
+	qrProcessor := qr.NewCameraProcessor(nil)
 	qrPath := filepath.Join(p.airgapped.ResultQRFolder, fmt.Sprintf("dc4bc_qr_dkg_pub_key.gif"))
 	if err = qrProcessor.WriteQR(qrPath, dkgPubKeyJSON); err != nil {
 		return fmt.Errorf("failed to write QR: %w", err)

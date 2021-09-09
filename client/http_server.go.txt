@@ -100,7 +100,7 @@ func (c *BaseClient) StartHTTPServer(listenAddr string) error {
 	mux.HandleFunc("/resetState", c.resetStateHandler)
 
 	c.server = &http.Server{Addr: listenAddr, Handler: mux}
-  
+
 	c.Logger.Log("HTTP server started on address: %s", listenAddr)
 	return c.server.ListenAndServe()
 }
@@ -513,7 +513,7 @@ func (c *BaseClient) handleJSONOperationHandler(w http.ResponseWriter, r *http.R
 }
 
 func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
-  if r.Method != http.MethodPost {
+	if r.Method != http.MethodPost {
 		errorResponse(w, http.StatusBadRequest, "Wrong HTTP method")
 		return
 	}
@@ -523,14 +523,14 @@ func (c *BaseClient) resetStateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-  
-  var req ResetStateRequest
-  if err = json.Unmarshal(reqBody, &req); err != nil {
+
+	var req ResetStateRequest
+	if err = json.Unmarshal(reqBody, &req); err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to umarshal request: %v", err))
 		return
 	}
-  
-  newStateDbPath, err := c.ResetState(req.NewStateDBDSN, req.KafkaConsumerGroup, req.Messages, req.UseOffset)
+
+	newStateDbPath, err := c.ResetState(req.NewStateDBDSN, req.KafkaConsumerGroup, req.Messages, req.UseOffset)
 	if err != nil {
 		errorResponse(w, http.StatusInternalServerError, fmt.Sprintf("failed to reset state: %v", err))
 		return

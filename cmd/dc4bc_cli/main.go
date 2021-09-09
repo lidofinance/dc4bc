@@ -9,7 +9,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -25,8 +27,10 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
+	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"
+	httpresponses "github.com/lidofinance/dc4bc/client/api/http_api/responses"
+
 	"github.com/fatih/color"
-	"github.com/lidofinance/dc4bc/client"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/qr"
@@ -50,7 +54,7 @@ var (
 
 	rootCmd = &cobra.Command{
 		Use:   "dc4bc_cli",
-		Short: "dc4bc client cli utilities implementation",
+		Short: "dc4bc node cli utilities implementation",
 	}
 
 	refreshStateCmd = &cobra.Command{
@@ -366,14 +370,7 @@ func getOperationQRPathCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
-			framesDelay, err := cmd.Flags().GetInt(flagFramesDelay)
-			if err != nil {
-				return fmt.Errorf("failed to read configuration: %w", err)
-			}
-			chunkSize, err := cmd.Flags().GetInt(flagChunkSize)
-			if err != nil {
-				return fmt.Errorf("failed to read configuration: %w", err)
-			}
+
 			qrCodeFolder, err := cmd.Flags().GetString(flagQRCodesFolder)
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %w", err)
@@ -392,9 +389,13 @@ func getOperationQRPathCommand() *cobra.Command {
 
 			qrPath := fmt.Sprintf("%s.gif", operationQRPath)
 
-			processor := qr.NewCameraProcessor()
-			processor.SetChunkSize(chunkSize)
-			processor.SetDelay(framesDelay)
+			qrCfg := config.QrProcessorConfig{}
+			err = viper.Unmarshal(&qrCfg)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %w", err)
+			}
+
+			processor := qr.NewCameraProcessor(&qrCfg)
 
 			if err = processor.WriteQR(qrPath, operation.Result); err != nil {
 				return fmt.Errorf("failed to save QR gif: %w", err)
@@ -433,7 +434,7 @@ func reinitDKGQRPathCommand() *cobra.Command {
 	}
 }
 
-func rawGetRequest(url string) (*client.Response, error) {
+func rawGetRequest(url string) (*httpresponses.BaseResponse, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operations for node %w", err)
@@ -444,7 +445,7 @@ func rawGetRequest(url string) (*client.Response, error) {
 		return nil, fmt.Errorf("failed to read body %w", err)
 	}
 
-	var response client.Response
+	var response httpresponses.BaseResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
@@ -454,7 +455,7 @@ func rawGetRequest(url string) (*client.Response, error) {
 func getPubKeyCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get_pubkey",
-		Short: "returns client's pubkey",
+		Short: "returns node's pubkey",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
@@ -463,10 +464,10 @@ func getPubKeyCommand() *cobra.Command {
 
 			resp, err := rawGetRequest(fmt.Sprintf("http://%s//getPubKey", listenAddr))
 			if err != nil {
-				return fmt.Errorf("failed to get client's pubkey: %w", err)
+				return fmt.Errorf("failed to get node's pubkey: %w", err)
 			}
 			if resp.ErrorMessage != "" {
-				return fmt.Errorf("failed to get client's pubkey: %v", resp.ErrorMessage)
+				return fmt.Errorf("failed to get node's pubkey: %v", resp.ErrorMessage)
 			}
 			fmt.Println(resp.Result.(string))
 			return nil
@@ -536,7 +537,7 @@ func getUsername(listenAddr string) (string, error) {
 		return "", fmt.Errorf("failed to do HTTP request: %w", err)
 	}
 	if resp.ErrorMessage != "" {
-		return "", fmt.Errorf("failed to get client's username: %v", resp.ErrorMessage)
+		return "", fmt.Errorf("failed to get node's username: %v", resp.ErrorMessage)
 	}
 	return resp.Result.(string), nil
 }
@@ -544,7 +545,7 @@ func getUsername(listenAddr string) (string, error) {
 func getUsernameCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get_username",
-		Short: "returns client's username",
+		Short: "returns node's username",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
@@ -553,7 +554,7 @@ func getUsernameCommand() *cobra.Command {
 
 			username, err := getUsername(listenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to get client's username: %w", err)
+				return fmt.Errorf("failed to get node's username: %w", err)
 			}
 			fmt.Println(username)
 			return nil
@@ -561,7 +562,7 @@ func getUsernameCommand() *cobra.Command {
 	}
 }
 
-func rawPostRequest(url string, contentType string, data []byte) (*client.Response, error) {
+func rawPostRequest(url string, contentType string, data []byte) (*httpresponses.BaseResponse, error) {
 	resp, err := http.Post(url,
 		contentType, bytes.NewReader(data))
 	if err != nil {
@@ -573,7 +574,7 @@ func rawPostRequest(url string, contentType string, data []byte) (*client.Respon
 		return nil, fmt.Errorf("failed to read body %w", err)
 	}
 
-	var response client.Response
+	var response httpresponses.BaseResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
@@ -848,7 +849,7 @@ func getFSMStatusCommand() *cobra.Command {
 
 			username, err := getUsername(listenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to get client's username: %w", err)
+				return fmt.Errorf("failed to get node's username: %w", err)
 			}
 
 			for _, p := range quorum {
@@ -885,7 +886,7 @@ func getFSMStatusCommand() *cobra.Command {
 func getFSMListCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "get_fsm_list",
-		Short: "returns a list of all FSMs served by the client",
+		Short: "returns a list of all FSMs served by the node",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
@@ -918,13 +919,13 @@ func refreshState() *cobra.Command {
 		if len(kafkaConsumerGroup) < 1 {
 			username, err := getUsername(listenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to get client's username: %w", err)
+				return fmt.Errorf("failed to get node's username: %w", err)
 			}
 
 			kafkaConsumerGroup = fmt.Sprintf("%s_%d", username, time.Now().Unix())
 		}
 
-		req := client.ResetStateRequest{
+		req := httprequests.ResetStateForm{
 			NewStateDBDSN:      newStateDBDSN,
 			UseOffset:          useOffset,
 			KafkaConsumerGroup: kafkaConsumerGroup,
