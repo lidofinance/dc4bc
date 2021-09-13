@@ -9,9 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/config"
-	"github.com/lidofinance/dc4bc/client/types"
-	"github.com/spf13/viper"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -21,6 +18,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/config"
+	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/spf13/viper"
 
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 

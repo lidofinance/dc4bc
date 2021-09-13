@@ -3,10 +3,11 @@ package main
 import (
 	"encoding/base64"
 	"fmt"
-	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
-	"github.com/spf13/cobra"
 	"io/ioutil"
 	"log"
+
+	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
+	"github.com/spf13/cobra"
 )
 
 func checkSignature() *cobra.Command {

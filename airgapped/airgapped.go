@@ -3,11 +3,12 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"log"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
 	vss "github.com/corestario/kyber/share/vss/rabin"
 

@@ -8,13 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/api/http_api"
-	"github.com/lidofinance/dc4bc/client/api/http_api/responses"
-	"github.com/lidofinance/dc4bc/client/config"
-	"github.com/lidofinance/dc4bc/client/modules/keystore"
-	state2 "github.com/lidofinance/dc4bc/client/modules/state"
-	"github.com/lidofinance/dc4bc/client/services"
-	"github.com/lidofinance/dc4bc/client/services/node"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -23,6 +16,14 @@ import (
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/api/http_api"
+	"github.com/lidofinance/dc4bc/client/api/http_api/responses"
+	"github.com/lidofinance/dc4bc/client/config"
+	"github.com/lidofinance/dc4bc/client/modules/keystore"
+	state2 "github.com/lidofinance/dc4bc/client/modules/state"
+	"github.com/lidofinance/dc4bc/client/services"
+	"github.com/lidofinance/dc4bc/client/services/node"
 
 	"github.com/lidofinance/dc4bc/storage"
 
@@ -134,8 +135,8 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 				ChunkSize:   256,
 			},
 			HttpApiConfig: &config.HttpApiConfig{
-				ListenAddr: fmt.Sprintf("localhost:%d",startingPort),
-				Debug: false,
+				ListenAddr: fmt.Sprintf("localhost:%d", startingPort),
+				Debug:      false,
 			},
 		}
 		sp := services.ServiceProvider{}

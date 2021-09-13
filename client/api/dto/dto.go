@@ -1,9 +1,10 @@
 package dto
 
 import (
+	"time"
+
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/storage"
-	"time"
 )
 
 // This packages contains DTO (Data Transfer Object) structures

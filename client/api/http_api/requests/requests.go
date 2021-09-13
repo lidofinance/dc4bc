@@ -1,10 +1,11 @@
 package requests
 
 import (
+	"time"
+
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/storage"
-	"time"
 )
 
 type MessageForm struct {

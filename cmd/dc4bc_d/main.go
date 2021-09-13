@@ -3,14 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/api/http_api"
-	"github.com/lidofinance/dc4bc/client/modules/keystore"
-	"github.com/lidofinance/dc4bc/client/services"
-	"github.com/lidofinance/dc4bc/client/services/node"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/lidofinance/dc4bc/client/api/http_api"
+	"github.com/lidofinance/dc4bc/client/modules/keystore"
+	"github.com/lidofinance/dc4bc/client/services"
+	"github.com/lidofinance/dc4bc/client/services/node"
 
 	apiconfig "github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/fsm/config"

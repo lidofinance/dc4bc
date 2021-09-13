@@ -1,10 +1,11 @@
 package dkg_proposal_fsm
 
 import (
+	"sync"
+
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/internal"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"sync"
 )
 
 const (

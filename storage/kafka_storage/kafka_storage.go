@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/config"
 	"net"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/config"
 
 	"github.com/lidofinance/dc4bc/storage"
 	"github.com/segmentio/kafka-go"

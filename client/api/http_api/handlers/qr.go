@@ -2,13 +2,14 @@ package handlers
 
 import (
 	"fmt"
+	"net/http"
+
 	"github.com/censync/go-dto"
 	"github.com/censync/go-validator"
 	"github.com/labstack/echo/v4"
 	. "github.com/lidofinance/dc4bc/client/api/dto"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
 	req "github.com/lidofinance/dc4bc/client/api/http_api/requests"
-	"net/http"
 )
 
 func (a *HTTPApp) GetOperationQRPath(c echo.Context) error {

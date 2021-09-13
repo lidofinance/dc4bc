@@ -2,10 +2,11 @@ package kafka_storage
 
 import (
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/config"
 	"math/rand"
 	"testing"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/config"
 
 	"github.com/lidofinance/dc4bc/storage"
 	"github.com/stretchr/testify/require"

@@ -2,6 +2,9 @@ package services
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	"github.com/lidofinance/dc4bc/client/modules/logger"
@@ -9,8 +12,6 @@ import (
 	"github.com/lidofinance/dc4bc/qr"
 	"github.com/lidofinance/dc4bc/storage"
 	"github.com/lidofinance/dc4bc/storage/kafka_storage"
-	"strconv"
-	"strings"
 )
 
 type ServiceProvider struct {

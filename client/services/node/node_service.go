@@ -8,6 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/config"
@@ -26,11 +32,6 @@ import (
 	"github.com/lidofinance/dc4bc/qr"
 	"github.com/lidofinance/dc4bc/storage"
 	"github.com/lidofinance/dc4bc/storage/kafka_storage"
-	"log"
-	"path/filepath"
-	"strings"
-	"sync"
-	"time"
 )
 
 const (

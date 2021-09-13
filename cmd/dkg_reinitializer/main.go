@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/services/node"
 	"io/ioutil"
 	"log"
 	"os"
 
+	"github.com/lidofinance/dc4bc/client/services/node"
 
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/storage"

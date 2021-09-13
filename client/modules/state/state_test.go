@@ -1,12 +1,13 @@
 package state_test
 
 import (
-	"github.com/lidofinance/dc4bc/client/modules/state"
 	"os"
 	"regexp"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/modules/state"
 
 	"github.com/lidofinance/dc4bc/client/types"
 

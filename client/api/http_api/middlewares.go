@@ -2,9 +2,10 @@ package http_api
 
 import (
 	"fmt"
+	"net/http"
+
 	. "github.com/labstack/echo/v4"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
-	"net/http"
 )
 
 func contextServiceMiddleware(next HandlerFunc) HandlerFunc {

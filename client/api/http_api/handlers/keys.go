@@ -1,9 +1,10 @@
 package handlers
 
 import (
+	"net/http"
+
 	"github.com/labstack/echo/v4"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
-	"net/http"
 )
 
 func (a *HTTPApp) GetPubKey(c echo.Context) error {

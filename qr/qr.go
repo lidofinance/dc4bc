@@ -5,13 +5,14 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/config"
 	"image"
 	"image/color"
 	"image/draw"
 	"image/gif"
 	"io"
 	"os"
+
+	"github.com/lidofinance/dc4bc/client/config"
 
 	encoder "github.com/skip2/go-qrcode"
 

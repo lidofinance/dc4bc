@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"os"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
+
+	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 
 	"github.com/stretchr/testify/require"
 

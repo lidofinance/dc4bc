@@ -5,14 +5,15 @@ import (
 	"bytes"
 	"compress/gzip"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/config"
-	encoder "github.com/skip2/go-qrcode"
 	"image/gif"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
 	"testing"
+
+	"github.com/lidofinance/dc4bc/client/config"
+	encoder "github.com/skip2/go-qrcode"
 )
 
 type TestQrProcessor struct {
@@ -115,7 +116,7 @@ func TestReadDataFromQRCameraProcessorChunks(t *testing.T) {
 
 	qrConfig := config.QrProcessorConfig{
 		FramesDelay: 10,
-		ChunkSize: 128,
+		ChunkSize:   128,
 	}
 
 	p := NewCameraProcessor(&qrConfig)

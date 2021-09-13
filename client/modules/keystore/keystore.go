@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
 	"github.com/lidofinance/dc4bc/client/modules/state"
 
 	"github.com/syndtr/goleveldb/leveldb"
