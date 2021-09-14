@@ -37,6 +37,7 @@ const (
 	flagSkipCommKeysVerification = "skip_comm_keys_verification"
 	flagStorageIgnoreMessages    = "storage_ignore_messages"
 	flagOffsetsToIgnoreMessages  = "offsets_to_ignore_messages"
+	flagsEnableHTTPLogging       = "enable_http_logging"
 )
 
 var (
@@ -63,6 +64,7 @@ func init() {
 	rootCmd.PersistentFlags().Bool(flagSkipCommKeysVerification, false, "verify messages from append-log or not")
 	rootCmd.PersistentFlags().String(flagStorageIgnoreMessages, "", "Messages ids or offsets separated by comma (id_1,id_2,...,id_n) to ignore when reading from storage")
 	rootCmd.PersistentFlags().Bool(flagOffsetsToIgnoreMessages, false, "Consider values provided in "+flagStorageIgnoreMessages+" flag to be message offsets instead of ids")
+	rootCmd.PersistentFlags().Bool(flagsEnableHTTPLogging, false, "enable http access logging")
 
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 	exitIfError(viper.BindPFlag(flagListenAddr, rootCmd.PersistentFlags().Lookup(flagListenAddr)))
@@ -81,6 +83,7 @@ func init() {
 	exitIfError(viper.BindPFlag(flagSkipCommKeysVerification, rootCmd.PersistentFlags().Lookup(flagSkipCommKeysVerification)))
 	exitIfError(viper.BindPFlag(flagStorageIgnoreMessages, rootCmd.PersistentFlags().Lookup(flagStorageIgnoreMessages)))
 	exitIfError(viper.BindPFlag(flagOffsetsToIgnoreMessages, rootCmd.PersistentFlags().Lookup(flagOffsetsToIgnoreMessages)))
+	exitIfError(viper.BindPFlag(flagsEnableHTTPLogging, rootCmd.PersistentFlags().Lookup(flagsEnableHTTPLogging)))
 }
 
 func exitIfError(err error) {

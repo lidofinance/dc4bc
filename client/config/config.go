@@ -1,8 +1,9 @@
 package config
 
 type HttpApiConfig struct {
-	ListenAddr string `mapstructure:"listen_addr"`
-	Debug      bool   `mapstructure:"debug"`
+	ListenAddr    string `mapstructure:"listen_addr"`
+	Debug         bool   `mapstructure:"debug"`
+	EnableLogging bool   `mapstructure:"enable_http_logging"`
 }
 
 type QrProcessorConfig struct {

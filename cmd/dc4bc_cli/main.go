@@ -463,7 +463,7 @@ func getPubKeyCommand() *cobra.Command {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 
-			resp, err := rawGetRequest(fmt.Sprintf("http://%s//getPubKey", listenAddr))
+			resp, err := rawGetRequest(fmt.Sprintf("http://%s/getPubKey", listenAddr))
 			if err != nil {
 				return fmt.Errorf("failed to get node's pubkey: %w", err)
 			}
@@ -519,7 +519,7 @@ func getOffsetCommand() *cobra.Command {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 
-			resp, err := rawGetRequest(fmt.Sprintf("http://%s//getOffset", listenAddr))
+			resp, err := rawGetRequest(fmt.Sprintf("http://%s/getOffset", listenAddr))
 			if err != nil {
 				return fmt.Errorf("failed to get offset: %w", err)
 			}
@@ -533,7 +533,7 @@ func getOffsetCommand() *cobra.Command {
 }
 
 func getUsername(listenAddr string) (string, error) {
-	resp, err := rawGetRequest(fmt.Sprintf("http://%s//getUsername", listenAddr))
+	resp, err := rawGetRequest(fmt.Sprintf("http://%s/getUsername", listenAddr))
 	if err != nil {
 		return "", fmt.Errorf("failed to do HTTP request: %w", err)
 	}
