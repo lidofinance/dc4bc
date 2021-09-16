@@ -2,7 +2,7 @@ package config
 
 type HttpApiConfig struct {
 	ListenAddr    string `mapstructure:"listen_addr"`
-	Debug         bool   `mapstructure:"debug"`
+	Debug         bool   `mapstructure:"enable_http_debug"`
 	EnableLogging bool   `mapstructure:"enable_http_logging"`
 }
 

@@ -66,7 +66,7 @@ type NodeService interface {
 	GetStateOffset() (uint64, error)
 }
 
-type BaseClientService struct {
+type BaseNodeService struct {
 	sync.Mutex
 	ctx                      context.Context
 	userName                 string
@@ -86,7 +86,7 @@ func NewNode(ctx context.Context, config *config.Config, sp *services.ServicePro
 		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
 	}
 
-	return &BaseClientService{
+	return &BaseNodeService{
 		ctx:         ctx,
 		userName:    config.Username,
 		pubKey:      keyPair.Pub,
@@ -98,11 +98,11 @@ func NewNode(ctx context.Context, config *config.Config, sp *services.ServicePro
 	}, nil
 }
 
-func (s *BaseClientService) GetLogger() logger.Logger {
+func (s *BaseNodeService) GetLogger() logger.Logger {
 	return s.Logger
 }
 
-func (s *BaseClientService) ProcessMessage(message storage.Message) error {
+func (s *BaseNodeService) ProcessMessage(message storage.Message) error {
 	if fsm.State(message.Event) == types.ReinitDKG {
 		if err := s.reinitDKG(message); err != nil {
 			return fmt.Errorf("failed to reinitDKG")
@@ -122,7 +122,7 @@ func (s *BaseClientService) ProcessMessage(message storage.Message) error {
 	return nil
 }
 
-func (s *BaseClientService) SetSkipCommKeysVerification(b bool) {
+func (s *BaseNodeService) SetSkipCommKeysVerification(b bool) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -130,7 +130,7 @@ func (s *BaseClientService) SetSkipCommKeysVerification(b bool) {
 }
 
 // Poll is a main node loop, which gets new messages from an append-only log and processes them
-func (s *BaseClientService) Poll() error {
+func (s *BaseNodeService) Poll() error {
 	tk := time.NewTicker(pollingPeriod)
 	for {
 		select {
@@ -169,32 +169,32 @@ func (s *BaseClientService) Poll() error {
 	}
 }
 
-func (s *BaseClientService) getState() state.State {
+func (s *BaseNodeService) getState() state.State {
 	s.stateMu.RLock()
 	defer s.stateMu.RUnlock()
 	return s.state
 }
 
-func (s *BaseClientService) GetPubKey() ed25519.PublicKey {
+func (s *BaseNodeService) GetPubKey() ed25519.PublicKey {
 	return s.pubKey
 }
 
-func (s *BaseClientService) GetUsername() string {
+func (s *BaseNodeService) GetUsername() string {
 	return s.userName
 }
 
-func (s *BaseClientService) GetStateOffset() (uint64, error) {
+func (s *BaseNodeService) GetStateOffset() (uint64, error) {
 	return s.getState().LoadOffset()
 }
 
-func (s *BaseClientService) GetSkipCommKeysVerification() bool {
+func (s *BaseNodeService) GetSkipCommKeysVerification() bool {
 	s.Lock()
 	defer s.Unlock()
 
 	return s.SkipCommKeysVerification
 }
 
-func (s *BaseClientService) SendMessage(dto *dto.MessageDTO) error {
+func (s *BaseNodeService) SendMessage(dto *dto.MessageDTO) error {
 	if err := s.storage.Send(storage.Message{
 		ID:            dto.ID,
 		DkgRoundID:    dto.DkgRoundID,
@@ -212,12 +212,12 @@ func (s *BaseClientService) SendMessage(dto *dto.MessageDTO) error {
 }
 
 // GetOperations returns available operations for current state
-func (s *BaseClientService) GetOperations() (map[string]*types.Operation, error) {
+func (s *BaseNodeService) GetOperations() (map[string]*types.Operation, error) {
 	return s.getState().GetOperations()
 }
 
 // GetOperation returns operation for current state, if exists
-func (s *BaseClientService) getOperation(operationID string) (*types.Operation, error) {
+func (s *BaseNodeService) getOperation(operationID string) (*types.Operation, error) {
 
 	operations, err := s.getState().GetOperations()
 
@@ -236,7 +236,7 @@ func (s *BaseClientService) getOperation(operationID string) (*types.Operation, 
 // GetOperationQRPath returns a path to the image with the QR generated
 // for the specified operation. It is supposed that the user will open
 // this file herself.
-func (s *BaseClientService) GetOperationQRPath(dto *dto.OperationIdDTO) (string, error) {
+func (s *BaseNodeService) GetOperationQRPath(dto *dto.OperationIdDTO) (string, error) {
 	operationJSON, err := s.getOperationJSON(dto.OperationID)
 
 	if err != nil {
@@ -254,7 +254,7 @@ func (s *BaseClientService) GetOperationQRPath(dto *dto.OperationIdDTO) (string,
 }
 
 // getOperationJSON returns a specific JSON-encoded operation
-func (s *BaseClientService) getOperationJSON(operationID string) ([]byte, error) {
+func (s *BaseNodeService) getOperationJSON(operationID string) ([]byte, error) {
 	operation, err := s.getState().GetOperationByID(operationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operation: %w", err)
@@ -269,15 +269,15 @@ func (s *BaseClientService) getOperationJSON(operationID string) ([]byte, error)
 
 // GetSignatures returns all signatures for the given DKG round that were reconstructed on the airgapped machine and
 // broadcasted by users
-func (s *BaseClientService) GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.ReconstructedSignature, error) {
+func (s *BaseNodeService) GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.ReconstructedSignature, error) {
 	return s.getState().GetSignatures(dto.DkgID)
 }
 
-func (s *BaseClientService) GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error) {
+func (s *BaseNodeService) GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error) {
 	return s.getState().GetSignatureByID(dto.DkgID, dto.ID)
 }
 
-func (s *BaseClientService) GetOperationQRFile(dto *dto.OperationIdDTO) ([]byte, error) {
+func (s *BaseNodeService) GetOperationQRFile(dto *dto.OperationIdDTO) ([]byte, error) {
 	operationJSON, err := s.getOperationJSON(dto.OperationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operation in JSON: %w", err)
@@ -294,14 +294,14 @@ func (s *BaseClientService) GetOperationQRFile(dto *dto.OperationIdDTO) ([]byte,
 // ProcessOperation handles an operation which was processed by the airgapped machine
 // It checks that the operation exists in an operation pool, signs the operation, sends it to an append-only log and
 // deletes it from the pool.
-func (s *BaseClientService) ProcessOperation(dto *dto.OperationDTO) error {
+func (s *BaseNodeService) ProcessOperation(dto *dto.OperationDTO) error {
 	operation := &types.Operation{
 		ID:            dto.ID,
 		Type:          types.OperationType(dto.Type),
 		Payload:       dto.Payload,
 		ResultMsgs:    dto.ResultMsgs,
 		CreatedAt:     dto.CreatedAt,
-		DKGIdentifier: hex.EncodeToString(dto.DKGIdentifier),
+		DKGIdentifier: hex.EncodeToString(dto.DkgID),
 		To:            dto.To,
 		Event:         dto.Event,
 	}
@@ -309,7 +309,7 @@ func (s *BaseClientService) ProcessOperation(dto *dto.OperationDTO) error {
 	return s.executeOperation(operation)
 }
 
-func (s *BaseClientService) executeOperation(operation *types.Operation) error {
+func (s *BaseNodeService) executeOperation(operation *types.Operation) error {
 	if operation.Event.IsEmpty() {
 		return errors.New("operation is request operation, provide result operation instead")
 	}
@@ -348,7 +348,7 @@ func (s *BaseClientService) executeOperation(operation *types.Operation) error {
 	return nil
 }
 
-func (s *BaseClientService) signMessage(message []byte) ([]byte, error) {
+func (s *BaseNodeService) signMessage(message []byte) ([]byte, error) {
 	keyPair, err := s.keyStore.LoadKeys(s.userName, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
@@ -357,7 +357,7 @@ func (s *BaseClientService) signMessage(message []byte) ([]byte, error) {
 	return ed25519.Sign(keyPair.Priv, message), nil
 }
 
-func (s *BaseClientService) verifyMessage(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
+func (s *BaseNodeService) verifyMessage(fsmInstance *state_machines.FSMInstance, message storage.Message) error {
 	if s.GetSkipCommKeysVerification() {
 		return nil
 	}
@@ -373,11 +373,11 @@ func (s *BaseClientService) verifyMessage(fsmInstance *state_machines.FSMInstanc
 	return nil
 }
 
-func (s *BaseClientService) GetOperation(dto *dto.OperationIdDTO) ([]byte, error) {
+func (s *BaseNodeService) GetOperation(dto *dto.OperationIdDTO) ([]byte, error) {
 	return s.getOperationJSON(dto.OperationID)
 }
 
-func (s *BaseClientService) StartDKG(dto *dto.StartDkgDTO) error {
+func (s *BaseNodeService) StartDKG(dto *dto.StartDkgDTO) error {
 	dkgRoundID := sha256.Sum256(dto.Payload)
 	message, err := s.buildMessage(hex.EncodeToString(dkgRoundID[:]), spf.EventInitProposal, dto.Payload)
 
@@ -392,7 +392,7 @@ func (s *BaseClientService) StartDKG(dto *dto.StartDkgDTO) error {
 	return s.storage.Send(*message)
 }
 
-func (s *BaseClientService) buildMessage(dkgRoundID string, event fsm.Event, data []byte) (*storage.Message, error) {
+func (s *BaseNodeService) buildMessage(dkgRoundID string, event fsm.Event, data []byte) (*storage.Message, error) {
 	message := storage.Message{
 		ID:         uuid.New().String(),
 		DkgRoundID: dkgRoundID,
@@ -410,7 +410,7 @@ func (s *BaseClientService) buildMessage(dkgRoundID string, event fsm.Event, dat
 	return &message, nil
 }
 
-func (s *BaseClientService) ProposeSignData(dto *dto.ProposeSignDataDTO) error {
+func (s *BaseNodeService) ProposeSignData(dto *dto.ProposeSignDataDTO) error {
 	fsmInstance, err := s.getFSMInstance(hex.EncodeToString(dto.DkgID))
 	if err != nil {
 		return fmt.Errorf("failed to get FSM instance: %w", err)
@@ -450,7 +450,7 @@ func (s *BaseClientService) ProposeSignData(dto *dto.ProposeSignDataDTO) error {
 }
 
 // getFSMInstance returns FSM for a necessary DKG round.
-func (s *BaseClientService) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error) {
+func (s *BaseNodeService) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error) {
 	var err error
 	fsmInstance, ok, err := s.getState().LoadFSM(dkgRoundID)
 	if err != nil {
@@ -474,7 +474,7 @@ func (s *BaseClientService) getFSMInstance(dkgRoundID string) (*state_machines.F
 	return fsmInstance, nil
 }
 
-func (s *BaseClientService) ApproveParticipation(dto *dto.OperationIdDTO) error {
+func (s *BaseNodeService) ApproveParticipation(dto *dto.OperationIdDTO) error {
 	operation, err := s.getOperation(dto.OperationID)
 
 	if err != nil {
@@ -525,7 +525,7 @@ func (s *BaseClientService) ApproveParticipation(dto *dto.OperationIdDTO) error 
 
 }
 
-func (s *BaseClientService) ReInitDKG(dto *dto.ReInitDKGDTO) error {
+func (s *BaseNodeService) ReInitDKG(dto *dto.ReInitDKGDTO) error {
 
 	message, err := s.buildMessage(dto.ID, fsm.Event(types.ReinitDKG), dto.Payload)
 
@@ -542,7 +542,7 @@ func (s *BaseClientService) ReInitDKG(dto *dto.ReInitDKGDTO) error {
 	return nil
 }
 
-func (s *BaseClientService) SaveOffset(dto *dto.StateOffsetDTO) error {
+func (s *BaseNodeService) SaveOffset(dto *dto.StateOffsetDTO) error {
 	err := s.getState().SaveOffset(dto.Offset)
 
 	if err != nil {
@@ -552,7 +552,7 @@ func (s *BaseClientService) SaveOffset(dto *dto.StateOffsetDTO) error {
 	return nil
 }
 
-func (s *BaseClientService) GetFSMDump(dto *dto.DkgIdDTO) (*state_machines.FSMDump, error) {
+func (s *BaseNodeService) GetFSMDump(dto *dto.DkgIdDTO) (*state_machines.FSMDump, error) {
 	fsmInstance, err := s.getFSMInstance(dto.DkgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get FSM instance for DKG round ID %s: %w", dto.DkgID, err)
@@ -560,7 +560,7 @@ func (s *BaseClientService) GetFSMDump(dto *dto.DkgIdDTO) (*state_machines.FSMDu
 	return fsmInstance.FSMDump(), nil
 }
 
-func (s *BaseClientService) GetFSMList() (map[string]string, error) {
+func (s *BaseNodeService) GetFSMList() (map[string]string, error) {
 	fsmInstances, err := s.getState().GetAllFSM()
 
 	if err != nil {
@@ -579,7 +579,7 @@ func (s *BaseClientService) GetFSMList() (map[string]string, error) {
 	return fsmInstancesStates, nil
 }
 
-func (s *BaseClientService) ResetFSMState(dto *dto.ResetStateDTO) (string, error) {
+func (s *BaseNodeService) ResetFSMState(dto *dto.ResetStateDTO) (string, error) {
 	s.stateMu.Lock()
 	defer s.stateMu.Unlock()
 
@@ -606,7 +606,7 @@ func (s *BaseClientService) ResetFSMState(dto *dto.ResetStateDTO) (string, error
 	return newStateDbPath, err
 }
 
-func (s *BaseClientService) reinitDKG(message storage.Message) error {
+func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 	var req types.ReDKG
 	if err := json.Unmarshal(message.Data, &req); err != nil {
 		return fmt.Errorf("failed to umarshal request: %v", err)
@@ -670,7 +670,7 @@ func (s *BaseClientService) reinitDKG(message storage.Message) error {
 }
 
 // processSignature saves a broadcasted reconstructed signature to a LevelDB
-func (s *BaseClientService) processSignature(message storage.Message) error {
+func (s *BaseNodeService) processSignature(message storage.Message) error {
 	var (
 		signature types.ReconstructedSignature
 		err       error
@@ -683,7 +683,7 @@ func (s *BaseClientService) processSignature(message storage.Message) error {
 	return s.getState().SaveSignature(signature)
 }
 
-func (s *BaseClientService) processMessage(message storage.Message) (*types.Operation, error) {
+func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operation, error) {
 	fsmInstance, err := s.getFSMInstance(message.DkgRoundID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to getFSMInstance: %w", err)

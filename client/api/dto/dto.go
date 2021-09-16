@@ -35,14 +35,14 @@ type SignatureByIdDTO struct {
 }
 
 type OperationDTO struct {
-	ID            string // UUID4
-	Type          string
-	Payload       []byte
-	ResultMsgs    []storage.Message
-	CreatedAt     time.Time
-	DKGIdentifier []byte
-	To            string
-	Event         fsm.Event
+	ID         string // UUID4
+	Type       string
+	Payload    []byte
+	ResultMsgs []storage.Message
+	CreatedAt  time.Time
+	DkgID      []byte
+	To         string
+	Event      fsm.Event
 
 	ExtraData []byte
 }

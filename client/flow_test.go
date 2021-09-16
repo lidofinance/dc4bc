@@ -161,12 +161,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			return nodes, err
 		}
 
-		server := http_api.RESTApiProvider{}
-
-		err = server.NewServer(&cfg, clt)
-		if err != nil {
-			return nodes, fmt.Errorf("nodeInstance %d failed to init nodeInstance: %v\n", nodeID, err)
-		}
+		server := http_api.NewRESTApi(&cfg, clt)
 
 		nodes[nodeID] = &nodeInstance{
 			ctx:          ctx,
@@ -177,7 +172,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			keyPair:      keyPair,
 			air:          airgappedMachine,
 			listenAddr:   fmt.Sprintf("localhost:%d", startingPort),
-			httpApi:      &server,
+			httpApi:      server,
 		}
 		startingPort++
 	}

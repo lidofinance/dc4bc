@@ -38,6 +38,7 @@ const (
 	flagStorageIgnoreMessages    = "storage_ignore_messages"
 	flagOffsetsToIgnoreMessages  = "offsets_to_ignore_messages"
 	flagsEnableHTTPLogging       = "enable_http_logging"
+	flagsEnableHTTPDebug         = "enable_http_debug"
 )
 
 var (
@@ -65,6 +66,7 @@ func init() {
 	rootCmd.PersistentFlags().String(flagStorageIgnoreMessages, "", "Messages ids or offsets separated by comma (id_1,id_2,...,id_n) to ignore when reading from storage")
 	rootCmd.PersistentFlags().Bool(flagOffsetsToIgnoreMessages, false, "Consider values provided in "+flagStorageIgnoreMessages+" flag to be message offsets instead of ids")
 	rootCmd.PersistentFlags().Bool(flagsEnableHTTPLogging, false, "enable http access logging")
+	rootCmd.PersistentFlags().Bool(flagsEnableHTTPDebug, false, "enable http debug messages")
 
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 	exitIfError(viper.BindPFlag(flagListenAddr, rootCmd.PersistentFlags().Lookup(flagListenAddr)))
@@ -84,6 +86,8 @@ func init() {
 	exitIfError(viper.BindPFlag(flagStorageIgnoreMessages, rootCmd.PersistentFlags().Lookup(flagStorageIgnoreMessages)))
 	exitIfError(viper.BindPFlag(flagOffsetsToIgnoreMessages, rootCmd.PersistentFlags().Lookup(flagOffsetsToIgnoreMessages)))
 	exitIfError(viper.BindPFlag(flagsEnableHTTPLogging, rootCmd.PersistentFlags().Lookup(flagsEnableHTTPLogging)))
+	exitIfError(viper.BindPFlag(flagsEnableHTTPDebug, rootCmd.PersistentFlags().Lookup(flagsEnableHTTPDebug)))
+
 }
 
 func exitIfError(err error) {
@@ -171,12 +175,12 @@ func startClientCommand() *cobra.Command {
 				log.Fatalf("failed to init service provider: %+v", err)
 			}
 
-			cli, err := node.NewNode(ctx, cfg, sp)
+			nodeInstance, err := node.NewNode(ctx, cfg, sp)
 			if err != nil {
 				log.Fatalf("failed to init node: %+v", err)
 			}
 
-			cli.SetSkipCommKeysVerification(viper.GetBool(flagSkipCommKeysVerification))
+			nodeInstance.SetSkipCommKeysVerification(viper.GetBool(flagSkipCommKeysVerification))
 
 			sigs := make(chan os.Signal, 1)
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
@@ -186,30 +190,25 @@ func startClientCommand() *cobra.Command {
 				log.Println("Received signal, stopping node...")
 				cancel()
 
-				log.Println("BaseClient stopped, exiting")
+				log.Println("BaseNode stopped, exiting")
 				os.Exit(0)
 			}()
 
-			server := http_api.RESTApiProvider{}
-
-			err = server.NewServer(cfg, cli)
-			if err != nil {
-				log.Fatalf("initializing HTTP server error: %+v", err)
-			}
+			server := http_api.NewRESTApi(cfg, nodeInstance)
 
 			go func() {
 				if err := server.Start(); err != nil {
 					log.Fatalf("HTTP server error: %v", err)
 				}
 			}()
-			cli.GetLogger().Log("Client started to poll messages from append-only log")
-			cli.GetLogger().Log("Waiting for messages from append-only log...")
+			nodeInstance.GetLogger().Log("BaseNode started to poll messages from append-only log")
+			nodeInstance.GetLogger().Log("Waiting for messages from append-only log...")
 
-			if err = cli.Poll(); err != nil {
+			if err = nodeInstance.Poll(); err != nil {
 				return fmt.Errorf("error while handling operations: %w", err)
 			}
 
-			cli.GetLogger().Log("polling is stopped")
+			nodeInstance.GetLogger().Log("polling is stopped")
 			return nil
 		},
 	}

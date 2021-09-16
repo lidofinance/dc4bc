@@ -15,13 +15,14 @@ type RESTApiProvider struct {
 	echoInstance *echo.Echo
 }
 
-func (p *RESTApiProvider) NewServer(config *config.Config, node node.NodeService) error {
+func NewRESTApi(config *config.Config, node node.NodeService) *RESTApiProvider {
+	p := RESTApiProvider{}
 	p.config = config.HttpApiConfig
 
 	p.echoInstance = echo.New()
 
 	p.echoInstance.HideBanner = true
-	p.echoInstance.Debug = false
+	p.echoInstance.Debug = p.config.Debug
 
 	p.echoInstance.HTTPErrorHandler = customHTTPErrorHandler
 
@@ -34,7 +35,7 @@ func (p *RESTApiProvider) NewServer(config *config.Config, node node.NodeService
 
 	router.SetRouter(p.echoInstance, nil, node)
 
-	return nil
+	return &p
 }
 
 func (p *RESTApiProvider) Start() error {

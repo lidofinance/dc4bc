@@ -37,8 +37,7 @@ func customHTTPErrorHandler(err error, c Context) {
 			err = c.JSON(http.StatusInternalServerError, csError)
 		}
 		if err != nil {
-			// TODO: Add logging
-			// e.Logger.Error(err)
+			c.Logger().Error(err)
 		}
 	}
 }

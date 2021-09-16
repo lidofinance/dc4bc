@@ -10,10 +10,6 @@ import (
 	"testing"
 	"time"
 
-	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
-
-	"github.com/stretchr/testify/require"
-
 	"github.com/google/uuid"
 	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
@@ -23,6 +19,8 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/storage"
+	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
+	"github.com/stretchr/testify/require"
 )
 
 const (

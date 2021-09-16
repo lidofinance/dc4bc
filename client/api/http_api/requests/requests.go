@@ -33,14 +33,14 @@ type SignatureByIDForm struct {
 }
 
 type OperationForm struct {
-	ID            string            `json:"ID" validate:"attr=ID,min=32,max=512"` // UUID4
-	Type          string            `json:"Type" validate:"attr=Type,min=1,max=512"`
-	Payload       []byte            `json:"Payload"`
-	ResultMsgs    []storage.Message `json:"ResultMsgs"`
-	CreatedAt     time.Time         `json:"CreatedAt"`
-	DKGIdentifier []byte            `json:"DKGIdentifier" validate:"attr=DKGIdentifier,min=32,max=512"`
-	To            string            `json:"To" validate:"attr=To,min=0"`
-	Event         fsm.Event         `json:"Event" validate:"attr=Event,min=1"`
+	ID         string            `json:"ID" validate:"attr=ID,min=32,max=512"` // UUID4
+	Type       string            `json:"Type" validate:"attr=Type,min=1,max=512"`
+	Payload    []byte            `json:"Payload"`
+	ResultMsgs []storage.Message `json:"ResultMsgs"`
+	CreatedAt  time.Time         `json:"CreatedAt"`
+	DkgID      []byte            `json:"DKGIdentifier" validate:"attr=DKGIdentifier,min=32,max=512"`
+	To         string            `json:"To" validate:"attr=To,min=0"`
+	Event      fsm.Event         `json:"Event" validate:"attr=Event,min=1"`
 
 	ExtraData []byte `json:"ExtraData"`
 }

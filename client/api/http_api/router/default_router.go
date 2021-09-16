@@ -7,7 +7,6 @@ import (
 )
 
 func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc, node node.NodeService) {
-
 	h := handlers.NewHTTPApp(node)
 
 	e.GET("/getUsername", h.GetUsername)

@@ -8,12 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/lidofinance/dc4bc/fsm/types/responses"
-
-	vss "github.com/corestario/kyber/share/vss/rabin"
-
 	"github.com/corestario/kyber"
 	"github.com/corestario/kyber/encrypt/ecies"
+	vss "github.com/corestario/kyber/share/vss/rabin"
 	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/dkg"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
@@ -21,6 +18,7 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/qr"
 	"github.com/syndtr/goleveldb/leveldb"
 )
