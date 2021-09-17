@@ -3,16 +3,14 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"log"
 	"path/filepath"
 	"strings"
 	"sync"
 
-	vss "github.com/corestario/kyber/share/vss/rabin"
-
 	"github.com/corestario/kyber"
 	"github.com/corestario/kyber/encrypt/ecies"
+	vss "github.com/corestario/kyber/share/vss/rabin"
 	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/dkg"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
@@ -20,6 +18,7 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/qr"
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -52,7 +51,7 @@ func NewMachine(dbPath string) (*Machine, error) {
 
 	am := &Machine{
 		dkgInstances: make(map[string]*dkg.DKG),
-		qrProcessor:  qr.NewCameraProcessor(),
+		qrProcessor:  qr.NewCameraProcessor(nil),
 	}
 
 	if am.db, err = leveldb.OpenFile(dbPath, nil); err != nil {
@@ -286,7 +285,7 @@ func (am *Machine) GetOperationResult(operation client.Operation) (client.Operat
 
 	// if we have error after handling the operation, we write the error to the operation, so we can feed it to a FSM
 	if err != nil {
-		log.Println(fmt.Sprintf("failed to handle operation %s, returning response with error to client: %v",
+		log.Println(fmt.Sprintf("failed to handle operation %s, returning response with error to node: %v",
 			operation.Type, err))
 		if e := am.writeErrorRequestToOperation(&operation, err); e != nil {
 			return operation, fmt.Errorf("failed to write error request to an operation: %w", e)

@@ -1,4 +1,4 @@
-package client_test
+package node
 
 import (
 	"context"
@@ -11,10 +11,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lidofinance/dc4bc/client/api/dto"
+	"github.com/lidofinance/dc4bc/client/config"
+	"github.com/lidofinance/dc4bc/client/modules/keystore"
+	"github.com/lidofinance/dc4bc/client/modules/logger"
+	"github.com/lidofinance/dc4bc/client/services"
+	"github.com/lidofinance/dc4bc/client/types"
+
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
-	"github.com/lidofinance/dc4bc/client"
-	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
@@ -40,17 +45,22 @@ func TestClient_ProcessMessage(t *testing.T) {
 	stg := storageMocks.NewMockStorage(ctrl)
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 
-	testClientKeyPair := client.NewKeyPair()
+	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
-	clt, err := client.NewClient(
-		ctx,
-		userName,
-		state,
-		stg,
-		keyStore,
-		qrProcessor,
-	)
+	sp := services.ServiceProvider{}
+	sp.SetLogger(logger.NewLogger(userName))
+	sp.SetState(state)
+	sp.SetKeyStore(keyStore)
+	sp.SetStorage(stg)
+	sp.SetQRProcessor(qrProcessor)
+
+	// minimal config to make test
+	cfg := config.Config{
+		Username: userName,
+	}
+
+	clt, err := NewNode(ctx, &cfg, &sp)
 	req.NoError(err)
 
 	t.Run("test_process_dkg_init", func(t *testing.T) {
@@ -58,7 +68,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 		req.NoError(err)
 		state.EXPECT().LoadFSM(dkgRoundID).Times(1).Return(fsm, true, nil)
 
-		senderKeyPair := client.NewKeyPair()
+		senderKeyPair := keystore.NewKeyPair()
 		senderAddr := senderKeyPair.GetAddr()
 		messageData := requests.SignatureProposalParticipantsListRequest{
 			Participants: []*requests.SignatureProposalParticipantsEntry{
@@ -69,17 +79,17 @@ func TestClient_ProcessMessage(t *testing.T) {
 				},
 				{
 					Username:  "111",
-					PubKey:    client.NewKeyPair().Pub,
+					PubKey:    keystore.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 				{
 					Username:  "222",
-					PubKey:    client.NewKeyPair().Pub,
+					PubKey:    keystore.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 				{
 					Username:  "333",
-					PubKey:    client.NewKeyPair().Pub,
+					PubKey:    keystore.NewKeyPair().Pub,
 					DkgPubKey: make([]byte, 128),
 				},
 			},
@@ -118,21 +128,26 @@ func TestClient_GetOperationsList(t *testing.T) {
 	userName := "test_client"
 
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
-	testClientKeyPair := client.NewKeyPair()
+	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
 	state := clientMocks.NewMockState(ctrl)
 	stg := storageMocks.NewMockStorage(ctrl)
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 
-	clt, err := client.NewClient(
-		ctx,
-		userName,
-		state,
-		stg,
-		keyStore,
-		qrProcessor,
-	)
+	sp := services.ServiceProvider{}
+	sp.SetLogger(logger.NewLogger(userName))
+	sp.SetState(state)
+	sp.SetKeyStore(keyStore)
+	sp.SetStorage(stg)
+	sp.SetQRProcessor(qrProcessor)
+
+	// minimal config to make test
+	cfg := config.Config{
+		Username: userName,
+	}
+
+	clt, err := NewNode(ctx, &cfg, &sp)
 	req.NoError(err)
 
 	state.EXPECT().GetOperations().Times(1).Return(map[string]*types.Operation{}, nil)
@@ -165,21 +180,26 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 	userName := "test_client"
 
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
-	testClientKeyPair := client.NewKeyPair()
+	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
 	state := clientMocks.NewMockState(ctrl)
 	stg := storageMocks.NewMockStorage(ctrl)
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 
-	clt, err := client.NewClient(
-		ctx,
-		userName,
-		state,
-		stg,
-		keyStore,
-		qrProcessor,
-	)
+	sp := services.ServiceProvider{}
+	sp.SetLogger(logger.NewLogger(userName))
+	sp.SetState(state)
+	sp.SetKeyStore(keyStore)
+	sp.SetStorage(stg)
+	sp.SetQRProcessor(qrProcessor)
+
+	// minimal config to make test
+	cfg := config.Config{
+		Username: userName,
+	}
+
+	clt, err := NewNode(ctx, &cfg, &sp)
 	req.NoError(err)
 
 	operation := &types.Operation{
@@ -189,18 +209,18 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 		CreatedAt: time.Now(),
 	}
 
-	var expectedQrPath = filepath.Join(client.QrCodesDir, fmt.Sprintf("dc4bc_qr_%s.gif", operation.ID))
+	var expectedQrPath = filepath.Join(qrCodesDir, fmt.Sprintf("dc4bc_qr_%s.gif", operation.ID))
 	defer os.Remove(expectedQrPath)
 
 	state.EXPECT().GetOperationByID(operation.ID).Times(1).Return(
 		nil, errors.New(""))
-	_, err = clt.GetOperationQRPath(operation.ID)
+	_, err = clt.GetOperationQRPath(&dto.OperationIdDTO{OperationID: operation.ID})
 	req.Error(err)
 
 	state.EXPECT().GetOperationByID(operation.ID).Times(1).Return(
 		operation, nil)
 	qrProcessor.EXPECT().WriteQR(expectedQrPath, gomock.Any()).Times(1).Return(nil)
-	qrPath, err := clt.GetOperationQRPath(operation.ID)
+	qrPath, err := clt.GetOperationQRPath(&dto.OperationIdDTO{OperationID: operation.ID})
 	req.NoError(err)
 	req.Equal(expectedQrPath, qrPath)
 }
@@ -216,24 +236,29 @@ func TestClient_ResetState(t *testing.T) {
 	userName := "test_client"
 
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
-	testClientKeyPair := client.NewKeyPair()
+	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
 	state := clientMocks.NewMockState(ctrl)
 	stg := storageMocks.NewMockStorage(ctrl)
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 
-	clt, err := client.NewClient(
-		ctx,
-		userName,
-		state,
-		stg,
-		keyStore,
-		qrProcessor,
-	)
+	sp := services.ServiceProvider{}
+	sp.SetLogger(logger.NewLogger(userName))
+	sp.SetState(state)
+	sp.SetKeyStore(keyStore)
+	sp.SetStorage(stg)
+	sp.SetQRProcessor(qrProcessor)
+
+	// minimal config to make test
+	cfg := config.Config{
+		Username: userName,
+	}
+
+	clt, err := NewNode(ctx, &cfg, &sp)
 	req.NoError(err)
 
-	resetReq := &client.ResetStateRequest{
+	resetReq := dto.ResetStateDTO{
 		NewStateDBDSN:      "./dc4bc_client_state_new",
 		UseOffset:          true,
 		KafkaConsumerGroup: fmt.Sprintf("%s_%d", userName, time.Now().Unix()),
@@ -241,12 +266,12 @@ func TestClient_ResetState(t *testing.T) {
 	}
 
 	stg.EXPECT().IgnoreMessages(resetReq.Messages, resetReq.UseOffset).Times(1).Return(errors.New(""))
-	_, err = clt.ResetState(resetReq.NewStateDBDSN, resetReq.KafkaConsumerGroup, resetReq.Messages, resetReq.UseOffset)
+	_, err = clt.ResetFSMState(&resetReq)
 	req.Error(err)
 
 	stg.EXPECT().IgnoreMessages(resetReq.Messages, resetReq.UseOffset).Times(1).Return(nil)
 	state.EXPECT().NewStateFromOld(resetReq.NewStateDBDSN).Times(1).Return(state, resetReq.NewStateDBDSN, nil)
-	newStatePath, err := clt.ResetState(resetReq.NewStateDBDSN, resetReq.KafkaConsumerGroup, resetReq.Messages, resetReq.UseOffset)
+	newStatePath, err := clt.ResetFSMState(&resetReq)
 	req.NoError(err)
 	req.Equal(newStatePath, resetReq.NewStateDBDSN)
 }

@@ -6,19 +6,15 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
-	"time"
 
-	"github.com/segmentio/kafka-go/sasl/plain"
+	"github.com/lidofinance/dc4bc/client/api/http_api"
+	"github.com/lidofinance/dc4bc/client/modules/keystore"
+	"github.com/lidofinance/dc4bc/client/services"
+	"github.com/lidofinance/dc4bc/client/services/node"
 
+	apiconfig "github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/fsm/config"
-	"github.com/lidofinance/dc4bc/storage/kafka_storage"
-
-	"github.com/lidofinance/dc4bc/client"
-	"github.com/lidofinance/dc4bc/qr"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -41,6 +37,8 @@ const (
 	flagSkipCommKeysVerification = "skip_comm_keys_verification"
 	flagStorageIgnoreMessages    = "storage_ignore_messages"
 	flagOffsetsToIgnoreMessages  = "offsets_to_ignore_messages"
+	flagsEnableHTTPLogging       = "enable_http_logging"
+	flagsEnableHTTPDebug         = "enable_http_debug"
 )
 
 var (
@@ -66,7 +64,9 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, flagConfig, "", "path to your config file")
 	rootCmd.PersistentFlags().Bool(flagSkipCommKeysVerification, false, "verify messages from append-log or not")
 	rootCmd.PersistentFlags().String(flagStorageIgnoreMessages, "", "Messages ids or offsets separated by comma (id_1,id_2,...,id_n) to ignore when reading from storage")
-	rootCmd.PersistentFlags().Bool(flagOffsetsToIgnoreMessages, false, "Consider values provided in " + flagStorageIgnoreMessages + " flag to be message offsets instead of ids")
+	rootCmd.PersistentFlags().Bool(flagOffsetsToIgnoreMessages, false, "Consider values provided in "+flagStorageIgnoreMessages+" flag to be message offsets instead of ids")
+	rootCmd.PersistentFlags().Bool(flagsEnableHTTPLogging, false, "enable http access logging")
+	rootCmd.PersistentFlags().Bool(flagsEnableHTTPDebug, false, "enable http debug messages")
 
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 	exitIfError(viper.BindPFlag(flagListenAddr, rootCmd.PersistentFlags().Lookup(flagListenAddr)))
@@ -85,6 +85,9 @@ func init() {
 	exitIfError(viper.BindPFlag(flagSkipCommKeysVerification, rootCmd.PersistentFlags().Lookup(flagSkipCommKeysVerification)))
 	exitIfError(viper.BindPFlag(flagStorageIgnoreMessages, rootCmd.PersistentFlags().Lookup(flagStorageIgnoreMessages)))
 	exitIfError(viper.BindPFlag(flagOffsetsToIgnoreMessages, rootCmd.PersistentFlags().Lookup(flagOffsetsToIgnoreMessages)))
+	exitIfError(viper.BindPFlag(flagsEnableHTTPLogging, rootCmd.PersistentFlags().Lookup(flagsEnableHTTPLogging)))
+	exitIfError(viper.BindPFlag(flagsEnableHTTPDebug, rootCmd.PersistentFlags().Lookup(flagsEnableHTTPDebug)))
+
 }
 
 func exitIfError(err error) {
@@ -100,6 +103,26 @@ func initConfig() {
 
 	viper.SetConfigFile(cfgFile)
 	exitIfError(viper.ReadInConfig())
+}
+
+func prepareConfig() (*apiconfig.Config, error) {
+	cfg := apiconfig.Config{}
+	qrCfg := apiconfig.QrProcessorConfig{}
+	kafkaCfg := apiconfig.KafkaStorageConfig{}
+	httpCfg := apiconfig.HttpApiConfig{}
+
+	for _, c := range []interface{}{&cfg, &qrCfg, &kafkaCfg, &httpCfg} {
+		err := viper.Unmarshal(c)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse cli arguments: %w", err)
+		}
+	}
+
+	cfg.QrProcessorConfig = &qrCfg
+	cfg.HttpApiConfig = &httpCfg
+	cfg.KafkaStorageConfig = &kafkaCfg
+
+	return &cfg, nil
 }
 
 func genKeyPairCommand() *cobra.Command {
@@ -119,8 +142,8 @@ func genKeyPairCommand() *cobra.Command {
 
 			keyStoreDBDSN := viper.GetString(flagStoreDBDSN)
 
-			keyPair := client.NewKeyPair()
-			keyStore, err := client.NewLevelDBKeyStore(username, keyStoreDBDSN)
+			keyPair := keystore.NewKeyPair()
+			keyStore, err := keystore.NewLevelDBKeyStore(username, keyStoreDBDSN)
 			if err != nil {
 				return fmt.Errorf("failed to init key store: %w", err)
 			}
@@ -133,137 +156,59 @@ func genKeyPairCommand() *cobra.Command {
 	}
 }
 
-func parseKafkaSaslPlain(creds string) (*plain.Mechanism, error) {
-	credsSplit := strings.SplitN(creds, ":", 2)
-	if len(credsSplit) == 1 {
-		return nil, fmt.Errorf("failed to parse credentials")
-	}
-	return &plain.Mechanism{
-		Username: credsSplit[0],
-		Password: credsSplit[1],
-	}, nil
-}
-
-func parseMessagesToIgnore(messages string, useOffset bool) (msgs []string, err error) {
-	if len(messages) == 0 {
-		return msgs, err
-	}
-
-	msgs = strings.Split(messages, ",")
-
-	if useOffset {
-		for _, msg := range msgs {
-			if _, err = strconv.ParseUint(msg, 10, 64); err != nil {
-				return nil, fmt.Errorf("when %s flag is specified, values provided in %s flag should be" +
-					" parsable into uint64. error: %w", flagOffsetsToIgnoreMessages, flagStorageIgnoreMessages, err)
-			}
-		}
-	}
-
-	return msgs, nil
-}
-
 func startClientCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "start",
-		Short: "starts dc4bc client",
+		Short: "starts dc4bc node",
 		RunE: func(cmd *cobra.Command, args []string) error {
+
+			cfg, err := prepareConfig()
+			if err != nil {
+				log.Fatalln("failed to prepare config: ", err)
+			}
+
 			ctx := context.Background()
 			ctx, cancel := context.WithCancel(ctx)
 
-			storageTopic := viper.GetString(flagStorageTopic)
-			stateDBDSN := viper.GetString(flagStateDBDSN)
-			state, err := client.NewLevelDBState(stateDBDSN, storageTopic)
+			sp, err := services.CreateServiceProviderWithCfg(cfg)
 			if err != nil {
-				return fmt.Errorf("failed to init state client: %w", err)
+				log.Fatalf("failed to init service provider: %+v", err)
 			}
 
-			username := viper.GetString(flagUserName)
-			kafkaConsumerGroup := viper.GetString(flagKafkaConsumerGroup)
-			if len(kafkaConsumerGroup) < 1 {
-				kafkaConsumerGroup = fmt.Sprintf("%s_%d", username, time.Now().Unix())
-			}
-
-			kafkaTrustStorePath := viper.GetString(flagKafkaTrustStorePath)
-			kafkaTimeout := viper.GetDuration(flagKafkaTimeout)
-			tlsConfig, err := kafka_storage.GetTLSConfig(kafkaTrustStorePath)
+			nodeInstance, err := node.NewNode(ctx, cfg, sp)
 			if err != nil {
-				return fmt.Errorf("faile to create tls config: %w", err)
+				log.Fatalf("failed to init node: %+v", err)
 			}
 
-			producerCredentials := viper.GetString(flagKafkaProducerCredentials)
-			producerCreds, err := parseKafkaSaslPlain(producerCredentials)
-			if err != nil {
-				return fmt.Errorf("failed to parse kafka credentials: %w", err)
-			}
-
-			consumerCredentials := viper.GetString(flagKafkaConsumerCredentials)
-			consumerCreds, err := parseKafkaSaslPlain(consumerCredentials)
-			if err != nil {
-				return fmt.Errorf("failed to parse kafka credentials: %w", err)
-			}
-
-			storageDBDSN := viper.GetString(flagStorageDBDSN)
-			stg, err := kafka_storage.NewKafkaStorage(storageDBDSN, storageTopic, kafkaConsumerGroup, tlsConfig,
-				producerCreds, consumerCreds, kafkaTimeout)
-			if err != nil {
-				return fmt.Errorf("failed to init storage client: %w", err)
-			}
-
-			msgsToIgnore := viper.GetString(flagStorageIgnoreMessages)
-			useOffsetInsteadId := viper.GetBool(flagOffsetsToIgnoreMessages)
-			ignoredMsgs, err := parseMessagesToIgnore(msgsToIgnore, useOffsetInsteadId)
-			if err != nil {
-				return fmt.Errorf("failed to ignore messages in storage: %w", err)
-			}
-			if err := stg.IgnoreMessages(ignoredMsgs, useOffsetInsteadId); err != nil {
-				return fmt.Errorf("failed to ignore messages in storage: %w", err)
-			}
-
-			keyStoreDBDSN := viper.GetString(flagStoreDBDSN)
-			keyStore, err := client.NewLevelDBKeyStore(username, keyStoreDBDSN)
-			if err != nil {
-				return fmt.Errorf("failed to init key store: %w", err)
-			}
-
-			framesDelay := viper.GetInt(flagFramesDelay)
-			chunkSize := viper.GetInt(flagChunkSize)
-
-			processor := qr.NewCameraProcessor()
-			processor.SetDelay(framesDelay)
-			processor.SetChunkSize(chunkSize)
-
-			cli, err := client.NewClient(ctx, username, state, stg, keyStore, processor)
-			if err != nil {
-				return fmt.Errorf("failed to init client: %w", err)
-			}
-			cli.SetSkipCommKeysVerification(viper.GetBool(flagSkipCommKeysVerification))
+			nodeInstance.SetSkipCommKeysVerification(viper.GetBool(flagSkipCommKeysVerification))
 
 			sigs := make(chan os.Signal, 1)
 			signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 			go func() {
 				<-sigs
 
-				log.Println("Received signal, stopping client...")
+				log.Println("Received signal, stopping node...")
 				cancel()
 
-				log.Println("BaseClient stopped, exiting")
+				log.Println("BaseNode stopped, exiting")
 				os.Exit(0)
 			}()
 
-			listenAddress := viper.GetString(flagListenAddr)
+			server := http_api.NewRESTApi(cfg, nodeInstance)
 
 			go func() {
-				if err := cli.StartHTTPServer(listenAddress); err != nil {
+				if err := server.Start(); err != nil {
 					log.Fatalf("HTTP server error: %v", err)
 				}
 			}()
-			cli.GetLogger().Log("Client started to poll messages from append-only log")
-			cli.GetLogger().Log("Waiting for messages from append-only log...")
-			if err = cli.Poll(); err != nil {
+			nodeInstance.GetLogger().Log("BaseNode started to poll messages from append-only log")
+			nodeInstance.GetLogger().Log("Waiting for messages from append-only log...")
+
+			if err = nodeInstance.Poll(); err != nil {
 				return fmt.Errorf("error while handling operations: %w", err)
 			}
-			cli.GetLogger().Log("polling is stopped")
+
+			nodeInstance.GetLogger().Log("polling is stopped")
 			return nil
 		},
 	}
@@ -271,7 +216,7 @@ func startClientCommand() *cobra.Command {
 
 var rootCmd = &cobra.Command{
 	Use:   "dc4bc_d",
-	Short: "dc4bc client daemon implementation",
+	Short: "dc4bc node daemon implementation",
 }
 
 func main() {

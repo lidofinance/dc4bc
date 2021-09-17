@@ -54,14 +54,14 @@ func New() internal.DumpedMachineProvider {
 
 			// Validate by participants
 			{Name: EventConfirmSignatureProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations},
-			// Is decline event should auto change state to default, or it process will initiated by client (external emit)?
+			// Is decline event should auto change state to default, or it process will initiated by node (external emit)?
 			// Now set for external emitting.
 			{Name: EventDeclineProposal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations},
 			{Name: eventSetValidationCanceledByParticipant, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateValidationCanceledByParticipant, IsInternal: true},
 
 			{Name: eventAutoValidateProposalInternal, SrcState: []fsm.State{StateAwaitParticipantsConfirmations}, DstState: StateAwaitParticipantsConfirmations, IsInternal: true, IsAuto: true},
 
-			// eventProposalValidate internal or from client?
+			// eventProposalValidate internal or from node?
 			// yay
 
 			// Exit point

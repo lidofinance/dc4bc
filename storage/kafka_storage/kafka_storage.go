@@ -8,7 +8,10 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/config"
 
 	"github.com/lidofinance/dc4bc/storage"
 	"github.com/segmentio/kafka-go"
@@ -38,25 +41,52 @@ type KafkaStorage struct {
 	offsetIgnoreList map[uint64]struct{}
 }
 
-func NewKafkaStorage(
-	brokerEndpoint,
-	topic,
-	consumerGroup string,
-	tlsConfig *tls.Config,
-	producerCreds,
-	consumerCreds *plain.Mechanism,
-	timeout time.Duration,
-) (*KafkaStorage, error) {
+func parseKafkaSaslPlain(creds string) (*plain.Mechanism, error) {
+	credsSplit := strings.SplitN(creds, ":", 2)
+	if len(credsSplit) == 1 {
+		return nil, fmt.Errorf("failed to parse credentials")
+	}
+	return &plain.Mechanism{
+		Username: credsSplit[0],
+		Password: credsSplit[1],
+	}, nil
+}
+
+func NewKafkaStorage(cfg *config.KafkaStorageConfig) (*KafkaStorage, error) {
+	if cfg == nil {
+		return nil, errors.New("kafka cfg should not be nil value")
+	}
+
+	producerCreds, err := parseKafkaSaslPlain(cfg.ProducerCredentials)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse producer credentials: %w", err)
+	}
+
+	consumerCreds, err := parseKafkaSaslPlain(cfg.ConsumerCredentials)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse consumer credentials: %w", err)
+	}
+
+	tlsConfig, err := GetTLSConfig(cfg.TlsConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init tsl config: %w", err)
+	}
+
+	timeout, err := time.ParseDuration(cfg.Timeout)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse timeout duration: %w", err)
+	}
+
 	ks := &KafkaStorage{
-		brokerEndpoint: brokerEndpoint,
-		topic:          topic,
-		consumerGroup:  consumerGroup,
+		brokerEndpoint: cfg.DBDSN,
+		topic:          cfg.Topic,
+		consumerGroup:  cfg.ConsumerGroup,
 		tlsConfig:      tlsConfig,
 		producerCreds:  producerCreds,
 		consumerCreds:  consumerCreds,
 		timeout:        timeout,
 
-		idIgnoreList: map[string]struct{}{},
+		idIgnoreList:     map[string]struct{}{},
 		offsetIgnoreList: map[uint64]struct{}{},
 	}
 	if err := ks.reset(); err != nil {

@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"strings"
+
+	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 

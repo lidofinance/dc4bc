@@ -1,4 +1,4 @@
-package client
+package logger
 
 import (
 	"fmt"
@@ -13,7 +13,7 @@ type logger struct {
 	userName string
 }
 
-func newLogger(username string) *logger {
+func NewLogger(username string) *logger {
 	return &logger{
 		userName: username,
 	}

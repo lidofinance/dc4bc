@@ -2,10 +2,11 @@ package airgapped
 
 import (
 	"fmt"
-	client "github.com/lidofinance/dc4bc/client/types"
-	"github.com/stretchr/testify/require"
 	"os"
 	"testing"
+
+	client "github.com/lidofinance/dc4bc/client/types"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMachine_DropOperationsLog(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/lidofinance/dc4bc/client"
+	"github.com/lidofinance/dc4bc/client/services/node"
 
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/storage"
@@ -73,7 +73,7 @@ func reinit() *cobra.Command {
 
 			// Adapt from 1.4.0 if required.
 			if adapt140, _ := cmd.Flags().GetBool(flagAdapt140); adapt140 {
-				reDKG, err = client.GetAdaptedReDKG(reDKG)
+				reDKG, err = node.GetAdaptedReDKG(reDKG)
 				if err != nil {
 					return fmt.Errorf("failed to adapt reinit DKG message from 1.4.0: %v", err)
 				}

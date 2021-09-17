@@ -4,14 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"os"
 	"reflect"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/google/uuid"
 	client "github.com/lidofinance/dc4bc/client/types"
@@ -22,6 +19,8 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/storage"
+	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
+	"github.com/stretchr/testify/require"
 )
 
 const (
