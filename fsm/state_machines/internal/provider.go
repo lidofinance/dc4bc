@@ -112,6 +112,9 @@ func (p *DumpedMachineStatePayload) SigningQuorumExists(id int) bool {
 func (p *DumpedMachineStatePayload) SigningQuorumGet(id int) (participant *SigningProposalParticipant) {
 	if p.SigningProposalPayload.Quorum != nil {
 		participant = p.SigningProposalPayload.Quorum[id]
+		if participant.PartialSigns == nil {
+			participant.PartialSigns = make(map[string][]byte)
+		}
 	}
 	return
 }

@@ -51,9 +51,14 @@ type StartDkgDTO struct {
 	Payload []byte
 }
 
-type ProposeSignDataDTO struct {
+type ProposeSignMessageDTO struct {
 	DkgID []byte
 	Data  []byte
+}
+
+type ProposeSignBatchMessagesDTO struct {
+	DkgID []byte
+	Data  map[string][]byte // use signingID as key
 }
 
 type ReInitDKGDTO struct {

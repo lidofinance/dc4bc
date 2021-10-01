@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/api/dto"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -284,6 +285,36 @@ func signMessage(dkgID []byte, msg, addr string) ([]byte, error) {
 	return messageDataBz, nil
 }
 
+func signBatchMessages(dkgID []byte, msg map[string][]byte, addr string) ([]byte, error) {
+
+	messageDataBz, err := json.Marshal(map[string]interface{}{"data": msg,
+		"dkgID": dkgID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)
+	}
+
+	resp, err := http.Post(fmt.Sprintf("http://%s/proposeSignBatchMessages", addr),
+		"application/json", bytes.NewReader(messageDataBz))
+	if err != nil {
+		return nil, fmt.Errorf("failed to send HTTP request to sign message: %v\n", err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read HTTP response body: %w", err)
+	}
+
+	var response responses.BaseResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal HTTP response body: %w", err)
+	}
+
+	if len(response.ErrorMessage) != 0 {
+		return nil, fmt.Errorf("failed to propose sign message: %s", response.ErrorMessage)
+	}
+	return messageDataBz, nil
+}
+
 func (n *nodeInstance) run(callback processedOperationCallback, ctx context.Context) {
 	for {
 		select {
@@ -471,6 +502,86 @@ func TestStandardFlow(t *testing.T) {
 	for _, node := range nodes {
 		node.httpApi.Stop(node.ctx)
 		node.clientCancel()
+	}
+}
+
+func TestStandardBatchFlow(t *testing.T) {
+	_ = RemoveContents("/tmp", "dc4bc_*")
+	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
+
+	numNodes := 4
+	threshold := 2
+	startingPort := 8085
+	topic := "test_topic"
+	storagePath := "/tmp/dc4bc_storage"
+	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil)
+	if err != nil {
+		t.Fatalf("Failed to init nodes, err: %v", err)
+	}
+
+	// Each nodeInstance starts to Poll().
+	runCancel := startServerRunAndPoll(nodes, nil)
+
+	// Last nodeInstance tells other participants to start DKG.
+	messageDataBz, err := startDkg(nodes, threshold)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	time.Sleep(15 * time.Second)
+
+	log.Println("Propose messages to sign")
+	messagesToSign := map[string][]byte{
+		"signID1": []byte("message to sign1"),
+		"signID2": []byte("message to sign2"),
+	}
+
+	dkgID := sha256.Sum256(messageDataBz)
+	messageDataBz, err = signBatchMessages(dkgID[:], messagesToSign, nodes[len(nodes)-1].listenAddr)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	time.Sleep(15 * time.Second)
+
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 170); matches != 4 {
+			t.Fatalf("not enough checks: %d", matches)
+		} else {
+			fmt.Println("messaged signed successfully")
+		}
+	}
+
+	fmt.Println("Sign messages again")
+	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignBatchMessages", nodes[len(nodes)-1].listenAddr),
+		"application/json", bytes.NewReader(messageDataBz)); err != nil {
+		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
+	}
+	time.Sleep(15 * time.Second)
+
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 100); matches != 8 {
+			t.Fatalf("not enough checks: %d", matches)
+		} else {
+			fmt.Println("messaged signed successfully")
+		}
+	}
+
+	runCancel()
+	for _, node := range nodes {
+		node.httpApi.Stop(node.ctx)
+		node.clientCancel()
+	}
+	signs, err := nodes[0].client.GetSignatures(&dto.DkgIdDTO{DkgID: hex.EncodeToString(dkgID[:])})
+	if err != nil {
+		t.Fatalf("failed to get signatures: %v\n", err)
+	}
+	for _, signingID := range []string{"signID1", "signID2"} {
+		for _, s := range signs[signingID] {
+			fmt.Println(s)
+		}
+		if len(signs[signingID]) != 4 {
+			t.Fatalf("not enough signs: want 4, got %d\n", len(signs["signID1"]))
+		}
 	}
 }
 

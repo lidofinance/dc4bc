@@ -4,6 +4,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"reflect"
 	"testing"
@@ -58,12 +59,23 @@ var (
 
 	testSigningId        string
 	testSigningInitiator int
-	testSigningPayload   = []byte("message to sign")
+	testSigningPayload   []byte
 
 	testFSMDump = map[fsm.State][]byte{}
 )
 
 func init() {
+	var err error
+	testSigningPayload, err = json.Marshal(&[]requests.MessageToSign{
+		{
+			SigningID: "test-signing-id",
+			Payload:   []byte("message to sign"),
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+
 	for i := 0; i < participantsNumber; i++ {
 
 		participant := &testParticipantsPayload{
@@ -900,11 +912,16 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 	inState, _ := testFSMInstance.State()
 	compareState(t, sif.StateSigningIdle, inState)
 
-	fsmResponse, testFSMDump[sif.StateSigningAwaitConfirmations], err = testFSMInstance.Do(sif.EventSigningStart, requests.SigningProposalStartRequest{
-		SigningID:     "test-signing-id",
+	fsmResponse, testFSMDump[sif.StateSigningAwaitConfirmations], err = testFSMInstance.Do(sif.EventSigningStart, requests.SigningBatchProposalStartRequest{
+		BatchID:       "test-batch-id",
 		ParticipantId: 1,
-		SrcPayload:    []byte("message to sign"),
-		CreatedAt:     time.Now(),
+		MessagesToSign: []requests.MessageToSign{
+			{
+				SigningID: "test-signing-id",
+				Payload:   []byte("message to sign"),
+			},
+		},
+		CreatedAt: time.Now(),
 	})
 
 	compareErrNil(t, err)
@@ -923,7 +940,7 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(response.Participants))
 	}
 
-	if response.SigningId == "" {
+	if response.BatchID == "" {
 		t.Fatalf("expected field {SigningId}")
 	}
 
@@ -931,7 +948,7 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 		t.Fatalf("expected matched {SrcPayload}")
 	}
 
-	testSigningId = response.SigningId
+	testSigningId = response.BatchID
 	testSigningInitiator = response.InitiatorId
 
 	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitConfirmations])
@@ -1030,7 +1047,7 @@ func Test_SigningProposal_EventDeclineProposal_Canceled_Participants(t *testing.
 	compareState(t, sif.StateSigningAwaitConfirmations, inState)
 
 	declinedParticipantsCount := 0
-	for participantId, _ := range testIdMapParticipants {
+	for participantId := range testIdMapParticipants {
 		if declinedParticipantsCount > participantsNumber-threshold {
 			break
 		}
@@ -1124,11 +1141,14 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 		inState, _ := testFSMInstance.State()
 		compareState(t, sif.StateSigningAwaitPartialSigns, inState)
 
-		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningPartialSignReceived, requests.SigningProposalPartialSignRequest{
-			SigningId:     testSigningId,
+		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningPartialSignReceived, requests.SigningProposalBatchPartialSignRequests{
+			BatchID:       "test-batch-id",
 			ParticipantId: participantId,
-			PartialSign:   participant.DkgPartialKey,
-			CreatedAt:     time.Now(),
+			PartialSigns: []requests.PartialSign{{
+				SigningID: testSigningId,
+				Sign:      participant.DkgPartialKey,
+			}},
+			CreatedAt: time.Now(),
 		})
 
 		compareErrNil(t, err)
@@ -1186,7 +1206,7 @@ func Test_SigningProposal_EventPartialKeysReceived_Failed_Participants(t *testin
 	compareState(t, sif.StateSigningAwaitPartialSigns, inState)
 
 	failedParticipantsCount := 0
-	for participantId, _ := range testIdMapParticipants {
+	for participantId := range testIdMapParticipants {
 		if failedParticipantsCount > participantsNumber-threshold {
 			break
 		}

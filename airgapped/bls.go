@@ -29,7 +29,7 @@ func (am *Machine) handleStateSigningAwaitConfirmations(o *client.Operation) err
 		return fmt.Errorf("failed to get paricipant id: %w", err)
 	}
 	req := requests.SigningProposalParticipantRequest{
-		SigningId:     payload.SigningId,
+		SigningId:     payload.BatchID,
 		ParticipantId: participantID,
 		CreatedAt:     o.CreatedAt,
 	}
@@ -46,29 +46,43 @@ func (am *Machine) handleStateSigningAwaitConfirmations(o *client.Operation) err
 // handleStateSigningAwaitPartialSigns takes a data to sign as payload and returns a partial sign for the data to broadcast
 func (am *Machine) handleStateSigningAwaitPartialSigns(o *client.Operation) error {
 	var (
-		payload responses.SigningPartialSignsParticipantInvitationsResponse
-		err     error
+		payload        responses.SigningPartialSignsParticipantInvitationsResponse
+		messagesToSign []requests.MessageToSign
+		err            error
+		signs          []requests.PartialSign
 	)
 
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
 
-	partialSign, err := am.createPartialSign(payload.SrcPayload, o.DKGIdentifier)
-	if err != nil {
-		return fmt.Errorf("failed to create partialSign for msg: %w", err)
+	if err = json.Unmarshal(payload.SrcPayload, &messagesToSign); err != nil {
+		return fmt.Errorf("failed to unmarshal messages to sign: %w", err)
 	}
 
 	participantID, err := am.getParticipantID(o.DKGIdentifier)
 	if err != nil {
 		return fmt.Errorf("failed to get paricipant id: %w", err)
 	}
-	req := requests.SigningProposalPartialSignRequest{
-		SigningId:     payload.SigningId,
+	for _, m := range messagesToSign {
+		partialSign, err := am.createPartialSign(m.Payload, o.DKGIdentifier)
+		if err != nil {
+			return fmt.Errorf("failed to create partialSign for msg: %w", err)
+		}
+		signs = append(signs, requests.PartialSign{
+			SigningID: m.SigningID,
+			Sign:      partialSign,
+		})
+
+	}
+
+	req := requests.SigningProposalBatchPartialSignRequests{
+		BatchID:       payload.SigningId,
 		ParticipantId: participantID,
-		PartialSign:   partialSign,
+		PartialSigns:  signs,
 		CreatedAt:     o.CreatedAt,
 	}
+
 	reqBz, err := json.Marshal(req)
 	if err != nil {
 		return fmt.Errorf("failed to generate fsm request: %w", err)
@@ -82,17 +96,21 @@ func (am *Machine) handleStateSigningAwaitPartialSigns(o *client.Operation) erro
 // reconstructThresholdSignature takes broadcasted partial signs from the previous step and reconstructs a full signature
 func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 	var (
-		payload responses.SigningProcessParticipantResponse
-		err     error
+		payload         responses.SigningProcessParticipantResponse
+		err             error
+		response        []client.ReconstructedSignature
+		messagesPayload []requests.MessageToSign
 	)
 
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
 
-	partialSignatures := make([][]byte, 0, len(payload.Participants))
+	partialSignatures := make(map[string][][]byte)
 	for _, participant := range payload.Participants {
-		partialSignatures = append(partialSignatures, participant.PartialSign)
+		for messageID, sign := range participant.PartialSigns {
+			partialSignatures[messageID] = append(partialSignatures[messageID], sign)
+		}
 	}
 
 	dkgInstance, ok := am.dkgInstances[o.DKGIdentifier]
@@ -100,18 +118,31 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 		return fmt.Errorf("dkg instance with identifier %s does not exist", o.DKGIdentifier)
 	}
 
-	reconstructedSignature, err := am.recoverFullSign(payload.SrcPayload, partialSignatures, dkgInstance.Threshold,
-		dkgInstance.N, o.DKGIdentifier)
+	err = json.Unmarshal(payload.SrcPayload, &messagesPayload)
 	if err != nil {
-		return fmt.Errorf("failed to reconsruct full signature for msg: %w", err)
+		return fmt.Errorf("failed to unmarshal MessagesToSign: %w", err)
 	}
 
-	response := client.ReconstructedSignature{
-		SigningID:  payload.SigningId,
-		SrcPayload: payload.SrcPayload,
-		Signature:  reconstructedSignature,
-		DKGRoundID: o.DKGIdentifier,
+	// just convert slice to map
+	messages := make(map[string][]byte)
+	for _, m := range messagesPayload {
+		messages[m.SigningID] = m.Payload
 	}
+
+	for messageID, partialSignature := range partialSignatures {
+		reconstructedSignature, err := am.recoverFullSign(messages[messageID], partialSignature, dkgInstance.Threshold,
+			dkgInstance.N, o.DKGIdentifier)
+		if err != nil {
+			return fmt.Errorf("failed to reconsruct full signature for msg: %w", err)
+		}
+		response = append(response, client.ReconstructedSignature{
+			SigningID:  messageID,
+			Signature:  reconstructedSignature,
+			DKGRoundID: o.DKGIdentifier,
+			SrcPayload: messages[messageID],
+		})
+	}
+
 	respBz, err := json.Marshal(response)
 	if err != nil {
 		return fmt.Errorf("failed to generate reconstructed signature response: %w", err)
@@ -143,7 +174,7 @@ func (am *Machine) recoverFullSign(msg []byte, sigShares [][]byte, t, n int, dkg
 	return tbls.Recover(am.baseSuite.(pairing.Suite), blsKeyring.PubPoly, msg, sigShares, t, n)
 }
 
-// verifySign verifies a signature of a message
+// VerifySign verifies a signature of a message
 func (am *Machine) VerifySign(msg []byte, fullSignature []byte, dkgIdentifier string) error {
 	blsKeyring, err := am.loadBLSKeyring(dkgIdentifier)
 	if err != nil {
