@@ -97,8 +97,8 @@ If at any point something goes wrong (timeout reached, the deal is invalid, publ
 3. When enough (>= threshold) participants broadcasted an agreement, every participant:
    1. message_hash = h2c_message(<send a partial signature for message "message" for threshold public key "key">)
    2. broadcast(await_c2h_reply(message_hash))
-4. When enough (>= threshold) participants broadcasted a partial signature, threshold signature is reconstructed.
-5. Someone broadcasts a partial signature.
+4. When enough (>= threshold) participants broadcasted a partial signature, the aggregated signature is reconstructed.
+5. Someone broadcasts the aggregated signature.
 
 If not enough participants signal their willingness to sign within a timeout or signal their rejection to sign, signature process is aborted.
 
