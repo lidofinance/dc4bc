@@ -71,7 +71,7 @@ func (am *Machine) handleStateSigningAwaitPartialSigns(o *client.Operation) erro
 		}
 
 		signs = append(signs, requests.PartialSign{
-			SigningID: m.SigningID,
+			MessageID: m.MessageID,
 			Sign:      partialSign,
 		})
 	}
@@ -125,7 +125,7 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 	// just convert slice to map
 	messages := make(map[string][]byte)
 	for _, m := range messagesPayload {
-		messages[m.SigningID] = m.Payload
+		messages[m.MessageID] = m.Payload
 	}
 	response := make([]client.ReconstructedSignature, 0, len(batchPartialSignatures))
 	for messageID, messagePartialSignatures := range batchPartialSignatures {
@@ -135,7 +135,7 @@ func (am *Machine) reconstructThresholdSignature(o *client.Operation) error {
 			return fmt.Errorf("failed to reconsruct full signature for msg: %w", err)
 		}
 		response = append(response, client.ReconstructedSignature{
-			SigningID:  messageID,
+			MessageID:  messageID,
 			Signature:  reconstructedSignature,
 			DKGRoundID: o.DKGIdentifier,
 			SrcPayload: messages[messageID],

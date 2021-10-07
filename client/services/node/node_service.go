@@ -411,9 +411,9 @@ func (s *BaseNodeService) buildMessage(dkgRoundID string, event fsm.Event, data 
 
 func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessagesDTO) error {
 	messagesToSign := make([]requests.MessageToSign, 0, len(dtoMsg.Data))
-	for signingID, msg := range dtoMsg.Data {
+	for messageID, msg := range dtoMsg.Data {
 		messageDataSign := requests.MessageToSign{
-			SigningID: signingID,
+			MessageID: messageID,
 			Payload:   msg,
 		}
 
@@ -704,7 +704,7 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 	signatures := make([]types.ReconstructedSignature, 0, len(proposal.MessagesToSign))
 	for _, msg := range proposal.MessagesToSign {
 		sig := types.ReconstructedSignature{
-			SigningID:  msg.SigningID,
+			MessageID:  msg.MessageID,
 			Username:   message.SenderAddr,
 			DKGRoundID: message.DkgRoundID,
 			SrcPayload: msg.Payload,

@@ -12,7 +12,7 @@ type SigningProposalParticipantRequest struct {
 }
 
 type MessageToSign struct {
-	SigningID string
+	MessageID string
 	Payload   []byte
 }
 
@@ -26,7 +26,7 @@ type SigningBatchProposalStartRequest struct {
 }
 
 type PartialSign struct {
-	SigningID string
+	MessageID string
 	Sign      []byte
 }
 

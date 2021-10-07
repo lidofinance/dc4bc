@@ -427,7 +427,7 @@ func (s *LevelDBState) SaveSignatures(signaturesToSave []types.ReconstructedSign
 	}
 
 	for _, signature := range signaturesToSave {
-		signs := signatures[signature.SigningID]
+		signs := signatures[signature.MessageID]
 		usernameFound := false
 		for i, s := range signs {
 			if s.Username == signature.Username {
@@ -439,7 +439,7 @@ func (s *LevelDBState) SaveSignatures(signaturesToSave []types.ReconstructedSign
 		if !usernameFound {
 			signs = append(signs, signature)
 		}
-		signatures[signature.SigningID] = signs
+		signatures[signature.MessageID] = signs
 	}
 
 	signaturesJSON, err := json.Marshal(signatures)

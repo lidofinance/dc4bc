@@ -27,7 +27,7 @@ type SigningPartialSignsParticipantInvitationsResponse struct {
 // Event:  ""
 // States: ""
 type SigningProposalParticipantStatusResponse struct {
-	SigningId    string
+	MessageID    string
 	Participants []*SignatureProposalParticipantStatusEntry
 }
 

@@ -22,8 +22,8 @@ func (r *SigningProposalParticipantRequest) Validate() error {
 }
 
 func (m *MessageToSign) Validate() error {
-	if m.SigningID == "" {
-		return errors.New("{SigningID} cannot be empty")
+	if m.MessageID == "" {
+		return errors.New("{MessageID} cannot be empty")
 	}
 	if len(m.Payload) == 0 {
 		return errors.New("{Payload} cannot zero length")
@@ -54,8 +54,8 @@ func (r *SigningBatchProposalStartRequest) Validate() error {
 }
 
 func (s *PartialSign) Validate() error {
-	if len(s.SigningID) == 0 {
-		return fmt.Errorf("{SigningID} can not be empty")
+	if len(s.MessageID) == 0 {
+		return fmt.Errorf("{MessageID} can not be empty")
 	}
 	if len(s.Sign) == 0 {
 		return fmt.Errorf("{Sign} can not be empty")

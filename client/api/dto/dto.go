@@ -58,7 +58,7 @@ type ProposeSignMessageDTO struct {
 
 type ProposeSignBatchMessagesDTO struct {
 	DkgID []byte
-	Data  map[string][]byte // use signingID as key
+	Data  map[string][]byte // use messageID as key
 }
 
 type ReInitDKGDTO struct {

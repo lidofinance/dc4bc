@@ -235,8 +235,8 @@ func (m *SigningProposalFSM) actionPartialSignConfirmationReceived(inEvent fsm.E
 		return
 	}
 	for _, partialSign := range request.PartialSigns {
-		signingProposalParticipant.PartialSigns[partialSign.SigningID] = make([]byte, len(partialSign.Sign))
-		copy(signingProposalParticipant.PartialSigns[partialSign.SigningID], partialSign.Sign)
+		signingProposalParticipant.PartialSigns[partialSign.MessageID] = make([]byte, len(partialSign.Sign))
+		copy(signingProposalParticipant.PartialSigns[partialSign.MessageID], partialSign.Sign)
 	}
 
 	signingProposalParticipant.Status = internal.SigningPartialSignsConfirmed

@@ -32,7 +32,7 @@ const (
 )
 
 type ReconstructedSignature struct {
-	SigningID  string
+	MessageID  string
 	SrcPayload []byte
 	Signature  []byte
 	Username   string

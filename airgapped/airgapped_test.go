@@ -26,9 +26,9 @@ import (
 const (
 	DKGIdentifier       = "dkg_identifier"
 	testDB              = "test_level_db"
-	testDir             = "/tmp/airgapped_test"
-	failedSigningID     = "failed_signing_id"
-	successfulSigningID = "successful_signing_id"
+	testDir                  = "/tmp/airgapped_test"
+	failedBatchSigningID     = "failed_batch_signing_id"
+	successfulBatchSigningID = "successful_batch_signing_id"
 )
 
 type Node struct {
@@ -90,7 +90,7 @@ func (n *Node) storeOperation(msg storage.Message) error {
 		if n.reconstructedSignatures == nil {
 			n.reconstructedSignatures = make(map[string][]client.ReconstructedSignature)
 		}
-		n.reconstructedSignatures[req[0].SigningID] = append(n.reconstructedSignatures[req[0].SigningID], req...)
+		n.reconstructedSignatures[req[0].MessageID] = append(n.reconstructedSignatures[req[0].MessageID], req...)
 	default:
 		return fmt.Errorf("invalid event: %s", msg.Event)
 	}
@@ -298,7 +298,7 @@ func (tr *Transport) masterKeysStep() error {
 	})
 }
 
-func (tr *Transport) partialSignsStep(signingID string, msgsToSign []requests.MessageToSign) error {
+func (tr *Transport) partialSignsStep(batchID string, msgsToSign []requests.MessageToSign) error {
 	return runStep(tr, func(n *Node, wg *sync.WaitGroup) error {
 		defer wg.Done()
 
@@ -308,7 +308,7 @@ func (tr *Transport) partialSignsStep(signingID string, msgsToSign []requests.Me
 		}
 
 		payload := responses.SigningPartialSignsParticipantInvitationsResponse{
-			BatchID:    signingID,
+			BatchID:    batchID,
 			SrcPayload: msgs,
 		}
 
@@ -324,7 +324,7 @@ func (tr *Transport) partialSignsStep(signingID string, msgsToSign []requests.Me
 	})
 }
 
-func (tr *Transport) recoverFullSignStep(signingID string, msgToSign []requests.MessageToSign) error {
+func (tr *Transport) recoverFullSignStep(batchID string, msgToSign []requests.MessageToSign) error {
 	return runStep(tr, func(n *Node, wg *sync.WaitGroup) error {
 		defer wg.Done()
 
@@ -333,7 +333,7 @@ func (tr *Transport) recoverFullSignStep(signingID string, msgToSign []requests.
 		for _, req := range n.partialSigns {
 			partialSigns := make(map[string][]byte)
 			for _, ps := range req.PartialSigns {
-				partialSigns[ps.SigningID] = ps.Sign
+				partialSigns[ps.MessageID] = ps.Sign
 			}
 			p := responses.SigningProcessParticipantEntry{
 				ParticipantId: req.ParticipantId,
@@ -349,7 +349,7 @@ func (tr *Transport) recoverFullSignStep(signingID string, msgToSign []requests.
 		}
 
 		payload.SrcPayload = msgs
-		payload.BatchID = signingID
+		payload.BatchID = batchID
 		op, err := createOperation(string(signing_proposal_fsm.StateSigningPartialSignsCollected), "", payload)
 		if err != nil {
 			return fmt.Errorf("failed to create operation: %w", err)
@@ -382,15 +382,15 @@ func (tr *Transport) checkReconstructedMasterKeys() error {
 func (tr *Transport) checkReconstructedSignatures(msgsToSign []requests.MessageToSign) error {
 	for _, msg := range msgsToSign {
 		for _, n := range tr.nodes {
-			for i := 0; i < len(n.reconstructedSignatures[msg.SigningID]); i++ {
-				if !bytes.Equal(n.reconstructedSignatures[msg.SigningID][0].Signature, n.reconstructedSignatures[msg.SigningID][i].Signature) {
+			for i := 0; i < len(n.reconstructedSignatures[msg.MessageID]); i++ {
+				if !bytes.Equal(n.reconstructedSignatures[msg.MessageID][0].Signature, n.reconstructedSignatures[msg.MessageID][i].Signature) {
 					return fmt.Errorf("signatures are not equal")
 				}
-				if err := n.Machine.VerifySign(msg.Payload, n.reconstructedSignatures[msg.SigningID][i].Signature, DKGIdentifier); err != nil {
+				if err := n.Machine.VerifySign(msg.Payload, n.reconstructedSignatures[msg.MessageID][i].Signature, DKGIdentifier); err != nil {
 					return fmt.Errorf("signature is not verified")
 				}
 			}
-			if err := testKyberPrysm(n.masterKeys[0].MasterKey, n.reconstructedSignatures[msg.SigningID][0].Signature, msg.Payload); err != nil {
+			if err := testKyberPrysm(n.masterKeys[0].MasterKey, n.reconstructedSignatures[msg.MessageID][0].Signature, msg.Payload); err != nil {
 				return fmt.Errorf("failed to check signatures on prysm compatibility: %w", err)
 			}
 		}
@@ -434,16 +434,16 @@ func TestAirgappedAllSteps(t *testing.T) {
 
 	msgToSign := []requests.MessageToSign{
 		{
-			SigningID: "s1",
+			MessageID: "s1",
 			Payload:   []byte("i am a message"),
 		},
 	}
 
-	if err := tr.partialSignsStep(successfulSigningID, msgToSign); err != nil {
+	if err := tr.partialSignsStep(successfulBatchSigningID, msgToSign); err != nil {
 		t.Fatalf("failed to do master keys step: %v", err)
 	}
 
-	if err := tr.recoverFullSignStep(successfulSigningID, msgToSign); err != nil {
+	if err := tr.recoverFullSignStep(successfulBatchSigningID, msgToSign); err != nil {
 		t.Fatalf("failed to do master keys step: %v", err)
 	}
 
@@ -516,16 +516,16 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 
 	msgToSign := []requests.MessageToSign{
 		{
-			SigningID: "s1",
+			MessageID: "s1",
 			Payload:   []byte("i am a message"),
 		},
 	}
 
-	if err := tr.partialSignsStep(successfulSigningID, msgToSign); err != nil {
+	if err := tr.partialSignsStep(successfulBatchSigningID, msgToSign); err != nil {
 		t.Fatalf("failed to do init request: %v", err)
 	}
 
-	if err := tr.recoverFullSignStep(successfulSigningID, msgToSign); err != nil {
+	if err := tr.recoverFullSignStep(successfulBatchSigningID, msgToSign); err != nil {
 		t.Fatalf("failed to do init request: %v", err)
 	}
 
@@ -577,13 +577,13 @@ func TestAirgappedMachine_ClearOperations(t *testing.T) {
 
 	msgToSign := []requests.MessageToSign{
 		{
-			SigningID: "s1",
+			MessageID: "s1",
 			Payload:   []byte("i am a message"),
 		},
 	}
 
 	//partialSigns
-	if err := tr.partialSignsStep(failedSigningID, msgToSign); err != nil {
+	if err := tr.partialSignsStep(failedBatchSigningID, msgToSign); err != nil {
 		t.Fatalf("failed to do init request: %v", err)
 	}
 
@@ -606,12 +606,12 @@ func TestAirgappedMachine_ClearOperations(t *testing.T) {
 
 	//start a new signing process
 	//partialSigns
-	if err := tr.partialSignsStep(successfulSigningID, msgToSign); err != nil {
+	if err := tr.partialSignsStep(successfulBatchSigningID, msgToSign); err != nil {
 		t.Fatalf("failed to do init request: %v", err)
 	}
 
 	//recover full signature
-	if err := tr.recoverFullSignStep(successfulSigningID, msgToSign); err != nil {
+	if err := tr.recoverFullSignStep(successfulBatchSigningID, msgToSign); err != nil {
 		t.Fatalf("failed to do init request: %v", err)
 	}
 

@@ -532,8 +532,8 @@ func TestStandardBatchFlow(t *testing.T) {
 
 	log.Println("Propose messages to sign")
 	messagesToSign := map[string][]byte{
-		"signID1": []byte("message to sign1"),
-		"signID2": []byte("message to sign2"),
+		"messageID1": []byte("message to sign1"),
+		"messageID2": []byte("message to sign2"),
 	}
 
 	dkgID := sha256.Sum256(messageDataBz)
@@ -555,8 +555,8 @@ func TestStandardBatchFlow(t *testing.T) {
 	messageDataBz, err = json.Marshal(
 		map[string]interface{}{
 			"data": map[string][]byte{
-				"signID3": []byte("message to sign3"),
-				"signID4": []byte("message to sign4"),
+				"messageID3": []byte("message to sign3"),
+				"messageID4": []byte("message to sign4"),
 			},
 			"dkgID": dkgID})
 	if err != nil {
@@ -587,12 +587,12 @@ func TestStandardBatchFlow(t *testing.T) {
 		t.Fatalf("failed to get signatures: %v\n", err)
 	}
 
-	for _, signingID := range []string{"signID1", "signID2", "signID3", "signID4"} {
-		for _, s := range signs[signingID] {
+	for _, messageID := range []string{"messageID1", "messageID2", "messageID3", "messageID4"} {
+		for _, s := range signs[messageID] {
 			fmt.Println(s)
 		}
-		if len(signs[signingID]) != 4 {
-			t.Fatalf("not enough signs: want 4, got %d\n", len(signs["signID1"]))
+		if len(signs[messageID]) != 4 {
+			t.Fatalf("not enough signs: want 4, got %d\n", len(signs[messageID]))
 		}
 	}
 }

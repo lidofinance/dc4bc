@@ -9,7 +9,6 @@ import (
 
 const (
 	FsmName      = "signature_proposal_fsm"
-	signingIdLen = 32
 
 	StateParticipantsConfirmationsInit = fsm.StateGlobalIdle
 
