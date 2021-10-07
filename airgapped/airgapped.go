@@ -166,12 +166,12 @@ func (am *Machine) removeSignatureOperations(o *client.Operation) error {
 
 	removeSignatureOperationsFunc := func(op client.Operation) bool {
 		type signingPayload struct {
-			SigningId string
+			BatchID string
 		}
 		var sp signingPayload
 		if strings.HasPrefix(string(op.Type), "state_signing_") {
 			if err := json.Unmarshal(op.Payload, &sp); err == nil {
-				if sp.SigningId == payload.SigningId {
+				if sp.BatchID == payload.BatchID {
 					return true
 				}
 			}

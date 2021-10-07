@@ -511,7 +511,7 @@ func TestStandardBatchFlow(t *testing.T) {
 
 	numNodes := 4
 	threshold := 2
-	startingPort := 8085
+	startingPort := 8100
 	topic := "test_topic"
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil)
@@ -552,6 +552,17 @@ func TestStandardBatchFlow(t *testing.T) {
 	}
 
 	fmt.Println("Sign messages again")
+	messageDataBz, err = json.Marshal(
+		map[string]interface{}{
+			"data": map[string][]byte{
+				"signID3": []byte("message to sign3"),
+				"signID4": []byte("message to sign4"),
+			},
+			"dkgID": dkgID})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
 	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignBatchMessages", nodes[len(nodes)-1].listenAddr),
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
@@ -575,7 +586,8 @@ func TestStandardBatchFlow(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to get signatures: %v\n", err)
 	}
-	for _, signingID := range []string{"signID1", "signID2"} {
+
+	for _, signingID := range []string{"signID1", "signID2", "signID3", "signID4"} {
 		for _, s := range signs[signingID] {
 			fmt.Println(s)
 		}

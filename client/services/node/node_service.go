@@ -410,7 +410,7 @@ func (s *BaseNodeService) buildMessage(dkgRoundID string, event fsm.Event, data 
 }
 
 func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessagesDTO) error {
-	var messagesToSign []requests.MessageToSign
+	messagesToSign := make([]requests.MessageToSign, 0, len(dtoMsg.Data))
 	for signingID, msg := range dtoMsg.Data {
 		messageDataSign := requests.MessageToSign{
 			SigningID: signingID,
@@ -694,15 +694,14 @@ func (s *BaseNodeService) processSignature(message storage.Message) error {
 // processBatchSignature saves a broadcasted reconstructed batch signatures to a LevelDB
 func (s *BaseNodeService) processSignatureProposal(message storage.Message) error {
 	var (
-		proposal   requests.SigningBatchProposalStartRequest
-		signatures []types.ReconstructedSignature
-		err        error
+		proposal requests.SigningBatchProposalStartRequest
+		err      error
 	)
 
 	if err = json.Unmarshal(message.Data, &proposal); err != nil {
 		return fmt.Errorf("failed to unmarshal reconstructed signature: %w", err)
 	}
-
+	signatures := make([]types.ReconstructedSignature, 0, len(proposal.MessagesToSign))
 	for _, msg := range proposal.MessagesToSign {
 		sig := types.ReconstructedSignature{
 			SigningID:  msg.SigningID,

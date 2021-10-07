@@ -6,7 +6,7 @@ import "time"
 // Events: "event_signing_proposal_confirm_by_participant"
 //		   "event_signing_proposal_decline_by_participant"
 type SigningProposalParticipantRequest struct {
-	SigningId     string
+	BatchID       string
 	ParticipantId int
 	CreatedAt     time.Time
 }

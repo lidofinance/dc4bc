@@ -19,7 +19,7 @@ type SigningProposalParticipantInvitationEntry struct {
 // Event:  "event_signing_proposal_confirm_by_participant"
 // States: "state_signing_await_partial_keys"
 type SigningPartialSignsParticipantInvitationsResponse struct {
-	SigningId   string
+	BatchID     string
 	InitiatorId int
 	SrcPayload  []byte
 }
@@ -40,7 +40,7 @@ type SigningProposalParticipantStatusEntry struct {
 // Event:  "event_signing_partial_key_received"
 // States: "state_signing_partial_signatures_collected"
 type SigningProcessParticipantResponse struct {
-	SigningId    string
+	BatchID      string
 	SrcPayload   []byte
 	Participants []*SigningProcessParticipantEntry
 }

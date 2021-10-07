@@ -838,9 +838,11 @@ func proposeSignBatchMessagesCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to make HTTP request to propose message to sign: %w", err)
 			}
+
 			if resp.ErrorMessage != "" {
 				return fmt.Errorf("failed to make HTTP request to propose message to sign: %v", resp.ErrorMessage)
 			}
+
 			return nil
 		},
 	}

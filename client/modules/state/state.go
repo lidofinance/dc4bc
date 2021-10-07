@@ -428,19 +428,17 @@ func (s *LevelDBState) SaveSignatures(signaturesToSave []types.ReconstructedSign
 
 	for _, signature := range signaturesToSave {
 		signs := signatures[signature.SigningID]
-		update := -1
+		usernameFound := false
 		for i, s := range signs {
 			if s.Username == signature.Username {
-				update = i
+				signs[i] = signature
+				usernameFound = true
 				break
 			}
 		}
-		if update >= 0 {
-			// removing element with 'update' index
-			signs[update] = signs[len(signs)-1]
-			signs = signs[:len(signs)-1]
+		if !usernameFound {
+			signs = append(signs, signature)
 		}
-		signs = append(signs, signature)
 		signatures[signature.SigningID] = signs
 	}
 

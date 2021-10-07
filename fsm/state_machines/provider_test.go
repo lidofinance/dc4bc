@@ -987,7 +987,7 @@ func Test_SigningProposal_EventConfirmSigningConfirmation_Positive(t *testing.T)
 		compareState(t, sif.StateSigningAwaitConfirmations, inState)
 
 		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventConfirmSigningConfirmation, requests.SigningProposalParticipantRequest{
-			SigningId:     testSigningId,
+			BatchID:       testSigningId,
 			ParticipantId: participantId,
 			CreatedAt:     time.Now(),
 		})
@@ -1015,7 +1015,7 @@ func Test_SigningProposal_EventConfirmSigningConfirmation_Positive(t *testing.T)
 		t.Fatalf("expected response {SigningProposalParticipantInvitationsResponse}")
 	}
 
-	if response.SigningId == "" {
+	if response.BatchID == "" {
 		t.Fatalf("expected field {SigningId}")
 	}
 
@@ -1066,7 +1066,7 @@ func Test_SigningProposal_EventDeclineProposal_Canceled_Participants(t *testing.
 		compareState(t, sif.StateSigningAwaitConfirmations, inState)
 
 		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventDeclineSigningConfirmation, requests.SigningProposalParticipantRequest{
-			SigningId:     testSigningId,
+			BatchID:       testSigningId,
 			ParticipantId: participantId,
 			CreatedAt:     time.Now(),
 		})
@@ -1099,7 +1099,7 @@ func Test_SigningProposal_EventConfirmSignatureProposal_Canceled_Timeout(t *test
 	compareState(t, sif.StateSigningAwaitConfirmations, inState)
 
 	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(sif.EventConfirmSigningConfirmation, requests.SigningProposalParticipantRequest{
-		SigningId:     testSigningId,
+		BatchID:       testSigningId,
 		ParticipantId: 0,
 		CreatedAt:     time.Now().Add(time.Hour * 24 * 8),
 	})
@@ -1174,7 +1174,7 @@ func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) 
 		t.Fatalf("expected response {SigningProcessParticipantResponse}")
 	}
 
-	if response.SigningId == "" {
+	if response.BatchID == "" {
 		t.Fatalf("expected field {SigningId}")
 	}
 

@@ -193,7 +193,7 @@ func (m *SigningProposalFSM) actionValidateSigningProposalConfirmations(inEvent 
 
 	// Make response
 	responseData := responses.SigningPartialSignsParticipantInvitationsResponse{
-		SigningId:   m.payload.SigningProposalPayload.BatchID,
+		BatchID:     m.payload.SigningProposalPayload.BatchID,
 		InitiatorId: m.payload.SigningProposalPayload.InitiatorId,
 		SrcPayload:  m.payload.SigningProposalPayload.SrcPayload,
 	}
@@ -215,7 +215,7 @@ func (m *SigningProposalFSM) actionPartialSignConfirmationReceived(inEvent fsm.E
 	request, ok := args[0].(requests.SigningProposalBatchPartialSignRequests)
 
 	if !ok {
-		err = errors.New("cannot cast {arg0} to type {SigningProposalPartialSignRequest}")
+		err = errors.New("cannot cast {arg0} to type {SigningProposalBatchPartialSignRequests}")
 		return
 	}
 
@@ -286,7 +286,7 @@ func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations
 
 	// Response
 	responseData := responses.SigningProcessParticipantResponse{
-		SigningId:    m.payload.SigningProposalPayload.BatchID,
+		BatchID:      m.payload.SigningProposalPayload.BatchID,
 		SrcPayload:   m.payload.SigningProposalPayload.SrcPayload,
 		Participants: make([]*responses.SigningProcessParticipantEntry, 0),
 	}
@@ -301,10 +301,6 @@ func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations
 			Username:      participant.Username,
 			PartialSigns:  participant.PartialSigns,
 		}
-		//for signingID, sign := range participant.PartialSigns {
-		//	responseEntry.PartialSigns[signingID] = sign
-		//}
-
 		responseData.Participants = append(responseData.Participants, responseEntry)
 	}
 

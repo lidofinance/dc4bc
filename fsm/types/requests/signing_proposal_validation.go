@@ -6,8 +6,8 @@ import (
 )
 
 func (r *SigningProposalParticipantRequest) Validate() error {
-	if r.SigningId == "" {
-		return errors.New("{SigningId} cannot be empty")
+	if r.BatchID == "" {
+		return errors.New("{BatchID} cannot be empty")
 	}
 
 	if r.ParticipantId < 0 {

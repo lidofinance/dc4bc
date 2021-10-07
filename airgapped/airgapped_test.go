@@ -308,7 +308,7 @@ func (tr *Transport) partialSignsStep(signingID string, msgsToSign []requests.Me
 		}
 
 		payload := responses.SigningPartialSignsParticipantInvitationsResponse{
-			SigningId:  signingID,
+			BatchID:    signingID,
 			SrcPayload: msgs,
 		}
 
@@ -349,7 +349,7 @@ func (tr *Transport) recoverFullSignStep(signingID string, msgToSign []requests.
 		}
 
 		payload.SrcPayload = msgs
-		payload.SigningId = signingID
+		payload.BatchID = signingID
 		op, err := createOperation(string(signing_proposal_fsm.StateSigningPartialSignsCollected), "", payload)
 		if err != nil {
 			return fmt.Errorf("failed to create operation: %w", err)
