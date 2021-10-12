@@ -9,10 +9,12 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/google/uuid"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -87,6 +89,7 @@ func main() {
 		approveDKGParticipationCommand(),
 		startDKGCommand(),
 		proposeSignMessageCommand(),
+		proposeSignBatchMessagesCommand(),
 		getUsernameCommand(),
 		getPubKeyCommand(),
 		getHashOfStartDKGCommand(),
@@ -183,7 +186,7 @@ func getOperationsCommand() *cobra.Command {
 					}
 					msgHash := sha256.Sum256(payload.SrcPayload)
 					fmt.Printf("\t\tHash of the data to sign - %s\n", hex.EncodeToString(msgHash[:]))
-					fmt.Printf("\t\tSigning ID: %s\n", payload.SigningId)
+					fmt.Printf("\t\tSigning ID: %s\n", payload.BatchID)
 				}
 				if fsm.State(operation.Type) == types.ReinitDKG {
 					fmt.Printf("\t\tHash of the reinit DKG message - %s\n", hex.EncodeToString(operation.ExtraData))
@@ -782,6 +785,64 @@ func proposeSignMessageCommand() *cobra.Command {
 			if resp.ErrorMessage != "" {
 				return fmt.Errorf("failed to make HTTP request to propose message to sign: %v", resp.ErrorMessage)
 			}
+			return nil
+		},
+	}
+}
+
+func proposeSignBatchMessagesCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "sign_batch_data [dkg_id] [dir_path]",
+		Args:  cobra.ExactArgs(2),
+		Short: "sends a propose batch messages to sign the data in the dir",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			dkgID, err := hex.DecodeString(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to decode dkgID: %w", err)
+			}
+
+			req := httprequests.ProposeSignBatchMessagesForm{
+				DkgID: dkgID,
+				Data:  make(map[string][]byte),
+			}
+
+			files, err := ioutil.ReadDir(args[1])
+			if err != nil {
+				return fmt.Errorf("failde to read dir {%s}: %w", args[1], err)
+			}
+
+			for _, f := range files {
+				if f.IsDir() {
+					//skipping dirs
+					continue
+				}
+				data, err := ioutil.ReadFile(path.Join(args[1], f.Name()))
+				if err != nil {
+					return fmt.Errorf("failed to read the file")
+				}
+				req.Data[uuid.New().String()] = data
+			}
+
+			messageDataBz, err := json.Marshal(&req)
+			if err != nil {
+				return fmt.Errorf("failed to marshal SigningBatchProposalStartRequest: %w", err)
+			}
+
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/proposeSignBatchMessages", listenAddr),
+				"application/json", messageDataBz)
+			if err != nil {
+				return fmt.Errorf("failed to make HTTP request to propose message to sign: %w", err)
+			}
+
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to make HTTP request to propose message to sign: %v", resp.ErrorMessage)
+			}
+
 			return nil
 		},
 	}

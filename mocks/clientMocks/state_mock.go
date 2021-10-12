@@ -214,16 +214,16 @@ func (mr *MockStateMockRecorder) SaveOffset(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveOffset", reflect.TypeOf((*MockState)(nil).SaveOffset), arg0)
 }
 
-// SaveSignature mocks base method.
-func (m *MockState) SaveSignature(signature types.ReconstructedSignature) error {
+// SaveSignatures mocks base method.
+func (m *MockState) SaveSignatures(signature []types.ReconstructedSignature) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveSignature", signature)
+	ret := m.ctrl.Call(m, "SaveSignatures", signature)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// SaveSignature indicates an expected call of SaveSignature.
-func (mr *MockStateMockRecorder) SaveSignature(signature interface{}) *gomock.Call {
+// SaveSignatures indicates an expected call of SaveSignatures.
+func (mr *MockStateMockRecorder) SaveSignatures(signature interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSignature", reflect.TypeOf((*MockState)(nil).SaveSignature), signature)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSignatures", reflect.TypeOf((*MockState)(nil).SaveSignatures), signature)
 }

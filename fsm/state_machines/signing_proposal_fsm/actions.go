@@ -1,6 +1,7 @@
 package signing_proposal_fsm
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -45,14 +46,14 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 	defer m.payloadMu.Unlock()
 
 	if len(args) != 1 {
-		err = errors.New("{arg0} required {SigningProposalStartRequest}")
+		err = errors.New("{arg0} required {SigningBatchProposalStartRequest}")
 		return
 	}
 
-	request, ok := args[0].(requests.SigningProposalStartRequest)
+	request, ok := args[0].(requests.SigningBatchProposalStartRequest)
 
 	if !ok {
-		err = errors.New("cannot cast {arg0} to type {SigningProposalStartRequest}")
+		err = errors.New("cannot cast {arg0} to type {SigningBatchProposalStartRequest}")
 		return
 	}
 
@@ -60,10 +61,16 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 		return
 	}
 
-	m.payload.SigningProposalPayload.SigningId = request.SigningID
+	payload, err := json.Marshal(request.MessagesToSign)
+	if err != nil {
+		err = fmt.Errorf("failed to marshal messages to sign: %w", err)
+		return
+	}
+
+	m.payload.SigningProposalPayload.BatchID = request.BatchID
 
 	m.payload.SigningProposalPayload.InitiatorId = request.ParticipantId
-	m.payload.SigningProposalPayload.SrcPayload = request.SrcPayload
+	m.payload.SigningProposalPayload.SrcPayload = payload
 
 	m.payload.SigningProposalPayload.Quorum = make(internal.SigningProposalQuorum)
 
@@ -81,7 +88,7 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 
 	// Make response
 	responseData := responses.SigningProposalParticipantInvitationsResponse{
-		SigningId:    m.payload.SigningProposalPayload.SigningId,
+		BatchID:      m.payload.SigningProposalPayload.BatchID,
 		InitiatorId:  m.payload.SigningProposalPayload.InitiatorId,
 		SrcPayload:   m.payload.SigningProposalPayload.SrcPayload,
 		Participants: make([]*responses.SigningProposalParticipantInvitationEntry, 0),
@@ -186,7 +193,7 @@ func (m *SigningProposalFSM) actionValidateSigningProposalConfirmations(inEvent 
 
 	// Make response
 	responseData := responses.SigningPartialSignsParticipantInvitationsResponse{
-		SigningId:   m.payload.SigningProposalPayload.SigningId,
+		BatchID:     m.payload.SigningProposalPayload.BatchID,
 		InitiatorId: m.payload.SigningProposalPayload.InitiatorId,
 		SrcPayload:  m.payload.SigningProposalPayload.SrcPayload,
 	}
@@ -205,10 +212,10 @@ func (m *SigningProposalFSM) actionPartialSignConfirmationReceived(inEvent fsm.E
 		return
 	}
 
-	request, ok := args[0].(requests.SigningProposalPartialSignRequest)
+	request, ok := args[0].(requests.SigningProposalBatchPartialSignRequests)
 
 	if !ok {
-		err = errors.New("cannot cast {arg0} to type {SigningProposalPartialSignRequest}")
+		err = errors.New("cannot cast {arg0} to type {SigningProposalBatchPartialSignRequests}")
 		return
 	}
 
@@ -227,9 +234,11 @@ func (m *SigningProposalFSM) actionPartialSignConfirmationReceived(inEvent fsm.E
 		err = fmt.Errorf("cannot confirm response with {Status} = {\"%s\"}", signingProposalParticipant.Status)
 		return
 	}
+	for _, partialSign := range request.PartialSigns {
+		signingProposalParticipant.PartialSigns[partialSign.MessageID] = make([]byte, len(partialSign.Sign))
+		copy(signingProposalParticipant.PartialSigns[partialSign.MessageID], partialSign.Sign)
+	}
 
-	signingProposalParticipant.PartialSign = make([]byte, len(request.PartialSign))
-	copy(signingProposalParticipant.PartialSign, request.PartialSign)
 	signingProposalParticipant.Status = internal.SigningPartialSignsConfirmed
 
 	signingProposalParticipant.UpdatedAt = request.CreatedAt
@@ -277,20 +286,20 @@ func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations
 
 	// Response
 	responseData := responses.SigningProcessParticipantResponse{
-		SigningId:    m.payload.SigningProposalPayload.SigningId,
+		BatchID:      m.payload.SigningProposalPayload.BatchID,
 		SrcPayload:   m.payload.SigningProposalPayload.SrcPayload,
 		Participants: make([]*responses.SigningProcessParticipantEntry, 0),
 	}
 
 	for _, participant := range m.payload.SigningProposalPayload.Quorum.GetOrderedParticipants() {
 		// don't return participants who didn't broadcast partial signature
-		if len(participant.PartialSign) == 0 {
+		if len(participant.PartialSigns) == 0 {
 			continue
 		}
 		responseEntry := &responses.SigningProcessParticipantEntry{
 			ParticipantId: participant.ParticipantID,
 			Username:      participant.Username,
-			PartialSign:   participant.PartialSign,
+			PartialSigns:  participant.PartialSigns,
 		}
 		responseData.Participants = append(responseData.Participants, responseEntry)
 	}

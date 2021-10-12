@@ -196,7 +196,7 @@ func (s DKGParticipantStatus) String() string {
 // Signing proposal
 
 type SigningConfirmation struct {
-	SigningId        string
+	BatchID          string
 	InitiatorId      int
 	Quorum           SigningProposalQuorum
 	RecoveredKey     []byte
@@ -266,7 +266,7 @@ type SigningProposalParticipant struct {
 	ParticipantID int
 	Username      string
 	Status        SigningParticipantStatus
-	PartialSign   []byte
+	PartialSigns  map[string][]byte
 	Error         *requests.FSMError
 	UpdatedAt     time.Time
 }

@@ -61,7 +61,7 @@ type NodeService interface {
 	ResetFSMState(dto *dto.ResetStateDTO) (string, error)
 	GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.ReconstructedSignature, error)
 	GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error)
-	ProposeSignData(dto *dto.ProposeSignDataDTO) error
+	ProposeSignMessages(dto *dto.ProposeSignBatchMessagesDTO) error
 	SaveOffset(dto *dto.StateOffsetDTO) error
 	GetStateOffset() (uint64, error)
 }
@@ -207,7 +207,6 @@ func (s *BaseNodeService) SendMessage(dto *dto.MessageDTO) error {
 	}); err != nil {
 		return fmt.Errorf("failed to post message: %w", err)
 	}
-
 	return nil
 }
 
@@ -410,8 +409,18 @@ func (s *BaseNodeService) buildMessage(dkgRoundID string, event fsm.Event, data 
 	return &message, nil
 }
 
-func (s *BaseNodeService) ProposeSignData(dto *dto.ProposeSignDataDTO) error {
-	fsmInstance, err := s.getFSMInstance(hex.EncodeToString(dto.DkgID))
+func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessagesDTO) error {
+	messagesToSign := make([]requests.MessageToSign, 0, len(dtoMsg.Data))
+	for messageID, msg := range dtoMsg.Data {
+		messageDataSign := requests.MessageToSign{
+			MessageID: messageID,
+			Payload:   msg,
+		}
+
+		messagesToSign = append(messagesToSign, messageDataSign)
+	}
+
+	fsmInstance, err := s.getFSMInstance(hex.EncodeToString(dtoMsg.DkgID))
 	if err != nil {
 		return fmt.Errorf("failed to get FSM instance: %w", err)
 	}
@@ -421,27 +430,24 @@ func (s *BaseNodeService) ProposeSignData(dto *dto.ProposeSignDataDTO) error {
 		return fmt.Errorf("failed to get participantID: %w", err)
 	}
 
-	messageDataSign := requests.SigningProposalStartRequest{
-		SigningID:     uuid.New().String(),
-		ParticipantId: participantID,
-		SrcPayload:    dto.Data,
-		CreatedAt:     time.Now(), // Is better to use time from node?
+	batch := requests.SigningBatchProposalStartRequest{
+		BatchID:        uuid.New().String(),
+		ParticipantId:  participantID,
+		CreatedAt:      time.Now(), // Is better to use time from node?
+		MessagesToSign: messagesToSign,
 	}
 
-	messageDataSignBz, err := json.Marshal(messageDataSign)
-
+	batchBz, err := json.Marshal(batch)
 	if err != nil {
-		return fmt.Errorf("failed to marshal SigningProposalStartRequest: %w", err)
+		return fmt.Errorf("failed to marshal SigningBatchProposalStartRequest: %w", err)
 	}
 
-	message, err := s.buildMessage(hex.EncodeToString(dto.DkgID), sif.EventSigningStart, messageDataSignBz)
-
+	message, err := s.buildMessage(hex.EncodeToString(dtoMsg.DkgID), sif.EventSigningStart, batchBz)
 	if err != nil {
 		return fmt.Errorf("failed to build message: %w", err)
 	}
 
 	err = s.storage.Send(*message)
-
 	if err != nil {
 		return fmt.Errorf("failed to send message: %w", err)
 	}
@@ -672,15 +678,45 @@ func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 // processSignature saves a broadcasted reconstructed signature to a LevelDB
 func (s *BaseNodeService) processSignature(message storage.Message) error {
 	var (
-		signature types.ReconstructedSignature
-		err       error
+		signatures []types.ReconstructedSignature
+		err        error
 	)
-	if err = json.Unmarshal(message.Data, &signature); err != nil {
+	if err = json.Unmarshal(message.Data, &signatures); err != nil {
 		return fmt.Errorf("failed to unmarshal reconstructed signature: %w", err)
 	}
-	signature.Username = message.SenderAddr
-	signature.DKGRoundID = message.DkgRoundID
-	return s.getState().SaveSignature(signature)
+	for i := range signatures {
+		signatures[i].Username = message.SenderAddr
+		signatures[i].DKGRoundID = message.DkgRoundID
+	}
+	return s.getState().SaveSignatures(signatures)
+}
+
+// processBatchSignature saves a broadcasted reconstructed batch signatures to a LevelDB
+func (s *BaseNodeService) processSignatureProposal(message storage.Message) error {
+	var (
+		proposal requests.SigningBatchProposalStartRequest
+		err      error
+	)
+
+	if err = json.Unmarshal(message.Data, &proposal); err != nil {
+		return fmt.Errorf("failed to unmarshal reconstructed signature: %w", err)
+	}
+	signatures := make([]types.ReconstructedSignature, 0, len(proposal.MessagesToSign))
+	for _, msg := range proposal.MessagesToSign {
+		sig := types.ReconstructedSignature{
+			MessageID:  msg.MessageID,
+			Username:   message.SenderAddr,
+			DKGRoundID: message.DkgRoundID,
+			SrcPayload: msg.Payload,
+		}
+		signatures = append(signatures, sig)
+	}
+
+	err = s.getState().SaveSignatures(signatures)
+	if err != nil {
+		return fmt.Errorf("failed to save signature: %w", err)
+	}
+	return nil
 }
 
 func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operation, error) {
@@ -762,7 +798,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 		}
 		if strings.HasPrefix(string(fsmInstance.FSMDump().State), "state_signing_") {
 			s.Logger.Log("Signing process with ID \"%s\" aborted cause of timeout\n",
-				fsmInstance.FSMDump().Payload.SigningProposalPayload.SigningId)
+				fsmInstance.FSMDump().Payload.SigningProposalPayload.BatchID)
 
 			//if we have an error during signing procedure, start a new signing procedure
 			_, fsmDump, err := fsmInstance.Do(sif.EventSigningRestart, requests.DefaultRequest{
@@ -862,7 +898,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 		if err != nil {
 			return nil, fmt.Errorf("failed get state_machines from dump: %w", err)
 		}
-		resp, fsmDump, err = fsmInstance.Do(sif.EventSigningRestart, requests.DefaultRequest{
+		_, fsmDump, err = fsmInstance.Do(sif.EventSigningRestart, requests.DefaultRequest{
 			CreatedAt: time.Now(),
 		})
 		if err != nil {
@@ -873,7 +909,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 	// save signing data to the same storage as we save signatures
 	// This allows easy to view signing data by CLI-command
 	if fsm.Event(message.Event) == sif.EventSigningStart {
-		if err := s.processSignature(message); err != nil {
+		if err := s.processSignatureProposal(message); err != nil {
 			return nil, fmt.Errorf("failed to process signature: %w", err)
 		}
 	}

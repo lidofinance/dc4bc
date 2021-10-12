@@ -3,7 +3,7 @@ package responses
 // Event:  "event_signing_start"
 // States: "state_signing_await_confirmations"
 type SigningProposalParticipantInvitationsResponse struct {
-	SigningId    string
+	BatchID      string
 	InitiatorId  int
 	Participants []*SigningProposalParticipantInvitationEntry
 	// Source message for signing
@@ -19,7 +19,7 @@ type SigningProposalParticipantInvitationEntry struct {
 // Event:  "event_signing_proposal_confirm_by_participant"
 // States: "state_signing_await_partial_keys"
 type SigningPartialSignsParticipantInvitationsResponse struct {
-	SigningId   string
+	BatchID     string
 	InitiatorId int
 	SrcPayload  []byte
 }
@@ -27,7 +27,7 @@ type SigningPartialSignsParticipantInvitationsResponse struct {
 // Event:  ""
 // States: ""
 type SigningProposalParticipantStatusResponse struct {
-	SigningId    string
+	MessageID    string
 	Participants []*SignatureProposalParticipantStatusEntry
 }
 
@@ -40,7 +40,7 @@ type SigningProposalParticipantStatusEntry struct {
 // Event:  "event_signing_partial_key_received"
 // States: "state_signing_partial_signatures_collected"
 type SigningProcessParticipantResponse struct {
-	SigningId    string
+	BatchID      string
 	SrcPayload   []byte
 	Participants []*SigningProcessParticipantEntry
 }
@@ -48,5 +48,5 @@ type SigningProcessParticipantResponse struct {
 type SigningProcessParticipantEntry struct {
 	ParticipantId int
 	Username      string
-	PartialSign   []byte
+	PartialSigns  map[string][]byte
 }

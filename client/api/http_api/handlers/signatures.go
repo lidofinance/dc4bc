@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"github.com/google/uuid"
 	"net/http"
 
 	dto "github.com/censync/go-dto"
@@ -109,7 +110,7 @@ func (a *HTTPApp) GetSignatureByID(c echo.Context) error {
 func (a *HTTPApp) ProposeSignData(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
-	request := &req.ProposeSignDataForm{}
+	request := &req.ProposeSignMessageForm{}
 	err := stx.Bind(request)
 
 	if err != nil {
@@ -126,7 +127,60 @@ func (a *HTTPApp) ProposeSignData(c echo.Context) error {
 		)
 	}
 
-	formDTO := &ProposeSignDataDTO{}
+	formDTO := &ProposeSignMessageDTO{}
+
+	err = dto.RequestToDTO(formDTO, request)
+
+	batch := ProposeSignBatchMessagesDTO{
+		DkgID: formDTO.DkgID,
+		Data: map[string][]byte{
+			uuid.New().String(): formDTO.Data,
+		},
+	}
+
+	if err != nil {
+		return stx.JsonError(
+			http.StatusBadRequest,
+			err,
+		)
+	}
+
+	err = a.node.ProposeSignMessages(&batch)
+
+	if err == nil {
+		return stx.Json(
+			http.StatusOK,
+			"ok",
+		)
+	} else {
+		return stx.JsonError(
+			http.StatusInternalServerError,
+			err,
+		)
+	}
+}
+
+func (a *HTTPApp) ProposeSignBatchMessages(c echo.Context) error {
+	stx := c.(*cs.ContextService)
+
+	request := &req.ProposeSignBatchMessagesForm{}
+	err := stx.Bind(request)
+
+	if err != nil {
+		return stx.JsonError(
+			http.StatusBadRequest,
+			fmt.Errorf("failed to read request body: %v", err),
+		)
+	}
+
+	if err := validator.Validate(request); !err.IsEmpty() {
+		return stx.JsonError(
+			http.StatusBadRequest,
+			err.Error(),
+		)
+	}
+
+	formDTO := &ProposeSignBatchMessagesDTO{}
 
 	err = dto.RequestToDTO(formDTO, request)
 
@@ -137,7 +191,7 @@ func (a *HTTPApp) ProposeSignData(c echo.Context) error {
 		)
 	}
 
-	err = a.node.ProposeSignData(formDTO)
+	err = a.node.ProposeSignMessages(formDTO)
 
 	if err == nil {
 		return stx.Json(

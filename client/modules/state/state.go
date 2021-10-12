@@ -44,7 +44,7 @@ type State interface {
 	GetOperations() (map[string]*types.Operation, error)
 	GetOperationByID(operationID string) (*types.Operation, error)
 
-	SaveSignature(signature types.ReconstructedSignature) error
+	SaveSignatures(signature []types.ReconstructedSignature) error
 	GetSignatureByID(dkgID, signatureID string) ([]types.ReconstructedSignature, error)
 	GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error)
 }
@@ -383,7 +383,6 @@ func (s *LevelDBState) getSignatures(dkgID string) (map[string][]types.Reconstru
 	if err := json.Unmarshal(bz, &signatures); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal Operations: %w", err)
 	}
-
 	return signatures, nil
 }
 
@@ -411,11 +410,15 @@ func (s *LevelDBState) GetSignatureByID(dkgID, signatureID string) ([]types.Reco
 	return signature, nil
 }
 
-func (s *LevelDBState) SaveSignature(signature types.ReconstructedSignature) error {
+func (s *LevelDBState) SaveSignatures(signaturesToSave []types.ReconstructedSignature) error {
 	s.Lock()
 	defer s.Unlock()
 
-	signatures, err := s.getSignatures(signature.DKGRoundID)
+	if len(signaturesToSave) == 0 {
+		return errors.New("nothing to save")
+	}
+
+	signatures, err := s.getSignatures(signaturesToSave[0].DKGRoundID)
 	if err != nil {
 		return fmt.Errorf("failed to getSignatures: %w", err)
 	}
@@ -423,16 +426,28 @@ func (s *LevelDBState) SaveSignature(signature types.ReconstructedSignature) err
 		signatures = make(map[string][]types.ReconstructedSignature)
 	}
 
-	sig := signatures[signature.SigningID]
-	sig = append(sig, signature)
-	signatures[signature.SigningID] = sig
+	for _, signature := range signaturesToSave {
+		signs := signatures[signature.MessageID]
+		usernameFound := false
+		for i, s := range signs {
+			if s.Username == signature.Username {
+				signs[i] = signature
+				usernameFound = true
+				break
+			}
+		}
+		if !usernameFound {
+			signs = append(signs, signature)
+		}
+		signatures[signature.MessageID] = signs
+	}
 
 	signaturesJSON, err := json.Marshal(signatures)
 	if err != nil {
 		return fmt.Errorf("failed to marshal signatures: %w", err)
 	}
 
-	if err := s.stateDb.Put(makeCompositeKey(SignaturesKeyPrefix, signature.DKGRoundID), signaturesJSON, nil); err != nil {
+	if err := s.stateDb.Put(makeCompositeKey(SignaturesKeyPrefix, signaturesToSave[0].DKGRoundID), signaturesJSON, nil); err != nil {
 		return fmt.Errorf("failed to save signatures: %w", err)
 	}
 

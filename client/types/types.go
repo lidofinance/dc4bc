@@ -32,7 +32,7 @@ const (
 )
 
 type ReconstructedSignature struct {
-	SigningID  string
+	MessageID  string
 	SrcPayload []byte
 	Signature  []byte
 	Username   string
@@ -132,7 +132,7 @@ func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 		}
 		resolvedValue = req
 	case signing_proposal_fsm.EventSigningPartialSignReceived:
-		var req requests.SigningProposalPartialSignRequest
+		var req requests.SigningProposalBatchPartialSignRequests
 		if err := json.Unmarshal(message.Data, &req); err != nil {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
 		}
@@ -144,7 +144,7 @@ func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 		}
 		resolvedValue = req
 	case signing_proposal_fsm.EventSigningStart:
-		var req requests.SigningProposalStartRequest
+		var req requests.SigningBatchProposalStartRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
 		}

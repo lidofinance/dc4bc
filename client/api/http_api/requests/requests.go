@@ -49,9 +49,14 @@ type StartDKGForm struct {
 	Payload []byte
 }
 
-type ProposeSignDataForm struct {
+type ProposeSignMessageForm struct {
 	DkgID []byte `json:"dkgID"`
 	Data  []byte `json:"data"`
+}
+
+type ProposeSignBatchMessagesForm struct {
+	DkgID []byte            `json:"dkgID"`
+	Data  map[string][]byte `json:"data"`
 }
 
 type ReInitDKGForm struct {
