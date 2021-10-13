@@ -7,16 +7,6 @@ import (
 	"sync"
 )
 
-//
-//  fsmInstance, err := fsm.New(scope)
-//  if err != nil {
-//     log.Println(err)
-//     return
-//  }
-//
-//  fsmInstance.Do(event, args)
-//
-
 // Temporary global finish state for deprecating operations
 const (
 	StateGlobalIdle = State("__idle")
