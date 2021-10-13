@@ -256,10 +256,6 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 		}
 	}
 
-	if len(f.finStates) == 0 {
-		panic("cannot initialize machine without final states")
-	}
-
 	return f
 }
 
