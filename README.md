@@ -92,9 +92,8 @@ There is a secure comminication channel between a hot node and a cold node betwe
 If at any point something goes wrong (timeout reached, the deal is invalid, public key is not recinstucted equally, some of participants complain using a Conference Call) the DKG is aborted.
 
 ## Signature process
-1. Any paricipant broadcast a message to sign upon.
-2. All other participants signal their willingness to sign by broadcasting agreemen to sign that message.
-3. When enough (>= threshold) participants broadcasted an agreement, every participant:
+1. A paricipant broadcasts a message to sign upon.
+2. All participants can signal their willingness to sign it by broadcasting a partial signature for the message:
    1. message_hash = h2c_message(<send a partial signature for message "message" for threshold public key "key">)
    2. broadcast(await_c2h_reply(message_hash))
 4. When enough (>= threshold) participants broadcasted a partial signature, the aggregated signature is reconstructed.
@@ -109,7 +108,7 @@ We organize logic in the hot node as a set of simple state machines that change 
 We moved away from the idea of one large state machine that would perform all tasks, so we divided the functionality into three separate state machines:
 * SignatureProposalFSM - responsible for collecting agreements to participate in a specific DKG round
 * DKGProposalFSM - responsible for collecting a neccessary data (pubkeys, commits, deals, responses and reconstructed pubkeys) for a DKG process
-* SigningProposalFSM - responsible for signature process (collecting agreements to sign a message, collecting partial signs and reconstructed full signature)
+* SigningProposalFSM - responsible for signature process (collecting partial signs and reconstructed full signature)
 
 We implemented a FSMPoolProvider containing all three state machines that we can switch between each other by hand calling necessary events.
 
