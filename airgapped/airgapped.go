@@ -273,8 +273,6 @@ func (am *Machine) GetOperationResult(operation client.Operation) (client.Operat
 		err = am.handleStateDkgResponsesAwaitConfirmations(&operation)
 	case dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:
 		err = am.handleStateDkgMasterKeyAwaitConfirmations(&operation)
-	case signing_proposal_fsm.StateSigningAwaitConfirmations:
-		err = am.handleStateSigningAwaitConfirmations(&operation)
 	case signing_proposal_fsm.StateSigningAwaitPartialSigns:
 		err = am.handleStateSigningAwaitPartialSigns(&operation)
 	case signing_proposal_fsm.StateSigningPartialSignsCollected:
@@ -305,7 +303,6 @@ func (am *Machine) writeErrorRequestToOperation(o *client.Operation, handlerErro
 		dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:           dkg_proposal_fsm.EventDKGDealConfirmationError,
 		dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations:       dkg_proposal_fsm.EventDKGResponseConfirmationError,
 		dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:       dkg_proposal_fsm.EventDKGMasterKeyConfirmationError,
-		signing_proposal_fsm.StateSigningAwaitConfirmations:        signing_proposal_fsm.EventDeclineSigningConfirmation,
 		signing_proposal_fsm.StateSigningAwaitPartialSigns:         signing_proposal_fsm.EventSigningPartialSignError,
 		signing_proposal_fsm.StateSigningPartialSignsCollected:     client.SignatureReconstructionFailed,
 	}

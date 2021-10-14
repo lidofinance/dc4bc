@@ -101,14 +101,6 @@ func (i *FSMInstance) GetPubKeyByUsername(username string) (ed25519.PublicKey, e
 	return i.dump.Payload.GetPubKeyByUsername(username)
 }
 
-func (i *FSMInstance) SigningQuorumGetParticipant(id int) (*internal.SigningProposalParticipant, error) {
-	if i.dump == nil {
-		return nil, errors.New("dump not initialized")
-	}
-
-	return i.dump.Payload.SigningQuorumGet(id), nil
-}
-
 func (i *FSMInstance) GetIDByUsername(username string) (int, error) {
 	if i.dump == nil {
 		return -1, errors.New("dump not initialized")

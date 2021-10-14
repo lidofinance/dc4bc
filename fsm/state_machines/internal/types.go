@@ -234,10 +234,7 @@ func (q SigningProposalQuorum) GetOrderedParticipants() []*SigningProposalPartic
 type SigningParticipantStatus uint8
 
 const (
-	SigningAwaitConfirmation SigningParticipantStatus = iota
-	SigningConfirmed
-	SigningDeclined
-	SigningAwaitPartialSigns
+	SigningAwaitPartialSigns SigningParticipantStatus = iota
 	SigningPartialSignsConfirmed
 	SigningError
 	SigningProcess
@@ -246,10 +243,6 @@ const (
 func (s SigningParticipantStatus) String() string {
 	var str = "undefined"
 	switch s {
-	case SigningAwaitConfirmation:
-		str = "SigningAwaitConfirmation"
-	case SigningConfirmed:
-		str = "SigningConfirmed"
 	case SigningAwaitPartialSigns:
 		str = "SigningAwaitPartialSigns"
 	case SigningPartialSignsConfirmed:

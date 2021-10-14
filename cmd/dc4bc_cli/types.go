@@ -95,8 +95,6 @@ func getShortOperationDescription(operationType types.OperationType) string {
 		return "send responses for the DKG round"
 	case dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:
 		return "reconstruct the public key and broadcast it"
-	case signing_proposal_fsm.StateSigningAwaitConfirmations:
-		return "confirm participation in a new message signing"
 	case signing_proposal_fsm.StateSigningAwaitPartialSigns:
 		return "send your partial sign for the message"
 	case signing_proposal_fsm.StateSigningPartialSignsCollected:
