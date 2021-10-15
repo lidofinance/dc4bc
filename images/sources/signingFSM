@@ -1,0 +1,64 @@
+digraph fsm {
+    node[ margin="0.2,0.2", fontsize=22.0 ]
+    
+    // make invisible ranks
+    rank1 [style=invisible];
+    rank2 [style=invisible];
+    rank3 [style=invisible];
+    rank4 [style=invisible];
+    rank5 [style=invisible];
+    rank6 [style=invisible];
+    
+    // make "invisible" (white) link between them
+    rank1 -> rank2 -> rank3 -> rank4 -> rank5 -> rank6 [ color=white ];
+    
+    {
+        rank = same;
+        rankdir = LR;
+        rank1 -> state_dkg_master_key_collected [ style=invis ];
+    }
+    
+    {
+        rank = same;
+        rankdir = LR;
+        rank2 -> stage_signing_idle [ style=invis ];
+    }
+    
+    {
+        rank = same;
+        rankdir = LR;
+        rank3 -> state_signing_await_partial_signs [ style=invis ];
+    }
+    
+    {
+        rank = same;
+        rankdir = LR;
+        rank4 -> state_signing_partial_signs_await_cancelled_by_timeout [ style=invis ];
+    }
+    
+    
+    {
+        rank = same;
+        rankdir = LR;
+        rank5 -> state_signing_partial_signs_await_cancelled_by_error [ style=invis ];
+    }
+    
+
+    {
+        rank = same;
+        rankdir = LR;
+        rank6 -> state_signing_partial_signs_collected [ style=invis ];
+    }
+    
+    "state_dkg_master_key_collected" -> "stage_signing_idle" [ label = "event_signing_init", style=dashed, fontcolor=darkgray ];
+    "stage_signing_idle" -> "state_signing_await_partial_signs" [ label = "event_signing_start", style=dashed ];
+    "state_signing_await_partial_signs" -> "state_signing_partial_signs_collected" [ label = "event_signing_partial_signs_confirmed_internal", style=dashed ];
+    "state_signing_await_partial_signs" -> "state_signing_await_partial_signs" [ label = "event_signing_partial_sign_received", tailport=ne, headport=nw, style=dashed ];
+    "state_signing_await_partial_signs" -> "state_signing_await_partial_signs" [ label = "event_signing_partial_sign_error_received", tailport=ne, headport=nw, style=dashed ];
+    "state_signing_await_partial_signs" -> "state_signing_partial_signs_await_cancelled_by_timeout" [ label = "event_signing_partial_signs_await_cancel_by_timeout_internal", style=dashed ];
+    "state_signing_await_partial_signs" -> "state_signing_partial_signs_await_cancelled_by_error" [ label = "event_signing_partial_signs_await_sign_cancel_by_error_internal", tailport=s, headport=n, style=dashed ];
+    "state_signing_await_partial_signs" -> "state_signing_await_partial_signs" [ label = "event_signing_partial_signs_await_validate", tailport=ne, headport=nw, style=dashed ];
+    "state_signing_partial_signs_await_cancelled_by_error" -> "stage_signing_idle" [ label = "event_signing_restart", style=dashed ];
+    "state_signing_partial_signs_await_cancelled_by_timeout" -> "stage_signing_idle" [ label = "event_signing_restart", style=dashed ];
+    "state_signing_partial_signs_collected" -> "stage_signing_idle" [ label = "event_signing_restart", style=dashed ];
+}
