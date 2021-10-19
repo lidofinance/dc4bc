@@ -137,12 +137,6 @@ func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
 		}
 		resolvedValue = req
-	case signing_proposal_fsm.EventConfirmSigningConfirmation, signing_proposal_fsm.EventDeclineSigningConfirmation:
-		var req requests.SigningProposalParticipantRequest
-		if err := json.Unmarshal(message.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
-		}
-		resolvedValue = req
 	case signing_proposal_fsm.EventSigningStart:
 		var req requests.SigningBatchProposalStartRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {

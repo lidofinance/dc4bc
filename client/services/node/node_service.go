@@ -862,21 +862,8 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 		dpf.StateDkgResponsesAwaitConfirmations,
 		dpf.StateDkgMasterKeyAwaitConfirmations,
 		sif.StateSigningAwaitPartialSigns,
-		sif.StateSigningPartialSignsCollected,
-		sif.StateSigningAwaitConfirmations:
+		sif.StateSigningPartialSignsCollected:
 		if resp.Data != nil {
-
-			// if we are initiator of signing, then we don't need to confirm our participation
-			if data, ok := resp.Data.(responses.SigningProposalParticipantInvitationsResponse); ok {
-				initiator, err := fsmInstance.SigningQuorumGetParticipant(data.InitiatorId)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get SigningQuorumParticipant: %w", err)
-				}
-				if initiator.Username == s.GetUsername() {
-					break
-				}
-			}
-
 			operationPayloadBz, err := json.Marshal(resp.Data)
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal FSM response: %w", err)

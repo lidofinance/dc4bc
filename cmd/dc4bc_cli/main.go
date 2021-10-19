@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -20,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/types"
@@ -170,17 +171,8 @@ func getOperationsCommand() *cobra.Command {
 				colorTitle.Print("\t\tDescription:")
 				fmt.Printf(" %s\n", getShortOperationDescription(operation.Type))
 
-				/*  Moved to actions selection
-					if fsm.State(operation.Type) == signature_proposal_fsm.StateAwaitParticipantsConfirmations {
-					payloadHash, err := calcStartDKGMessageHash(operation.Payload)
-					if err != nil {
-						return fmt.Errorf("failed to get hash of start DKG message: %w", err)
-					}
-					fmt.Printf("\t\tHash of the proposing DKG message - %s\n", hex.EncodeToString(payloadHash))
-					fmt.Print("\t\tYou don't need to process this operation in an airgapped machine. Just execute the approve_participation command\n")
-				}*/
 				if strings.HasPrefix(string(operation.Type), "state_signing_") {
-					var payload responses.SigningProposalParticipantInvitationsResponse
+					var payload responses.SigningPartialSignsParticipantInvitationsResponse
 					if err := json.Unmarshal(operation.Payload, &payload); err != nil {
 						return fmt.Errorf("failed to unmarshal operation payload")
 					}

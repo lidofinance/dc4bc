@@ -3,19 +3,8 @@ package fsm
 import (
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 )
-
-//
-//  fsmInstance, err := fsm.New(scope)
-//  if err != nil {
-//     log.Println(err)
-//     return
-//  }
-//
-//  fsmInstance.Do(event, args)
-//
 
 // Temporary global finish state for deprecating operations
 const (
@@ -119,9 +108,6 @@ type Callback func(event Event, args ...interface{}) (Event, interface{}, error)
 type Callbacks map[Event]Callback
 
 func MustNewFSM(machineName string, initialState State, events []EventDesc, callbacks Callbacks) *FSM {
-	machineName = strings.TrimSpace(machineName)
-	initialState = State(strings.TrimSpace(initialState.String()))
-
 	if machineName == "" {
 		panic("machine name cannot be empty")
 	}
@@ -153,9 +139,6 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 
 	// Validate events
 	for _, event := range events {
-		event.Name = Event(strings.TrimSpace(event.Name.String()))
-		event.DstState = State(strings.TrimSpace(event.DstState.String()))
-
 		if event.Name == "" {
 			panic("cannot init empty event")
 		}
@@ -174,8 +157,6 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 		trimmedSourcesCounter := 0
 
 		for _, sourceState := range event.SrcState {
-			sourceState := State(strings.TrimSpace(sourceState.String()))
-
 			if sourceState == "" {
 				continue
 			}
@@ -264,10 +245,6 @@ func MustNewFSM(machineName string, initialState State, events []EventDesc, call
 		if _, exists := allSources[state]; !exists || state == StateGlobalDone {
 			f.finStates[state] = true
 		}
-	}
-
-	if len(f.finStates) == 0 {
-		panic("cannot initialize machine without final states")
 	}
 
 	return f

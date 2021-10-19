@@ -5,22 +5,6 @@ import (
 	"fmt"
 )
 
-func (r *SigningProposalParticipantRequest) Validate() error {
-	if r.BatchID == "" {
-		return errors.New("{BatchID} cannot be empty")
-	}
-
-	if r.ParticipantId < 0 {
-		return errors.New("{ParticipantId} cannot be a negative number")
-	}
-
-	if r.CreatedAt.IsZero() {
-		return errors.New("{CreatedAt} is not set")
-	}
-
-	return nil
-}
-
 func (m *MessageToSign) Validate() error {
 	if m.MessageID == "" {
 		return errors.New("{MessageID} cannot be empty")

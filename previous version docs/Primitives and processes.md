@@ -58,7 +58,8 @@ If at any point something goes wrong (timeout reached, the deal is invalid, publ
 
 ## Signature process
 1. Any paricipant broadcast a message to sign upon.
-2. All participants can signal their willingness to sign it by broadcasting a partial signature for the message:
+2. All other participants signal their willingness to sign by broadcasting agreemen to sign that message.
+3. When enough (>= threshold) participants broadcasted an agreement, every participant:
    1. message_hash = h2c_message(<send a partial signature for message "message" for threshold public key "key">)
    2. broadcast(await_c2h_reply(message_hash))
 4. When enough (>= threshold) participants broadcasted a partial signature, threshold signature is reconstructed.

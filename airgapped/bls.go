@@ -13,36 +13,6 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 )
 
-// handleStateSigningAwaitConfirmations returns a confirmation of participation to create a threshold signature for a data
-func (am *Machine) handleStateSigningAwaitConfirmations(o *client.Operation) error {
-	var (
-		payload responses.SigningProposalParticipantInvitationsResponse
-		err     error
-	)
-
-	if err = json.Unmarshal(o.Payload, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
-	}
-
-	participantID, err := am.getParticipantID(o.DKGIdentifier)
-	if err != nil {
-		return fmt.Errorf("failed to get paricipant id: %w", err)
-	}
-	req := requests.SigningProposalParticipantRequest{
-		BatchID:       payload.BatchID,
-		ParticipantId: participantID,
-		CreatedAt:     o.CreatedAt,
-	}
-	reqBz, err := json.Marshal(req)
-	if err != nil {
-		return fmt.Errorf("failed to generate fsm request: %w", err)
-	}
-
-	o.Event = signing_proposal_fsm.EventConfirmSigningConfirmation
-	o.ResultMsgs = append(o.ResultMsgs, createMessage(*o, reqBz))
-	return nil
-}
-
 // handleStateSigningAwaitPartialSigns takes a data to sign as payload and returns a partial sign for the data to broadcast
 func (am *Machine) handleStateSigningAwaitPartialSigns(o *client.Operation) error {
 	var (

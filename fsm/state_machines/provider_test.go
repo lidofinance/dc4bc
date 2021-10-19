@@ -912,7 +912,7 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 	inState, _ := testFSMInstance.State()
 	compareState(t, sif.StateSigningIdle, inState)
 
-	fsmResponse, testFSMDump[sif.StateSigningAwaitConfirmations], err = testFSMInstance.Do(sif.EventSigningStart, requests.SigningBatchProposalStartRequest{
+	fsmResponse, testFSMDump[sif.StateSigningAwaitPartialSigns], err = testFSMInstance.Do(sif.EventSigningStart, requests.SigningBatchProposalStartRequest{
 		BatchID:       "test-batch-id",
 		ParticipantId: 1,
 		MessagesToSign: []requests.MessageToSign{
@@ -928,12 +928,12 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 
 	compareFSMResponseNotNil(t, fsmResponse)
 
-	compareState(t, sif.StateSigningAwaitConfirmations, fsmResponse.State)
+	compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
 
-	response, ok := fsmResponse.Data.(responses.SigningProposalParticipantInvitationsResponse)
+	response, ok := fsmResponse.Data.(responses.SigningPartialSignsParticipantInvitationsResponse)
 
 	if !ok {
-		t.Fatalf("expected response {SigningProposalParticipantInvitationsResponse}")
+		t.Fatalf("expected response {SigningPartialSignsParticipantInvitationsResponse}")
 	}
 
 	if len(response.Participants) != len(testParticipantsListRequest.Participants) {
@@ -951,166 +951,7 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 	testBatchSigningId = response.BatchID
 	testSigningInitiator = response.InitiatorId
 
-	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitConfirmations])
-}
-
-func Test_SigningProposal_EventConfirmSigningConfirmation_Positive(t *testing.T) {
-	var (
-		fsmResponse      *fsm.Response
-		testFSMDumpLocal []byte
-	)
-
-	participantsCount := len(testIdMapParticipants)
-
-	participantCounter := participantsCount
-
-	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitConfirmations]
-
-	confirmedParticipantsCount := 1
-	for participantId := range testIdMapParticipants {
-		if confirmedParticipantsCount >= threshold {
-			break
-		}
-		participantCounter--
-
-		if testSigningInitiator == participantId {
-			continue
-		}
-
-		testFSMInstance, err := FromDump(testFSMDumpLocal)
-
-		compareErrNil(t, err)
-
-		compareFSMInstanceNotNil(t, testFSMInstance)
-
-		inState, _ := testFSMInstance.State()
-		compareState(t, sif.StateSigningAwaitConfirmations, inState)
-
-		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventConfirmSigningConfirmation, requests.SigningProposalParticipantRequest{
-			BatchID:       testBatchSigningId,
-			ParticipantId: participantId,
-			CreatedAt:     time.Now(),
-		})
-
-		compareErrNil(t, err)
-
-		compareDumpNotZero(t, testFSMDumpLocal)
-
-		compareFSMResponseNotNil(t, fsmResponse)
-
-		confirmedParticipantsCount++
-
-		if confirmedParticipantsCount < threshold {
-			compareState(t, sif.StateSigningAwaitConfirmations, fsmResponse.State)
-		} else if confirmedParticipantsCount >= threshold {
-			compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
-		}
-	}
-
-	compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
-
-	response, ok := fsmResponse.Data.(responses.SigningPartialSignsParticipantInvitationsResponse)
-
-	if !ok {
-		t.Fatalf("expected response {SigningProposalParticipantInvitationsResponse}")
-	}
-
-	if response.BatchID == "" {
-		t.Fatalf("expected field {BatchID}")
-	}
-
-	if !reflect.DeepEqual(response.SrcPayload, testSigningPayload) {
-		t.Fatalf("expected matched {SrcPayload}")
-	}
-
-	testFSMDump[sif.StateSigningAwaitPartialSigns] = testFSMDumpLocal
-
 	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitPartialSigns])
-}
-
-func Test_SigningProposal_EventDeclineProposal_Canceled_Participants(t *testing.T) {
-	var (
-		fsmResponse      *fsm.Response
-		testFSMDumpLocal []byte
-		err              error
-	)
-
-	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitConfirmations]
-
-	testFSMInstance, err := FromDump(testFSMDumpLocal)
-
-	compareErrNil(t, err)
-
-	compareFSMInstanceNotNil(t, testFSMInstance)
-
-	inState, _ := testFSMInstance.State()
-	compareState(t, sif.StateSigningAwaitConfirmations, inState)
-
-	declinedParticipantsCount := 0
-	for participantId := range testIdMapParticipants {
-		if declinedParticipantsCount > participantsNumber-threshold {
-			break
-		}
-
-		if testSigningInitiator == participantId {
-			continue
-		}
-
-		testFSMInstance, err = FromDump(testFSMDumpLocal)
-
-		compareErrNil(t, err)
-
-		compareFSMInstanceNotNil(t, testFSMInstance)
-
-		inState, _ := testFSMInstance.State()
-		compareState(t, sif.StateSigningAwaitConfirmations, inState)
-
-		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventDeclineSigningConfirmation, requests.SigningProposalParticipantRequest{
-			BatchID:       testBatchSigningId,
-			ParticipantId: participantId,
-			CreatedAt:     time.Now(),
-		})
-
-		compareErrNil(t, err)
-
-		compareDumpNotZero(t, testFSMDumpLocal)
-
-		compareFSMResponseNotNil(t, fsmResponse)
-		declinedParticipantsCount++
-
-		if declinedParticipantsCount > participantsNumber-threshold {
-			compareState(t, sif.StateSigningConfirmationsAwaitCancelledByParticipant, fsmResponse.State)
-		} else if declinedParticipantsCount <= participantsNumber-threshold {
-			compareState(t, sif.StateSigningAwaitConfirmations, fsmResponse.State)
-		}
-	}
-
-	compareState(t, sif.StateSigningConfirmationsAwaitCancelledByParticipant, fsmResponse.State)
-}
-
-func Test_SigningProposal_EventConfirmSignatureProposal_Canceled_Timeout(t *testing.T) {
-	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningAwaitConfirmations])
-
-	compareErrNil(t, err)
-
-	compareFSMInstanceNotNil(t, testFSMInstance)
-
-	inState, _ := testFSMInstance.State()
-	compareState(t, sif.StateSigningAwaitConfirmations, inState)
-
-	fsmResponse, testFSMDumpLocal, err := testFSMInstance.Do(sif.EventConfirmSigningConfirmation, requests.SigningProposalParticipantRequest{
-		BatchID:       testBatchSigningId,
-		ParticipantId: 0,
-		CreatedAt:     time.Now().Add(time.Hour * 24 * 8),
-	})
-
-	compareErrNil(t, err)
-
-	compareDumpNotZero(t, testFSMDumpLocal)
-
-	compareFSMResponseNotNil(t, fsmResponse)
-
-	compareState(t, sif.StateSigningConfirmationsAwaitCancelledByTimeout, fsmResponse.State)
 }
 
 func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) {

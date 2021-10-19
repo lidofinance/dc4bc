@@ -241,24 +241,6 @@ func TestMustNewFSM_State_Entry_Conflict_Panic(t *testing.T) {
 	t.Errorf("did not panic on initialize with conflict in entry state")
 }
 
-func TestMustNewFSM_State_Final_Not_Found_Panic(t *testing.T) {
-	defer func() {
-		compareRecoverStr(t, recover(), "cannot initialize machine without final states")
-	}()
-
-	testingFSM = MustNewFSM(
-		"fsm",
-		"init_state",
-		[]EventDesc{
-			{Name: "event1", SrcState: []State{"init_state"}, DstState: "state2"},
-			{Name: "event2", SrcState: []State{"state2"}, DstState: "init_state"},
-		},
-		nil,
-	)
-
-	t.Errorf("did not panic on initialize without final state")
-}
-
 func TestFSM_Name(t *testing.T) {
 	if testingFSM.Name() != testName {
 		t.Errorf("expected machine name \"%s\"", testName)

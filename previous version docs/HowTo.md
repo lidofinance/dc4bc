@@ -84,7 +84,7 @@ Plaintext media: 1+ gb usb drive or cd/dvd for non-secrets (executables and the 
 
 1. Make a bootable media for tails using https://tails.boum.org/install/index.en.html instructions. Live dvd is preferabe to a usb stick but usb stick is a valid option. Verification of an image signature per instructions on Tail's site is strongly recommended. 
 2. Prepare a plaintext media: run a script `sh airapped_folder/setup.sh` to set up a folder with one on your hot node, then copy/burn that folder on the plaintext media. It contains airapped node binary, firefox distribution, qr code reader html file and deploy script to easily copy all that to tails distribution.
-3. If your airgapped laptop allows it, switch the wireless hardware off. Boot into Tails, selecting "no network connection" as an additional option on starting (always select this option on an airgapped machine). From this point on to the end of ceremony the machine shouldn't ever connect to the network; if you can afford having it permanently airgapped forever - can by useful in crypto - do it.
+3. If your airgapped laptop  allows it, switch the wireless hardware off. Boot into Tails, selecting "no network connection" as an additional option on starting (always select this option on an airgapped machine). From this point on to the end of ceremony the machine shouldn't ever connect to the network; if you can afford having it permanently airgapped forever - can by useful in crypto - do it.
 4. Insert a plaintext media and run `sh ./deploy.sh` from there to copy all the needed files to your ephemeral home dir on tails.
 
 Now you've got all paraphernalia set up and can proceed with the guide further.
@@ -210,7 +210,7 @@ Please, select operation:
 -----------------------------------------------------
 1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
    Operation ID: 2f217f58-a94f-47d8-b871-f35a15275184
-   Description: send commits for the DKG round
+   Description:  send commits for the DKG round
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 
@@ -250,9 +250,9 @@ When all participants perform the necessary operations, the node will proceed to
 
 Next steps are:
 
-- Broadcast commits - you'll be broadcasting a public derivative of your secret seed for the key shards that will be used to check that you don't try to cheat at DKG
+- Broadcast commits  - you'll be broadcasting a public derivative of your secret seed for the key shards that will be used to check that you don't try to cheat at DKG
 - Collect commits and broadcast deals - you'll be collecting each other's commits and sending each participant a private message that will be used to construct your key shard
-- Collect deals and broadcast reconstructed public key - you'll be using private messages from other people to generate your key shard
+- Collect deals and broadcast reconstructed public key  - you'll be using private messages from other people to generate your key shard
 
 Further actions are repetitive:
 
@@ -264,7 +264,7 @@ Please, select operation:
 -----------------------------------------------------
 1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
    Operation ID: 2f217f58-a94f-47d8-b871-f35a15275184
-   Description: send commits for the DKG round
+   Description:  send commits for the DKG round
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 
@@ -276,7 +276,7 @@ Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then
 [john_doe] Successfully processed message with offset 10, type event_dkg_master_key_confirm_received
 ```
 
-Key generation ceremony is over. `exit` airgapped dkg tool prompt and backup your airapped machine db multiple times to different media. 
+Key generation ceremony is over.  `exit` airgapped dkg tool prompt and backup your airapped machine db multiple times to different media. 
 
 To check the backup run `dc4bc_airgapped -db_path /path/to/backup` and run `show_dkg_pubkey` command. If it works the backup is correct.
 
@@ -316,7 +316,7 @@ You can verify any signature by executing `verify_signature` command inside the 
 Signature is correct!
 ```
 
-Now the ceremony is over. 
+Now the ceremony is  over. 
 
 #### Reinitialize DKG
 
