@@ -3,6 +3,7 @@ package http_api
 import (
 	"context"
 	echo_middleware "github.com/labstack/echo/v4/middleware"
+	"github.com/lidofinance/dc4bc/client/services"
 
 	"github.com/labstack/echo/v4"
 	"github.com/lidofinance/dc4bc/client/api/http_api/router"
@@ -15,7 +16,7 @@ type RESTApiProvider struct {
 	echoInstance *echo.Echo
 }
 
-func NewRESTApi(config *config.Config, node node.NodeService) *RESTApiProvider {
+func NewRESTApi(config *config.Config, node node.NodeService, sp *services.ServiceProvider) *RESTApiProvider {
 	p := RESTApiProvider{}
 	p.config = config.HttpApiConfig
 
@@ -33,7 +34,7 @@ func NewRESTApi(config *config.Config, node node.NodeService) *RESTApiProvider {
 
 	p.echoInstance.Use(contextServiceMiddleware)
 
-	router.SetRouter(p.echoInstance, nil, node)
+	router.SetRouter(p.echoInstance, nil, node, sp)
 
 	return &p
 }

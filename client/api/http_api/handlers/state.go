@@ -34,12 +34,13 @@ func (a *HTTPApp) GetStateOffset(c echo.Context) error {
 
 func (a *HTTPApp) ResetState(c echo.Context) error {
 	stx := c.(*cs.ContextService)
+
 	formDTO := &ResetStateDTO{}
 	if err := stx.BindToDTO(&req.ResetStateForm{}, formDTO); err != nil {
 		return err
 	}
 
-	newStateDbPath, err := a.node.ResetFSMState(formDTO)
+	newStateDbPath, err := a.fsm.ResetFSMState(formDTO)
 	if err != nil {
 		return stx.JsonError(http.StatusInternalServerError, err)
 	}

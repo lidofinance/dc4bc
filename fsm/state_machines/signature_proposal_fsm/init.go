@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	FsmName      = "signature_proposal_fsm"
+	FsmName = "signature_proposal_fsm"
 
 	StateParticipantsConfirmationsInit = fsm.StateGlobalIdle
 

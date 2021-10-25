@@ -16,16 +16,18 @@ func (a *HTTPApp) GetFSMDump(c echo.Context) error {
 		return err
 	}
 
-	fsmDump, err := a.node.GetFSMDump(formDTO)
+	fsmDump, err := a.fsm.GetFSMDump(formDTO)
 	if err != nil {
 		return stx.JsonError(http.StatusInternalServerError, err)
+
 	}
 	return stx.Json(http.StatusOK, fsmDump)
 }
 
 func (a *HTTPApp) GetFSMList(c echo.Context) error {
 	stx := c.(*cs.ContextService)
-	fsmDump, err := a.node.GetFSMList()
+
+	fsmDump, err := a.fsm.GetFSMList()
 	if err != nil {
 		return stx.JsonError(http.StatusInternalServerError, err)
 	}

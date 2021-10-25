@@ -132,24 +132,23 @@ func TestLevelDBState_NewStateFromOld(t *testing.T) {
 	)
 	defer os.RemoveAll(dbPath)
 
-	state, err := state.NewLevelDBState(dbPath, topic)
+	st, err := state.NewLevelDBState(dbPath, topic)
 	req.NoError(err)
 
 	var offset uint64 = 1
-	err = state.SaveOffset(offset)
+	err = st.SaveOffset(offset)
 	req.NoError(err)
 
-	loadedOffset, err := state.LoadOffset()
+	loadedOffset, err := st.LoadOffset()
 	req.NoError(err)
 	req.Equal(offset, loadedOffset)
 
 	timeBefore := time.Now().Unix()
-	newState, newStateDbPath, err := state.NewStateFromOld("")
+	path, err := st.Reset("")
 	timeAfter := time.Now().Unix()
 
 	req.NoError(err)
-
-	submatches := re.FindStringSubmatch(newStateDbPath)
+	submatches := re.FindStringSubmatch(path)
 	req.Greater(len(submatches), 0)
 
 	ts, err := strconv.Atoi(submatches[1])
@@ -157,7 +156,7 @@ func TestLevelDBState_NewStateFromOld(t *testing.T) {
 	req.GreaterOrEqual(int64(ts), timeBefore)
 	req.LessOrEqual(int64(ts), timeAfter)
 
-	newLoadedOffset, err := newState.LoadOffset()
+	newLoadedOffset, err := st.LoadOffset()
 	req.NoError(err)
 	req.NotEqual(newLoadedOffset, loadedOffset)
 }
