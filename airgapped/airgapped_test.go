@@ -24,8 +24,8 @@ import (
 )
 
 const (
-	DKGIdentifier       = "dkg_identifier"
-	testDB              = "test_level_db"
+	DKGIdentifier            = "dkg_identifier"
+	testDB                   = "test_level_db"
 	testDir                  = "/tmp/airgapped_test"
 	failedBatchSigningID     = "failed_batch_signing_id"
 	successfulBatchSigningID = "successful_batch_signing_id"

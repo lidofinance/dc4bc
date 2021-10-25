@@ -44,7 +44,7 @@ func (a *HTTPApp) GetFSMDump(c echo.Context) error {
 		)
 	}
 
-	fsmDump, err := a.node.GetFSMDump(formDTO)
+	fsmDump, err := a.fsm.GetFSMDump(formDTO)
 
 	if err == nil {
 		return stx.Json(
@@ -62,7 +62,7 @@ func (a *HTTPApp) GetFSMDump(c echo.Context) error {
 func (a *HTTPApp) GetFSMList(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
-	fsmDump, err := a.node.GetFSMList()
+	fsmDump, err := a.fsm.GetFSMList()
 
 	if err == nil {
 		return stx.Json(

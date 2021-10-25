@@ -8,9 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	state "github.com/lidofinance/dc4bc/client/modules/state"
 	types "github.com/lidofinance/dc4bc/client/types"
-	state_machines "github.com/lidofinance/dc4bc/fsm/state_machines"
 )
 
 // MockState is a mock of State interface.
@@ -36,6 +34,20 @@ func (m *MockState) EXPECT() *MockStateMockRecorder {
 	return m.recorder
 }
 
+// Delete mocks base method.
+func (m *MockState) Delete(key string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Delete", key)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete.
+func (mr *MockStateMockRecorder) Delete(key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockState)(nil).Delete), key)
+}
+
 // DeleteOperation mocks base method.
 func (m *MockState) DeleteOperation(operation *types.Operation) error {
 	m.ctrl.T.Helper()
@@ -50,19 +62,19 @@ func (mr *MockStateMockRecorder) DeleteOperation(operation interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOperation", reflect.TypeOf((*MockState)(nil).DeleteOperation), operation)
 }
 
-// GetAllFSM mocks base method.
-func (m *MockState) GetAllFSM() (map[string]*state_machines.FSMInstance, error) {
+// Get mocks base method.
+func (m *MockState) Get(key string) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAllFSM")
-	ret0, _ := ret[0].(map[string]*state_machines.FSMInstance)
+	ret := m.ctrl.Call(m, "Get", key)
+	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetAllFSM indicates an expected call of GetAllFSM.
-func (mr *MockStateMockRecorder) GetAllFSM() *gomock.Call {
+// Get indicates an expected call of Get.
+func (mr *MockStateMockRecorder) Get(key interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAllFSM", reflect.TypeOf((*MockState)(nil).GetAllFSM))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockState)(nil).Get), key)
 }
 
 // GetOperationByID mocks base method.
@@ -125,22 +137,6 @@ func (mr *MockStateMockRecorder) GetSignatures(dkgID interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignatures", reflect.TypeOf((*MockState)(nil).GetSignatures), dkgID)
 }
 
-// LoadFSM mocks base method.
-func (m *MockState) LoadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "LoadFSM", dkgRoundID)
-	ret0, _ := ret[0].(*state_machines.FSMInstance)
-	ret1, _ := ret[1].(bool)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// LoadFSM indicates an expected call of LoadFSM.
-func (mr *MockStateMockRecorder) LoadFSM(dkgRoundID interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadFSM", reflect.TypeOf((*MockState)(nil).LoadFSM), dkgRoundID)
-}
-
 // LoadOffset mocks base method.
 func (m *MockState) LoadOffset() (uint64, error) {
 	m.ctrl.T.Helper()
@@ -154,22 +150,6 @@ func (m *MockState) LoadOffset() (uint64, error) {
 func (mr *MockStateMockRecorder) LoadOffset() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LoadOffset", reflect.TypeOf((*MockState)(nil).LoadOffset))
-}
-
-// NewStateFromOld mocks base method.
-func (m *MockState) NewStateFromOld(stateDbPath string) (state.State, string, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewStateFromOld", stateDbPath)
-	ret0, _ := ret[0].(state.State)
-	ret1, _ := ret[1].(string)
-	ret2, _ := ret[2].(error)
-	return ret0, ret1, ret2
-}
-
-// NewStateFromOld indicates an expected call of NewStateFromOld.
-func (mr *MockStateMockRecorder) NewStateFromOld(stateDbPath interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewStateFromOld", reflect.TypeOf((*MockState)(nil).NewStateFromOld), stateDbPath)
 }
 
 // PutOperation mocks base method.
@@ -186,18 +166,19 @@ func (mr *MockStateMockRecorder) PutOperation(operation interface{}) *gomock.Cal
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutOperation", reflect.TypeOf((*MockState)(nil).PutOperation), operation)
 }
 
-// SaveFSM mocks base method.
-func (m *MockState) SaveFSM(dkgRoundID string, dump []byte) error {
+// Reset mocks base method.
+func (m *MockState) Reset(stateDbPath string) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveFSM", dkgRoundID, dump)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret := m.ctrl.Call(m, "Reset", stateDbPath)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
-// SaveFSM indicates an expected call of SaveFSM.
-func (mr *MockStateMockRecorder) SaveFSM(dkgRoundID, dump interface{}) *gomock.Call {
+// Reset indicates an expected call of Reset.
+func (mr *MockStateMockRecorder) Reset(stateDbPath interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveFSM", reflect.TypeOf((*MockState)(nil).SaveFSM), dkgRoundID, dump)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Reset", reflect.TypeOf((*MockState)(nil).Reset), stateDbPath)
 }
 
 // SaveOffset mocks base method.
@@ -226,4 +207,18 @@ func (m *MockState) SaveSignatures(signature []types.ReconstructedSignature) err
 func (mr *MockStateMockRecorder) SaveSignatures(signature interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSignatures", reflect.TypeOf((*MockState)(nil).SaveSignatures), signature)
+}
+
+// Set mocks base method.
+func (m *MockState) Set(key string, value []byte) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Set", key, value)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Set indicates an expected call of Set.
+func (mr *MockStateMockRecorder) Set(key, value interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockState)(nil).Set), key, value)
 }

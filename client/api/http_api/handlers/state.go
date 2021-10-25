@@ -22,7 +22,7 @@ func (a *HTTPApp) SaveStateOffset(c echo.Context) error {
 	if err != nil {
 		return stx.JsonError(
 			http.StatusBadRequest,
-			fmt.Errorf("failed to read request body: %v", err),
+			fmt.Errorf("failed to read request body: %w", err),
 		)
 	}
 
@@ -72,7 +72,7 @@ func (a *HTTPApp) GetStateOffset(c echo.Context) error {
 	} else {
 		return stx.JsonError(
 			http.StatusInternalServerError,
-			fmt.Errorf("failed to load offset: %v", err),
+			fmt.Errorf("failed to load offset: %w", err),
 		)
 	}
 }
@@ -86,7 +86,7 @@ func (a *HTTPApp) ResetState(c echo.Context) error {
 	if err != nil {
 		return stx.JsonError(
 			http.StatusBadRequest,
-			fmt.Errorf("failed to read request body: %v", err),
+			fmt.Errorf("failed to read request body: %w", err),
 		)
 	}
 
@@ -108,7 +108,7 @@ func (a *HTTPApp) ResetState(c echo.Context) error {
 		)
 	}
 
-	newStateDbPath, err := a.node.ResetFSMState(formDTO)
+	newStateDbPath, err := a.fsm.ResetFSMState(formDTO)
 
 	if err == nil {
 		return stx.Json(
