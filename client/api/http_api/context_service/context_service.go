@@ -33,7 +33,7 @@ func (e *CSErrorResp) Error() string {
 	if e == nil {
 		return ""
 	}
-	return fmt.Sprintf("%s", e.ErrorMessage)
+	return e.ErrorMessage
 }
 
 // BindToRequest populates the request fields based on the context path and query parameters and body
