@@ -9,16 +9,6 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
-type ContextService struct {
-	echo.Context
-}
-
-func New(c echo.Context) *ContextService {
-	return &ContextService{
-		c,
-	}
-}
-
 type CSJsonResp struct {
 	Result interface{} `json:"result"`
 }
@@ -34,6 +24,16 @@ func (e *CSErrorResp) Error() string {
 		return ""
 	}
 	return e.ErrorMessage
+}
+
+func New(c echo.Context) *ContextService {
+	return &ContextService{
+		c,
+	}
+}
+
+type ContextService struct {
+	echo.Context
 }
 
 // BindToRequest populates the request fields based on the context path and query parameters and body
