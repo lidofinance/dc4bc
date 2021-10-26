@@ -40,7 +40,7 @@ func (a *HTTPApp) GetSignatureByID(c echo.Context) error {
 	return stx.Json(http.StatusOK, signatures)
 }
 
-func (a *HTTPApp) ProposeSignData(c echo.Context) error {
+func (a *HTTPApp) ProposeSignMessage(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &ProposeSignMessageDTO{}
 	if err := stx.BindToDTO(&req.ProposeSignMessageForm{}, formDTO); err != nil {
