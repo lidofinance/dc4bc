@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -19,7 +20,6 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
-	"github.com/lidofinance/dc4bc/qr"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -30,7 +30,7 @@ const (
 type Machine struct {
 	sync.Mutex
 
-	ResultQRFolder string
+	ResultFolder string
 
 	dkgInstances map[string]*dkg.DKG
 	// Used to encrypt local sensitive data, e.g. BLS keyrings.
@@ -40,8 +40,7 @@ type Machine struct {
 	baseSuite     vss.Suite
 	baseSeed      []byte
 
-	qrProcessor qr.Processor
-	db          *leveldb.DB
+	db *leveldb.DB
 }
 
 func NewMachine(dbPath string) (*Machine, error) {
@@ -51,7 +50,6 @@ func NewMachine(dbPath string) (*Machine, error) {
 
 	am := &Machine{
 		dkgInstances: make(map[string]*dkg.DKG),
-		qrProcessor:  qr.NewCameraProcessor(nil),
 	}
 
 	if am.db, err = leveldb.OpenFile(dbPath, nil); err != nil {
@@ -76,16 +74,8 @@ func NewMachine(dbPath string) (*Machine, error) {
 	return am, nil
 }
 
-func (am *Machine) SetQRProcessorFramesDelay(delay int) {
-	am.qrProcessor.SetDelay(delay)
-}
-
-func (am *Machine) SetQRProcessorChunkSize(chunkSize int) {
-	am.qrProcessor.SetChunkSize(chunkSize)
-}
-
-func (am *Machine) SetResultQRFolder(resultQRFolder string) {
-	am.ResultQRFolder = resultQRFolder
+func (am *Machine) SetResultFolder(resultFolder string) {
+	am.ResultFolder = resultFolder
 }
 
 // InitKeys load keys public and private keys for DKG from LevelDB. If keys do not exist, it creates them.
@@ -206,12 +196,21 @@ func (am *Machine) ProcessOperation(operation client.Operation, storeOperation b
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	qrPath := filepath.Join(am.ResultQRFolder, fmt.Sprintf("dc4bc_qr_%s-response.gif", resultOperation.ID))
-	if err = am.qrProcessor.WriteQR(qrPath, operationBz); err != nil {
-		return "", fmt.Errorf("failed to write QR: %w", err)
+	path := filepath.Join(am.ResultFolder, fmt.Sprintf("%s_%s.json", operation.DKGIdentifier, operation.ID))
+
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return "", fmt.Errorf("failed to open file: %w", err)
 	}
 
-	return qrPath, nil
+	defer f.Close()
+
+	_, err = f.Write(operationBz)
+	if err != nil {
+		return "", fmt.Errorf("failed to write file: %w", err)
+	}
+
+	return path, nil
 }
 
 func (am *Machine) DropOperationsLog(dkgIdentifier string) error {

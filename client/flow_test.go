@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/api/dto"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -17,6 +16,8 @@ import (
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/api/dto"
 
 	"github.com/lidofinance/dc4bc/client/api/http_api"
 	"github.com/lidofinance/dc4bc/client/api/http_api/responses"
@@ -131,10 +132,6 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 		cfg := config.Config{
 			Username:      userName,
 			KeyStoreDBDSN: fmt.Sprintf("/tmp/dc4bc_node_%d_key_store", nodeID),
-			QrProcessorConfig: &config.QrProcessorConfig{
-				FramesDelay: 10,
-				ChunkSize:   256,
-			},
 			HttpApiConfig: &config.HttpApiConfig{
 				ListenAddr: fmt.Sprintf("localhost:%d", startingPort),
 				Debug:      false,

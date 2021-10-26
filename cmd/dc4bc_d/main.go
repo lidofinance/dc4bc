@@ -107,20 +107,20 @@ func initConfig() {
 
 func prepareConfig() (*apiconfig.Config, error) {
 	cfg := apiconfig.Config{}
-	qrCfg := apiconfig.QrProcessorConfig{}
 	kafkaCfg := apiconfig.KafkaStorageConfig{}
 	httpCfg := apiconfig.HttpApiConfig{}
 
-	for _, c := range []interface{}{&cfg, &qrCfg, &kafkaCfg, &httpCfg} {
+	for _, c := range []interface{}{&cfg, &kafkaCfg, &httpCfg} {
 		err := viper.Unmarshal(c)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse cli arguments: %w", err)
 		}
 	}
 
-	cfg.QrProcessorConfig = &qrCfg
 	cfg.HttpApiConfig = &httpCfg
 	cfg.KafkaStorageConfig = &kafkaCfg
+
+	cfg.HttpApiConfig.ListenAddr = "localhost:8081"
 
 	return &cfg, nil
 }

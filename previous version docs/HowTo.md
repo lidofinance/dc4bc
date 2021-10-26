@@ -132,7 +132,7 @@ EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 >>> show_dkg_pubkey
 sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq
 >>> generate_dkg_pubkey_qr
-A QR code with DKG public key was saved to: /tmp/dc4bc_qr_dkg_pub_key.gif
+A QR code with DKG public key was saved to: /tmp/dc4bc_json_dkg_pub_key.json
 ```
 
 
@@ -218,25 +218,25 @@ Select operation and press Enter. Ctrl+C for cancel
 
 Select an operation to make the node produce a QR-code for it:
 ```
-QR code was saved to: /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184.gif
+QR code was saved to: /tmp/dc4bc_json_2f217f58-a94f-47d8-b871-f35a15275184.json
 ```
 
-Open the GIF-animation in any gif viewer and take a video of it:
+Open the JSON-animation in any gif viewer and take a video of it:
 ```
-open -a Safari /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184-request.gif
+open -a Safari /tmp/dc4bc_json_2f217f58-a94f-47d8-b871-f35a15275184-request.json
 ```
 
-After that, you need to scan the GIF. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser on an airgapped machine (firefox from plaintext media in case of Tails airapped machine setup), allow the page to use your camera and demonstrate the recorded video to the camera. After the GIF is scanned, you'll see the operation JSON. Click on that JSON, and it will be saved to your Downloads folder.
+After that, you need to scan the JSON. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser on an airgapped machine (firefox from plaintext media in case of Tails airapped machine setup), allow the page to use your camera and demonstrate the recorded video to the camera. After the JSON is scanned, you'll see the operation JSON. Click on that JSON, and it will be saved to your Downloads folder.
 
 Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains the Operation JSON:
 
 ```
 >>> read_operation
 > Enter the path to Operation JSON file: ./operation.json
-Operation GIF was handled successfully, the result Operation GIF was saved to: /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184-response.gif
+Operation JSON was handled successfully, the result Operation JSON was saved to: /tmp/dc4bc_json_2f217f58-a94f-47d8-b871-f35a15275184-response.json
 ```
 
-Open the response QR-gif in any gif viewer and take a video of it. Open the `./qr_reader_bundle/index.html` page in your web browser on a hot node and scan the GIF. You may want to give the downloaded file a new name, e.g., `operation_response.json`.
+Open the response QR-gif in any gif viewer and take a video of it. Open the `./qr_reader_bundle/index.html` page in your web browser on a hot node and scan the JSON. You may want to give the downloaded file a new name, e.g., `operation_response.json`.
 
 Then go to the node and run:
 ```
@@ -380,7 +380,7 @@ Then someone must use ```reinit_dkg``` command in dc4bc_cli to send the message 
 $ ./dc4bc_cli reinit_dkg reinit.json
 ```
 
-The command will send the message to the append-only log, dc4bc_d process it and will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.).
+The command will send the message to the append-only log, dc4bc_d process it and will return an operation that must be handled like in the previous steps (scan JSON, go to an airgapped machine, etc.).
 ```
 $ ./dc4bc_cli get_operations
 Please, select operation:

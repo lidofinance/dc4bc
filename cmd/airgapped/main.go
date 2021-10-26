@@ -15,14 +15,12 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/lidofinance/dc4bc/airgapped"
 	client "github.com/lidofinance/dc4bc/client/types"
-	"github.com/lidofinance/dc4bc/qr"
 	"github.com/syndtr/goleveldb/leveldb"
 	"golang.org/x/crypto/ssh/terminal"
 )
@@ -68,7 +66,7 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 
 	p.addCommand("read_operation", &promptCommand{
 		commandHandler: p.readOperationCommand,
-		description:    "reads base64-encoded Operation, handles a decoded operation and returns the path to the GIF with operation's result",
+		description:    "reads base64-encoded Operation, handles a decoded operation and returns the path to the JSON with operation's result",
 	})
 	p.addCommand("help", &promptCommand{
 		commandHandler: p.helpCommand,
@@ -102,8 +100,8 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 		commandHandler: p.changeConfigurationCommand,
 		description:    "changes a configuration variables (frames delay, chunk size, etc...)",
 	})
-	p.addCommand("generate_dkg_pubkey_qr", &promptCommand{
-		commandHandler: p.generateDKGPubKeyQR,
+	p.addCommand("generate_dkg_pubkey_json", &promptCommand{
+		commandHandler: p.generateDKGPubKeyJSON,
 		description:    "generates and saves a QR with DKG public key that can be read by the Client node",
 	})
 	p.addCommand("set_seed", &promptCommand{
@@ -176,7 +174,8 @@ func (p *prompt) readOperationCommand() error {
 		return fmt.Errorf("failed to ProcessOperation: %w", err)
 	}
 
-	p.printf("Operation GIF was handled successfully, the result Operation GIF was saved to: %s\n", qrPath)
+	p.printf("Operation JSON was handled successfully, the result Operation JSON was saved to: %s\n", qrPath)
+
 	return nil
 }
 
@@ -239,41 +238,13 @@ func (p *prompt) replayOperationLogCommand() error {
 
 func (p *prompt) changeConfigurationCommand() error {
 	p.print("> Enter a new path to save QR codes (leave empty to avoid changes): ")
-	newQRCodesfolder, _, err := p.reader.ReadLine()
+	newresultfolder, _, err := p.reader.ReadLine()
 	if err != nil {
 		return fmt.Errorf("failed to read input: %w", err)
 	}
-	if len(newQRCodesfolder) > 0 {
-		p.airgapped.SetResultQRFolder(string(newQRCodesfolder))
-		p.printf("Folder to save QR codes was changed to: %s\n", string(newQRCodesfolder))
-	}
-
-	p.print("> Enter a new frames delay in 100ths of second (leave empty to avoid changes): ")
-	framesDelayInput, _, err := p.reader.ReadLine()
-	if err != nil {
-		return fmt.Errorf("failed to read input: %w", err)
-	}
-	if len(framesDelayInput) > 0 {
-		framesDelay, err := strconv.Atoi(string(framesDelayInput))
-		if err != nil {
-			return fmt.Errorf("failed to parse new frames delay: %w", err)
-		}
-		p.airgapped.SetQRProcessorFramesDelay(framesDelay)
-		p.printf("Frames delay was changed to: %d\n", framesDelay)
-	}
-
-	p.print("> Enter a new QR chunk size (leave empty to avoid changes): ")
-	chunkSizeInput, _, err := p.reader.ReadLine()
-	if err != nil {
-		return fmt.Errorf("failed to read input: %w", err)
-	}
-	if len(chunkSizeInput) > 0 {
-		chunkSize, err := strconv.Atoi(string(chunkSizeInput))
-		if err != nil {
-			return fmt.Errorf("failed to parse new chunk size: %w", err)
-		}
-		p.airgapped.SetQRProcessorChunkSize(chunkSize)
-		p.printf("Chunk size was changed to: %d\n", chunkSize)
+	if len(newresultfolder) > 0 {
+		p.airgapped.SetResultFolder(string(newresultfolder))
+		p.printf("Folder to save QR codes was changed to: %s\n", string(newresultfolder))
 	}
 
 	p.print("> Enter a password expiration duration (leave empty to avoid changes): ")
@@ -373,7 +344,7 @@ func (p *prompt) verifySignCommand() error {
 	return nil
 }
 
-func (p *prompt) generateDKGPubKeyQR() error {
+func (p *prompt) generateDKGPubKeyJSON() error {
 	dkgPubKey := p.airgapped.GetPubKey()
 	dkgPubKeyBz, err := dkgPubKey.MarshalBinary()
 	if err != nil {
@@ -386,13 +357,21 @@ func (p *prompt) generateDKGPubKeyQR() error {
 		return fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	qrProcessor := qr.NewCameraProcessor(nil)
-	qrPath := filepath.Join(p.airgapped.ResultQRFolder, fmt.Sprintf("dc4bc_qr_dkg_pub_key.gif"))
-	if err = qrProcessor.WriteQR(qrPath, dkgPubKeyJSON); err != nil {
-		return fmt.Errorf("failed to write QR: %w", err)
+	path := filepath.Join(p.airgapped.ResultFolder, fmt.Sprintf("dc4bc_dkg_pub_key.json"))
+
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return fmt.Errorf("failed to open file: %w", err)
 	}
 
-	p.printf("A QR code with DKG public key was saved to: %s\n", qrPath)
+	defer f.Close()
+
+	_, err = f.Write(dkgPubKeyJSON)
+	if err != nil {
+		return fmt.Errorf("failed to write file: %w", err)
+	}
+
+	p.printf("A JSON file with DKG public key was saved to: %s\n", path)
 
 	return nil
 }
@@ -539,17 +518,13 @@ func (p *prompt) Close() {
 var (
 	passwordExpiration string
 	dbPath             string
-	framesDelay        int
-	chunkSize          int
-	qrCodesFolder      string
+	resultFolder       string
 )
 
 func init() {
 	flag.StringVar(&passwordExpiration, "password_expiration", "10m", "Expiration of the encryption password")
 	flag.StringVar(&dbPath, "db_path", "airgapped_db", "Path to airgapped levelDB storage")
-	flag.IntVar(&framesDelay, "frames_delay", 10, "Delay times between frames in 100ths of a second")
-	flag.IntVar(&chunkSize, "chunk_size", 256, "QR-code's chunk size")
-	flag.StringVar(&qrCodesFolder, "qr_codes_folder", "/tmp/", "Folder to save result QR codes")
+	flag.StringVar(&resultFolder, "result_folder", "/tmp/", "Folder to save result QR codes")
 }
 
 func main() {
@@ -564,8 +539,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to init airgapped machine %v", err)
 	}
-	air.SetQRProcessorChunkSize(chunkSize)
-	air.SetResultQRFolder(qrCodesFolder)
+	air.SetResultFolder(resultFolder)
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)

@@ -22,9 +22,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/types"
-	"github.com/spf13/viper"
 
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
@@ -37,7 +35,6 @@ import (
 	"github.com/fatih/color"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
-	"github.com/lidofinance/dc4bc/qr"
 	"github.com/spf13/cobra"
 )
 
@@ -45,7 +42,7 @@ const (
 	flagListenAddr         = "listen_addr"
 	flagFramesDelay        = "frames_delay"
 	flagChunkSize          = "chunk_size"
-	flagQRCodesFolder      = "qr_codes_folder"
+	flagJSONFilesFolder    = "json_files_folder"
 	flagNewStateDBDSN      = "new_state_dbdsn"
 	flagUseOffsetInsteadId = "use_offset_instead_id"
 	flagKafkaConsumerGroup = "kafka_consumer_group"
@@ -70,8 +67,7 @@ var (
 func init() {
 	rootCmd.PersistentFlags().String(flagListenAddr, "localhost:8080", "Listen Address")
 	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
-	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
-	rootCmd.PersistentFlags().String(flagQRCodesFolder, "/tmp", "Folder to save QR codes")
+	rootCmd.PersistentFlags().String(flagJSONFilesFolder, "/tmp", "Folder to save JSON files")
 
 	refreshStateCmd.Flags().BoolVarP(&useOffset, flagUseOffsetInsteadId, "o", false,
 		"Ignore messages by offset instead of ids")
@@ -84,8 +80,7 @@ func init() {
 func main() {
 	rootCmd.AddCommand(
 		getOperationsCommand(),
-		reinitDKGQRPathCommand(),
-		getOperationQRPathCommand(),
+		reinitDKGPathCommand(),
 		readOperationResultCommand(),
 		approveDKGParticipationCommand(),
 		startDKGCommand(),
@@ -201,8 +196,7 @@ func getOperationsCommand() *cobra.Command {
 					case spf.StateAwaitParticipantsConfirmations:
 						qrCmd = approveDKGParticipationCommand()
 					default:
-						qrCmd = getOperationQRPathCommand()
-
+						qrCmd = getOperationPathCommand()
 					}
 
 					qrCmd.SetArgs([]string{operationId})
@@ -356,18 +350,18 @@ func getOperationRequest(host string, operationID string) (*OperationResponse, e
 	return &response, nil
 }
 
-func getOperationQRPathCommand() *cobra.Command {
+func getOperationPathCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get_operation_qr [operationID]",
+		Use:   "get_operation [operationID]",
 		Args:  cobra.ExactArgs(1),
-		Short: "returns path to QR codes which contains the operation",
+		Short: "returns path to json files which contains the operation",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 
-			qrCodeFolder, err := cmd.Flags().GetString(flagQRCodesFolder)
+			folder, err := cmd.Flags().GetString(flagJSONFilesFolder)
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %w", err)
 			}
@@ -380,30 +374,31 @@ func getOperationQRPathCommand() *cobra.Command {
 			if operation.ErrorMessage != "" {
 				return fmt.Errorf("failed to get operations: %s", operation.ErrorMessage)
 			}
+			// при сохранении файла сделать название файла <dkg_id>_<sig_id>_step_1.json
+			operationPath := filepath.Join(folder, fmt.Sprintf("%s.json", operationID))
 
-			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_%s-request", operationID))
+			path := fmt.Sprintf("%s.json", operationPath)
 
-			qrPath := fmt.Sprintf("%s.gif", operationQRPath)
-
-			qrCfg := config.QrProcessorConfig{}
-			err = viper.Unmarshal(&qrCfg)
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %w", err)
+				return fmt.Errorf("failed to open file: %w", err)
 			}
 
-			processor := qr.NewCameraProcessor(&qrCfg)
+			defer f.Close()
 
-			if err = processor.WriteQR(qrPath, operation.Result); err != nil {
-				return fmt.Errorf("failed to save QR gif: %w", err)
+			_, err = f.Write(operation.Result)
+			if err != nil {
+				return fmt.Errorf("failed to write file: %w", err)
 			}
 
-			fmt.Printf("QR code was saved to: %s\n", qrPath)
+			fmt.Printf("json file was saved to: %s\n", path)
+
 			return nil
 		},
 	}
 }
 
-func reinitDKGQRPathCommand() *cobra.Command {
+func reinitDKGPathCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reinit_dkg [reDKG JSON file path]",
 		Args:  cobra.ExactArgs(1),
