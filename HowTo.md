@@ -216,14 +216,14 @@ Select operation and press Enter. Ctrl+C for cancel
 
 ```
 
-Select an operation to make the node produce a QR-code for it:
+Select an operation to make the node produce a JSON file for it:
 ```
-QR code was saved to: /tmp/dc4bc_json_2f217f58-a94f-47d8-b871-f35a15275184.json
+JSON file was saved to: /tmp/3086f09822d7ba4bfb9af14c12d2c8ef_2f217f58-a94f-47d8-b871-f35a15275184.json
 ```
 
 Open the JSON-animation in any gif viewer and take a video of it:
 ```
-open -a Safari /tmp/dc4bc_json_2f217f58-a94f-47d8-b871-f35a15275184-request.json
+open -a Safari /tmp/3086f09822d7ba4bfb9af14c12d2c8ef_2f217f58-a94f-47d8-b871-f35a15275184.json
 ```
 
 After that, you need to scan the JSON. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser on an airgapped machine (firefox from plaintext media in case of Tails airapped machine setup), allow the page to use your camera and demonstrate the recorded video to the camera. After the JSON is scanned, you'll see the operation JSON. Click on that JSON, and it will be saved to your Downloads folder.
