@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"github.com/lidofinance/dc4bc/client/types"
-	"github.com/syndtr/goleveldb/leveldb"
 )
 
 const (
@@ -33,11 +32,11 @@ func (r *SignatureRepo) GetSignatures(dkgID string) (signatures map[string][]typ
 
 	bz, err := r.stateDb.Get(string(key))
 	if err != nil {
-		if errors.Is(err, leveldb.ErrNotFound) {
-			return nil, nil
-		}
-
 		return nil, fmt.Errorf("failed to get signatures for dkgID %s: %w", dkgID, err)
+	}
+
+	if bz == nil {
+		return nil, nil
 	}
 
 	if err := json.Unmarshal(bz, &signatures); err != nil {
