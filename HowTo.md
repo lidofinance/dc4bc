@@ -226,7 +226,7 @@ Open the JSON-animation in any gif viewer and take a video of it:
 open -a Safari /tmp/3086f09822d7ba4bfb9af14c12d2c8ef_2f217f58-a94f-47d8-b871-f35a15275184.json
 ```
 
-After that, you need to scan the JSON. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser on an airgapped machine (firefox from plaintext media in case of Tails airapped machine setup), allow the page to use your camera and demonstrate the recorded video to the camera. After the JSON is scanned, you'll see the operation JSON. Click on that JSON, and it will be saved to your Downloads folder.
+After that, you need to transform the JSON to QR GIF. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser on an airgapped machine (firefox from plaintext media in case of Tails airapped machine setup), allow the page to use your camera and demonstrate the recorded video to the camera. After you should transform the JSON to QR codes. You need to pull your JSON file to the encoder on an airgapped machine and decode it from QR to JSON on the hot node machine.
 
 Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains the Operation JSON:
 
