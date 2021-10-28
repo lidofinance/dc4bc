@@ -8,12 +8,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/services/fsmservice"
 	"log"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/services/fsmservice"
 
 	"github.com/google/uuid"
 	"github.com/lidofinance/dc4bc/client/api/dto"
@@ -21,6 +22,7 @@ import (
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	"github.com/lidofinance/dc4bc/client/modules/logger"
 	"github.com/lidofinance/dc4bc/client/modules/state"
+	signature_repo "github.com/lidofinance/dc4bc/client/repositories/signature"
 	"github.com/lidofinance/dc4bc/client/services"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
@@ -39,6 +41,12 @@ const (
 	qrCodesDir         = "/tmp"
 	emptyParticipantId = -1
 )
+
+type SignatureRepo interface {
+	SaveSignatures(signature []types.ReconstructedSignature) error
+	GetSignatureByID(dkgID, signatureID string) ([]types.ReconstructedSignature, error)
+	GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error)
+}
 
 type NodeService interface {
 	Poll() error
@@ -75,6 +83,7 @@ type BaseNodeService struct {
 	qrProcessor              qr.Processor
 	Logger                   logger.Logger
 	fsmService               fsmservice.FSMService
+	signatureRepo            SignatureRepo
 	SkipCommKeysVerification bool
 }
 
@@ -85,15 +94,16 @@ func NewNode(ctx context.Context, config *config.Config, sp *services.ServicePro
 	}
 
 	return &BaseNodeService{
-		ctx:         ctx,
-		userName:    config.Username,
-		pubKey:      keyPair.Pub,
-		state:       sp.GetState(),
-		storage:     sp.GetStorage(),
-		keyStore:    sp.GetKeyStore(),
-		qrProcessor: sp.GetQRProcessor(),
-		Logger:      sp.GetLogger(),
-		fsmService:  sp.GetFSMService(),
+		ctx:           ctx,
+		userName:      config.Username,
+		pubKey:        keyPair.Pub,
+		state:         sp.GetState(),
+		storage:       sp.GetStorage(),
+		keyStore:      sp.GetKeyStore(),
+		qrProcessor:   sp.GetQRProcessor(),
+		Logger:        sp.GetLogger(),
+		fsmService:    sp.GetFSMService(),
+		signatureRepo: signature_repo.NewSignatureRepo(sp.GetState()),
 	}, nil
 }
 
@@ -268,11 +278,11 @@ func (s *BaseNodeService) getOperationJSON(operationID string) ([]byte, error) {
 // GetSignatures returns all signatures for the given DKG round that were reconstructed on the airgapped machine and
 // broadcasted by users
 func (s *BaseNodeService) GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.ReconstructedSignature, error) {
-	return s.getState().GetSignatures(dto.DkgID)
+	return s.signatureRepo.GetSignatures(dto.DkgID)
 }
 
 func (s *BaseNodeService) GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error) {
-	return s.getState().GetSignatureByID(dto.DkgID, dto.ID)
+	return s.signatureRepo.GetSignatureByID(dto.DkgID, dto.ID)
 }
 
 func (s *BaseNodeService) GetOperationQRFile(dto *dto.OperationIdDTO) ([]byte, error) {
@@ -608,7 +618,7 @@ func (s *BaseNodeService) processSignature(message storage.Message) error {
 		signatures[i].Username = message.SenderAddr
 		signatures[i].DKGRoundID = message.DkgRoundID
 	}
-	return s.getState().SaveSignatures(signatures)
+	return s.signatureRepo.SaveSignatures(signatures)
 }
 
 // processBatchSignature saves a broadcasted reconstructed batch signatures to a LevelDB
@@ -632,7 +642,7 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 		signatures = append(signatures, sig)
 	}
 
-	err = s.getState().SaveSignatures(signatures)
+	err = s.signatureRepo.SaveSignatures(signatures)
 	if err != nil {
 		return fmt.Errorf("failed to save signature: %w", err)
 	}

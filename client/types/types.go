@@ -266,3 +266,7 @@ func CalcStartReInitDKGMessageHash(payload []byte) ([]byte, error) {
 	hash := sha1.Sum(hashPayload.Bytes())
 	return hash[:], nil
 }
+
+func MakeCompositeKey(prefix, key string) []byte {
+	return []byte(fmt.Sprintf("%s_%s", prefix, key))
+}
