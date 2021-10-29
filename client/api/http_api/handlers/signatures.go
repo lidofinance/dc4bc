@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/google/uuid"
 	"net/http"
+
+	"github.com/google/uuid"
 
 	dto "github.com/censync/go-dto"
 	"github.com/censync/go-validator"
@@ -45,7 +46,7 @@ func (a *HTTPApp) GetSignatures(c echo.Context) error {
 		)
 	}
 
-	signatures, err := a.node.GetSignatures(formDTO)
+	signatures, err := a.signature.GetSignatures(formDTO)
 
 	if err == nil {
 		return stx.Json(
@@ -92,7 +93,7 @@ func (a *HTTPApp) GetSignatureByID(c echo.Context) error {
 		)
 	}
 
-	signatures, err := a.node.GetSignatureByID(formDTO)
+	signatures, err := a.signature.GetSignatureByID(formDTO)
 
 	if err == nil {
 		return stx.Json(

@@ -2,7 +2,6 @@ package state
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -30,11 +29,6 @@ type State interface {
 
 	SaveOffset(uint64) error
 	LoadOffset() (uint64, error)
-
-	PutOperation(operation *types.Operation) error
-	DeleteOperation(operation *types.Operation) error
-	GetOperations() (map[string]*types.Operation, error)
-	GetOperationByID(operationID string) (*types.Operation, error)
 }
 
 type LevelDBState struct {
@@ -57,22 +51,6 @@ func NewLevelDBState(stateDbPath string, topic string) (*LevelDBState, error) {
 	}
 
 	// TODO remove storage preinitialization after "service" methods moved out from state interface
-
-	// Init state key for operations JSON.
-	operationsCompositeKey := types.MakeCompositeKey(topic, OperationsKey)
-	if _, err := state.stateDb.Get(operationsCompositeKey, nil); err != nil {
-		if err := state.initJsonKey(operationsCompositeKey, map[string]*types.Operation{}); err != nil {
-			return nil, fmt.Errorf("failed to init %s storage: %w", string(operationsCompositeKey), err)
-		}
-	}
-
-	// Init state key for operations JSON.
-	deleteOperationsCompositeKey := types.MakeCompositeKey(topic, DeletedOperationsKey)
-	if _, err := state.stateDb.Get(deleteOperationsCompositeKey, nil); err != nil {
-		if err := state.initJsonKey(deleteOperationsCompositeKey, map[string]*types.Operation{}); err != nil {
-			return nil, fmt.Errorf("failed to init %s storage: %w", string(deleteOperationsCompositeKey), err)
-		}
-	}
 
 	// Init state key for offset bytes.
 	offsetCompositeKey := types.MakeCompositeKey(topic, OffsetKey)
@@ -102,21 +80,6 @@ func (s *LevelDBState) NewStateFromOld(stateDbPath string) (State, string, error
 	state, err := NewLevelDBState(stateDbPath, s.topic)
 
 	return state, stateDbPath, err
-}
-
-func (s *LevelDBState) initJsonKey(key []byte, data interface{}) error {
-	if _, err := s.stateDb.Get(key, nil); err != nil {
-		operationsBz, err := json.Marshal(data)
-		if err != nil {
-			return fmt.Errorf("failed to marshal storage structure: %w", err)
-		}
-		err = s.stateDb.Put([]byte(key), operationsBz, nil)
-		if err != nil {
-			return fmt.Errorf("failed to init state: %w", err)
-		}
-	}
-
-	return nil
 }
 
 // Reset creates new underlying leveldb storage
@@ -191,149 +154,4 @@ func (s *LevelDBState) LoadOffset() (uint64, error) {
 	offset := binary.LittleEndian.Uint64(bz)
 
 	return offset, nil
-}
-
-func (s *LevelDBState) PutOperation(operation *types.Operation) error {
-	s.Lock()
-	defer s.Unlock()
-
-	deletedOperations, err := s.getDeletedOperations()
-	if err != nil {
-		return fmt.Errorf("failed to getDeletedOperations: %w", err)
-	}
-
-	if _, ok := deletedOperations[operation.ID]; ok {
-		return fmt.Errorf("operation %s was deleted", operation.ID)
-	}
-
-	operations, err := s.getOperations()
-	if err != nil {
-		return fmt.Errorf("failed to getOperations: %w", err)
-	}
-
-	if _, ok := operations[operation.ID]; ok {
-		return fmt.Errorf("operation %s already exists", operation.ID)
-	}
-
-	operations[operation.ID] = operation
-	operationsJSON, err := json.Marshal(operations)
-	if err != nil {
-		return fmt.Errorf("failed to marshal operations: %w", err)
-	}
-
-	if err := s.stateDb.Put(types.MakeCompositeKey(s.topic, OperationsKey), operationsJSON, nil); err != nil {
-		return fmt.Errorf("failed to put operations: %w", err)
-	}
-
-	return nil
-}
-
-// DeleteOperation deletes operation from an operation pool
-func (s *LevelDBState) DeleteOperation(operation *types.Operation) error {
-	s.Lock()
-	defer s.Unlock()
-
-	deletedOperations, err := s.getDeletedOperations()
-	if err != nil {
-		return fmt.Errorf("failed to getDeletedOperations: %w", err)
-	}
-
-	if _, ok := deletedOperations[operation.ID]; ok {
-		return fmt.Errorf("operation %s was already deleted", operation.ID)
-	}
-
-	deletedOperations[operation.ID] = operation
-	deletedOperationsJSON, err := json.Marshal(deletedOperations)
-	if err != nil {
-		return fmt.Errorf("failed to marshal deleted operations: %w", err)
-	}
-
-	if err := s.stateDb.Put(types.MakeCompositeKey(s.topic, DeletedOperationsKey), deletedOperationsJSON, nil); err != nil {
-		return fmt.Errorf("failed to put deleted operations: %w", err)
-	}
-
-	operations, err := s.getOperations()
-	if err != nil {
-		return fmt.Errorf("failed to getOperations: %w", err)
-	}
-
-	delete(operations, operation.ID)
-
-	operationsJSON, err := json.Marshal(operations)
-	if err != nil {
-		return fmt.Errorf("failed to marshal operations: %w", err)
-	}
-
-	if err := s.stateDb.Put(types.MakeCompositeKey(s.topic, OperationsKey), operationsJSON, nil); err != nil {
-		return fmt.Errorf("failed to put operations: %w", err)
-	}
-
-	return nil
-}
-
-// GetOperations returns all operations from an operation pool
-func (s *LevelDBState) GetOperations() (map[string]*types.Operation, error) {
-	s.Lock()
-	defer s.Unlock()
-
-	return s.getOperations()
-}
-
-func (s *LevelDBState) GetOperationByID(operationID string) (*types.Operation, error) {
-	s.Lock()
-	defer s.Unlock()
-
-	operations, err := s.getOperations()
-	if err != nil {
-		return nil, fmt.Errorf("failed to getOperations: %w", err)
-	}
-
-	operation, ok := operations[operationID]
-	if !ok {
-		return nil, errors.New("operation not found")
-	}
-
-	return operation, nil
-}
-
-func (s *LevelDBState) getOperations() (map[string]*types.Operation, error) {
-	deletedOperations, err := s.getDeletedOperations()
-	if err != nil {
-		return nil, fmt.Errorf("failed to getDeletedOperations: %w", err)
-	}
-
-	operationsCompositeKey := types.MakeCompositeKey(s.topic, OperationsKey)
-	bz, err := s.stateDb.Get(operationsCompositeKey, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get Operations (key: %s): %w", string(operationsCompositeKey), err)
-	}
-
-	var operations map[string]*types.Operation
-	if err := json.Unmarshal(bz, &operations); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal Operations: %w", err)
-	}
-
-	result := make(map[string]*types.Operation)
-	for id, operation := range operations {
-		if _, ok := deletedOperations[id]; !ok {
-			result[id] = operation
-		}
-	}
-
-	return result, nil
-}
-
-func (s *LevelDBState) getDeletedOperations() (map[string]*types.Operation, error) {
-	deletedOperationsCompositeKey := types.MakeCompositeKey(s.topic, DeletedOperationsKey)
-	bz, err := s.stateDb.Get(deletedOperationsCompositeKey, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get deleted Operations (key: %s): %w", string(deletedOperationsCompositeKey), err)
-	}
-
-	var operations map[string]*types.Operation
-	if err := json.Unmarshal(bz, &operations); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal deleted Operations: %w", err)
-	}
-
-	return operations, nil
 }

@@ -270,3 +270,7 @@ func CalcStartReInitDKGMessageHash(payload []byte) ([]byte, error) {
 func MakeCompositeKey(prefix, key string) []byte {
 	return []byte(fmt.Sprintf("%s_%s", prefix, key))
 }
+
+func MakeCompositeKeyString(prefix, key string) string {
+	return fmt.Sprintf("%s_%s", prefix, key)
+}

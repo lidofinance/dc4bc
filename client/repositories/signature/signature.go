@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/lidofinance/dc4bc/client/modules/state"
 	"github.com/lidofinance/dc4bc/client/types"
 )
 
@@ -12,25 +13,24 @@ const (
 	SignaturesKeyPrefix = "signatures"
 )
 
-type state interface {
-	Get(key string) ([]byte, error)
-	Set(key string, value []byte) error
-	Delete(key string) error
-	Reset(stateDbPath string) (string, error)
+type SignatureRepo interface {
+	SaveSignatures(signature []types.ReconstructedSignature) error
+	GetSignatureByID(dkgID, signatureID string) ([]types.ReconstructedSignature, error)
+	GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error)
 }
 
-type SignatureRepo struct {
-	stateDb state
+type BaseSignatureRepo struct {
+	state state.State
 }
 
-func NewSignatureRepo(stateDb state) *SignatureRepo {
-	return &SignatureRepo{stateDb}
+func NewSignatureRepo(state state.State) *BaseSignatureRepo {
+	return &BaseSignatureRepo{state}
 }
 
-func (r *SignatureRepo) GetSignatures(dkgID string) (signatures map[string][]types.ReconstructedSignature, err error) {
+func (r *BaseSignatureRepo) GetSignatures(dkgID string) (signatures map[string][]types.ReconstructedSignature, err error) {
 	key := types.MakeCompositeKey(SignaturesKeyPrefix, dkgID)
 
-	bz, err := r.stateDb.Get(string(key))
+	bz, err := r.state.Get(string(key))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get signatures for dkgID %s: %w", dkgID, err)
 	}
@@ -46,7 +46,7 @@ func (r *SignatureRepo) GetSignatures(dkgID string) (signatures map[string][]typ
 	return signatures, nil
 }
 
-func (r *SignatureRepo) GetSignatureByID(dkgID, signatureID string) ([]types.ReconstructedSignature, error) {
+func (r *BaseSignatureRepo) GetSignatureByID(dkgID, signatureID string) ([]types.ReconstructedSignature, error) {
 	signatures, err := r.GetSignatures(dkgID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to getSignatures: %w", err)
@@ -60,7 +60,7 @@ func (r *SignatureRepo) GetSignatureByID(dkgID, signatureID string) ([]types.Rec
 	return signature, nil
 }
 
-func (r *SignatureRepo) SaveSignatures(signaturesToSave []types.ReconstructedSignature) error {
+func (r *BaseSignatureRepo) SaveSignatures(signaturesToSave []types.ReconstructedSignature) error {
 	if len(signaturesToSave) == 0 {
 		return errors.New("nothing to save")
 	}
@@ -96,7 +96,7 @@ func (r *SignatureRepo) SaveSignatures(signaturesToSave []types.ReconstructedSig
 
 	key := types.MakeCompositeKey(SignaturesKeyPrefix, signaturesToSave[0].DKGRoundID)
 
-	if err := r.stateDb.Set(string(key), signaturesJSON); err != nil {
+	if err := r.state.Set(string(key), signaturesJSON); err != nil {
 		return fmt.Errorf("failed to save signatures: %w", err)
 	}
 

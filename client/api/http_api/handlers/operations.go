@@ -15,7 +15,7 @@ import (
 func (a *HTTPApp) GetOperations(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
-	operations, err := a.node.GetOperations()
+	operations, err := a.operation.GetOperations()
 
 	if err == nil {
 		return stx.Json(
@@ -101,7 +101,6 @@ func (a *HTTPApp) GetOperation(c echo.Context) error {
 	formDTO := &OperationIdDTO{}
 
 	err = dto.RequestToDTO(formDTO, request)
-
 	if err != nil {
 		return stx.JsonError(
 			http.StatusBadRequest,
@@ -109,19 +108,18 @@ func (a *HTTPApp) GetOperation(c echo.Context) error {
 		)
 	}
 
-	operation, err := a.node.GetOperation(formDTO)
-
-	if err == nil {
-		return stx.Json(
-			http.StatusOK,
-			operation,
-		)
-	} else {
+	operation, err := a.operation.GetOperation(formDTO)
+	if err != nil {
 		return stx.JsonError(
 			http.StatusInternalServerError,
 			fmt.Errorf("failed to get operations: %v", err),
 		)
 	}
+
+	return stx.Json(
+		http.StatusOK,
+		operation,
+	)
 }
 
 func (a *HTTPApp) ApproveParticipation(c echo.Context) error {

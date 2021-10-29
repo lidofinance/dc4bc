@@ -4,13 +4,13 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/mocks/serviceMocks"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/lidofinance/dc4bc/mocks/serviceMocks"
 
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/config"
@@ -50,6 +50,10 @@ func TestClient_ProcessMessage(t *testing.T) {
 	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
+	state.EXPECT().Set(gomock.Any(), []byte("{}")).Times(2).Return(nil)
+	state.EXPECT().Get(gomock.Any()).Times(2).Return([]byte("{}"), nil)
+	state.EXPECT().Set(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+
 	sp := services.ServiceProvider{}
 	sp.SetLogger(logger.NewLogger(userName))
 	sp.SetState(state)
@@ -61,6 +65,9 @@ func TestClient_ProcessMessage(t *testing.T) {
 	// minimal config to make test
 	cfg := config.Config{
 		Username: userName,
+		KafkaStorageConfig: &config.KafkaStorageConfig{
+			Topic: "topic",
+		},
 	}
 
 	clt, err := NewNode(ctx, &cfg, &sp)
@@ -113,63 +120,10 @@ func TestClient_ProcessMessage(t *testing.T) {
 		message.Signature = ed25519.Sign(senderKeyPair.Priv, message.Bytes())
 
 		fsmService.EXPECT().SaveFSM(gomock.Any(), gomock.Any()).Times(1).Return(nil)
-		state.EXPECT().PutOperation(gomock.Any()).Times(1).Return(nil)
 
 		err = clt.ProcessMessage(message)
 		req.NoError(err)
 	})
-}
-
-func TestClient_GetOperationsList(t *testing.T) {
-	var (
-		ctx  = context.Background()
-		req  = require.New(t)
-		ctrl = gomock.NewController(t)
-	)
-	defer ctrl.Finish()
-
-	userName := "test_client"
-
-	keyStore := clientMocks.NewMockKeyStore(ctrl)
-	testClientKeyPair := keystore.NewKeyPair()
-	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
-
-	state := clientMocks.NewMockState(ctrl)
-	stg := storageMocks.NewMockStorage(ctrl)
-	qrProcessor := qrMocks.NewMockProcessor(ctrl)
-
-	sp := services.ServiceProvider{}
-	sp.SetLogger(logger.NewLogger(userName))
-	sp.SetState(state)
-	sp.SetKeyStore(keyStore)
-	sp.SetStorage(stg)
-	sp.SetQRProcessor(qrProcessor)
-
-	// minimal config to make test
-	cfg := config.Config{
-		Username: userName,
-	}
-
-	clt, err := NewNode(ctx, &cfg, &sp)
-	req.NoError(err)
-
-	state.EXPECT().GetOperations().Times(1).Return(map[string]*types.Operation{}, nil)
-	operations, err := clt.GetOperations()
-	req.NoError(err)
-	req.Len(operations, 0)
-
-	operation := &types.Operation{
-		ID:        "operation_id",
-		Type:      types.DKGCommits,
-		Payload:   []byte("operation_payload"),
-		CreatedAt: time.Now(),
-	}
-	state.EXPECT().GetOperations().Times(1).Return(
-		map[string]*types.Operation{operation.ID: operation}, nil)
-	operations, err = clt.GetOperations()
-	req.NoError(err)
-	req.Len(operations, 1)
-	req.Equal(operation, operations[operation.ID])
 }
 
 func TestClient_GetOperationQRPath(t *testing.T) {
@@ -200,7 +154,13 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 	// minimal config to make test
 	cfg := config.Config{
 		Username: userName,
+		KafkaStorageConfig: &config.KafkaStorageConfig{
+			Topic: "topic",
+		},
 	}
+
+	state.EXPECT().Get(gomock.Any()).Times(2).Return([]byte("{}"), nil)
+	state.EXPECT().Set(gomock.Any(), gomock.Any()).Times(2).Return(nil)
 
 	clt, err := NewNode(ctx, &cfg, &sp)
 	req.NoError(err)
@@ -215,17 +175,17 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 	var expectedQrPath = filepath.Join(qrCodesDir, fmt.Sprintf("dc4bc_qr_%s.gif", operation.ID))
 	defer os.Remove(expectedQrPath)
 
-	state.EXPECT().GetOperationByID(operation.ID).Times(1).Return(
-		nil, errors.New(""))
 	_, err = clt.GetOperationQRPath(&dto.OperationIdDTO{OperationID: operation.ID})
 	req.Error(err)
 
-	state.EXPECT().GetOperationByID(operation.ID).Times(1).Return(
-		operation, nil)
+	bytes, err := json.Marshal(map[string]*types.Operation{operation.ID: operation})
+	req.NoError(err)
+
+	state.EXPECT().Get("topic_deleted_operations").Times(1).Return(nil, nil)
+	state.EXPECT().Get("topic_operations").Times(1).Return(bytes, nil)
+
 	qrProcessor.EXPECT().WriteQR(expectedQrPath, gomock.Any()).Times(1).Return(nil)
 	qrPath, err := clt.GetOperationQRPath(&dto.OperationIdDTO{OperationID: operation.ID})
 	req.NoError(err)
 	req.Equal(expectedQrPath, qrPath)
 }
-
-
