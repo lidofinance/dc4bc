@@ -40,7 +40,7 @@ func (r *BaseSignatureRepo) GetSignatures(dkgID string) (signatures map[string][
 	}
 
 	if err := json.Unmarshal(bz, &signatures); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal Operations: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal signature: %w", err)
 	}
 
 	return signatures, nil

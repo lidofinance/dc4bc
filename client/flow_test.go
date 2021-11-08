@@ -147,7 +147,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 				Debug:      false,
 			},
 			KafkaStorageConfig: &config.KafkaStorageConfig{
-				Topic: "topic",
+				Topic: topic,
 			},
 		}
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -46,13 +47,12 @@ func TestClient_ProcessMessage(t *testing.T) {
 	stg := storageMocks.NewMockStorage(ctrl)
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
 	fsmService := serviceMocks.NewMockFSMService(ctrl)
+	opService := serviceMocks.NewMockOperationService(ctrl)
 
 	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
 
-	state.EXPECT().Set(gomock.Any(), []byte("{}")).Times(2).Return(nil)
-	state.EXPECT().Get(gomock.Any()).Times(2).Return([]byte("{}"), nil)
-	state.EXPECT().Set(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+	opService.EXPECT().PutOperation(gomock.Any()).Times(1).Return(nil)
 
 	sp := services.ServiceProvider{}
 	sp.SetLogger(logger.NewLogger(userName))
@@ -61,6 +61,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 	sp.SetStorage(stg)
 	sp.SetQRProcessor(qrProcessor)
 	sp.SetFSMService(fsmService)
+	sp.SetOperationService(opService)
 
 	// minimal config to make test
 	cfg := config.Config{
@@ -143,6 +144,7 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 	state := clientMocks.NewMockState(ctrl)
 	stg := storageMocks.NewMockStorage(ctrl)
 	qrProcessor := qrMocks.NewMockProcessor(ctrl)
+	opService := serviceMocks.NewMockOperationService(ctrl)
 
 	sp := services.ServiceProvider{}
 	sp.SetLogger(logger.NewLogger(userName))
@@ -150,17 +152,12 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 	sp.SetKeyStore(keyStore)
 	sp.SetStorage(stg)
 	sp.SetQRProcessor(qrProcessor)
+	sp.SetOperationService(opService)
 
 	// minimal config to make test
 	cfg := config.Config{
 		Username: userName,
-		KafkaStorageConfig: &config.KafkaStorageConfig{
-			Topic: "topic",
-		},
 	}
-
-	state.EXPECT().Get(gomock.Any()).Times(2).Return([]byte("{}"), nil)
-	state.EXPECT().Set(gomock.Any(), gomock.Any()).Times(2).Return(nil)
 
 	clt, err := NewNode(ctx, &cfg, &sp)
 	req.NoError(err)
@@ -175,15 +172,13 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 	var expectedQrPath = filepath.Join(qrCodesDir, fmt.Sprintf("dc4bc_qr_%s.gif", operation.ID))
 	defer os.Remove(expectedQrPath)
 
+	opService.EXPECT().GetOperationByID(operation.ID).Times(1).Return(
+		nil, errors.New(""))
 	_, err = clt.GetOperationQRPath(&dto.OperationIdDTO{OperationID: operation.ID})
 	req.Error(err)
 
-	bytes, err := json.Marshal(map[string]*types.Operation{operation.ID: operation})
-	req.NoError(err)
-
-	state.EXPECT().Get("topic_deleted_operations").Times(1).Return(nil, nil)
-	state.EXPECT().Get("topic_operations").Times(1).Return(bytes, nil)
-
+	opService.EXPECT().GetOperationByID(operation.ID).Times(1).Return(
+		operation, nil)
 	qrProcessor.EXPECT().WriteQR(expectedQrPath, gomock.Any()).Times(1).Return(nil)
 	qrPath, err := clt.GetOperationQRPath(&dto.OperationIdDTO{OperationID: operation.ID})
 	req.NoError(err)

@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/lidofinance/dc4bc/client/services/fsmservice"
+	operation_service "github.com/lidofinance/dc4bc/client/services/operation"
+	signature_service "github.com/lidofinance/dc4bc/client/services/signature"
 
 	"github.com/google/uuid"
 	"github.com/lidofinance/dc4bc/client/api/dto"
@@ -22,8 +24,6 @@ import (
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	"github.com/lidofinance/dc4bc/client/modules/logger"
 	"github.com/lidofinance/dc4bc/client/modules/state"
-	operation_repo "github.com/lidofinance/dc4bc/client/repositories/operation"
-	signature_repo "github.com/lidofinance/dc4bc/client/repositories/signature"
 	"github.com/lidofinance/dc4bc/client/services"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
@@ -74,8 +74,8 @@ type BaseNodeService struct {
 	qrProcessor              qr.Processor
 	Logger                   logger.Logger
 	fsmService               fsmservice.FSMService
-	signatureRepo            signature_repo.SignatureRepo
-	operationRepo            operation_repo.OperationRepo
+	opService                operation_service.OperationService
+	sigService               signature_service.SignatureService
 	SkipCommKeysVerification bool
 }
 
@@ -87,24 +87,18 @@ func NewNode(ctx context.Context, config *config.Config, sp *services.ServicePro
 		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
 	}
 
-	signatureRepo := signature_repo.NewSignatureRepo(state)
-	operationRepo, err := operation_repo.NewOperationRepo(state, config.KafkaStorageConfig.Topic)
-	if err != nil {
-		return nil, fmt.Errorf("failed to init operation repo: %w", err)
-	}
-
 	return &BaseNodeService{
-		ctx:           ctx,
-		userName:      config.Username,
-		pubKey:        keyPair.Pub,
-		state:         state,
-		storage:       sp.GetStorage(),
-		keyStore:      sp.GetKeyStore(),
-		qrProcessor:   sp.GetQRProcessor(),
-		Logger:        sp.GetLogger(),
-		fsmService:    sp.GetFSMService(),
-		signatureRepo: signatureRepo,
-		operationRepo: operationRepo,
+		ctx:         ctx,
+		userName:    config.Username,
+		pubKey:      keyPair.Pub,
+		state:       state,
+		storage:     sp.GetStorage(),
+		keyStore:    sp.GetKeyStore(),
+		qrProcessor: sp.GetQRProcessor(),
+		Logger:      sp.GetLogger(),
+		fsmService:  sp.GetFSMService(),
+		opService:   sp.GetOperationService(),
+		sigService:  sp.GetSignatureService(),
 	}, nil
 }
 
@@ -126,7 +120,7 @@ func (s *BaseNodeService) ProcessMessage(message storage.Message) error {
 	}
 
 	if operation != nil {
-		if err := s.operationRepo.PutOperation(operation); err != nil {
+		if err := s.opService.PutOperation(operation); err != nil {
 			return fmt.Errorf("failed to PutOperation: %w", err)
 		}
 	}
@@ -223,7 +217,7 @@ func (s *BaseNodeService) SendMessage(dto *dto.MessageDTO) error {
 
 // GetOperation returns operation for current state, if exists
 func (s *BaseNodeService) getOperation(operationID string) (*types.Operation, error) {
-	operations, err := s.operationRepo.GetOperations()
+	operations, err := s.opService.GetOperations()
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operations: %w", err)
@@ -259,7 +253,7 @@ func (s *BaseNodeService) GetOperationQRPath(dto *dto.OperationIdDTO) (string, e
 
 // getOperationJSON returns a specific JSON-encoded operation
 func (s *BaseNodeService) getOperationJSON(operationID string) ([]byte, error) {
-	operation, err := s.operationRepo.GetOperationByID(operationID)
+	operation, err := s.opService.GetOperationByID(operationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operation: %w", err)
 	}
@@ -308,7 +302,7 @@ func (s *BaseNodeService) executeOperation(operation *types.Operation) error {
 		return errors.New("operation is request operation, provide result operation instead")
 	}
 
-	storedOperation, err := s.operationRepo.GetOperationByID(operation.ID)
+	storedOperation, err := s.opService.GetOperationByID(operation.ID)
 	if err != nil {
 		return fmt.Errorf("failed to find matching operation: %w", err)
 	}
@@ -335,7 +329,7 @@ func (s *BaseNodeService) executeOperation(operation *types.Operation) error {
 		}
 	}
 
-	if err := s.operationRepo.DeleteOperation(operation); err != nil {
+	if err := s.opService.DeleteOperation(operation); err != nil {
 		return fmt.Errorf("failed to DeleteOperation: %w", err)
 	}
 
@@ -563,7 +557,7 @@ func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 	if err != nil {
 		return fmt.Errorf("failed to calculat reinitDKG message hash: %w", err)
 	}
-	if err := s.operationRepo.PutOperation(operation); err != nil {
+	if err := s.opService.PutOperation(operation); err != nil {
 		return fmt.Errorf("failed to PutOperation: %w", err)
 	}
 
@@ -600,7 +594,7 @@ func (s *BaseNodeService) processSignature(message storage.Message) error {
 		signatures[i].Username = message.SenderAddr
 		signatures[i].DKGRoundID = message.DkgRoundID
 	}
-	return s.signatureRepo.SaveSignatures(signatures)
+	return s.sigService.SaveSignatures(signatures)
 }
 
 // processBatchSignature saves a broadcasted reconstructed batch signatures to a LevelDB
@@ -624,7 +618,7 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 		signatures = append(signatures, sig)
 	}
 
-	err = s.signatureRepo.SaveSignatures(signatures)
+	err = s.sigService.SaveSignatures(signatures)
 	if err != nil {
 		return fmt.Errorf("failed to save signature: %w", err)
 	}

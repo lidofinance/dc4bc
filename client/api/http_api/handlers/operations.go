@@ -16,18 +16,17 @@ func (a *HTTPApp) GetOperations(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	operations, err := a.operation.GetOperations()
-
-	if err == nil {
-		return stx.Json(
-			http.StatusOK,
-			operations,
-		)
-	} else {
+	if err != nil {
 		return stx.JsonError(
 			http.StatusInternalServerError,
 			err,
 		)
 	}
+
+	return stx.Json(
+		http.StatusOK,
+		operations,
+	)
 }
 
 func (a *HTTPApp) ProcessOperation(c echo.Context) error {
@@ -36,7 +35,6 @@ func (a *HTTPApp) ProcessOperation(c echo.Context) error {
 	request := &req.OperationForm{}
 
 	err := stx.Bind(request)
-
 	if err != nil {
 		return stx.JsonError(
 			http.StatusBadRequest,
@@ -63,18 +61,17 @@ func (a *HTTPApp) ProcessOperation(c echo.Context) error {
 	}
 
 	err = a.node.ProcessOperation(formDTO)
-
-	if err == nil {
-		return stx.Json(
-			http.StatusOK,
-			"ok",
-		)
-	} else {
+	if err != nil {
 		return stx.JsonError(
 			http.StatusInternalServerError,
 			err,
 		)
 	}
+
+	return stx.Json(
+		http.StatusOK,
+		"ok",
+	)
 }
 
 func (a *HTTPApp) GetOperation(c echo.Context) error {
@@ -83,7 +80,6 @@ func (a *HTTPApp) GetOperation(c echo.Context) error {
 	request := &req.OperationIdForm{}
 
 	err := stx.Bind(request)
-
 	if err != nil {
 		return stx.JsonError(
 			http.StatusBadRequest,
@@ -108,7 +104,7 @@ func (a *HTTPApp) GetOperation(c echo.Context) error {
 		)
 	}
 
-	operation, err := a.operation.GetOperation(formDTO)
+	operation, err := a.operation.GetOperationByID(formDTO.OperationID)
 	if err != nil {
 		return stx.JsonError(
 			http.StatusInternalServerError,
@@ -155,16 +151,15 @@ func (a *HTTPApp) ApproveParticipation(c echo.Context) error {
 	}
 
 	err = a.node.ApproveParticipation(formDTO)
-
-	if err == nil {
-		return stx.Json(
-			http.StatusOK,
-			"ok",
-		)
-	} else {
+	if err != nil {
 		return stx.JsonError(
 			http.StatusInternalServerError,
 			err,
 		)
 	}
+
+	return stx.Json(
+		http.StatusOK,
+		"ok",
+	)
 }

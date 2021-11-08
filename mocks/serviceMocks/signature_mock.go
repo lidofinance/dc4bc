@@ -64,3 +64,17 @@ func (mr *MockSignatureServiceMockRecorder) GetSignatures(dto interface{}) *gomo
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignatures", reflect.TypeOf((*MockSignatureService)(nil).GetSignatures), dto)
 }
+
+// SaveSignatures mocks base method.
+func (m *MockSignatureService) SaveSignatures(signature []types.ReconstructedSignature) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveSignatures", signature)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveSignatures indicates an expected call of SaveSignatures.
+func (mr *MockSignatureServiceMockRecorder) SaveSignatures(signature interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSignatures", reflect.TypeOf((*MockSignatureService)(nil).SaveSignatures), signature)
+}

@@ -9,6 +9,7 @@ import (
 type SignatureService interface {
 	GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.ReconstructedSignature, error)
 	GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error)
+	SaveSignatures(signature []types.ReconstructedSignature) error
 }
 
 type BaseSignatureService struct {
@@ -27,4 +28,8 @@ func (s *BaseSignatureService) GetSignatures(dto *dto.DkgIdDTO) (map[string][]ty
 
 func (s *BaseSignatureService) GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error) {
 	return s.signatureRepo.GetSignatureByID(dto.DkgID, dto.ID)
+}
+
+func (s *BaseSignatureService) SaveSignatures(signature []types.ReconstructedSignature) error {
+	return s.signatureRepo.SaveSignatures(signature)
 }

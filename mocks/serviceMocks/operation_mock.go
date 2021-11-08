@@ -8,7 +8,6 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	dto "github.com/lidofinance/dc4bc/client/api/dto"
 	types "github.com/lidofinance/dc4bc/client/types"
 )
 
@@ -35,19 +34,33 @@ func (m *MockOperationService) EXPECT() *MockOperationServiceMockRecorder {
 	return m.recorder
 }
 
-// GetOperation mocks base method.
-func (m *MockOperationService) GetOperation(dto *dto.OperationIdDTO) ([]byte, error) {
+// DeleteOperation mocks base method.
+func (m *MockOperationService) DeleteOperation(operation *types.Operation) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOperation", dto)
-	ret0, _ := ret[0].([]byte)
+	ret := m.ctrl.Call(m, "DeleteOperation", operation)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteOperation indicates an expected call of DeleteOperation.
+func (mr *MockOperationServiceMockRecorder) DeleteOperation(operation interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteOperation", reflect.TypeOf((*MockOperationService)(nil).DeleteOperation), operation)
+}
+
+// GetOperationByID mocks base method.
+func (m *MockOperationService) GetOperationByID(operationID string) (*types.Operation, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOperationByID", operationID)
+	ret0, _ := ret[0].(*types.Operation)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetOperation indicates an expected call of GetOperation.
-func (mr *MockOperationServiceMockRecorder) GetOperation(dto interface{}) *gomock.Call {
+// GetOperationByID indicates an expected call of GetOperationByID.
+func (mr *MockOperationServiceMockRecorder) GetOperationByID(operationID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperation", reflect.TypeOf((*MockOperationService)(nil).GetOperation), dto)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperationByID", reflect.TypeOf((*MockOperationService)(nil).GetOperationByID), operationID)
 }
 
 // GetOperations mocks base method.
@@ -63,4 +76,18 @@ func (m *MockOperationService) GetOperations() (map[string]*types.Operation, err
 func (mr *MockOperationServiceMockRecorder) GetOperations() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOperations", reflect.TypeOf((*MockOperationService)(nil).GetOperations))
+}
+
+// PutOperation mocks base method.
+func (m *MockOperationService) PutOperation(operation *types.Operation) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PutOperation", operation)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PutOperation indicates an expected call of PutOperation.
+func (mr *MockOperationServiceMockRecorder) PutOperation(operation interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutOperation", reflect.TypeOf((*MockOperationService)(nil).PutOperation), operation)
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/lidofinance/dc4bc/client/modules/state"
 	"github.com/lidofinance/dc4bc/client/types"
@@ -38,11 +39,11 @@ func NewOperationRepo(state state.State, topic string) (*BaseOperationRepo, erro
 		deleteOperationsCompositeKey: deleteOperationsCompositeKey,
 	}
 
-	if err := repo.initJsonKey(operationsCompositeKey, map[string]*types.Operation{}); err != nil {
+	if err := repo.initJsonKey(operationsCompositeKey, make(map[string]*types.Operation)); err != nil {
 		return nil, fmt.Errorf("failed to init %s storage: %w", string(operationsCompositeKey), err)
 	}
 
-	if err := repo.initJsonKey(deleteOperationsCompositeKey, map[string]*types.Operation{}); err != nil {
+	if err := repo.initJsonKey(deleteOperationsCompositeKey, make(map[string]*types.Operation)); err != nil {
 		return nil, fmt.Errorf("failed to init %s storage: %w", string(deleteOperationsCompositeKey), err)
 	}
 
@@ -138,6 +139,12 @@ func (r *BaseOperationRepo) GetOperations() (map[string]*types.Operation, error)
 		return nil, fmt.Errorf("failed to get Operations (key: %s): %w", r.deleteOperationsCompositeKey, err)
 	}
 
+	if bz == nil {
+		return make(map[string]*types.Operation), nil
+	}
+
+	log.Println(r.operationsCompositeKey, string(bz))
+
 	var operations map[string]*types.Operation
 	if err := json.Unmarshal(bz, &operations); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal Operations: %w", err)
@@ -160,7 +167,7 @@ func (r *BaseOperationRepo) getDeletedOperations() (map[string]*types.Operation,
 	}
 
 	if bz == nil {
-		return nil, nil
+		return make(map[string]*types.Operation), nil
 	}
 
 	var operations map[string]*types.Operation

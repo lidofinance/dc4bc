@@ -30,7 +30,7 @@ require (
 	github.com/x88/null v2.1.2+incompatible // indirect
 	golang.org/x/crypto v0.0.0-20210817164053-32db794688a5
 	gopkg.in/go-playground/assert.v1 v1.2.1 // indirect
-	k8s.io/client-go v1.5.2
+	k8s.io/client-go v1.5.2 // indirect
 	lukechampine.com/frand v1.3.0
 )
 
