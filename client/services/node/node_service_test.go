@@ -227,5 +227,3 @@ func TestClient_GetOperationQRPath(t *testing.T) {
 	req.NoError(err)
 	req.Equal(expectedQrPath, qrPath)
 }
-
-

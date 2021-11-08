@@ -31,7 +31,7 @@ type State interface {
 	Get(key string) ([]byte, error)
 	Set(key string, value []byte) error
 	Delete(key string) error
-	Reset(stateDbPath string) (string,error)
+	Reset(stateDbPath string) (string, error)
 
 	SaveOffset(uint64) error
 	LoadOffset() (uint64, error)
@@ -133,7 +133,7 @@ func (s *LevelDBState) Reset(stateDbPath string) (string, error) {
 	s.Lock()
 	defer s.Unlock()
 
-	if len(stateDbPath) < 1 {
+	if stateDbPath == "" {
 		stateDbPath = fmt.Sprintf("%s_%d", s.stateDbPath, time.Now().Unix())
 	}
 
@@ -181,6 +181,9 @@ func (s *LevelDBState) Delete(key string) error {
 }
 
 func (s *LevelDBState) SaveOffset(offset uint64) error {
+	s.Lock()
+	defer s.Unlock()
+
 	bz := make([]byte, 8)
 	binary.LittleEndian.PutUint64(bz, offset)
 
@@ -192,6 +195,9 @@ func (s *LevelDBState) SaveOffset(offset uint64) error {
 }
 
 func (s *LevelDBState) LoadOffset() (uint64, error) {
+	s.Lock()
+	defer s.Unlock()
+
 	bz, err := s.stateDb.Get(makeCompositeKey(s.topic, OffsetKey), nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read offset: %w", err)
