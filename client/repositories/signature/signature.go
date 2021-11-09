@@ -28,7 +28,7 @@ func NewSignatureRepo(state state.State) *BaseSignatureRepo {
 }
 
 func (r *BaseSignatureRepo) GetSignatures(dkgID string) (signatures map[string][]types.ReconstructedSignature, err error) {
-	key := types.MakeCompositeKey(SignaturesKeyPrefix, dkgID)
+	key := state.MakeCompositeKey(SignaturesKeyPrefix, dkgID)
 
 	bz, err := r.state.Get(string(key))
 	if err != nil {
@@ -94,7 +94,7 @@ func (r *BaseSignatureRepo) SaveSignatures(signaturesToSave []types.Reconstructe
 		return fmt.Errorf("failed to marshal signatures: %w", err)
 	}
 
-	key := types.MakeCompositeKey(SignaturesKeyPrefix, signaturesToSave[0].DKGRoundID)
+	key := state.MakeCompositeKey(SignaturesKeyPrefix, signaturesToSave[0].DKGRoundID)
 
 	if err := r.state.Set(string(key), signaturesJSON); err != nil {
 		return fmt.Errorf("failed to save signatures: %w", err)

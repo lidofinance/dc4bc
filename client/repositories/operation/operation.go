@@ -29,12 +29,12 @@ type BaseOperationRepo struct {
 	deleteOperationsCompositeKey string
 }
 
-func NewOperationRepo(state state.State, topic string) (*BaseOperationRepo, error) {
-	operationsCompositeKey := types.MakeCompositeKeyString(topic, OperationsKey)
-	deleteOperationsCompositeKey := types.MakeCompositeKeyString(topic, DeletedOperationsKey)
+func NewOperationRepo(s state.State, topic string) (*BaseOperationRepo, error) {
+	operationsCompositeKey := state.MakeCompositeKeyString(topic, OperationsKey)
+	deleteOperationsCompositeKey := state.MakeCompositeKeyString(topic, DeletedOperationsKey)
 
 	repo := &BaseOperationRepo{
-		state:                        state,
+		state:                        s,
 		operationsCompositeKey:       operationsCompositeKey,
 		deleteOperationsCompositeKey: deleteOperationsCompositeKey,
 	}

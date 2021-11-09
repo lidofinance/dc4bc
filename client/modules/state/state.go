@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lidofinance/dc4bc/client/types"
-
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -53,7 +51,7 @@ func NewLevelDBState(stateDbPath string, topic string) (*LevelDBState, error) {
 	// TODO remove storage preinitialization after "service" methods moved out from state interface
 
 	// Init state key for offset bytes.
-	offsetCompositeKey := types.MakeCompositeKey(topic, OffsetKey)
+	offsetCompositeKey := MakeCompositeKey(topic, OffsetKey)
 	if _, err := state.stateDb.Get(offsetCompositeKey, nil); err != nil {
 		bz := make([]byte, 8)
 		binary.LittleEndian.PutUint64(bz, 0)
@@ -62,7 +60,7 @@ func NewLevelDBState(stateDbPath string, topic string) (*LevelDBState, error) {
 		}
 	}
 
-	fsmStateCompositeKey := types.MakeCompositeKey(topic, FSMStateKey)
+	fsmStateCompositeKey := MakeCompositeKey(topic, FSMStateKey)
 	if _, err := state.stateDb.Get(fsmStateCompositeKey, nil); err != nil {
 		if err := db.Put(fsmStateCompositeKey, []byte{}, nil); err != nil {
 			return nil, fmt.Errorf("failed to init %s storage: %w", string(fsmStateCompositeKey), err)
@@ -138,7 +136,7 @@ func (s *LevelDBState) SaveOffset(offset uint64) error {
 	bz := make([]byte, 8)
 	binary.LittleEndian.PutUint64(bz, offset)
 
-	if err := s.stateDb.Put(types.MakeCompositeKey(s.topic, OffsetKey), bz, nil); err != nil {
+	if err := s.stateDb.Put(MakeCompositeKey(s.topic, OffsetKey), bz, nil); err != nil {
 		return fmt.Errorf("failed to set offset: %w", err)
 	}
 
@@ -146,7 +144,7 @@ func (s *LevelDBState) SaveOffset(offset uint64) error {
 }
 
 func (s *LevelDBState) LoadOffset() (uint64, error) {
-	bz, err := s.stateDb.Get(types.MakeCompositeKey(s.topic, OffsetKey), nil)
+	bz, err := s.stateDb.Get(MakeCompositeKey(s.topic, OffsetKey), nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to read offset: %w", err)
 	}
@@ -154,4 +152,12 @@ func (s *LevelDBState) LoadOffset() (uint64, error) {
 	offset := binary.LittleEndian.Uint64(bz)
 
 	return offset, nil
+}
+
+func MakeCompositeKey(prefix, key string) []byte {
+	return []byte(fmt.Sprintf("%s_%s", prefix, key))
+}
+
+func MakeCompositeKeyString(prefix, key string) string {
+	return fmt.Sprintf("%s_%s", prefix, key)
 }
