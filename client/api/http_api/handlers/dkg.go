@@ -16,97 +16,45 @@ import (
 
 func (a *HTTPApp) StartDKG(c echo.Context) error {
 	var err error
-	stx := c.(*cs.ContextService)
-
+	ctx := c.(*cs.ContextService)
 	request := &req.StartDKGForm{}
-
-	request.Payload, err = ioutil.ReadAll(stx.Request().Body)
+	request.Payload, err = ioutil.ReadAll(ctx.Request().Body)
 	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			fmt.Errorf("failed to read request body: %v", err),
-		)
+		return ctx.JsonError(http.StatusBadRequest, fmt.Errorf("failed to read request body: %v", err))
 	}
-	defer stx.Request().Body.Close()
+	defer ctx.Request().Body.Close()
 
 	if err := validator.Validate(request); !err.IsEmpty() {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err.Error(),
-		)
+		return ctx.JsonError(http.StatusBadRequest, err.Error())
 	}
 
 	formDTO := &StartDkgDTO{}
-
-	err = dto.RequestToDTO(formDTO, request)
-
-	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err,
-		)
+	if err = dto.RequestToDTO(formDTO, request); err != nil {
+		return ctx.JsonError(http.StatusBadRequest, err)
 	}
 
-	err = a.node.StartDKG(formDTO)
-
-	if err == nil {
-		return stx.Json(
-			http.StatusOK,
-			"ok",
-		)
-	} else {
-		return stx.JsonError(
-			http.StatusInternalServerError,
-			err,
-		)
+	if err = a.node.StartDKG(formDTO); err != nil {
+		return ctx.JsonError(http.StatusInternalServerError, err)
 	}
+	return ctx.Json(http.StatusOK, "ok")
 }
 
 func (a *HTTPApp) ReInitDKG(c echo.Context) error {
-	stx := c.(*cs.ContextService)
-
+	ctx := c.(*cs.ContextService)
 	request := &req.ReInitDKGForm{}
-
-	err := stx.Bind(request)
-
+	err := ctx.BindToRequest(request)
 	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			fmt.Errorf("failed to read request body: %v", err),
-		)
+		return err
 	}
 
-	if err := validator.Validate(request); !err.IsEmpty() {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err.Error(),
-		)
-	}
-
-	formDTO := &ReInitDKGDTO{
-		ID: request.ID,
-	}
-
+	formDTO := &ReInitDKGDTO{ID: request.ID}
 	formDTO.Payload, err = json.Marshal(request)
-
 	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			fmt.Errorf("failed to marshal request body: %v", err),
-		)
+		return ctx.JsonError(http.StatusBadRequest, fmt.Errorf("failed to marshal request body: %v", err))
 	}
 
-	err = a.node.ReInitDKG(formDTO)
-
-	if err == nil {
-		return stx.Json(
-			http.StatusOK,
-			"ok",
-		)
-	} else {
-		return stx.JsonError(
-			http.StatusInternalServerError,
-			err,
-		)
+	if err = a.node.ReInitDKG(formDTO); err != nil {
+		return ctx.JsonError(http.StatusInternalServerError, err)
 	}
+	return ctx.Json(http.StatusOK, "ok")
 }
