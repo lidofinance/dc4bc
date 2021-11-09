@@ -14,64 +14,24 @@ import (
 
 func (a *HTTPApp) GetOperations(c echo.Context) error {
 	stx := c.(*cs.ContextService)
-
 	operations, err := a.operation.GetOperations()
 	if err != nil {
-		return stx.JsonError(
-			http.StatusInternalServerError,
-			err,
-		)
+		return stx.JsonError(http.StatusInternalServerError, err)
 	}
-
-	return stx.Json(
-		http.StatusOK,
-		operations,
-	)
+	return stx.Json(http.StatusOK, operations)
 }
 
 func (a *HTTPApp) ProcessOperation(c echo.Context) error {
 	stx := c.(*cs.ContextService)
-
-	request := &req.OperationForm{}
-
-	err := stx.Bind(request)
-	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			fmt.Errorf("failed to read request body: %v", err),
-		)
-	}
-
-	if err := validator.Validate(request); !err.IsEmpty() {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err.Error(),
-		)
-	}
-
 	formDTO := &OperationDTO{}
-
-	err = dto.RequestToDTO(formDTO, request)
-
-	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err,
-		)
+	if err := stx.BindToDTO(&req.OperationForm{}, formDTO); err != nil {
+		return err
 	}
 
-	err = a.node.ProcessOperation(formDTO)
-	if err != nil {
-		return stx.JsonError(
-			http.StatusInternalServerError,
-			err,
-		)
+	if err := a.node.ProcessOperation(formDTO); err != nil {
+		return stx.JsonError(http.StatusInternalServerError, err)
 	}
-
-	return stx.Json(
-		http.StatusOK,
-		"ok",
-	)
+	return stx.Json(http.StatusOK, "ok")
 }
 
 func (a *HTTPApp) GetOperation(c echo.Context) error {
@@ -120,46 +80,13 @@ func (a *HTTPApp) GetOperation(c echo.Context) error {
 
 func (a *HTTPApp) ApproveParticipation(c echo.Context) error {
 	stx := c.(*cs.ContextService)
-
-	request := &req.OperationIdForm{}
-
-	err := stx.Bind(request)
-
-	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			fmt.Errorf("failed to read request body: %v", err),
-		)
-	}
-
-	if err := validator.Validate(request); !err.IsEmpty() {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err.Error(),
-		)
-	}
-
 	formDTO := &OperationIdDTO{}
-
-	err = dto.RequestToDTO(formDTO, request)
-
-	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err,
-		)
+	if err := stx.BindToDTO(&req.OperationIdForm{}, formDTO); err != nil {
+		return err
 	}
 
-	err = a.node.ApproveParticipation(formDTO)
-	if err != nil {
-		return stx.JsonError(
-			http.StatusInternalServerError,
-			err,
-		)
+	if err := a.node.ApproveParticipation(formDTO); err != nil {
+		return stx.JsonError(http.StatusInternalServerError, err)
 	}
-
-	return stx.Json(
-		http.StatusOK,
-		"ok",
-	)
+	return stx.Json(http.StatusOK, "ok")
 }

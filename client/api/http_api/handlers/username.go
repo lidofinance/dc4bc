@@ -9,11 +9,5 @@ import (
 
 func (a *HTTPApp) GetUsername(c echo.Context) error {
 	stx := c.(*cs.ContextService)
-
-	username := a.node.GetUsername()
-
-	return stx.Json(
-		http.StatusOK,
-		username,
-	)
+	return stx.Json(http.StatusOK, a.node.GetUsername())
 }

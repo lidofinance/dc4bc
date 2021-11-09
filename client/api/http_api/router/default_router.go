@@ -25,7 +25,7 @@ func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc, node node.NodeServ
 	e.GET("/getOperation", h.GetOperation)
 
 	e.POST("/startDKG", h.StartDKG)
-	e.POST("/proposeSignMessage", h.ProposeSignData)
+	e.POST("/proposeSignMessage", h.ProposeSignMessage)
 	e.POST("/proposeSignBatchMessages", h.ProposeSignBatchMessages)
 	e.POST("/approveDKGParticipation", h.ApproveParticipation)
 	e.POST("/reinitDKG", h.ReInitDKG)
