@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lidofinance/dc4bc/client/services/fsmservice"
+
 	"github.com/google/uuid"
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/config"
@@ -29,7 +31,6 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/storage"
-	"github.com/lidofinance/dc4bc/storage/kafka_storage"
 )
 
 const (
@@ -51,10 +52,7 @@ type NodeService interface {
 	ProcessOperation(dto *dto.OperationDTO) error
 	StartDKG(dto *dto.StartDkgDTO) error
 	ReInitDKG(dto *dto.ReInitDKGDTO) error
-	GetFSMDump(dto *dto.DkgIdDTO) (*state_machines.FSMDump, error)
-	GetFSMList() (map[string]string, error)
 	SetSkipCommKeysVerification(bool)
-	ResetFSMState(dto *dto.ResetStateDTO) (string, error)
 	GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.ReconstructedSignature, error)
 	GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error)
 	ProposeSignMessages(dto *dto.ProposeSignBatchMessagesDTO) error
@@ -72,6 +70,7 @@ type BaseNodeService struct {
 	storage                  storage.Storage
 	keyStore                 keystore.KeyStore
 	Logger                   logger.Logger
+	fsmService               fsmservice.FSMService
 	SkipCommKeysVerification bool
 }
 
@@ -82,13 +81,14 @@ func NewNode(ctx context.Context, config *config.Config, sp *services.ServicePro
 	}
 
 	return &BaseNodeService{
-		ctx:      ctx,
-		userName: config.Username,
-		pubKey:   keyPair.Pub,
-		state:    sp.GetState(),
-		storage:  sp.GetStorage(),
-		keyStore: sp.GetKeyStore(),
-		Logger:   sp.GetLogger(),
+		ctx:        ctx,
+		userName:   config.Username,
+		pubKey:     keyPair.Pub,
+		state:      sp.GetState(),
+		storage:    sp.GetStorage(),
+		keyStore:   sp.GetKeyStore(),
+		Logger:     sp.GetLogger(),
+		fsmService: sp.GetFSMService(),
 	}, nil
 }
 
@@ -380,7 +380,7 @@ func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessag
 		messagesToSign = append(messagesToSign, messageDataSign)
 	}
 
-	fsmInstance, err := s.getFSMInstance(hex.EncodeToString(dtoMsg.DkgID))
+	fsmInstance, err := s.fsmService.GetFSMInstance(hex.EncodeToString(dtoMsg.DkgID))
 	if err != nil {
 		return fmt.Errorf("failed to get FSM instance: %w", err)
 	}
@@ -413,31 +413,6 @@ func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessag
 	}
 
 	return nil
-}
-
-// getFSMInstance returns FSM for a necessary DKG round.
-func (s *BaseNodeService) getFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error) {
-	var err error
-	fsmInstance, ok, err := s.getState().LoadFSM(dkgRoundID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to LoadFSM: %w", err)
-	}
-
-	if !ok {
-		fsmInstance, err = state_machines.Create(dkgRoundID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create FSM instance: %w", err)
-		}
-		bz, err := fsmInstance.Dump()
-		if err != nil {
-			return nil, fmt.Errorf("failed to Dump FSM instance: %w", err)
-		}
-		if err := s.getState().SaveFSM(dkgRoundID, bz); err != nil {
-			return nil, fmt.Errorf("failed to SaveFSM: %w", err)
-		}
-	}
-
-	return fsmInstance, nil
 }
 
 func (s *BaseNodeService) ApproveParticipation(dto *dto.OperationIdDTO) error {
@@ -518,60 +493,6 @@ func (s *BaseNodeService) SaveOffset(dto *dto.StateOffsetDTO) error {
 	return nil
 }
 
-func (s *BaseNodeService) GetFSMDump(dto *dto.DkgIdDTO) (*state_machines.FSMDump, error) {
-	fsmInstance, err := s.getFSMInstance(dto.DkgID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get FSM instance for DKG round ID %s: %w", dto.DkgID, err)
-	}
-	return fsmInstance.FSMDump(), nil
-}
-
-func (s *BaseNodeService) GetFSMList() (map[string]string, error) {
-	fsmInstances, err := s.getState().GetAllFSM()
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to get all FSM instances: %v", err)
-	}
-
-	fsmInstancesStates := make(map[string]string, len(fsmInstances))
-	for k, v := range fsmInstances {
-		fsmState, err := v.State()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get FSM state: %v", err)
-		}
-		fsmInstancesStates[k] = fsmState.String()
-	}
-
-	return fsmInstancesStates, nil
-}
-
-func (s *BaseNodeService) ResetFSMState(dto *dto.ResetStateDTO) (string, error) {
-	s.stateMu.Lock()
-	defer s.stateMu.Unlock()
-
-	if err := s.storage.IgnoreMessages(dto.Messages, dto.UseOffset); err != nil {
-		return "", fmt.Errorf("failed to ignore messages while resetting state: %v", err)
-	}
-
-	switch s.storage.(type) {
-	case *kafka_storage.KafkaStorage:
-		stg := s.storage.(*kafka_storage.KafkaStorage)
-		if err := stg.SetConsumerGroup(dto.KafkaConsumerGroup); err != nil {
-			return "", fmt.Errorf("failed to set consumer group while reseting state: %v", err)
-		}
-	}
-
-	newState, newStateDbPath, err := s.state.NewStateFromOld(dto.NewStateDBDSN)
-
-	if err != nil {
-		return "", fmt.Errorf("failed to create new state from old: %v", err)
-	}
-
-	s.state = newState
-
-	return newStateDbPath, err
-}
-
 func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 	var req types.ReDKG
 	if err := json.Unmarshal(message.Data, &req); err != nil {
@@ -616,7 +537,7 @@ func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 	}
 
 	// save new comm keys into FSM to verify future messages
-	fsmInstance, err := s.getFSMInstance(req.DKGID)
+	fsmInstance, err := s.fsmService.GetFSMInstance(req.DKGID)
 	if err != nil {
 		return fmt.Errorf("failed to get FSM instance: %w", err)
 	}
@@ -628,7 +549,7 @@ func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 		return fmt.Errorf("failed to get FSM dump")
 	}
 
-	if err := s.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+	if err := s.fsmService.SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 		return fmt.Errorf("failed to SaveFSM: %w", err)
 	}
 
@@ -680,7 +601,7 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 }
 
 func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operation, error) {
-	fsmInstance, err := s.getFSMInstance(message.DkgRoundID)
+	fsmInstance, err := s.fsmService.GetFSMInstance(message.DkgRoundID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to getFSMInstance: %w", err)
 	}
@@ -740,7 +661,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 				return nil, fmt.Errorf("failed to Do operation in FSM: %w", err)
 			}
 
-			if err := s.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+			if err := s.fsmService.SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 				return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 
 			}
@@ -768,7 +689,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 				return nil, fmt.Errorf("failed to Do operation in FSM: %w", err)
 			}
 
-			if err := s.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+			if err := s.fsmService.SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 				return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 			}
 		}
@@ -861,7 +782,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 		}
 	}
 
-	if err := s.getState().SaveFSM(message.DkgRoundID, fsmDump); err != nil {
+	if err := s.fsmService.SaveFSM(message.DkgRoundID, fsmDump); err != nil {
 		return nil, fmt.Errorf("failed to SaveFSM: %w", err)
 	}
 

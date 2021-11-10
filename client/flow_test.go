@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/lidofinance/dc4bc/client/api/dto"
+	"github.com/lidofinance/dc4bc/client/services/fsmservice"
 
 	"github.com/lidofinance/dc4bc/client/api/http_api"
 	"github.com/lidofinance/dc4bc/client/api/http_api/responses"
@@ -137,11 +138,13 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 				Debug:      false,
 			},
 		}
+		fsmService := fsmservice.NewFSMService(state, stg, "")
 		sp := services.ServiceProvider{}
 		sp.SetLogger(logger)
 		sp.SetState(state)
 		sp.SetKeyStore(keyStore)
 		sp.SetStorage(stg)
+		sp.SetFSMService(fsmService)
 
 		clt, err := node.NewNode(ctx, &cfg, &sp)
 		if err != nil {
@@ -159,7 +162,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			return nodes, err
 		}
 
-		server := http_api.NewRESTApi(&cfg, clt)
+		server := http_api.NewRESTApi(&cfg, clt, &sp)
 
 		nodes[nodeID] = &nodeInstance{
 			ctx:          ctx,

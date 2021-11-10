@@ -4,13 +4,12 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"testing"
 	"time"
 
+	"github.com/lidofinance/dc4bc/mocks/serviceMocks"
+
 	"github.com/google/uuid"
-	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	"github.com/lidofinance/dc4bc/client/modules/logger"
@@ -40,6 +39,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 	state := clientMocks.NewMockState(ctrl)
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
 	stg := storageMocks.NewMockStorage(ctrl)
+	fsmService := serviceMocks.NewMockFSMService(ctrl)
 
 	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
@@ -49,6 +49,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 	sp.SetState(state)
 	sp.SetKeyStore(keyStore)
 	sp.SetStorage(stg)
+	sp.SetFSMService(fsmService)
 
 	// minimal config to make test
 	cfg := config.Config{
@@ -61,7 +62,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 	t.Run("test_process_dkg_init", func(t *testing.T) {
 		fsm, err := state_machines.Create(dkgRoundID)
 		req.NoError(err)
-		state.EXPECT().LoadFSM(dkgRoundID).Times(1).Return(fsm, true, nil)
+		fsmService.EXPECT().GetFSMInstance(dkgRoundID).Times(1).Return(fsm, nil)
 
 		senderKeyPair := keystore.NewKeyPair()
 		senderAddr := senderKeyPair.GetAddr()
@@ -104,7 +105,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 		}
 		message.Signature = ed25519.Sign(senderKeyPair.Priv, message.Bytes())
 
-		state.EXPECT().SaveFSM(gomock.Any(), gomock.Any()).Times(1).Return(nil)
+		fsmService.EXPECT().SaveFSM(gomock.Any(), gomock.Any()).Times(1).Return(nil)
 		state.EXPECT().PutOperation(gomock.Any()).Times(1).Return(nil)
 
 		err = clt.ProcessMessage(message)
@@ -160,53 +161,4 @@ func TestClient_GetOperationsList(t *testing.T) {
 	req.NoError(err)
 	req.Len(operations, 1)
 	req.Equal(operation, operations[operation.ID])
-}
-
-func TestClient_ResetState(t *testing.T) {
-	var (
-		ctx  = context.Background()
-		req  = require.New(t)
-		ctrl = gomock.NewController(t)
-	)
-	defer ctrl.Finish()
-
-	userName := "test_client"
-
-	keyStore := clientMocks.NewMockKeyStore(ctrl)
-	testClientKeyPair := keystore.NewKeyPair()
-	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
-
-	state := clientMocks.NewMockState(ctrl)
-	stg := storageMocks.NewMockStorage(ctrl)
-
-	sp := services.ServiceProvider{}
-	sp.SetLogger(logger.NewLogger(userName))
-	sp.SetState(state)
-	sp.SetKeyStore(keyStore)
-	sp.SetStorage(stg)
-
-	// minimal config to make test
-	cfg := config.Config{
-		Username: userName,
-	}
-
-	clt, err := NewNode(ctx, &cfg, &sp)
-	req.NoError(err)
-
-	resetReq := dto.ResetStateDTO{
-		NewStateDBDSN:      "./dc4bc_client_state_new",
-		UseOffset:          true,
-		KafkaConsumerGroup: fmt.Sprintf("%s_%d", userName, time.Now().Unix()),
-		Messages:           []string{"11", "12"},
-	}
-
-	stg.EXPECT().IgnoreMessages(resetReq.Messages, resetReq.UseOffset).Times(1).Return(errors.New(""))
-	_, err = clt.ResetFSMState(&resetReq)
-	req.Error(err)
-
-	stg.EXPECT().IgnoreMessages(resetReq.Messages, resetReq.UseOffset).Times(1).Return(nil)
-	state.EXPECT().NewStateFromOld(resetReq.NewStateDBDSN).Times(1).Return(state, resetReq.NewStateDBDSN, nil)
-	newStatePath, err := clt.ResetFSMState(&resetReq)
-	req.NoError(err)
-	req.Equal(newStatePath, resetReq.NewStateDBDSN)
 }

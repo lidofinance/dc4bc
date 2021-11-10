@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/lidofinance/dc4bc/client/services/fsmservice"
+
 	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	"github.com/lidofinance/dc4bc/client/modules/logger"
@@ -18,6 +20,7 @@ type ServiceProvider struct {
 	ks      keystore.KeyStore
 	l       logger.Logger
 	state   state.State
+	fsm     fsmservice.FSMService
 }
 
 func (s *ServiceProvider) GetStorage() storage.Storage {
@@ -50,6 +53,14 @@ func (s *ServiceProvider) GetState() state.State {
 
 func (s *ServiceProvider) SetState(st state.State) {
 	s.state = st
+}
+
+func (s *ServiceProvider) GetFSMService() fsmservice.FSMService {
+	return s.fsm
+}
+
+func (s *ServiceProvider) SetFSMService(fsm fsmservice.FSMService) {
+	s.fsm = fsm
 }
 
 func parseMessagesToIgnore(cfg *config.KafkaStorageConfig) (msgs []string, err error) {
@@ -101,6 +112,8 @@ func CreateServiceProviderWithCfg(cfg *config.Config) (*ServiceProvider, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to init state: %w", err)
 	}
+
+	sp.fsm = fsmservice.NewFSMService(sp.state, sp.storage, cfg.KafkaStorageConfig.Topic)
 
 	return &sp, nil
 }

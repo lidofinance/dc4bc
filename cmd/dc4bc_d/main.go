@@ -190,7 +190,7 @@ func startClientCommand() *cobra.Command {
 				os.Exit(0)
 			}()
 
-			server := http_api.NewRESTApi(cfg, nodeInstance)
+			server := http_api.NewRESTApi(cfg, nodeInstance, sp)
 
 			go func() {
 				if err := server.Start(); err != nil {

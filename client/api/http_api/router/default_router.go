@@ -3,11 +3,12 @@ package router
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/lidofinance/dc4bc/client/api/http_api/handlers"
+	"github.com/lidofinance/dc4bc/client/services"
 	"github.com/lidofinance/dc4bc/client/services/node"
 )
 
-func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc, node node.NodeService) {
-	h := handlers.NewHTTPApp(node)
+func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc, node node.NodeService, sp *services.ServiceProvider) {
+	h := handlers.NewHTTPApp(node, sp)
 
 	e.GET("/getUsername", h.GetUsername)
 	e.GET("/getPubKey", h.GetPubKey)
@@ -22,7 +23,7 @@ func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc, node node.NodeServ
 	e.GET("/getOperation", h.GetOperation)
 
 	e.POST("/startDKG", h.StartDKG)
-	e.POST("/proposeSignMessage", h.ProposeSignData)
+	e.POST("/proposeSignMessage", h.ProposeSignMessage)
 	e.POST("/proposeSignBatchMessages", h.ProposeSignBatchMessages)
 	e.POST("/approveDKGParticipation", h.ApproveParticipation)
 	e.POST("/reinitDKG", h.ReInitDKG)
