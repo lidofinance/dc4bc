@@ -278,7 +278,6 @@ func getSignatureRequest(host string, dkgID, dataHash string) (*SignatureRespons
 	if err != nil {
 		return nil, fmt.Errorf("failed to read body: %w", err)
 	}
-
 	var response SignatureResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
