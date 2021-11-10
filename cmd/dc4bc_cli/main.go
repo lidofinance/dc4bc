@@ -40,8 +40,6 @@ import (
 
 const (
 	flagListenAddr         = "listen_addr"
-	flagFramesDelay        = "frames_delay"
-	flagChunkSize          = "chunk_size"
 	flagJSONFilesFolder    = "json_files_folder"
 	flagNewStateDBDSN      = "new_state_dbdsn"
 	flagUseOffsetInsteadId = "use_offset_instead_id"
@@ -66,7 +64,6 @@ var (
 
 func init() {
 	rootCmd.PersistentFlags().String(flagListenAddr, "localhost:8080", "Listen Address")
-	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
 	rootCmd.PersistentFlags().String(flagJSONFilesFolder, "/tmp", "Folder to save JSON files")
 
 	refreshStateCmd.Flags().BoolVarP(&useOffset, flagUseOffsetInsteadId, "o", false,
@@ -190,22 +187,23 @@ func getOperationsCommand() *cobra.Command {
 					colorTitle.Print("Processing operation")
 					colorOperationId.Printf(" %s\n", operationId)
 
-					qrCmd := &cobra.Command{}
+					cmd := &cobra.Command{}
 
 					switch fsm.State(operations.Result[operationId].Type) {
 					case spf.StateAwaitParticipantsConfirmations:
-						qrCmd = approveDKGParticipationCommand()
+						cmd = approveDKGParticipationCommand()
 					default:
-						qrCmd = getOperationPathCommand()
+						cmd = getOperationPathCommand()
 					}
 
-					qrCmd.SetArgs([]string{operationId})
-					qrCmd.Flags().AddFlagSet(cmd.Flags())
-					qrCmd.Execute()
+					cmd.SetArgs([]string{operationId})
+					cmd.Flags().AddFlagSet(cmd.Flags())
+					cmd.Execute()
+
 					return nil
-				} else {
-					color.New(color.FgRed).Println("Unknown operation action")
 				}
+
+				color.New(color.FgRed).Println("Unknown operation action")
 			}
 
 			return nil
@@ -367,15 +365,22 @@ func getOperationPathCommand() *cobra.Command {
 			}
 
 			operationID := args[0]
-			operation, err := getOperationRequest(listenAddr, operationID)
+			operationResponse, err := getOperationRequest(listenAddr, operationID)
 			if err != nil {
 				return fmt.Errorf("failed to get operations: %w", err)
 			}
-			if operation.ErrorMessage != "" {
-				return fmt.Errorf("failed to get operations: %s", operation.ErrorMessage)
+			if operationResponse.ErrorMessage != "" {
+				return fmt.Errorf("failed to get operations: %s", operationResponse.ErrorMessage)
 			}
-			// при сохранении файла сделать название файла <dkg_id>_<sig_id>_step_1.json
-			operationPath := filepath.Join(folder, fmt.Sprintf("%s.json", operationID))
+
+			var operation types.Operation
+
+			err = json.Unmarshal(operationResponse.Result, &operation)
+			if err != nil {
+				return fmt.Errorf("failed to get operations: %w", err)
+			}
+
+			operationPath := filepath.Join(folder, operation.Filename())
 
 			path := fmt.Sprintf("%s.json", operationPath)
 
@@ -386,7 +391,7 @@ func getOperationPathCommand() *cobra.Command {
 
 			defer f.Close()
 
-			_, err = f.Write(operation.Result)
+			_, err = f.Write(operationResponse.Result)
 			if err != nil {
 				return fmt.Errorf("failed to write file: %w", err)
 			}

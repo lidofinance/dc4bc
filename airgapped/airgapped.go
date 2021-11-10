@@ -131,12 +131,12 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	}
 
 	for idx, operation := range operationsLog {
-		qrPath, err := am.ProcessOperation(operation, false)
+		path, err := am.ProcessOperation(operation, false)
 		if err != nil {
 			return fmt.Errorf("failed to ProcessOperation: %w", err)
 		}
 
-		log.Printf("QR code for operation %d was saved to: %s\n", idx, qrPath)
+		log.Printf("JSON file for operation %d was saved to: %s\n", idx, path)
 	}
 
 	log.Println("Successfully replayed Operation log")
@@ -196,7 +196,7 @@ func (am *Machine) ProcessOperation(operation client.Operation, storeOperation b
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	path := filepath.Join(am.ResultFolder, fmt.Sprintf("%s_%s.json", operation.DKGIdentifier, operation.ID))
+	path := filepath.Join(am.ResultFolder, operation.Filename())
 
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {

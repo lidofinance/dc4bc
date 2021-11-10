@@ -59,8 +59,6 @@ func init() {
 	rootCmd.PersistentFlags().String(flagKafkaConsumerGroup, "", "Kafka consumer group")
 	rootCmd.PersistentFlags().String(flagKafkaTimeout, "60s", "Kafka I/O Timeout")
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
-	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
-	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, flagConfig, "", "path to your config file")
 	rootCmd.PersistentFlags().Bool(flagSkipCommKeysVerification, false, "verify messages from append-log or not")
 	rootCmd.PersistentFlags().String(flagStorageIgnoreMessages, "", "Messages ids or offsets separated by comma (id_1,id_2,...,id_n) to ignore when reading from storage")
@@ -119,8 +117,6 @@ func prepareConfig() (*apiconfig.Config, error) {
 
 	cfg.HttpApiConfig = &httpCfg
 	cfg.KafkaStorageConfig = &kafkaCfg
-
-	cfg.HttpApiConfig.ListenAddr = "localhost:8081"
 
 	return &cfg, nil
 }

@@ -102,7 +102,7 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 	})
 	p.addCommand("generate_dkg_pubkey_json", &promptCommand{
 		commandHandler: p.generateDKGPubKeyJSON,
-		description:    "generates and saves a QR with DKG public key that can be read by the Client node",
+		description:    "generates and saves a JSON with DKG public key that can be read by the Client node",
 	})
 	p.addCommand("set_seed", &promptCommand{
 		commandHandler: p.setSeedCommand,
@@ -169,12 +169,12 @@ func (p *prompt) readOperationCommand() error {
 		return fmt.Errorf("failed to unmarshal Operation: %w", err)
 	}
 
-	qrPath, err := p.airgapped.ProcessOperation(operation, true)
+	path, err := p.airgapped.ProcessOperation(operation, true)
 	if err != nil {
 		return fmt.Errorf("failed to ProcessOperation: %w", err)
 	}
 
-	p.printf("Operation JSON was handled successfully, the result Operation JSON was saved to: %s\n", qrPath)
+	p.printf("Operation JSON was handled successfully, the result Operation JSON was saved to: %s\n", path)
 
 	return nil
 }
@@ -237,14 +237,14 @@ func (p *prompt) replayOperationLogCommand() error {
 }
 
 func (p *prompt) changeConfigurationCommand() error {
-	p.print("> Enter a new path to save QR codes (leave empty to avoid changes): ")
+	p.print("> Enter a new path to save JSON files (leave empty to avoid changes): ")
 	newresultfolder, _, err := p.reader.ReadLine()
 	if err != nil {
 		return fmt.Errorf("failed to read input: %w", err)
 	}
 	if len(newresultfolder) > 0 {
 		p.airgapped.SetResultFolder(string(newresultfolder))
-		p.printf("Folder to save QR codes was changed to: %s\n", string(newresultfolder))
+		p.printf("Folder to save JSON files was changed to: %s\n", string(newresultfolder))
 	}
 
 	p.print("> Enter a password expiration duration (leave empty to avoid changes): ")
@@ -524,7 +524,7 @@ var (
 func init() {
 	flag.StringVar(&passwordExpiration, "password_expiration", "10m", "Expiration of the encryption password")
 	flag.StringVar(&dbPath, "db_path", "airgapped_db", "Path to airgapped levelDB storage")
-	flag.StringVar(&resultFolder, "result_folder", "/tmp/", "Folder to save result QR codes")
+	flag.StringVar(&resultFolder, "result_folder", "/tmp/", "Folder to save result JSON files")
 }
 
 func main() {
