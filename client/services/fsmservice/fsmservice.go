@@ -3,6 +3,7 @@ package fsmservice
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/modules/state"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
@@ -23,34 +24,42 @@ type FSMService interface {
 }
 
 type FSM struct {
-	stateNamespace string
-	state          state.State
-	storage        storage.Storage
+	state    state.State
+	storage  storage.Storage
+	stateKey string
 }
 
 func NewFSMService(state state.State, storage storage.Storage, stateNamespace string) FSMService {
 	return &FSM{
-		stateNamespace: stateNamespace,
-		state:          state,
-		storage:        storage,
+		state:    state,
+		storage:  storage,
+		stateKey: fmt.Sprintf("%s_%s", stateNamespace, FSMStateKey),
 	}
 }
 
-func (fsm *FSM) stateKey() string {
-	return fmt.Sprintf("%s_%s", fsm.stateNamespace, FSMStateKey)
+func (fsm *FSM) getStateKey() string {
+	return fsm.stateKey
+}
+
+func (fsm *FSM) getAllFSMData() (fsmInstances map[string][]byte, err error) {
+	bz, err := fsm.state.Get(fsm.getStateKey())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get FSM instances: %w", err)
+	}
+
+	fsmInstances = map[string][]byte{}
+	if len(bz) > 0 {
+		if err := json.Unmarshal(bz, &fsmInstances); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+		}
+	}
+	return fsmInstances, nil
 }
 
 func (fsm *FSM) loadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, error) {
-	bz, err := fsm.state.Get(fsm.stateKey())
+	fsmInstances, err := fsm.getAllFSMData()
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to get FSM instances: %w", err)
-	}
-
-	var fsmInstances = map[string][]byte{}
-	if len(bz) > 0 {
-		if err := json.Unmarshal(bz, &fsmInstances); err != nil {
-			return nil, false, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
-		}
+		return nil, false, fmt.Errorf("failed to get fsm instances: %w", err)
 	}
 
 	fsmInstanceBz, ok := fsmInstances[dkgRoundID]
@@ -67,16 +76,9 @@ func (fsm *FSM) loadFSM(dkgRoundID string) (*state_machines.FSMInstance, bool, e
 }
 
 func (fsm *FSM) SaveFSM(dkgRoundID string, dump []byte) error {
-	bz, err := fsm.state.Get(fsm.stateKey())
+	fsmInstances, err := fsm.getAllFSMData()
 	if err != nil {
-		return fmt.Errorf("failed to get FSM instances: %w", err)
-	}
-
-	var fsmInstances = map[string][]byte{}
-	if len(bz) > 0 {
-		if err := json.Unmarshal(bz, &fsmInstances); err != nil {
-			return fmt.Errorf("failed to unmarshal FSM instances: %w", err)
-		}
+		return fmt.Errorf("failed to get fsm instances: %w", err)
 	}
 
 	fsmInstances[dkgRoundID] = dump
@@ -86,7 +88,7 @@ func (fsm *FSM) SaveFSM(dkgRoundID string, dump []byte) error {
 		return fmt.Errorf("failed to marshal FSM instances: %w", err)
 	}
 
-	if err := fsm.state.Set(fsm.stateKey(), fsmInstancesBz); err != nil {
+	if err := fsm.state.Set(fsm.getStateKey(), fsmInstancesBz); err != nil {
 		return fmt.Errorf("failed to save fsm state: %w", err)
 	}
 
@@ -129,17 +131,11 @@ func (fsm *FSM) GetFSMDump(dto *dto.DkgIdDTO) (*state_machines.FSMDump, error) {
 }
 
 func (fsm *FSM) GetAllFSM() (map[string]*state_machines.FSMInstance, error) {
-	bz, err := fsm.state.Get(fsm.stateKey())
+	fsmInstancesBz, err := fsm.getAllFSMData()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get FSM instances: %w", err)
+		return nil, fmt.Errorf("failed to get fsm instances: %w", err)
 	}
 
-	var fsmInstancesBz = map[string][]byte{}
-	if len(bz) > 0 {
-		if err := json.Unmarshal(bz, &fsmInstancesBz); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
-		}
-	}
 	fsmInstances := make(map[string]*state_machines.FSMInstance, len(fsmInstancesBz))
 	for k, v := range fsmInstancesBz {
 		fsmInstances[k], err = state_machines.FromDump(v)
@@ -175,9 +171,8 @@ func (fsm *FSM) ResetFSMState(dto *dto.ResetStateDTO) (string, error) {
 		return "", fmt.Errorf("failed to ignore messages while resetting state: %w", err)
 	}
 
-	switch fsm.storage.(type) {
+	switch stg := fsm.storage.(type) {
 	case *kafka_storage.KafkaStorage:
-		stg := fsm.storage.(*kafka_storage.KafkaStorage)
 		if err := stg.SetConsumerGroup(dto.KafkaConsumerGroup); err != nil {
 			return "", fmt.Errorf("failed to set consumer group while reseting state: %w", err)
 		}

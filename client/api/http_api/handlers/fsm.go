@@ -19,6 +19,7 @@ func (a *HTTPApp) GetFSMDump(c echo.Context) error {
 	fsmDump, err := a.fsm.GetFSMDump(formDTO)
 	if err != nil {
 		return stx.JsonError(http.StatusInternalServerError, err)
+
 	}
 	return stx.Json(http.StatusOK, fsmDump)
 }
