@@ -221,12 +221,11 @@ Select an operation to make the node produce a JSON file for it:
 JSON file was saved to: /tmp/3086f09822d7ba4bfb9af14c12d2c8ef_2f217f58-a94f-47d8-b871-f35a15275184.json
 ```
 
-Open the JSON-animation in any gif viewer and take a video of it:
-```
-open -a Safari /tmp/3086f09822d7ba4bfb9af14c12d2c8ef_2f217f58-a94f-47d8-b871-f35a15275184.json
-```
+Open the `./qr_reader_bundle.html` in your Web browser on the hot node machine and airgapped machine, allow the page to use your camera and demonstrate the recorded video to the camera.
 
-After that, you need to transform the JSON to QR GIF. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser on an airgapped machine (firefox from plaintext media in case of Tails airapped machine setup), allow the page to use your camera and demonstrate the recorded video to the camera. After you should transform the JSON to QR codes. You need to pull your JSON file to the encoder on an airgapped machine and decode it from QR to JSON on the hot node machine.
+Pull your JSON file to the encoder on the hot node machine and save the *.gif file.
+
+Show this animation in the QR-tool on the airgapped machine and get JSON file.
 
 Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains the Operation JSON:
 
@@ -236,12 +235,14 @@ Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains 
 Operation JSON was handled successfully, the result Operation JSON was saved to: /tmp/3086f09822d7ba4bfb9af14c12d2c8ef_2f217f58-a94f-47d8-b871-f35a15275184.json
 ```
 
-Then go to the node and run:
+Encode result JSON file to QR GIF on the airgapped machine and show animation on the hot node machine.
+
+Then go to the node, decode GIF to JSON and run:
 ```
 $ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 /tmp/3086f09822d7ba4bfb9af14c12d2c8ef.json
 ```
 
-When all participants perform the necessary operations, the node will proceed to the next step:
+When all participants perform the necessary operations, ßthe node will proceed to the next step:
 ```
 [john_doe] message event_dkg_commit_confirm_received done successfully from john_doe
 ```

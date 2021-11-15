@@ -187,18 +187,18 @@ func getOperationsCommand() *cobra.Command {
 					colorTitle.Print("Processing operation")
 					colorOperationId.Printf(" %s\n", operationId)
 
-					cmd := &cobra.Command{}
+					opCmd := &cobra.Command{}
 
 					switch fsm.State(operations.Result[operationId].Type) {
 					case spf.StateAwaitParticipantsConfirmations:
-						cmd = approveDKGParticipationCommand()
+						opCmd = approveDKGParticipationCommand()
 					default:
-						cmd = getOperationPathCommand()
+						opCmd = getOperationPathCommand()
 					}
 
-					cmd.SetArgs([]string{operationId})
-					cmd.Flags().AddFlagSet(cmd.Flags())
-					cmd.Execute()
+					opCmd.SetArgs([]string{operationId})
+					opCmd.Flags().AddFlagSet(cmd.Flags())
+					opCmd.Execute()
 
 					return nil
 				}
