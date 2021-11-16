@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/censync/go-dto"
 	"github.com/censync/go-validator"
 	"github.com/labstack/echo/v4"
 	. "github.com/lidofinance/dc4bc/client/api/dto"
@@ -38,9 +37,9 @@ func (a *HTTPApp) GetOperation(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 
 	request := &req.OperationIdForm{}
+	formDTO := &OperationIdDTO{}
 
-	err := stx.Bind(request)
-	if err != nil {
+	if err := stx.BindToDTO(request, formDTO); err != nil {
 		return stx.JsonError(
 			http.StatusBadRequest,
 			fmt.Errorf("failed to read request body: %v", err),
@@ -51,16 +50,6 @@ func (a *HTTPApp) GetOperation(c echo.Context) error {
 		return stx.JsonError(
 			http.StatusBadRequest,
 			err.Error(),
-		)
-	}
-
-	formDTO := &OperationIdDTO{}
-
-	err = dto.RequestToDTO(formDTO, request)
-	if err != nil {
-		return stx.JsonError(
-			http.StatusBadRequest,
-			err,
 		)
 	}
 
@@ -82,7 +71,10 @@ func (a *HTTPApp) ApproveParticipation(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &OperationIdDTO{}
 	if err := stx.BindToDTO(&req.OperationIdForm{}, formDTO); err != nil {
-		return err
+		return stx.JsonError(
+			http.StatusBadRequest,
+			fmt.Errorf("failed to read request body: %v", err),
+		)
 	}
 
 	if err := a.node.ApproveParticipation(formDTO); err != nil {
