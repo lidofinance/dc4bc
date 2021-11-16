@@ -179,10 +179,9 @@ Get the list of pending operations:
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
 Please, select operation:
 -----------------------------------------------------
-1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
-   Operation ID: 30fa9c21-b79f-4a53-a84b-e7ad574c1a51
-   Description: confirm participation in the new DKG round
-   Hash of the proposing DKG message - a60bd47a831cd58a96bdd4381ee15afc
+ 1)             DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+                Operation ID: 83e14a21c0116094630654d923ba9600
+                Description: confirm participation in the new DKG round
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 
@@ -208,9 +207,9 @@ Now you have a new operation:
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
 Please, select operation:
 -----------------------------------------------------
-1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
-   Operation ID: 2f217f58-a94f-47d8-b871-f35a15275184
-   Description: send commits for the DKG round
+ 1) DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+    Operation ID: df482be9eb1e50b0968a5daf7e52e073
+    Description: send commits for the DKG round
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 
@@ -218,7 +217,7 @@ Select operation and press Enter. Ctrl+C for cancel
 
 Select an operation to make the node produce a JSON file for it:
 ```
-JSON file was saved to: /tmp/dkg_id_3086f_step_1_send_commits_for_the_DKG_round_9f3c4.json
+json file was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482.json
 ```
 
 Open the `./qr_reader_bundle.html` in your Web browser on the hot node machine and airgapped machine, allow the page to use your camera and demonstrate the recorded video to the camera.
@@ -231,15 +230,16 @@ Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains 
 
 ```
 >>> read_operation
-> Enter the path to Operation JSON file: /tmp/dkg_id_3086f_step_1_send_commits_for_the_DKG_round_9f3c4.json
-Operation JSON was handled successfully, the result /tmp/dkg_id_3086fs_signing_id__step_1_send_commits_for_the_DKG_round_9f3c4.json
+> Enter the path to Operation JSON file: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482.json
+Operation JSON was handled successfully, the result Operation JSON was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482.json
 ```
 
 Encode result JSON file to QR GIF on the airgapped machine and show animation on the hot node machine.
 
 Then go to the node, decode GIF to JSON and run:
 ```
-$ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 /tmp/dkg_id_3086f_step_1_send_commits_for_the_DKG_round_9f3c4.json
+$ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482.json
+
 ```
 
 When all participants perform the necessary operations, ßthe node will proceed to the next step:
