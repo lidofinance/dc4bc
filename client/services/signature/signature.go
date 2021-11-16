@@ -2,7 +2,7 @@ package signature
 
 import (
 	"github.com/lidofinance/dc4bc/client/api/dto"
-	signature_repo "github.com/lidofinance/dc4bc/client/repositories/signature"
+	"github.com/lidofinance/dc4bc/client/repositories/signature"
 	"github.com/lidofinance/dc4bc/client/types"
 )
 
@@ -13,10 +13,10 @@ type SignatureService interface {
 }
 
 type BaseSignatureService struct {
-	signatureRepo signature_repo.SignatureRepo
+	signatureRepo signature.SignatureRepo
 }
 
-func NewSignatureService(signatureRepo signature_repo.SignatureRepo) *BaseSignatureService {
+func NewSignatureService(signatureRepo signature.SignatureRepo) *BaseSignatureService {
 	return &BaseSignatureService{signatureRepo}
 }
 

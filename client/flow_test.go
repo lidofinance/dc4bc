@@ -18,11 +18,11 @@ import (
 	"time"
 
 	"github.com/lidofinance/dc4bc/client/api/dto"
-	operation_repo "github.com/lidofinance/dc4bc/client/repositories/operation"
-	signature_repo "github.com/lidofinance/dc4bc/client/repositories/signature"
+	oprepo "github.com/lidofinance/dc4bc/client/repositories/operation"
+	sigrepo "github.com/lidofinance/dc4bc/client/repositories/signature"
 	"github.com/lidofinance/dc4bc/client/services/fsmservice"
-	operation_service "github.com/lidofinance/dc4bc/client/services/operation"
-	signature_service "github.com/lidofinance/dc4bc/client/services/signature"
+	"github.com/lidofinance/dc4bc/client/services/operation"
+	"github.com/lidofinance/dc4bc/client/services/signature"
 
 	"github.com/lidofinance/dc4bc/client/api/http_api"
 	"github.com/lidofinance/dc4bc/client/api/http_api/responses"
@@ -61,7 +61,7 @@ var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d go
 type nodeInstance struct {
 	ctx          context.Context
 	client       node.NodeService
-	sigService   signature_service.SignatureService
+	sigService   signature.SignatureService
 	clientCancel context.CancelFunc
 	clientLogger *savingLogger
 	storage      storage.Storage
@@ -151,14 +151,14 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			},
 		}
 
-		sigRepo := signature_repo.NewSignatureRepo(state)
-		opRepo, err := operation_repo.NewOperationRepo(state, topic)
+		sigRepo := sigrepo.NewSignatureRepo(state)
+		opRepo, err := oprepo.NewOperationRepo(state, topic)
 		if err != nil {
 			return nodes, fmt.Errorf("failed to init operation repo: %v", err)
 		}
 
-		opService := operation_service.NewOperationService(opRepo)
-		sigService := signature_service.NewSignatureService(sigRepo)
+		opService := operation.NewOperationService(opRepo)
+		sigService := signature.NewSignatureService(sigRepo)
 
 		fsmService := fsmservice.NewFSMService(state, stg, "")
 		sp := services.ServiceProvider{}

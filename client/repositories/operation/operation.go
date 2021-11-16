@@ -37,11 +37,11 @@ func NewOperationRepo(s state.State, topic string) (*BaseOperationRepo, error) {
 		deleteOperationsCompositeKey: deleteOperationsCompositeKey,
 	}
 
-	if err := repo.initJsonKey(operationsCompositeKey, make(map[string]*types.Operation)); err != nil {
+	if err := repo.initJsonKey(operationsCompositeKey); err != nil {
 		return nil, fmt.Errorf("failed to init %s storage: %w", string(operationsCompositeKey), err)
 	}
 
-	if err := repo.initJsonKey(deleteOperationsCompositeKey, make(map[string]*types.Operation)); err != nil {
+	if err := repo.initJsonKey(deleteOperationsCompositeKey); err != nil {
 		return nil, fmt.Errorf("failed to init %s storage: %w", string(deleteOperationsCompositeKey), err)
 	}
 
@@ -174,13 +174,8 @@ func (r *BaseOperationRepo) getDeletedOperations() (map[string]*types.Operation,
 	return operations, nil
 }
 
-func (r *BaseOperationRepo) initJsonKey(key string, data interface{}) error {
-	operationsBz, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to marshal storage structure: %w", err)
-	}
-
-	err = r.state.Set(key, operationsBz)
+func (r *BaseOperationRepo) initJsonKey(key string) error {
+	err := r.state.Set(key, []byte("{}"))
 	if err != nil {
 		return fmt.Errorf("failed to init state: %w", err)
 	}

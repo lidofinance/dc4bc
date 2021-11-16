@@ -3,7 +3,7 @@ package operation
 import (
 	"fmt"
 
-	operation_repo "github.com/lidofinance/dc4bc/client/repositories/operation"
+	"github.com/lidofinance/dc4bc/client/repositories/operation"
 	"github.com/lidofinance/dc4bc/client/types"
 )
 
@@ -15,10 +15,10 @@ type OperationService interface {
 }
 
 type BaseOperationService struct {
-	operationRepo operation_repo.OperationRepo
+	operationRepo operation.OperationRepo
 }
 
-func NewOperationService(operationRepo operation_repo.OperationRepo) *BaseOperationService {
+func NewOperationService(operationRepo operation.OperationRepo) *BaseOperationService {
 	return &BaseOperationService{operationRepo}
 }
 

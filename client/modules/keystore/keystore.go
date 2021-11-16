@@ -6,8 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/lidofinance/dc4bc/client/modules/state"
-
+	"github.com/lidofinance/dc4bc/client/repositories/operation"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -38,7 +37,7 @@ func NewLevelDBKeyStore(username, keystorePath string) (KeyStore, error) {
 
 	if _, err := keystore.keystoreDb.Get([]byte(secretsKey), nil); err != nil {
 		if err := keystore.initJsonKey(secretsKey, map[string]*KeyPair{}); err != nil {
-			return nil, fmt.Errorf("failed to init %s storage: %w", state.OperationsKey, err)
+			return nil, fmt.Errorf("failed to init %s storage: %w", operation.OperationsKey, err)
 		}
 	}
 
