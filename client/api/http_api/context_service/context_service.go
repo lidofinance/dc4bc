@@ -15,7 +15,6 @@ type CSJsonResp struct {
 
 // Custom error
 type CSErrorResp struct {
-	Result       interface{} `json:"result"`
 	ErrorMessage string      `json:"error_message,omitempty"`
 }
 
@@ -80,12 +79,10 @@ func (cs *ContextService) JsonEmpty(code int) error {
 func (cs *ContextService) JsonError(code int, err error) error {
 	if err == nil {
 		return cs.JSON(code, &CSErrorResp{
-			Result:       struct{}{},
 			ErrorMessage: "undefined error",
 		})
 	} else {
 		return cs.JSON(code, &CSErrorResp{
-			Result:       struct{}{},
 			ErrorMessage: err.Error(),
 		})
 	}
