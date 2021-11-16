@@ -21,7 +21,7 @@ func (a *HTTPApp) GetSignatures(c echo.Context) error {
 
 	signatures, err := a.signature.GetSignatures(formDTO)
 	if err != nil {
-		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to get operations: %v", err))
+		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to get signatures: %w", err))
 	}
 	return stx.Json(http.StatusOK, signatures)
 }
@@ -35,7 +35,7 @@ func (a *HTTPApp) GetSignatureByID(c echo.Context) error {
 
 	signatures, err := a.signature.GetSignatureByID(formDTO)
 	if err != nil {
-		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to get operations: %v", err))
+		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to get signatures: %w", err))
 	}
 	return stx.Json(http.StatusOK, signatures)
 }
