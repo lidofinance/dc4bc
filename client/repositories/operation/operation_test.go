@@ -1,4 +1,4 @@
-package operation_repo
+package operation
 
 import (
 	"os"

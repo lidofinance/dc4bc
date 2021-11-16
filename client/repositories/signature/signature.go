@@ -1,4 +1,4 @@
-package signature_repo
+package signature
 
 import (
 	"encoding/json"
@@ -28,9 +28,9 @@ func NewSignatureRepo(state state.State) *BaseSignatureRepo {
 }
 
 func (r *BaseSignatureRepo) GetSignatures(dkgID string) (signatures map[string][]types.ReconstructedSignature, err error) {
-	key := state.MakeCompositeKey(SignaturesKeyPrefix, dkgID)
+	key := state.MakeCompositeKeyString(SignaturesKeyPrefix, dkgID)
 
-	bz, err := r.state.Get(string(key))
+	bz, err := r.state.Get(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get signatures for dkgID %s: %w", dkgID, err)
 	}
@@ -94,9 +94,9 @@ func (r *BaseSignatureRepo) SaveSignatures(signaturesToSave []types.Reconstructe
 		return fmt.Errorf("failed to marshal signatures: %w", err)
 	}
 
-	key := state.MakeCompositeKey(SignaturesKeyPrefix, signaturesToSave[0].DKGRoundID)
+	key := state.MakeCompositeKeyString(SignaturesKeyPrefix, signaturesToSave[0].DKGRoundID)
 
-	if err := r.state.Set(string(key), signaturesJSON); err != nil {
+	if err := r.state.Set(key, signaturesJSON); err != nil {
 		return fmt.Errorf("failed to save signatures: %w", err)
 	}
 

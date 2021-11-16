@@ -1,10 +1,9 @@
-package operation_repo
+package operation
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/lidofinance/dc4bc/client/modules/state"
 	"github.com/lidofinance/dc4bc/client/types"
@@ -13,7 +12,6 @@ import (
 const (
 	OperationsKey        = "operations"
 	DeletedOperationsKey = "deleted_operations"
-	FSMStateKey          = "fsm_state"
 )
 
 type OperationRepo interface {
@@ -142,8 +140,6 @@ func (r *BaseOperationRepo) GetOperations() (map[string]*types.Operation, error)
 	if bz == nil {
 		return make(map[string]*types.Operation), nil
 	}
-
-	log.Println(r.operationsCompositeKey, string(bz))
 
 	var operations map[string]*types.Operation
 	if err := json.Unmarshal(bz, &operations); err != nil {

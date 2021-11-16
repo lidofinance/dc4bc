@@ -15,8 +15,8 @@ import (
 	"time"
 
 	"github.com/lidofinance/dc4bc/client/services/fsmservice"
-	operation_service "github.com/lidofinance/dc4bc/client/services/operation"
-	signature_service "github.com/lidofinance/dc4bc/client/services/signature"
+	"github.com/lidofinance/dc4bc/client/services/operation"
+	"github.com/lidofinance/dc4bc/client/services/signature"
 
 	"github.com/google/uuid"
 	"github.com/lidofinance/dc4bc/client/api/dto"
@@ -74,14 +74,12 @@ type BaseNodeService struct {
 	qrProcessor              qr.Processor
 	Logger                   logger.Logger
 	fsmService               fsmservice.FSMService
-	opService                operation_service.OperationService
-	sigService               signature_service.SignatureService
+	opService                operation.OperationService
+	sigService               signature.SignatureService
 	SkipCommKeysVerification bool
 }
 
 func NewNode(ctx context.Context, config *config.Config, sp *services.ServiceProvider) (NodeService, error) {
-	state := sp.GetState()
-
 	keyPair, err := sp.GetKeyStore().LoadKeys(config.Username, "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to LoadKeys: %w", err)
@@ -91,7 +89,7 @@ func NewNode(ctx context.Context, config *config.Config, sp *services.ServicePro
 		ctx:         ctx,
 		userName:    config.Username,
 		pubKey:      keyPair.Pub,
-		state:       state,
+		state:       sp.GetState(),
 		storage:     sp.GetStorage(),
 		keyStore:    sp.GetKeyStore(),
 		qrProcessor: sp.GetQRProcessor(),

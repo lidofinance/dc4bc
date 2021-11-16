@@ -1,4 +1,4 @@
-package signature_service
+package signature
 
 import (
 	"github.com/lidofinance/dc4bc/client/api/dto"

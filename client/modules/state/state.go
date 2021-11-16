@@ -11,10 +11,8 @@ import (
 )
 
 const (
-	OffsetKey            = "offset"
-	OperationsKey        = "operations"
-	DeletedOperationsKey = "deleted_operations"
-	FSMStateKey          = "fsm_state"
+	OffsetKey   = "offset"
+	FSMStateKey = "fsm_state"
 )
 
 // State is the node's state (it keeps the offset, the signatures and
