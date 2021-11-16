@@ -24,7 +24,6 @@ const (
 	flagListenAddr               = "listen_addr"
 	flagStateDBDSN               = "state_dbdsn"
 	flagStorageDBDSN             = "storage_dbdsn"
-	flagFramesDelay              = "frames_delay"
 	flagStorageTopic             = "storage_topic"
 	flagKafkaProducerCredentials = "producer_credentials"
 	flagKafkaConsumerCredentials = "consumer_credentials"
@@ -32,7 +31,6 @@ const (
 	flagKafkaConsumerGroup       = "kafka_consumer_group"
 	flagKafkaTimeout             = "kafka_timeout"
 	flagStoreDBDSN               = "key_store_dbdsn"
-	flagChunkSize                = "chunk_size"
 	flagConfig                   = "config"
 	flagSkipCommKeysVerification = "skip_comm_keys_verification"
 	flagStorageIgnoreMessages    = "storage_ignore_messages"
@@ -77,8 +75,6 @@ func init() {
 	exitIfError(viper.BindPFlag(flagKafkaConsumerGroup, rootCmd.PersistentFlags().Lookup(flagKafkaConsumerGroup)))
 	exitIfError(viper.BindPFlag(flagKafkaTimeout, rootCmd.PersistentFlags().Lookup(flagKafkaTimeout)))
 	exitIfError(viper.BindPFlag(flagStoreDBDSN, rootCmd.PersistentFlags().Lookup(flagStoreDBDSN)))
-	exitIfError(viper.BindPFlag(flagFramesDelay, rootCmd.PersistentFlags().Lookup(flagFramesDelay)))
-	exitIfError(viper.BindPFlag(flagChunkSize, rootCmd.PersistentFlags().Lookup(flagChunkSize)))
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 	exitIfError(viper.BindPFlag(flagSkipCommKeysVerification, rootCmd.PersistentFlags().Lookup(flagSkipCommKeysVerification)))
 	exitIfError(viper.BindPFlag(flagStorageIgnoreMessages, rootCmd.PersistentFlags().Lookup(flagStorageIgnoreMessages)))

@@ -94,8 +94,7 @@ func (o *Operation) Equal(o2 *Operation) error {
 }
 
 func (o *Operation) Filename() (filename string) {
-	shortDkgID := strings.Replace(o.DKGIdentifier, "dkg_identifier_", "", 1)[:5]
-	filename = fmt.Sprintf("dkg_id_%s", shortDkgID)
+	filename = fmt.Sprintf("dkg_id_%s", o.DKGIdentifier[:5])
 
 	if strings.HasPrefix(string(o.Type), "state_signing_") {
 		var payload responses.SigningPartialSignsParticipantInvitationsResponse

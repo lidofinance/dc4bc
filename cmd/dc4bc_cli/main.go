@@ -382,9 +382,7 @@ func getOperationPathCommand() *cobra.Command {
 
 			operationPath := filepath.Join(folder, operation.Filename())
 
-			path := fmt.Sprintf("%s.json", operationPath)
-
-			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
+			f, err := os.OpenFile(operationPath, os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
 				return fmt.Errorf("failed to open file: %w", err)
 			}
@@ -396,7 +394,7 @@ func getOperationPathCommand() *cobra.Command {
 				return fmt.Errorf("failed to write file: %w", err)
 			}
 
-			fmt.Printf("json file was saved to: %s\n", path)
+			fmt.Printf("json file was saved to: %s\n", operationPath)
 
 			return nil
 		},
