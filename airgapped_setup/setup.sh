@@ -12,5 +12,5 @@ while read -r sum _ ; do
   [[ $sum == 11f5bf387f185c36f5d7e04bd6f1efba71f54596 ]] && echo "Airgapped checksum is correct." || echo "[WARN] Incorrect Airgapped checksum!"
 done
 
-cp ../qr_reader_bundle/index.html ./index.html
+cp ../qr_reader_bundle/qr-tool.html ./qr-tool.html
 mv dc4bc_airgapped_linux dc4bc_airgapped
