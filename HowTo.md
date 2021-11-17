@@ -60,8 +60,7 @@ make build
 
 ### Downloading
 
-Check out project releases tab in github and get the distribuition binaries for your system. Also clone the repository anyway, because you'll need the certificate file for kafka and qr reading html file that are not part of the releases files.
-
+Check out project releases tab in github and get the distribuition binaries for your system. Also clone the repository anyway, because you'll need the certificate file for kafka that is not a part of the releases files.
 
 #### Setting up hot and airapped nodes
 
@@ -220,7 +219,7 @@ Select an operation to make the node produce a JSON file for it:
 json file was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_request.json
 ```
 
-Open the `./qr_reader_bundle.html` in your Web browser on the hot node machine and airgapped machine, allow the page to use your camera and demonstrate the recorded video to the camera.
+Open the `./qr_reader_bundle/qr-tool.html` in your Web browser on the hot node machine and airgapped machine, allow the page to use your camera and demonstrate the recorded video to the camera.
 
 Pull your JSON file to the encoder on the hot node machine and save the *.gif file.
 

@@ -25,11 +25,11 @@ Please refer to [this page](HowTo.md) for a complete guide to running the minima
 * `./cmd` Command line interfaces for the Airgapped machine and the Client. All entry points to dc4bc apps can be found here;
 * `./dkg` This package is more of a library for maintaining all active DKG instances and data;
 * `./fsm` The FSM source code. The FSM decides when we are ready to move to the next step during DKG and signing;
-* `./qr` A library for handling QR codes that encode pending Operations (which are used for communication between The Client, and the Airgapped machine); 
 * `./storage` Two Bulletin Board implementations: File storage for local debugging and Kafka storage for real-world scenarios.
 
 # Related repositories
 * [kyber](https://github.com/corestario/kyber/) dkg library, fork of DEDIS' kyber library
+* [qr-tool](https://github.com/lidofinance/qr-tool) web interface for data transformation between QR-code and JSON formats.
 
 ## Moving parts
 
