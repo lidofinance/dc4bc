@@ -2,9 +2,14 @@ package services
 
 import (
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/services/fsmservice"
 	"strconv"
 	"strings"
+
+	oprepo "github.com/lidofinance/dc4bc/client/repositories/operation"
+	sigrepo "github.com/lidofinance/dc4bc/client/repositories/signature"
+	"github.com/lidofinance/dc4bc/client/services/fsmservice"
+	"github.com/lidofinance/dc4bc/client/services/operation"
+	"github.com/lidofinance/dc4bc/client/services/signature"
 
 	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
@@ -22,6 +27,8 @@ type ServiceProvider struct {
 	l           logger.Logger
 	state       state.State
 	fsm         fsmservice.FSMService
+	opService   operation.OperationService
+	sigService  signature.SignatureService
 }
 
 func (s *ServiceProvider) GetStorage() storage.Storage {
@@ -70,6 +77,22 @@ func (s *ServiceProvider) GetFSMService() fsmservice.FSMService {
 
 func (s *ServiceProvider) SetFSMService(fsm fsmservice.FSMService) {
 	s.fsm = fsm
+}
+
+func (s *ServiceProvider) GetOperationService() operation.OperationService {
+	return s.opService
+}
+
+func (s *ServiceProvider) SetOperationService(opService operation.OperationService) {
+	s.opService = opService
+}
+
+func (s *ServiceProvider) GetSignatureService() signature.SignatureService {
+	return s.sigService
+}
+
+func (s *ServiceProvider) SetSignatureService(sigService signature.SignatureService) {
+	s.sigService = sigService
 }
 
 func parseMessagesToIgnore(cfg *config.KafkaStorageConfig) (msgs []string, err error) {
@@ -124,7 +147,15 @@ func CreateServiceProviderWithCfg(cfg *config.Config) (*ServiceProvider, error) 
 		return nil, fmt.Errorf("failed to init state: %w", err)
 	}
 
+	sigRepo := sigrepo.NewSignatureRepo(sp.state)
+	opRepo, err := oprepo.NewOperationRepo(sp.state, cfg.KafkaStorageConfig.Topic)
+	if err != nil {
+		return nil, fmt.Errorf("failed to init operation repo: %w", err)
+	}
+
 	sp.fsm = fsmservice.NewFSMService(sp.state, sp.storage, cfg.KafkaStorageConfig.Topic)
+	sp.sigService = signature.NewSignatureService(sigRepo)
+	sp.opService = operation.NewOperationService(opRepo)
 
 	return &sp, nil
 }

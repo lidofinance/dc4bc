@@ -12,7 +12,7 @@ import (
 
 func (a *HTTPApp) GetOperations(c echo.Context) error {
 	stx := c.(*cs.ContextService)
-	operations, err := a.node.GetOperations()
+	operations, err := a.operation.GetOperations()
 	if err != nil {
 		return stx.JsonError(http.StatusInternalServerError, err)
 	}
@@ -34,16 +34,26 @@ func (a *HTTPApp) ProcessOperation(c echo.Context) error {
 
 func (a *HTTPApp) GetOperation(c echo.Context) error {
 	stx := c.(*cs.ContextService)
+
+	request := &req.OperationIdForm{}
 	formDTO := &OperationIdDTO{}
-	if err := stx.BindToDTO(&req.OperationIdForm{}, formDTO); err != nil {
+
+	if err := stx.BindToDTO(request, formDTO); err != nil {
 		return err
 	}
 
-	operation, err := a.node.GetOperation(formDTO)
+	operation, err := a.operation.GetOperationByID(formDTO.OperationID)
 	if err != nil {
-		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to get operations: %v", err))
+		return stx.JsonError(
+			http.StatusInternalServerError,
+			fmt.Errorf("failed to get operations: %v", err),
+		)
 	}
-	return stx.Json(http.StatusOK, operation)
+
+	return stx.Json(
+		http.StatusOK,
+		operation,
+	)
 }
 
 func (a *HTTPApp) ApproveParticipation(c echo.Context) error {

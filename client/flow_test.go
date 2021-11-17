@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/api/dto"
-	"github.com/lidofinance/dc4bc/client/services/fsmservice"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -18,6 +16,13 @@ import (
 	"regexp"
 	"testing"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/api/dto"
+	oprepo "github.com/lidofinance/dc4bc/client/repositories/operation"
+	sigrepo "github.com/lidofinance/dc4bc/client/repositories/signature"
+	"github.com/lidofinance/dc4bc/client/services/fsmservice"
+	"github.com/lidofinance/dc4bc/client/services/operation"
+	"github.com/lidofinance/dc4bc/client/services/signature"
 
 	"github.com/lidofinance/dc4bc/client/api/http_api"
 	"github.com/lidofinance/dc4bc/client/api/http_api/responses"
@@ -56,6 +61,7 @@ var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d go
 type nodeInstance struct {
 	ctx          context.Context
 	client       node.NodeService
+	sigService   signature.SignatureService
 	clientCancel context.CancelFunc
 	clientLogger *savingLogger
 	storage      storage.Storage
@@ -140,7 +146,20 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 				ListenAddr: fmt.Sprintf("localhost:%d", startingPort),
 				Debug:      false,
 			},
+			KafkaStorageConfig: &config.KafkaStorageConfig{
+				Topic: topic,
+			},
 		}
+
+		sigRepo := sigrepo.NewSignatureRepo(state)
+		opRepo, err := oprepo.NewOperationRepo(state, topic)
+		if err != nil {
+			return nodes, fmt.Errorf("failed to init operation repo: %v", err)
+		}
+
+		opService := operation.NewOperationService(opRepo)
+		sigService := signature.NewSignatureService(sigRepo)
+
 		fsmService := fsmservice.NewFSMService(state, stg, "")
 		sp := services.ServiceProvider{}
 		sp.SetLogger(logger)
@@ -148,6 +167,8 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 		sp.SetKeyStore(keyStore)
 		sp.SetStorage(stg)
 		sp.SetFSMService(fsmService)
+		sp.SetOperationService(opService)
+		sp.SetSignatureService(sigService)
 
 		clt, err := node.NewNode(ctx, &cfg, &sp)
 		if err != nil {
@@ -174,6 +195,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			clientLogger: logger,
 			storage:      stg,
 			keyPair:      keyPair,
+			sigService:   sigService,
 			air:          airgappedMachine,
 			listenAddr:   fmt.Sprintf("localhost:%d", startingPort),
 			httpApi:      server,
@@ -585,7 +607,8 @@ func TestStandardBatchFlow(t *testing.T) {
 		node.httpApi.Stop(node.ctx)
 		node.clientCancel()
 	}
-	signs, err := nodes[0].client.GetSignatures(&dto.DkgIdDTO{DkgID: hex.EncodeToString(dkgID[:])})
+
+	signs, err := nodes[0].sigService.GetSignatures(&dto.DkgIdDTO{DkgID: hex.EncodeToString(dkgID[:])})
 	if err != nil {
 		t.Fatalf("failed to get signatures: %v\n", err)
 	}

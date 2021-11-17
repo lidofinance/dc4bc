@@ -2,6 +2,7 @@ package http_api
 
 import (
 	"context"
+
 	echo_middleware "github.com/labstack/echo/v4/middleware"
 	"github.com/lidofinance/dc4bc/client/services"
 

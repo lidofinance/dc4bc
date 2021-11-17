@@ -8,12 +8,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/services/fsmservice"
 	"log"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/services/fsmservice"
+	"github.com/lidofinance/dc4bc/client/services/operation"
+	"github.com/lidofinance/dc4bc/client/services/signature"
 
 	"github.com/google/uuid"
 	"github.com/lidofinance/dc4bc/client/api/dto"
@@ -48,16 +51,12 @@ type NodeService interface {
 	ApproveParticipation(dto *dto.OperationIdDTO) error
 	SendMessage(dto *dto.MessageDTO) error
 	ProcessMessage(message storage.Message) error
-	GetOperations() (map[string]*types.Operation, error)
-	GetOperation(dto *dto.OperationIdDTO) ([]byte, error)
 	GetOperationQRPath(dto *dto.OperationIdDTO) (string, error)
 	GetOperationQRFile(dto *dto.OperationIdDTO) ([]byte, error)
 	ProcessOperation(dto *dto.OperationDTO) error
 	StartDKG(dto *dto.StartDkgDTO) error
 	ReInitDKG(dto *dto.ReInitDKGDTO) error
 	SetSkipCommKeysVerification(bool)
-	GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.ReconstructedSignature, error)
-	GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error)
 	ProposeSignMessages(dto *dto.ProposeSignBatchMessagesDTO) error
 	SaveOffset(dto *dto.StateOffsetDTO) error
 	GetStateOffset() (uint64, error)
@@ -75,6 +74,8 @@ type BaseNodeService struct {
 	qrProcessor              qr.Processor
 	Logger                   logger.Logger
 	fsmService               fsmservice.FSMService
+	opService                operation.OperationService
+	sigService               signature.SignatureService
 	SkipCommKeysVerification bool
 }
 
@@ -94,6 +95,8 @@ func NewNode(ctx context.Context, config *config.Config, sp *services.ServicePro
 		qrProcessor: sp.GetQRProcessor(),
 		Logger:      sp.GetLogger(),
 		fsmService:  sp.GetFSMService(),
+		opService:   sp.GetOperationService(),
+		sigService:  sp.GetSignatureService(),
 	}, nil
 }
 
@@ -113,8 +116,9 @@ func (s *BaseNodeService) ProcessMessage(message storage.Message) error {
 	if err != nil {
 		return err
 	}
+
 	if operation != nil {
-		if err := s.getState().PutOperation(operation); err != nil {
+		if err := s.opService.PutOperation(operation); err != nil {
 			return fmt.Errorf("failed to PutOperation: %w", err)
 		}
 	}
@@ -209,15 +213,9 @@ func (s *BaseNodeService) SendMessage(dto *dto.MessageDTO) error {
 	return nil
 }
 
-// GetOperations returns available operations for current state
-func (s *BaseNodeService) GetOperations() (map[string]*types.Operation, error) {
-	return s.getState().GetOperations()
-}
-
 // GetOperation returns operation for current state, if exists
 func (s *BaseNodeService) getOperation(operationID string) (*types.Operation, error) {
-
-	operations, err := s.getState().GetOperations()
+	operations, err := s.opService.GetOperations()
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operations: %w", err)
@@ -253,7 +251,7 @@ func (s *BaseNodeService) GetOperationQRPath(dto *dto.OperationIdDTO) (string, e
 
 // getOperationJSON returns a specific JSON-encoded operation
 func (s *BaseNodeService) getOperationJSON(operationID string) ([]byte, error) {
-	operation, err := s.getState().GetOperationByID(operationID)
+	operation, err := s.opService.GetOperationByID(operationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operation: %w", err)
 	}
@@ -263,16 +261,6 @@ func (s *BaseNodeService) getOperationJSON(operationID string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to marshal operation: %w", err)
 	}
 	return operationJSON, nil
-}
-
-// GetSignatures returns all signatures for the given DKG round that were reconstructed on the airgapped machine and
-// broadcasted by users
-func (s *BaseNodeService) GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.ReconstructedSignature, error) {
-	return s.getState().GetSignatures(dto.DkgID)
-}
-
-func (s *BaseNodeService) GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error) {
-	return s.getState().GetSignatureByID(dto.DkgID, dto.ID)
 }
 
 func (s *BaseNodeService) GetOperationQRFile(dto *dto.OperationIdDTO) ([]byte, error) {
@@ -312,7 +300,7 @@ func (s *BaseNodeService) executeOperation(operation *types.Operation) error {
 		return errors.New("operation is request operation, provide result operation instead")
 	}
 
-	storedOperation, err := s.getState().GetOperationByID(operation.ID)
+	storedOperation, err := s.opService.GetOperationByID(operation.ID)
 	if err != nil {
 		return fmt.Errorf("failed to find matching operation: %w", err)
 	}
@@ -339,7 +327,7 @@ func (s *BaseNodeService) executeOperation(operation *types.Operation) error {
 		}
 	}
 
-	if err := s.getState().DeleteOperation(operation); err != nil {
+	if err := s.opService.DeleteOperation(operation); err != nil {
 		return fmt.Errorf("failed to DeleteOperation: %w", err)
 	}
 
@@ -369,10 +357,6 @@ func (s *BaseNodeService) verifyMessage(fsmInstance *state_machines.FSMInstance,
 	}
 
 	return nil
-}
-
-func (s *BaseNodeService) GetOperation(dto *dto.OperationIdDTO) ([]byte, error) {
-	return s.getOperationJSON(dto.OperationID)
 }
 
 func (s *BaseNodeService) StartDKG(dto *dto.StartDkgDTO) error {
@@ -571,7 +555,7 @@ func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 	if err != nil {
 		return fmt.Errorf("failed to calculat reinitDKG message hash: %w", err)
 	}
-	if err := s.getState().PutOperation(operation); err != nil {
+	if err := s.opService.PutOperation(operation); err != nil {
 		return fmt.Errorf("failed to PutOperation: %w", err)
 	}
 
@@ -608,7 +592,7 @@ func (s *BaseNodeService) processSignature(message storage.Message) error {
 		signatures[i].Username = message.SenderAddr
 		signatures[i].DKGRoundID = message.DkgRoundID
 	}
-	return s.getState().SaveSignatures(signatures)
+	return s.sigService.SaveSignatures(signatures)
 }
 
 // processBatchSignature saves a broadcasted reconstructed batch signatures to a LevelDB
@@ -632,7 +616,7 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 		signatures = append(signatures, sig)
 	}
 
-	err = s.getState().SaveSignatures(signatures)
+	err = s.sigService.SaveSignatures(signatures)
 	if err != nil {
 		return fmt.Errorf("failed to save signature: %w", err)
 	}

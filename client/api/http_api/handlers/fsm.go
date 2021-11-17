@@ -26,7 +26,6 @@ func (a *HTTPApp) GetFSMDump(c echo.Context) error {
 
 func (a *HTTPApp) GetFSMList(c echo.Context) error {
 	stx := c.(*cs.ContextService)
-
 	fsmDump, err := a.fsm.GetFSMList()
 	if err != nil {
 		return stx.JsonError(http.StatusInternalServerError, err)

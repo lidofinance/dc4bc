@@ -124,6 +124,7 @@ func getOperationsRequest(host string) (*OperationsResponse, error) {
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
+
 	return &response, nil
 }
 
@@ -392,7 +393,12 @@ func getOperationQRPathCommand() *cobra.Command {
 
 			processor := qr.NewCameraProcessor(&qrCfg)
 
-			if err = processor.WriteQR(qrPath, operation.Result); err != nil {
+			bytes, err := json.Marshal(operation.Result)
+			if err != nil {
+				return fmt.Errorf("failed to marshal get operation result: %w", err)
+			}
+
+			if err = processor.WriteQR(qrPath, bytes); err != nil {
 				return fmt.Errorf("failed to save QR gif: %w", err)
 			}
 

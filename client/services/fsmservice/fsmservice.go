@@ -3,6 +3,7 @@ package fsmservice
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/modules/state"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
