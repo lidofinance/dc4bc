@@ -15,12 +15,10 @@ func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc, node node.NodeServ
 
 	e.POST("/sendMessage", h.SendMessage)
 	e.GET("/getOperations", h.GetOperations)
-	e.GET("/getOperationQRPath", h.GetOperationQRPath)
 
 	e.GET("/getSignatures", h.GetSignatures)
 	e.GET("/getSignatureByID", h.GetSignatureByID)
 
-	e.GET("/getOperationQR", h.GetOperationQRFile)
 	e.POST("/handleProcessedOperationJSON", h.ProcessOperation)
 	e.GET("/getOperation", h.GetOperation)
 

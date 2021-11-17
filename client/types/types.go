@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
@@ -16,6 +17,7 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/storage"
 )
 
@@ -89,6 +91,72 @@ func (o *Operation) Equal(o2 *Operation) error {
 	}
 
 	return nil
+}
+
+func (o *Operation) Filename() (filename string) {
+	filename = fmt.Sprintf("dkg_id_%s", o.DKGIdentifier[:5])
+
+	if strings.HasPrefix(string(o.Type), "state_signing_") {
+		var payload responses.SigningPartialSignsParticipantInvitationsResponse
+
+		if err := json.Unmarshal(o.Payload, &payload); err == nil {
+			filename = fmt.Sprintf("%s_signing_id_%s", filename, payload.BatchID)
+		}
+	}
+
+	return fmt.Sprintf(
+		"%s_step_%d_%s_%s",
+		filename,
+		getStepNumber(o.Type),
+		getShortOperationDescription(o.Type),
+		o.ID[:5],
+	)
+}
+
+func getShortOperationDescription(operationType OperationType) string {
+	switch fsm.State(operationType) {
+	case signature_proposal_fsm.StateAwaitParticipantsConfirmations:
+		return "confirm_participation"
+	case dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:
+		return "send_commits_for_the_DKG_round"
+	case dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:
+		return "send_deals_for_the_DKG_round"
+	case dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations:
+		return "send_responses_for_the_DKG_round"
+	case dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:
+		return "reconstruct_the_public_key_and_broadcast_it"
+	case signing_proposal_fsm.StateSigningAwaitPartialSigns:
+		return "partial_sign"
+	case signing_proposal_fsm.StateSigningPartialSignsCollected:
+		return "recover_full_signature"
+	case ReinitDKG:
+		return "reinit_DKG"
+	default:
+		return "unknown_operation"
+	}
+}
+
+func getStepNumber(operationType OperationType) int {
+	switch fsm.State(operationType) {
+	case dkg_proposal_fsm.StateDkgCommitsAwaitConfirmations:
+		return 1
+	case dkg_proposal_fsm.StateDkgDealsAwaitConfirmations:
+		return 2
+	case dkg_proposal_fsm.StateDkgResponsesAwaitConfirmations:
+		return 3
+	case dkg_proposal_fsm.StateDkgMasterKeyAwaitConfirmations:
+		return 4
+
+	case signature_proposal_fsm.StateAwaitParticipantsConfirmations:
+		return 1
+	case signing_proposal_fsm.StateSigningAwaitPartialSigns:
+		return 2
+
+	case ReinitDKG:
+		return 0
+	default:
+		return -1
+	}
 }
 
 // FSMRequestFromMessage converts a message data to a necessary FSM struct

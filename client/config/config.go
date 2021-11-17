@@ -6,11 +6,6 @@ type HttpApiConfig struct {
 	EnableLogging bool   `mapstructure:"enable_http_logging"`
 }
 
-type QrProcessorConfig struct {
-	FramesDelay int `mapstructure:"frames_delay"`
-	ChunkSize   int `mapstructure:"chunk_size"`
-}
-
 type KafkaStorageConfig struct {
 	DBDSN               string `mapstructure:"storage_dbdsn"`
 	Topic               string `mapstructure:"storage_topic"`
@@ -26,8 +21,6 @@ type KafkaStorageConfig struct {
 
 type Config struct {
 	HttpApiConfig *HttpApiConfig
-
-	QrProcessorConfig *QrProcessorConfig
 
 	KafkaStorageConfig *KafkaStorageConfig
 

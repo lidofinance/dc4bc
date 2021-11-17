@@ -22,9 +22,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/types"
-	"github.com/spf13/viper"
 
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
@@ -37,15 +35,12 @@ import (
 	"github.com/fatih/color"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
-	"github.com/lidofinance/dc4bc/qr"
 	"github.com/spf13/cobra"
 )
 
 const (
 	flagListenAddr         = "listen_addr"
-	flagFramesDelay        = "frames_delay"
-	flagChunkSize          = "chunk_size"
-	flagQRCodesFolder      = "qr_codes_folder"
+	flagJSONFilesFolder    = "json_files_folder"
 	flagNewStateDBDSN      = "new_state_dbdsn"
 	flagUseOffsetInsteadId = "use_offset_instead_id"
 	flagKafkaConsumerGroup = "kafka_consumer_group"
@@ -69,9 +64,7 @@ var (
 
 func init() {
 	rootCmd.PersistentFlags().String(flagListenAddr, "localhost:8080", "Listen Address")
-	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
-	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
-	rootCmd.PersistentFlags().String(flagQRCodesFolder, "/tmp", "Folder to save QR codes")
+	rootCmd.PersistentFlags().String(flagJSONFilesFolder, "/tmp", "Folder to save JSON files")
 
 	refreshStateCmd.Flags().BoolVarP(&useOffset, flagUseOffsetInsteadId, "o", false,
 		"Ignore messages by offset instead of ids")
@@ -84,8 +77,7 @@ func init() {
 func main() {
 	rootCmd.AddCommand(
 		getOperationsCommand(),
-		reinitDKGQRPathCommand(),
-		getOperationQRPathCommand(),
+		reinitDKGPathCommand(),
 		readOperationResultCommand(),
 		approveDKGParticipationCommand(),
 		startDKGCommand(),
@@ -196,23 +188,23 @@ func getOperationsCommand() *cobra.Command {
 					colorTitle.Print("Processing operation")
 					colorOperationId.Printf(" %s\n", operationId)
 
-					qrCmd := &cobra.Command{}
+					opCmd := &cobra.Command{}
 
 					switch fsm.State(operations.Result[operationId].Type) {
 					case spf.StateAwaitParticipantsConfirmations:
-						qrCmd = approveDKGParticipationCommand()
+						opCmd = approveDKGParticipationCommand()
 					default:
-						qrCmd = getOperationQRPathCommand()
-
+						opCmd = getOperationPathCommand()
 					}
 
-					qrCmd.SetArgs([]string{operationId})
-					qrCmd.Flags().AddFlagSet(cmd.Flags())
-					qrCmd.Execute()
+					opCmd.SetArgs([]string{operationId})
+					opCmd.Flags().AddFlagSet(cmd.Flags())
+					opCmd.Execute()
+
 					return nil
-				} else {
-					color.New(color.FgRed).Println("Unknown operation action")
 				}
+
+				color.New(color.FgRed).Println("Unknown operation action")
 			}
 
 			return nil
@@ -356,59 +348,59 @@ func getOperationRequest(host string, operationID string) (*OperationResponse, e
 	return &response, nil
 }
 
-func getOperationQRPathCommand() *cobra.Command {
+func getOperationPathCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get_operation_qr [operationID]",
+		Use:   "get_operation [operationID]",
 		Args:  cobra.ExactArgs(1),
-		Short: "returns path to QR codes which contains the operation",
+		Short: "returns path to json files which contains the operation",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 
-			qrCodeFolder, err := cmd.Flags().GetString(flagQRCodesFolder)
+			folder, err := cmd.Flags().GetString(flagJSONFilesFolder)
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %w", err)
 			}
 
 			operationID := args[0]
-			operation, err := getOperationRequest(listenAddr, operationID)
+			operationResponse, err := getOperationRequest(listenAddr, operationID)
 			if err != nil {
 				return fmt.Errorf("failed to get operations: %w", err)
 			}
-			if operation.ErrorMessage != "" {
-				return fmt.Errorf("failed to get operations: %s", operation.ErrorMessage)
+			if operationResponse.ErrorMessage != "" {
+				return fmt.Errorf("failed to get operations: %s", operationResponse.ErrorMessage)
 			}
 
-			operationQRPath := filepath.Join(qrCodeFolder, fmt.Sprintf("dc4bc_qr_%s-request", operationID))
 
-			qrPath := fmt.Sprintf("%s.gif", operationQRPath)
+			operationPath := filepath.Join(folder, operationResponse.Result.Filename()+"_request.json")
 
-			qrCfg := config.QrProcessorConfig{}
-			err = viper.Unmarshal(&qrCfg)
+			f, err := os.OpenFile(operationPath, os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %w", err)
+				return fmt.Errorf("failed to open file: %w", err)
 			}
 
-			processor := qr.NewCameraProcessor(&qrCfg)
+			defer f.Close()
 
-			bytes, err := json.Marshal(operation.Result)
+			bytes, err := json.Marshal(operationResponse.Result)
 			if err != nil {
 				return fmt.Errorf("failed to marshal get operation result: %w", err)
 			}
 
-			if err = processor.WriteQR(qrPath, bytes); err != nil {
-				return fmt.Errorf("failed to save QR gif: %w", err)
+			_, err = f.Write(bytes)
+			if err != nil {
+				return fmt.Errorf("failed to write file: %w", err)
 			}
 
-			fmt.Printf("QR code was saved to: %s\n", qrPath)
+			fmt.Printf("json file was saved to: %s\n", operationPath)
+
 			return nil
 		},
 	}
 }
 
-func reinitDKGQRPathCommand() *cobra.Command {
+func reinitDKGPathCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "reinit_dkg [reDKG JSON file path]",
 		Args:  cobra.ExactArgs(1),
