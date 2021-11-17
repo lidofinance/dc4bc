@@ -11,8 +11,7 @@ import (
 )
 
 const (
-	OffsetKey   = "offset"
-	FSMStateKey = "fsm_state"
+	OffsetKey = "offset"
 )
 
 // State is the node's state (it keeps the offset, the signatures and
@@ -55,13 +54,6 @@ func NewLevelDBState(stateDbPath string, topic string) (*LevelDBState, error) {
 		binary.LittleEndian.PutUint64(bz, 0)
 		if err := db.Put(offsetCompositeKey, bz, nil); err != nil {
 			return nil, fmt.Errorf("failed to init %s storage: %w", string(offsetCompositeKey), err)
-		}
-	}
-
-	fsmStateCompositeKey := MakeCompositeKey(topic, FSMStateKey)
-	if _, err := state.stateDb.Get(fsmStateCompositeKey, nil); err != nil {
-		if err := db.Put(fsmStateCompositeKey, []byte{}, nil); err != nil {
-			return nil, fmt.Errorf("failed to init %s storage: %w", string(fsmStateCompositeKey), err)
 		}
 	}
 
