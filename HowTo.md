@@ -26,14 +26,14 @@ git clone https://github.com/lidofinance/dc4bc.git
 #### Installation (Linux)
 
 First install the Go toolchain:
-```
+```shell
 curl -OL https://golang.org/dl/go1.15.2.linux-amd64.tar.gz
 tar -C /usr/local -xzf go1.15.2.linux-amd64.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 ```
 
 Then build the project binaries:
-```
+```shell
 # Go to the cloned repository.
 cd dc4bc
 make build
@@ -42,7 +42,7 @@ make build
 #### Installation (Darwin)
 
 First install the Go toolchain:
-```
+```shell
 mkdir $HOME/Go
 export GOPATH=$HOME/Go
 export GOROOT=/usr/local/opt/go/libexec
@@ -52,7 +52,7 @@ brew install go
 ```
 
 Then build the project binaries:
-```
+```shell
 # Go to the cloned repository.
 cd dc4bc
 make build
@@ -66,10 +66,9 @@ Check out project releases tab in github and get the distribuition binaries for 
 
 Following is a reasonably secure setup for an airgapped machine. It does not account for supply chain attacks (someone shipping you posined hardware) and wireless physical proximity 0day exploits but otherwise is reasonably good. With good the geographical and otherwise diversity of co-signers this should be good enough to make collusion the main practical avenue of attack.
 
-
 Setup:
 
-Hot node: linux or os x machine with webcam. Probably a laptop. Setup doesn't really matter as long as it's your machine (not shared or rented) and you're reasonably sure it's not compromised. Should have a reliable network connection during the ceremony. It stores communication keys that are do not protect any critical secrets.
+Hot node: linux or os x machine with webcam. Probably a laptop. Setup doesn't really matter as long as it's your machine (not shared or rented) and you're reasonably sure it's not compromised. Should have a reliable network connection during the ceremony. It stores communication keys that do not protect any critical secrets.
 
 Airgapped node: 
 
@@ -106,7 +105,7 @@ Then start the on the airgapped machine:
 ```
 $ ./dc4bc_airgapped --db_path ./stores/dc4bc_<YOUR USERNAME>_airgapped_state --password_expiration 10m
 ```
-* `--db_path` Specifies the directory in which the Aigapped machibne state will be stored. If the directory that you specified does not exist, the Airgapped machine will generate new keys for you on startup. *N.B.: It is very important not to put your Airgapped machine state to `/tmp` or to occasionally lose it. Please make sure that you keep your Airgapped machine state in a safe place and make a backup.*
+* `--db_path` Specifies the directory in which the Aigapped machine state will be stored. If the directory that you specified does not exist, the Airgapped machine will generate new keys for you on startup. *N.B.: It is very important not to put your Airgapped machine state to `/tmp` or to occasionally lose it. Please make sure that you keep your Airgapped machine state in a safe place and make a backup.*
 
 Backup the generated bip39 seed on a paper wallet; if you need to restore it, use the `set_seed` command in the airgapped executable's console.
 
@@ -144,7 +143,7 @@ Tell the node to send an InitDKG message that proposes to run DKG with parameter
 $ ./dc4bc_cli start_dkg /path/to/start_dkg_propose.json --listen_addr localhost:8080
 ```
 Example of start_dkg_propose.json file structure:
-```
+```json
 {
   "SigningThreshold": 2,
   "Participants": [
@@ -206,9 +205,9 @@ Now you have a new operation:
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
 Please, select operation:
 -----------------------------------------------------
- 1) DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
-    Operation ID: df482be9eb1e50b0968a5daf7e52e073
-    Description: send commits for the DKG round
+ 1)             DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+                Operation ID: df482be9eb1e50b0968a5daf7e52e073
+                Description: send commits for the DKG round
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 
@@ -233,15 +232,15 @@ Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains 
 Operation JSON was handled successfully, the result Operation JSON was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_response.json
 ```
 
-Encode result JSON file to QR GIF on the airgapped machine and show animation on the hot node machine.
+Encode the result JSON file to a QR GIF on the airgapped machine and show the animation to the hot node machine.
 
-Then go to the node, decode GIF to JSON and run:
+Then go to the node, decode GIF to JSON and run the following command using the path to the decoded json:
 ```
 $ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_response.json
 
 ```
 
-When all participants perform the necessary operations, ßthe node will proceed to the next step:
+When all participants perform the necessary operations, the node will proceed to the next step:
 ```
 [john_doe] message event_dkg_commit_confirm_received done successfully from john_doe
 ```
@@ -260,9 +259,9 @@ For each step check for new pending operations:
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
 Please, select operation:
 -----------------------------------------------------
-1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
-   Operation ID: 2f217f58-a94f-47d8-b871-f35a15275184
-   Description: send commits for the DKG round
+ 1)             DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+                Operation ID: 988edba605afc4262827665f7d9395bf
+                Description: send deals for the DKG round
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 
@@ -274,6 +273,15 @@ Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then
 [john_doe] Successfully processed message with offset 10, type event_dkg_master_key_confirm_received
 ```
 
+To take a look at the DKG result, run the show_finished_dkg command in the dc4bc_airgapped:
+
+```
+$ >>> show_finished_dkg
+DKG identifier: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+PubKey: lTRw8FNa8lGsUBDa1pT/DxzVVpnkFpwtpro6FRnSAl9YL3k5v/ira+2DepmjCIYQ
+-----------------------------------------------------
+```
+
 Key generation ceremony is over. `exit` airgapped dkg tool prompt and backup your airapped machine db multiple times to different media. 
 
 To check the backup run `dc4bc_airgapped -db_path /path/to/backup` and run `show_dkg_pubkey` command. If it works the backup is correct.
@@ -282,33 +290,58 @@ To check the backup run `dc4bc_airgapped -db_path /path/to/backup` and run `show
 
 Now we have to collectively sign a message. Some participant will run the command that sends an invitation to the message board:
 
-```
-# Inside dc4bc_airgapped prompt:
-$ >>> show_finished_dkg
-AABB10CABB10
+```shell
 $ echo "the message to sign" > data.txt
-$ ./dc4bc_cli sign_data AABB10CABB10 data.txt --listen_addr localhost:8080
+$ ./dc4bc_cli sign_data c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 data.txt --listen_addr localhost:8080
 ```
-Further actions are repetitive and are similar to the DKG procedure. Check for new pending operations, feed them to `dc4bc_airgapped`, pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that the signature is ready:
+
+```
+$ ./dc4bc_cli get_operations --listen_addr localhost:8080
+Please, select operation:
+-----------------------------------------------------
+ 1)             DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+                Operation ID: 6a42609eb81c6a733d8ff4bb511b0d35
+                Description: send your partial sign for the message
+                Hash of the data to sign - 4a80926796c7646c1a50accf0477ea4ffb2e3ad55eacf083ce7ca472c4219bbf
+                Signing ID: 1ad6a966-64d1-4a1a-ad96-022790cf57f0
+-----------------------------------------------------
+Select operation and press Enter. Ctrl+C for cancel
+```
+
+TODO: add description here about the hash and signing ID. In short, answer the following question:
+- how do I know the content of the message I've been proposed to sign?
+
+Further steps are similar to the DKG procedure. First, select the new pending operation, feed it to `dc4bc_airgapped`, pass the response to the client, then wait until other participants do the same. Once the number of participants which signed the message is >= than the threshold, you'll see the node tell you that the signature is ready to be reconstructered:
+```
+Please, select operation:
+-----------------------------------------------------
+ 1)             DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+                Operation ID: 47b60d03f1922c614cb497705c56462a
+                Description: recover full signature for the message
+                Hash of the data to sign - 4a80926796c7646c1a50accf0477ea4ffb2e3ad55eacf083ce7ca472c4219bbf
+                Signing ID: 1ad6a966-64d1-4a1a-ad96-022790cf57f0
+```
+
+TODO: add description for this step about who should run this operation, what happens then and what if more that one participant runs the command.
+
 ```
 [john_doe] Handling message with offset 40, type signature_reconstructed
 Successfully processed message with offset 40, type signature_reconstructed
 ```
 
-Now you have the full reconstructed signature.
+Now you have the full reconstructed signature. The following command will show you a list of broadcasted reconstructed signatures for a given DKG round.
 ```
-./dc4bc_cli get_signatures AABB10CABB10
-Signing ID: 909b7660-ccc4-45c4-9201-e30015a69425
-	DKG round ID: AABB10CABB10
-	Participant: john_doe
-	Reconstructed signature for the data: tK+3CV2CI0flgwWLuhrZA5eaFfuJIvpLAc6CbAy5XBuRpzuCkjOZLCU6z1SvlwQIBJp5dAVa2rtbSy1jl98YtidujVWeUDNUz+kRl2C1C1BeLG5JvzQxhgr2dDxq0thu
+./dc4bc_cli get_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+Signing ID: 1ad6a966-64d1-4a1a-ad96-022790cf57f0
+                DKG round ID: dc1ddbc6818e8b7adfe3e7141dcef7e3a7a92fd74f0fc061a1c8f99f7693c6ce
+                Participant: john_doe
+                Reconstructed signature for the data: tK+3CV2CI0flgwWLuhrZA5eaFfuJIvpLAc6CbAy5XBuRpzuCkjOZLCU6z1SvlwQIBJp5dAVa2rtbSy1jl98YtidujVWeUDNUz+kRl2C1C1BeLG5JvzQxhgr2dDxq0thu
 ```
-It'll show you a list of broadcasted reconstructed signatures for a given DKG round.
 
 You can verify any signature by executing `verify_signature` command inside the airgapped prompt:
 ```
 >>> verify_signature
-> Enter the DKGRoundIdentifier: AABB10CABB10
+> Enter the DKGRoundIdentifier: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
 > Enter the BLS signature: tK+3CV2CI0flgwWLuhrZA5eaFfuJIvpLAc6CbAy5XBuRpzuCkjOZLCU6z1SvlwQIBJp5dAVa2rtbSy1jl98YtidujVWeUDNUz+kRl2C1C1BeLG5JvzQxhgr2dDxq0thu
 > Enter the message which was signed (base64): dGhlIG1lc3NhZ2UgdG8gc2lnbgo=
 Signature is correct!
@@ -324,7 +357,7 @@ reinitialize the whole DKG to recover DKG master key.
 To do this, each participant must generate a new pair of communication keys (see above) and share a public one with other participants.
 On your airgapped machine each participant must recover a private DKG key-pair:
 
-```shell
+```
 >>> set_seed
 > WARNING! this will overwrite your old seed, which might make DKGs you've done with it unusable.
 > Only do this on a fresh db_path. Type 'ok' to  continue: ok
@@ -336,7 +369,7 @@ $ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
 EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 ```
 Someone must put those keys to `keys.json` in the following format and send that file to all participants:
-```
+```json
 {
   "gergold": "8beWWNydtmEPISNXSC+Vp7U8nJrk23m9goW2hCX/eOo=",
   "svanevik": "r6cAAXor6iSy6nRipvLvfrNQe2BAVDQp8UN9Z+gZCNc=",
@@ -359,10 +392,12 @@ b9934eeb7abf7a5563ad2ad06ede87ff58c89b0c  dc4bc_async_ceremony_13_12_2020_dump.c
 shasum keys.json
 9c08507c073642c0e97efc87a685c908e871ef8a  keys.json
 ```
+
 If the checksum is correct for all participants, run:
-```shell
+```
 ./dc4bc_dkg_reinitializer reinit -i dc4bc_async_ceremony_13_12_2020_dump.csv -o reinit.json -k keys.json --adapt_1_4_0 --skip-header
 ```
+
 In this example the message will be saved to ```reinit.json``` file.
 * `--adapt_1_4_0`: this flag patches the old append log so that it is compatible with the latest version. You can see the utility source code [here](https://github.com/lidofinance/dc4bc/blob/eb72f74e25d910fc70c4a77158fed07435d48d7c/client/client.go#L679);
 * `-k keys.json`: new communication public keys from this file will be added to `reinit.json`.
@@ -374,7 +409,7 @@ f65e4d87dce889df00ecebeed184ee601c23e531
 ```
 
 Then someone must use ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
-```shell
+```
 $ ./dc4bc_cli reinit_dkg reinit.json
 ```
 
@@ -383,10 +418,10 @@ The command will send the message to the append-only log, dc4bc_d process it and
 $ ./dc4bc_cli get_operations
 Please, select operation:
 -----------------------------------------------------
- 1)		DKG round ID: d62c6c478d39d4239c6c5ceb0aea6792
-		Operation ID: 34799e2301ae794c0b4f5bc9886ed5fa
-		Description: reinit DKG
-		Hash of the reinit DKG message - f65e4d87dce889df00ecebeed184ee601c23e531
+ 1)             DKG round ID: d62c6c478d39d4239c6c5ceb0aea6792
+                Operation ID: 34799e2301ae794c0b4f5bc9886ed5fa
+                Description: reinit DKG
+                Hash of the reinit DKG message - f65e4d87dce889df00ecebeed184ee601c23e531
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 ```
