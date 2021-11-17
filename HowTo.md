@@ -217,7 +217,7 @@ Select operation and press Enter. Ctrl+C for cancel
 
 Select an operation to make the node produce a JSON file for it:
 ```
-json file was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482.json
+json file was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_request.json
 ```
 
 Open the `./qr_reader_bundle.html` in your Web browser on the hot node machine and airgapped machine, allow the page to use your camera and demonstrate the recorded video to the camera.
@@ -230,15 +230,15 @@ Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains 
 
 ```
 >>> read_operation
-> Enter the path to Operation JSON file: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482.json
-Operation JSON was handled successfully, the result Operation JSON was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482.json
+> Enter the path to Operation JSON file: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_request.json
+Operation JSON was handled successfully, the result Operation JSON was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_response.json
 ```
 
 Encode result JSON file to QR GIF on the airgapped machine and show animation on the hot node machine.
 
 Then go to the node, decode GIF to JSON and run:
 ```
-$ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482.json
+$ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_response.json
 
 ```
 

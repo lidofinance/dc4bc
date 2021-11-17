@@ -380,7 +380,7 @@ func getOperationPathCommand() *cobra.Command {
 				return fmt.Errorf("failed to get operations: %w", err)
 			}
 
-			operationPath := filepath.Join(folder, operation.Filename())
+			operationPath := filepath.Join(folder, operation.Filename()+"_request.json")
 
 			f, err := os.OpenFile(operationPath, os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {

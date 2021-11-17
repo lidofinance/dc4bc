@@ -105,7 +105,7 @@ func (o *Operation) Filename() (filename string) {
 	}
 
 	return fmt.Sprintf(
-		"%s_step_%d_%s_%s.json",
+		"%s_step_%d_%s_%s",
 		filename,
 		getStepNumber(o.Type),
 		getShortOperationDescription(o.Type),
