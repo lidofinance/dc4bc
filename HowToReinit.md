@@ -1,8 +1,8 @@
- # How to Reinit from version 1.4.0
+ # How to Reinit from version 0.1.4
 
 This document describes how to make a signature using:
-1. Version 2.0.0,
-2. Append log from version 1.4.0;
+1. Version 2.0.0 or above,
+2. Append log from version 0.1.4;
 3. The Airgapped private key mnemonic that was saved during the master ceremony setup.
 
 ### Initial setup
@@ -81,10 +81,10 @@ shasum keys.json
 ```
 If the checksums are correct for all participants, everyone should run:
 ```shell
-./dc4bc_dkg_reinitializer reinit -i dc4bc_async_ceremony_13_12_2020_dump.csv -o reinit.json -k keys.json --adapt_1_4_0 --skip-header
+./dc4bc_dkg_reinitializer reinit -i dc4bc_async_ceremony_13_12_2020_dump.csv -o reinit.json -k keys.json --adapt_0_1_4 --skip-header
 ```
 In this example the message will be saved to ```reinit.json``` file.
-* `--adapt_1_4_0`: this flag patches the old append log so that it is compatible with the latest version. You can see the utility source code [here](https://github.com/lidofinance/dc4bc/blob/eb72f74e25d910fc70c4a77158fed07435d48d7c/client/client.go#L679);
+* `--adapt_0_1_4`: this flag patches the old append log so that it is compatible with the latest version. You can see the utility source code [here](https://github.com/lidofinance/dc4bc/blob/eb72f74e25d910fc70c4a77158fed07435d48d7c/client/client.go#L679);
 * `-k keys.json`: new communication public keys from this file will be added to `reinit.json`.
 
 **All participants should run this command and check the `reinit.json` file checksum:**

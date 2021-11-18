@@ -416,11 +416,11 @@ shasum keys.json
 
 If the checksum is correct for all participants, run:
 ```
-./dc4bc_dkg_reinitializer reinit -i dc4bc_async_ceremony_13_12_2020_dump.csv -o reinit.json -k keys.json --adapt_1_4_0 --skip-header
+./dc4bc_dkg_reinitializer reinit -i dc4bc_async_ceremony_13_12_2020_dump.csv -o reinit.json -k keys.json --adapt_0_1_4 --skip-header
 ```
 
 In this example the message will be saved to ```reinit.json``` file.
-* `--adapt_1_4_0`: this flag patches the old append log so that it is compatible with the latest version. You can see the utility source code [here](https://github.com/lidofinance/dc4bc/blob/eb72f74e25d910fc70c4a77158fed07435d48d7c/client/client.go#L679);
+* `--adapt_0_1_4`: this flag patches the old append log so that it is compatible with the latest version. You can see the utility source code [here](https://github.com/lidofinance/dc4bc/blob/eb72f74e25d910fc70c4a77158fed07435d48d7c/client/client.go#L679);
 * `-k keys.json`: new communication public keys from this file will be added to `reinit.json`.
 
 **Note: all participants can run this command and check the `reinit.json` file checksum:**
