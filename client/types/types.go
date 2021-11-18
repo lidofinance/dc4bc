@@ -149,8 +149,9 @@ func getStepNumber(operationType OperationType) int {
 
 	case signature_proposal_fsm.StateAwaitParticipantsConfirmations:
 		return 1
+
 	case signing_proposal_fsm.StateSigningAwaitPartialSigns:
-		return 2
+		return 1
 
 	case ReinitDKG:
 		return 0
