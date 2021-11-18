@@ -10,7 +10,7 @@ This document describes how to make a signature using:
 1. Make sure that you have the Airgapped private key mnemonic;
 2. Download the release binaries (`dc4bc_dkg_reinitializer`, `dc4bc_cli`, `dc4bc_d`, `index.tml`) for your platform from [the release page](https://github.com/lidofinance/dc4bc/releases/tag/2.0.0);
 3. Download the old [append log dump](https://github.com/lidofinance/dc4bc/releases/download/2.0.0/dc4bc_async_ceremony_13_12_2020_dump.csv);
-4. Set up your cold and hot nodes using the old [instruction](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#setting-up-hot-and-airapped-nodes).
+4. Set up your cold and hot nodes using the [instruction](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#setting-up-hot-and-airapped-nodes).
 
 _Note that on latest macOS verssions the downloaded binaries might be marked as "quarantined". Usually there are two ways to mitigate that:_
 
@@ -95,7 +95,7 @@ f65e4d87dce889df00ecebeed184ee601c23e531
 
 ### Running the reinit 
 
-After everyone has generated the reinit.json file and verified the checksum, you must choose **one** participant that will prepare the reinit Operation for everyone. She must use the ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
+After everyone has generated the reinit.json file and verified the checksum, you must choose **one** participant that will prepare the reinit Operation for everyone. This participant must use the ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
 ```shell
 $ ./dc4bc_cli reinit_dkg reinit.json
 ```
@@ -115,49 +115,11 @@ Select operation and press Enter. Ctrl+C for cancel
 
 There is a hash of the reinit DKG message in a reinitDKG operation and if it's not equal to the hash from ```get_reinit_dkg_file_hash``` command, that means that person who started the reinit process has changed some parameters.
 
-Scan the operation using the QR-scanning web-app (open `qr-tool.html` in your browser). Now you need to process the operation inside the Airgapped machine:
+Scan the operation using the QR-scanning web-app (open `./qr_reader_bundle/qr-tool.html` in your browser). Now you need to process the operation inside the Airgapped machine:
 
 ```
 $ >>> read_operation
 > Enter the path to Operation JSON file: reinit_operation.json
 ```
 
-Now you have your master DKG pubkey recovered, and you can sign new messages!
-
-### Signature
-
-Now we have to collectively sign a message. Some participant will run the command that sends an invitation to the message board:
-
-```
-# Inside dc4bc_airgapped prompt:
-$ >>> show_finished_dkg
-AABB10CABB10
-$ echo "the message to sign" > data.txt
-$ ./dc4bc_cli sign_data AABB10CABB10 data.txt --listen_addr localhost:8080
-```
-Further actions are repetitive and are similar to the DKG procedure. Check for new pending operations, feed them to `dc4bc_airgapped`, pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that the signature is ready:
-```
-[john_doe] Handling message with offset 40, type signature_reconstructed
-Successfully processed message with offset 40, type signature_reconstructed
-```
-
-Now you have the full reconstructed signature.
-```
-./dc4bc_cli get_signatures AABB10CABB10
-Signing ID: 909b7660-ccc4-45c4-9201-e30015a69425
-	DKG round ID: AABB10CABB10
-	Participant: john_doe
-	Reconstructed signature for the data: tK+3CV2CI0flgwWLuhrZA5eaFfuJIvpLAc6CbAy5XBuRpzuCkjOZLCU6z1SvlwQIBJp5dAVa2rtbSy1jl98YtidujVWeUDNUz+kRl2C1C1BeLG5JvzQxhgr2dDxq0thu
-```
-It'll show you a list of broadcasted reconstructed signatures for a given DKG round.
-
-You can verify any signature by executing `verify_signature` command inside the airgapped prompt:
-```
->>> verify_signature
-> Enter the DKGRoundIdentifier: AABB10CABB10
-> Enter the BLS signature: tK+3CV2CI0flgwWLuhrZA5eaFfuJIvpLAc6CbAy5XBuRpzuCkjOZLCU6z1SvlwQIBJp5dAVa2rtbSy1jl98YtidujVWeUDNUz+kRl2C1C1BeLG5JvzQxhgr2dDxq0thu
-> Enter the message which was signed (base64): dGhlIG1lc3NhZ2UgdG8gc2lnbgo=
-Signature is correct!
-```
-
-Now the ceremony is  over. 
+Now you have your master DKG pubkey recovered, and you can sign new messages! Signing pipeline after DKG reinitialisation is just the same as in the usual flow, just follow the [instruction](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#signature).
