@@ -23,7 +23,7 @@ const (
 	flagSeparator   = "separator"
 	flagColumnIndex = "column"
 	flagSkipHeader  = "skip-header"
-	flagAdapt140    = "adapt_1_4_0"
+	flagAdapt014    = "adapt_0_1_4"
 )
 
 var rootCmd = &cobra.Command{
@@ -38,7 +38,7 @@ func init() {
 	rootCmd.PersistentFlags().StringP(flagSeparator, "s", ";", "Separator")
 	rootCmd.PersistentFlags().IntP(flagColumnIndex, "p", 4, "Column index (with message JSON)")
 	rootCmd.PersistentFlags().Bool(flagSkipHeader, false, "Skip header (if present)")
-	rootCmd.PersistentFlags().Bool(flagAdapt140, true, "Adapt 1.4.0 dump")
+	rootCmd.PersistentFlags().Bool(flagAdapt014, true, "Adapt 0.1.4 dump")
 }
 
 func reinit() *cobra.Command {
@@ -71,11 +71,11 @@ func reinit() *cobra.Command {
 				return fmt.Errorf("failed to generate reDKG message: %v", err)
 			}
 
-			// Adapt from 1.4.0 if required.
-			if adapt140, _ := cmd.Flags().GetBool(flagAdapt140); adapt140 {
+			// Adapt from 0.1.4 if required.
+			if adapt014, _ := cmd.Flags().GetBool(flagAdapt014); adapt014 {
 				reDKG, err = node.GetAdaptedReDKG(reDKG)
 				if err != nil {
-					return fmt.Errorf("failed to adapt reinit DKG message from 1.4.0: %v", err)
+					return fmt.Errorf("failed to adapt reinit DKG message from 0.1.4: %v", err)
 				}
 			}
 
