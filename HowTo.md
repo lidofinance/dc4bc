@@ -289,7 +289,6 @@ To check the backup run `dc4bc_airgapped -db_path /path/to/backup` and run `show
 #### Signature
 
 Now we have to collectively sign a message. Some participant will run the command that sends an invitation to the message board:
-
 ```shell
 $ echo "the message to sign" > data.txt
 $ ./dc4bc_cli sign_data c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 data.txt --listen_addr localhost:8080
@@ -308,10 +307,22 @@ Please, select operation:
 Select operation and press Enter. Ctrl+C for cancel
 ```
 
-TODO: add description here about the hash and signing ID. In short, answer the following question:
-- how do I know the content of the message I've been proposed to sign?
+At this point the other participants would probably like to take a look at the message they've been proposed to sign. To do so, they can run the following command that reveals a list of all messages related to a given DKG round as well as the messages signing IDs and hashes.
+```
+./dc4bc_cli get_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+Signing ID: ca800cac-2c13-4a14-8ca3-72c36112c5e4
+                DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+                Participant: john_doe
+                Reconstructed signature for the data:
+```
 
-Further steps are similar to the DKG procedure. First, select the new pending operation, feed it to `dc4bc_airgapped`, pass the response to the client, then wait until other participants do the same. Once the number of participants which signed the message is >= than the threshold, you'll see the node tell you that the signature is ready to be reconstructered:
+Then it's possible to reveal a message data by running the following command:
+```
+./dc4bc_cli get_signature_data c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 ca800cac-2c13-4a14-8ca3-72c36112c5e4
+the message to sign
+```
+
+Further steps are similar to the DKG procedure. First, select the new pending operation, feed it to `dc4bc_airgapped`, pass the response to the client, then wait until other participants do the same. Once the number of participants which signed the message is >= than the threshold, you'll see the node tell you that the signature is ready to be reconstructered on the airgapped:
 ```
 Please, select operation:
 -----------------------------------------------------
@@ -322,27 +333,37 @@ Please, select operation:
                 Signing ID: 1ad6a966-64d1-4a1a-ad96-022790cf57f0
 ```
 
-TODO: add description for this step about who should run this operation, what happens then and what if more that one participant runs the command.
+Before that, it's possible to check the progress of signatures gathering and see who's already sent partial signs, and who hasn't:
+```
+./dc4bc_cli show_fsm_status c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+FSM current status is state_signing_await_partial_signs
+Waiting for data from: john_doe
+Received data from: jane_doe
+```
 
 ```
 [john_doe] Handling message with offset 40, type signature_reconstructed
 Successfully processed message with offset 40, type signature_reconstructed
 ```
 
-Now you have the full reconstructed signature. The following command will show you a list of broadcasted reconstructed signatures for a given DKG round.
+By performing the recover operation participants reconstructure the signature using the collected partial signs and share the reconstructured signatures between each other. These signatures get stored then and can be viewed at any time by running the following command that will show you a list of broadcasted reconstructed signatures for a given DKG round.
 ```
 ./dc4bc_cli get_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
-Signing ID: 1ad6a966-64d1-4a1a-ad96-022790cf57f0
-                DKG round ID: dc1ddbc6818e8b7adfe3e7141dcef7e3a7a92fd74f0fc061a1c8f99f7693c6ce
+Signing ID: ca800cac-2c13-4a14-8ca3-72c36112c5e4
+                DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
                 Participant: john_doe
-                Reconstructed signature for the data: tK+3CV2CI0flgwWLuhrZA5eaFfuJIvpLAc6CbAy5XBuRpzuCkjOZLCU6z1SvlwQIBJp5dAVa2rtbSy1jl98YtidujVWeUDNUz+kRl2C1C1BeLG5JvzQxhgr2dDxq0thu
+                Reconstructed signature for the data: g4l9p8na4cTywMQluRtwR6S/KOxgCXSuC0VFhH5RywaiJ6i2yjWSIQcyqWiCkb00FXN+z67OfDSUTx8l7MFU1MJsJwRXPx9rGaFeOHhQi5aqHOH8ChTQftZSJXv5u/ck
+
+                DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+                Participant: jane_doe
+                Reconstructed signature for the data: g4l9p8na4cTywMQluRtwR6S/KOxgCXSuC0VFhH5RywaiJ6i2yjWSIQcyqWiCkb00FXN+z67OfDSUTx8l7MFU1MJsJwRXPx9rGaFeOHhQi5aqHOH8ChTQftZSJXv5u/ck
 ```
 
 You can verify any signature by executing `verify_signature` command inside the airgapped prompt:
 ```
 >>> verify_signature
 > Enter the DKGRoundIdentifier: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
-> Enter the BLS signature: tK+3CV2CI0flgwWLuhrZA5eaFfuJIvpLAc6CbAy5XBuRpzuCkjOZLCU6z1SvlwQIBJp5dAVa2rtbSy1jl98YtidujVWeUDNUz+kRl2C1C1BeLG5JvzQxhgr2dDxq0thu
+> Enter the BLS signature: g4l9p8na4cTywMQluRtwR6S/KOxgCXSuC0VFhH5RywaiJ6i2yjWSIQcyqWiCkb00FXN+z67OfDSUTx8l7MFU1MJsJwRXPx9rGaFeOHhQi5aqHOH8ChTQftZSJXv5u/ck
 > Enter the message which was signed (base64): dGhlIG1lc3NhZ2UgdG8gc2lnbgo=
 Signature is correct!
 ```
