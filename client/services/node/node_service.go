@@ -8,12 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/services/fsmservice"
 	"log"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/services/fsmservice"
 
 	"github.com/google/uuid"
 	"github.com/lidofinance/dc4bc/client/api/dto"
@@ -30,13 +30,12 @@ import (
 	sif "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
-	"github.com/lidofinance/dc4bc/qr"
 	"github.com/lidofinance/dc4bc/storage"
 )
 
 const (
 	pollingPeriod      = time.Second
-	qrCodesDir         = "/tmp"
+	jsonFilesDir       = "/tmp"
 	emptyParticipantId = -1
 )
 
@@ -50,8 +49,6 @@ type NodeService interface {
 	ProcessMessage(message storage.Message) error
 	GetOperations() (map[string]*types.Operation, error)
 	GetOperation(dto *dto.OperationIdDTO) ([]byte, error)
-	GetOperationQRPath(dto *dto.OperationIdDTO) (string, error)
-	GetOperationQRFile(dto *dto.OperationIdDTO) ([]byte, error)
 	ProcessOperation(dto *dto.OperationDTO) error
 	StartDKG(dto *dto.StartDkgDTO) error
 	ReInitDKG(dto *dto.ReInitDKGDTO) error
@@ -72,7 +69,6 @@ type BaseNodeService struct {
 	state                    state.State
 	storage                  storage.Storage
 	keyStore                 keystore.KeyStore
-	qrProcessor              qr.Processor
 	Logger                   logger.Logger
 	fsmService               fsmservice.FSMService
 	SkipCommKeysVerification bool
@@ -85,15 +81,14 @@ func NewNode(ctx context.Context, config *config.Config, sp *services.ServicePro
 	}
 
 	return &BaseNodeService{
-		ctx:         ctx,
-		userName:    config.Username,
-		pubKey:      keyPair.Pub,
-		state:       sp.GetState(),
-		storage:     sp.GetStorage(),
-		keyStore:    sp.GetKeyStore(),
-		qrProcessor: sp.GetQRProcessor(),
-		Logger:      sp.GetLogger(),
-		fsmService:  sp.GetFSMService(),
+		ctx:        ctx,
+		userName:   config.Username,
+		pubKey:     keyPair.Pub,
+		state:      sp.GetState(),
+		storage:    sp.GetStorage(),
+		keyStore:   sp.GetKeyStore(),
+		Logger:     sp.GetLogger(),
+		fsmService: sp.GetFSMService(),
 	}, nil
 }
 
@@ -231,26 +226,6 @@ func (s *BaseNodeService) getOperation(operationID string) (*types.Operation, er
 	return operation, nil
 }
 
-// GetOperationQRPath returns a path to the image with the QR generated
-// for the specified operation. It is supposed that the user will open
-// this file herself.
-func (s *BaseNodeService) GetOperationQRPath(dto *dto.OperationIdDTO) (string, error) {
-	operationJSON, err := s.getOperationJSON(dto.OperationID)
-
-	if err != nil {
-		return "", fmt.Errorf("failed to get operation in JSON: %w", err)
-	}
-
-	operationQRPath := filepath.Join(qrCodesDir, fmt.Sprintf("dc4bc_qr_%s", dto.OperationID))
-
-	qrPath := fmt.Sprintf("%s.gif", operationQRPath)
-	if err = s.qrProcessor.WriteQR(qrPath, operationJSON); err != nil {
-		return "", err
-	}
-
-	return qrPath, nil
-}
-
 // getOperationJSON returns a specific JSON-encoded operation
 func (s *BaseNodeService) getOperationJSON(operationID string) ([]byte, error) {
 	operation, err := s.getState().GetOperationByID(operationID)
@@ -273,20 +248,6 @@ func (s *BaseNodeService) GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.R
 
 func (s *BaseNodeService) GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error) {
 	return s.getState().GetSignatureByID(dto.DkgID, dto.ID)
-}
-
-func (s *BaseNodeService) GetOperationQRFile(dto *dto.OperationIdDTO) ([]byte, error) {
-	operationJSON, err := s.getOperationJSON(dto.OperationID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get operation in JSON: %w", err)
-	}
-
-	encodedData, err := qr.EncodeQR(operationJSON)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode operation: %w", err)
-	}
-
-	return encodedData, nil
 }
 
 // ProcessOperation handles an operation which was processed by the airgapped machine

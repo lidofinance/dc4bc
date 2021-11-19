@@ -131,8 +131,8 @@ EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 # Inside the airgapped shell:
 >>> show_dkg_pubkey
 sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq
->>> generate_dkg_pubkey_qr
-A QR code with DKG public key was saved to: /tmp/dc4bc_qr_dkg_pub_key.gif
+>>> generate_dkg_pubkey_json
+A JSON file with DKG public key was saved to: /tmp/dc4bc_json_dkg_pub_key.json
 ```
 
 
@@ -179,10 +179,9 @@ Get the list of pending operations:
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
 Please, select operation:
 -----------------------------------------------------
-1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
-   Operation ID: 30fa9c21-b79f-4a53-a84b-e7ad574c1a51
-   Description: confirm participation in the new DKG round
-   Hash of the proposing DKG message - a60bd47a831cd58a96bdd4381ee15afc
+ 1)             DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+                Operation ID: 83e14a21c0116094630654d923ba9600
+                Description: confirm participation in the new DKG round
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 
@@ -208,42 +207,42 @@ Now you have a new operation:
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
 Please, select operation:
 -----------------------------------------------------
-1) DKG round ID: 3086f09822d7ba4bfb9af14c12d2c8ef
-   Operation ID: 2f217f58-a94f-47d8-b871-f35a15275184
-   Description: send commits for the DKG round
+ 1) DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+    Operation ID: df482be9eb1e50b0968a5daf7e52e073
+    Description: send commits for the DKG round
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 
 ```
 
-Select an operation to make the node produce a QR-code for it:
+Select an operation to make the node produce a JSON file for it:
 ```
-QR code was saved to: /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184.gif
-```
-
-Open the GIF-animation in any gif viewer and take a video of it:
-```
-open -a Safari /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184-request.gif
+json file was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_request.json
 ```
 
-After that, you need to scan the GIF. To do that, you need to open the `./qr_reader_bundle.html` in your Web browser on an airgapped machine (firefox from plaintext media in case of Tails airapped machine setup), allow the page to use your camera and demonstrate the recorded video to the camera. After the GIF is scanned, you'll see the operation JSON. Click on that JSON, and it will be saved to your Downloads folder.
+Open the `./qr_reader_bundle.html` in your Web browser on the hot node machine and airgapped machine, allow the page to use your camera and demonstrate the recorded video to the camera.
+
+Pull your JSON file to the encoder on the hot node machine and save the *.gif file.
+
+Show this animation in the QR-tool on the airgapped machine and get JSON file.
 
 Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains the Operation JSON:
 
 ```
 >>> read_operation
-> Enter the path to Operation JSON file: ./operation.json
-Operation GIF was handled successfully, the result Operation GIF was saved to: /tmp/dc4bc_qr_2f217f58-a94f-47d8-b871-f35a15275184-response.gif
+> Enter the path to Operation JSON file: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_request.json
+Operation JSON was handled successfully, the result Operation JSON was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_response.json
 ```
 
-Open the response QR-gif in any gif viewer and take a video of it. Open the `./qr_reader_bundle/index.html` page in your web browser on a hot node and scan the GIF. You may want to give the downloaded file a new name, e.g., `operation_response.json`.
+Encode result JSON file to QR GIF on the airgapped machine and show animation on the hot node machine.
 
-Then go to the node and run:
+Then go to the node, decode GIF to JSON and run:
 ```
-$ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 ~/Downloads/operation_response.json
+$ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_response.json
+
 ```
 
-When all participants perform the necessary operations, the node will proceed to the next step:
+When all participants perform the necessary operations, ßthe node will proceed to the next step:
 ```
 [john_doe] message event_dkg_commit_confirm_received done successfully from john_doe
 ```
@@ -380,7 +379,7 @@ Then someone must use ```reinit_dkg``` command in dc4bc_cli to send the message 
 $ ./dc4bc_cli reinit_dkg reinit.json
 ```
 
-The command will send the message to the append-only log, dc4bc_d process it and will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.).
+The command will send the message to the append-only log, dc4bc_d process it and will return an operation that must be handled like in the previous steps (scan JSON, go to an airgapped machine, etc.).
 ```
 $ ./dc4bc_cli get_operations
 Please, select operation:
