@@ -19,27 +19,10 @@ _Note that on latest macOS verssions the downloaded binaries might be marked as 
 
 ### Generating new keys
 
-Each participant must generate a new pair of communication keys for you Client node. This means that you **don't need any of the old states**:
-```
-$ ./dc4bc_d gen_keys --username <YOUR USERNAME> --key_store_dbdsn ./stores/dc4bc_<YOUR USERNAME>_key_store
-```
-After you have the keys, start the node:
-```
-$ ./dc4bc_d start --username <YOUR USERNAME> --key_store_dbdsn ./stores/dc4bc_<YOUR USERNAME>_key_store --state_dbdsn ./stores/dc4bc_<YOUR USERNAME>_state --listen_addr localhost:8080 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_dbdsn 94.130.57.249:9093 --storage_topic <DKG_TOPIC> --kafka_consumer_group <YOUR USERNAME>_group
-```
-* `--username` — This username will be used to identify you during DKG and signing;
-* `--key_store_dbdsn` — This is where the keys that are used for signing messages that will go to the Bulletin Board will be stored. Do not store these keys in `/tmp/` for production runs and make sure that you have a backup;
-* `--state_dbdsn` This is where your Client node's state (including the FSM state) will be kept. If you delete this directory, you will have to re-read the whole message board topic, which might result in odd states;
-* `--storage_dbdsn` This argument specifies the storage endpoint. This storage is going to be used by all participants to exchange messages;
-* `--storage_topic` Specifies the topic (a "directory" inside the storage) that you are going to use. Typically participants will agree on a new topic for each new signature or DKG round to avoid confusion.
+Each participant must generate a new pair of communication keys for you Client node. This means that you **don't need any of the old states**. To do so, please refer to [this section](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#generating-keypairs-and-running-nodes). Since you're here, you must have done this before. The only difference this time is you don't need to backup the generated bip39 seed.
 
-Then start the Airgapped machine:
+After starting the Airgapped machine, you must recover your private DKG key-pair using the mnemonic you got at the first initialisation:
 ```
-$ ./dc4bc_airgapped --db_path ./stores/dc4bc_<YOUR USERNAME>_airgapped_state --password_expiration 10m
-```
-After starting the Airgapped machine, you must recover your private DKG key-pair using the saved mnemonic:
-
-```shell
 >>> set_seed
 > WARNING! this will overwrite your old seed, which might make DKGs you've done with it unusable.
 > Only do this on a fresh db_path. Type 'ok' to  continue: ok
@@ -53,8 +36,9 @@ All participants must now share their public communication keys. Run the command
 $ ./dc4bc_cli get_pubkey --listen_addr localhost:8080
 EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=
 ```
+
 Someone must put those keys to `keys.json` in the following format and send that file to all participants (possibly on Discord):
-```
+```json
 {
   "gergold": "8beWWNydtmEPISNXSC+Vp7U8nJrk23m9goW2hCX/eOo=",
   "svanevik": "r6cAAXor6iSy6nRipvLvfrNQe2BAVDQp8UN9Z+gZCNc=",
@@ -80,7 +64,7 @@ shasum keys.json
 9c08507c073642c0e97efc87a685c908e871ef8a  keys.json
 ```
 If the checksums are correct for all participants, everyone should run:
-```shell
+```
 ./dc4bc_dkg_reinitializer reinit -i dc4bc_async_ceremony_13_12_2020_dump.csv -o reinit.json -k keys.json --adapt_0_1_4 --skip-header
 ```
 In this example the message will be saved to ```reinit.json``` file.
@@ -96,7 +80,7 @@ f65e4d87dce889df00ecebeed184ee601c23e531
 ### Running the reinit 
 
 After everyone has generated the reinit.json file and verified the checksum, you must choose **one** participant that will prepare the reinit Operation for everyone. This participant must use the ```reinit_dkg``` command in dc4bc_cli to send the message to the append-only log:
-```shell
+```
 $ ./dc4bc_cli reinit_dkg reinit.json
 ```
 This command will send the message to the append-only log. The Client node process it and then will return an operation that must be handled like in the previous steps (scan GIF, go to an airgapped machine, etc.). **This step is for all participants.**
@@ -105,21 +89,21 @@ This command will send the message to the append-only log. The Client node proce
 $ ./dc4bc_cli get_operations
 Please, select operation:
 -----------------------------------------------------
- 1)		DKG round ID: d62c6c478d39d4239c6c5ceb0aea6792
-		Operation ID: 34799e2301ae794c0b4f5bc9886ed5fa
-		Description: reinit DKG
-		Hash of the reinit DKG message - f65e4d87dce889df00ecebeed184ee601c23e531
+ 1)             DKG round ID: d62c6c478d39d4239c6c5ceb0aea6792
+                Operation ID: 34799e2301ae794c0b4f5bc9886ed5fa
+                Description: reinit DKG
+                Hash of the reinit DKG message - f65e4d87dce889df00ecebeed184ee601c23e531
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 ```
 
 There is a hash of the reinit DKG message in a reinitDKG operation and if it's not equal to the hash from ```get_reinit_dkg_file_hash``` command, that means that person who started the reinit process has changed some parameters.
 
-Scan the operation using the QR-scanning web-app (open `./qr_reader_bundle/qr-tool.html` in your browser). Now you need to process the operation inside the Airgapped machine:
+Scan the operation JSON using the QR-scanning web-app and feed it to the airgapped machine via the security channel. The way to communicate via the security channel is well described in [this section](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#getting-familiar-with-the-secure-channel).
 
 ```
 $ >>> read_operation
-> Enter the path to Operation JSON file: reinit_operation.json
+> Enter the path to Operation JSON file: /tmp/dkg_id_dc1dd_step_0_reinit_DKG_f420a_request.json
 ```
 
-Now you have your master DKG pubkey recovered, and you can sign new messages! Signing pipeline after DKG reinitialisation is just the same as in the usual flow, just follow the [instruction](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#signature).
+Now you have your master DKG pubkey recovered, and you can sign new messages! Signing algorithm after DKG reinitialisation is just the same as in the usual flow, simply follow the [instruction](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#signature).
