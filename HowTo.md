@@ -229,7 +229,7 @@ Select operation and press Enter. Ctrl+C for cancel
 
 ##### Getting familiar with the secure channel
 
-Select an operation to make the node produce a JSON file for it:
+It's time to establish a secure connection between the machines. Select an operation to make the node produce a JSON file for it:
 ```
 json file was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_request.json
 ```
@@ -246,20 +246,17 @@ Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains 
 Operation JSON was handled successfully, the result Operation JSON was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_response.json
 ```
 
-Encode the result JSON file to a QR GIF on the airgapped machine and show the animation to the hot node machine.
-
-Then go to the node, decode GIF to JSON and run the following command using the path to the decoded json:
+Encode the result JSON file to a QR GIF on the airgapped machine and show the animation to the hot node machine. Then go to the node, decode GIF to JSON and run the following command using the path to the decoded json:
 ```
 $ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_response.json
-
 ```
-
-When all participants perform the necessary operations, the node will proceed to the next step:
 ```
 [john_doe] message event_dkg_commit_confirm_received done successfully from john_doe
 ```
 
-Next steps are:
+##### Following up the ceremony
+
+When all participants perform the necessary operations, the node will proceed to the next step. The next steps are:
 
 - Broadcast commits - you'll be broadcasting a public derivative of your secret seed for the key shards that will be used to check that you don't try to cheat at DKG
 - Collect commits and broadcast deals - you'll be collecting each other's commits and sending each participant a private message that will be used to construct your key shard
