@@ -15,20 +15,18 @@ import (
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	"github.com/lidofinance/dc4bc/client/modules/logger"
 	"github.com/lidofinance/dc4bc/client/modules/state"
-	"github.com/lidofinance/dc4bc/qr"
 	"github.com/lidofinance/dc4bc/storage"
 	"github.com/lidofinance/dc4bc/storage/kafka_storage"
 )
 
 type ServiceProvider struct {
-	storage     storage.Storage
-	ks          keystore.KeyStore
-	qrProcessor qr.Processor
-	l           logger.Logger
-	state       state.State
-	fsm         fsmservice.FSMService
-	opService   operation.OperationService
-	sigService  signature.SignatureService
+	storage    storage.Storage
+	ks         keystore.KeyStore
+	l          logger.Logger
+	state      state.State
+	fsm        fsmservice.FSMService
+	opService  operation.OperationService
+	sigService signature.SignatureService
 }
 
 func (s *ServiceProvider) GetStorage() storage.Storage {
@@ -45,14 +43,6 @@ func (s *ServiceProvider) GetKeyStore() keystore.KeyStore {
 
 func (s *ServiceProvider) SetKeyStore(ks keystore.KeyStore) {
 	s.ks = ks
-}
-
-func (s *ServiceProvider) GetQRProcessor() qr.Processor {
-	return s.qrProcessor
-}
-
-func (s *ServiceProvider) SetQRProcessor(qrProc qr.Processor) {
-	s.qrProcessor = qrProc
 }
 
 func (s *ServiceProvider) GetLogger() logger.Logger {
@@ -137,8 +127,6 @@ func CreateServiceProviderWithCfg(cfg *config.Config) (*ServiceProvider, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed to init key store: %w", err)
 	}
-
-	sp.qrProcessor = qr.NewCameraProcessor(cfg.QrProcessorConfig)
 
 	sp.l = logger.NewLogger(cfg.Username)
 

@@ -24,7 +24,6 @@ const (
 	flagListenAddr               = "listen_addr"
 	flagStateDBDSN               = "state_dbdsn"
 	flagStorageDBDSN             = "storage_dbdsn"
-	flagFramesDelay              = "frames_delay"
 	flagStorageTopic             = "storage_topic"
 	flagKafkaProducerCredentials = "producer_credentials"
 	flagKafkaConsumerCredentials = "consumer_credentials"
@@ -32,7 +31,6 @@ const (
 	flagKafkaConsumerGroup       = "kafka_consumer_group"
 	flagKafkaTimeout             = "kafka_timeout"
 	flagStoreDBDSN               = "key_store_dbdsn"
-	flagChunkSize                = "chunk_size"
 	flagConfig                   = "config"
 	flagSkipCommKeysVerification = "skip_comm_keys_verification"
 	flagStorageIgnoreMessages    = "storage_ignore_messages"
@@ -59,8 +57,6 @@ func init() {
 	rootCmd.PersistentFlags().String(flagKafkaConsumerGroup, "", "Kafka consumer group")
 	rootCmd.PersistentFlags().String(flagKafkaTimeout, "60s", "Kafka I/O Timeout")
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
-	rootCmd.PersistentFlags().Int(flagFramesDelay, 10, "Delay times between frames in 100ths of a second")
-	rootCmd.PersistentFlags().Int(flagChunkSize, 256, "QR-code's chunk size")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, flagConfig, "", "path to your config file")
 	rootCmd.PersistentFlags().Bool(flagSkipCommKeysVerification, false, "verify messages from append-log or not")
 	rootCmd.PersistentFlags().String(flagStorageIgnoreMessages, "", "Messages ids or offsets separated by comma (id_1,id_2,...,id_n) to ignore when reading from storage")
@@ -79,8 +75,6 @@ func init() {
 	exitIfError(viper.BindPFlag(flagKafkaConsumerGroup, rootCmd.PersistentFlags().Lookup(flagKafkaConsumerGroup)))
 	exitIfError(viper.BindPFlag(flagKafkaTimeout, rootCmd.PersistentFlags().Lookup(flagKafkaTimeout)))
 	exitIfError(viper.BindPFlag(flagStoreDBDSN, rootCmd.PersistentFlags().Lookup(flagStoreDBDSN)))
-	exitIfError(viper.BindPFlag(flagFramesDelay, rootCmd.PersistentFlags().Lookup(flagFramesDelay)))
-	exitIfError(viper.BindPFlag(flagChunkSize, rootCmd.PersistentFlags().Lookup(flagChunkSize)))
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
 	exitIfError(viper.BindPFlag(flagSkipCommKeysVerification, rootCmd.PersistentFlags().Lookup(flagSkipCommKeysVerification)))
 	exitIfError(viper.BindPFlag(flagStorageIgnoreMessages, rootCmd.PersistentFlags().Lookup(flagStorageIgnoreMessages)))
@@ -107,18 +101,16 @@ func initConfig() {
 
 func prepareConfig() (*apiconfig.Config, error) {
 	cfg := apiconfig.Config{}
-	qrCfg := apiconfig.QrProcessorConfig{}
 	kafkaCfg := apiconfig.KafkaStorageConfig{}
 	httpCfg := apiconfig.HttpApiConfig{}
 
-	for _, c := range []interface{}{&cfg, &qrCfg, &kafkaCfg, &httpCfg} {
+	for _, c := range []interface{}{&cfg, &kafkaCfg, &httpCfg} {
 		err := viper.Unmarshal(c)
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse cli arguments: %w", err)
 		}
 	}
 
-	cfg.QrProcessorConfig = &qrCfg
 	cfg.HttpApiConfig = &httpCfg
 	cfg.KafkaStorageConfig = &kafkaCfg
 
