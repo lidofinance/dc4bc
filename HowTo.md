@@ -262,10 +262,7 @@ When all participants perform the necessary operations, the node will proceed to
 - Collect commits and broadcast deals - you'll be collecting each other's commits and sending each participant a private message that will be used to construct your key shard
 - Collect deals and broadcast reconstructed public key - you'll be using private messages from other people to generate your key shard
 
-Further actions are repetitive:
-
-For each step check for new pending operations:
-
+Further actions are repetitive. For each step check for new pending operations:
 ```
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
 Please, select operation:
@@ -275,7 +272,6 @@ Please, select operation:
                 Description: send deals for the DKG round
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
-
 ```
 
 Then feed them to `dc4bc_airgapped`, then pass the responses to the client, then wait for new operations, etc. After some back and forth you'll see the node tell you that DKG is finished (`event_dkg_master_key_confirm_received`):
@@ -339,7 +335,7 @@ the message to sign
 
 #### Signing the message
 
-Further steps are similar to the DKG procedure. First, select the pending `send your partial sign for the message` operation, feed it to `dc4bc_airgapped`, pass the response to the client, then wait until other participants do the same. Once the number of participants which signed the message is >= than the threshold, you'll see the node tell you that the signature is ready to be reconstructered on the airgapped:
+Further steps are similar to the DKG procedure. First, select the pending `send your partial sign for the message` operation, feed it to `dc4bc_airgapped`, pass the response to the client, then wait until other participants do the same. Once the number of participants which signed the message is >= than the threshold, you'll see the cli `get_operations` tell you that the signature is ready to be reconstructered on the airgapped:
 ```
 Please, select operation:
 -----------------------------------------------------
@@ -354,8 +350,8 @@ Before that, it's possible to check the progress of signatures gathering and see
 ```
 ./dc4bc_cli show_fsm_status c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
 FSM current status is state_signing_await_partial_signs
-Waiting for data from: john_doe
-Received data from: jane_doe
+Waiting for data from: jane_doe
+Received data from: john_doe
 ```
 
 ```
