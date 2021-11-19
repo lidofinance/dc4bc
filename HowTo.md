@@ -58,6 +58,14 @@ cd dc4bc
 make build
 ```
 
+#### QR encoder/decoder
+
+Get the latest release of the web interface based QR encoder/decoder from the following repository:
+```
+https://github.com/lidofinance/qr-tool/releases
+```
+Or simply use one of its versions located at ./qr_reader_bundle/qr-tool.html.
+
 ### Downloading
 
 Check out project releases tab in github and get the distribuition binaries for your system. Also clone the repository anyway, because you'll need the certificate file for kafka that is not a part of the releases files.
@@ -91,36 +99,41 @@ Now you've got all paraphernalia set up and can proceed with the guide further.
 
 The goal of DKG is to produce a set of secrets, and those secrets can be potentially used for managing vast amounts of money. Threfore it is obvious that you would like your private key share to be generated and stored as securely as possible. To achieve the desired security level, you should have access to two computers: one for the Client node (with a web camera and with access to the Internet) and one for the Airgapped machine (just with a web camera).
 
-### Generating keypairs
+#### Generating keypairs and running nodes
 
 To start a DKG round, you should first generate two pairs of keys: one pair is for signing messages that will go to the Bulletin Board, and the other one will be used by the Airgapped Machine to encrypt private messages (as opposed to the messages that are broadcasted).
+
+##### Starting the hot node
 
 First, generate keys for your Client node:
 ```
 $ ./dc4bc_d gen_keys --username <YOUR USERNAME> --key_store_dbdsn ./stores/dc4bc_<YOUR USERNAME>_key_store
 ```
-Immediately backup the key store: these keys won't. be the ones to hold money, but if they are lost durin. the initial ceremony dkg round will have to be reasterted.
-
-Then start the on the airgapped machine:
-```
-$ ./dc4bc_airgapped --db_path ./stores/dc4bc_<YOUR USERNAME>_airgapped_state --password_expiration 10m
-```
-* `--db_path` Specifies the directory in which the Aigapped machine state will be stored. If the directory that you specified does not exist, the Airgapped machine will generate new keys for you on startup. *N.B.: It is very important not to put your Airgapped machine state to `/tmp` or to occasionally lose it. Please make sure that you keep your Airgapped machine state in a safe place and make a backup.*
-
-Backup the generated bip39 seed on a paper wallet; if you need to restore it, use the `set_seed` command in the airgapped executable's console.
-
-* `--password_expiration` Specifies the time in which you'll be able to use the Airgapped machine without re-entering your password. The Airgapped machine will ask you to create a new password during the first run. Make sure that the password is not lost.
+Immediately backup the key store: these keys won't be the ones to hold money, but if they are lost during the initial ceremony dkg round will have to be restarted.
 
 After you have the keys, start the node:
 ```
 $ ./dc4bc_d start --username <YOUR USERNAME> --key_store_dbdsn ./stores/dc4bc_<YOUR USERNAME>_key_store --state_dbdsn ./stores/dc4bc_<YOUR USERNAME>_state --listen_addr localhost:8080 --producer_credentials producer:producerpass --consumer_credentials consumer:consumerpass --kafka_truststore_path ./ca.crt --storage_dbdsn 94.130.57.249:9093 --storage_topic <DKG_TOPIC> --kafka_consumer_group <YOUR USERNAME>_group
 ```
 * `--username` — This username will be used to identify you during DKG and signing
-* `--key_store_dbdsn` — This is where the keys that are used for signing messages that will go to the Bulletin Board will be stored. Do not store these keys in `/tmp/` for production runs and make sure that you have a backup
-* `--state_dbdsn` This is where your Client node's state (including the FSM state) will be kept. If you delete this directory, you will have to re-read the whole message board topic, which might result in odd states
-* `--storage_dbdsn` This argument specifies the storage endpoint. This storage is going to be used by all participants to exchange messages
-* `--storage_topic` Specifies the topic (a "directory" inside the storage) that you are going to use. Typically participants will agree on a new topic for each new signature or DKG round to avoid confusion
+* `--key_store_dbdsn` — This is where the keys that are used for signing messages that will go to the Bulletin Board will be stored. Do not store these keys in `/tmp/` for production runs and make sure that you have a backup;
+* `--state_dbdsn` This is where your Client node's state (including the FSM state) will be kept. If you delete this directory, you will have to re-read the whole message board topic, which might result in odd states;
+* `--storage_dbdsn` This argument specifies the storage endpoint. This storage is going to be used by all participants to exchange messages;
+* `--storage_topic` Specifies the topic (a "directory" inside the storage) that you are going to use. Typically participants will agree on a new topic for each new signature or DKG round to avoid confusion;
 * `--kafka_consumer_group` Specifies your consumer group. This allows you to restart the Client and read the messages starting from the last one you saw.
+
+##### Starting the aigrapped machine
+
+Then start the airgapped machine:
+```
+$ ./dc4bc_airgapped --db_path ./stores/dc4bc_<YOUR USERNAME>_airgapped_state --password_expiration 10m
+```
+* `--db_path` Specifies the directory in which the Aigapped machine state will be stored. If the directory that you specified does not exist, the Airgapped machine will generate new keys for you on startup. *N.B.: It is very important not to put your Airgapped machine state to `/tmp` or to occasionally lose it. Please make sure that you keep your Airgapped machine state in a safe place and make a backup.*
+* `--password_expiration` Specifies the time in which you'll be able to use the Airgapped machine without re-entering your password. The Airgapped machine will ask you to create a new password during the first run. Make sure that the password is not lost.
+
+Backup the generated bip39 seed on a paper wallet; if you need to restore it, use the `set_seed` command in the airgapped executable's console.
+
+##### Sharing the keys
 
 Print your communication public key and encryption public key. *You will have to publish them during the [Conference call](https://github.com/lidofinance/dc4bc-conference-call) along with the `--username` that you specified during the Client node setup).*
 ```
@@ -133,8 +146,9 @@ sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2
 A JSON file with DKG public key was saved to: /tmp/dc4bc_json_dkg_pub_key.json
 ```
 
-
 **N.B.: You can start and stop both the Client node and the Airgapped machine any time you want given that the states are stored safely on your computer. When you restart the Airgapped machine, make sure that you run the `replay_operations_log` command exactly once before performing any actions — that will make the Airgapped machine replay the state and be ready for new actions. Please do not replay the log more than once during one Airgapped session, this might lead to undefined state.**
+
+#### Invitation to DKG
 
 Now you want to start the DKG procedure. *This action must be done exactly once by only one of the participants. The participants must decide who will send the initial message collectively.* 
 
@@ -148,9 +162,9 @@ Example of start_dkg_propose.json file structure:
   "SigningThreshold": 2,
   "Participants": [
     {
-    "Username": "john_doe",
-    "PubKey": "EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=",
-    "DkgPubKey": "sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq"
+      "Username": "john_doe",
+      "PubKey": "EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=",
+      "DkgPubKey": "sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq"
     },
     {
       "Username": "jane_doe",
@@ -182,7 +196,6 @@ Please, select operation:
                 Description: confirm participation in the new DKG round
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
-
 ```
 
 You can check the hash of the proposing DKG message:
@@ -193,13 +206,15 @@ a60bd47a831cd58a96bdd4381ee15afc
 The command returns a hash of the proposing message. If it is not equal to the hash from the list of pending operations, that means the person who proposed to start the DKG round changed the parameters that you agreed on the Conferce Call.
 
 Select an operation by typing its number and press Enter. This operation requires only a confirmation of user, so it's just sends a message to the append-only log.
-
-When all participants confirm their participation in DKG round, the node will proceed to the next step:
 ```
 [john_doe] message event_sig_proposal_confirm_by_participant done successfully from john_doe
 ```
 
-Now you have a new operation:
+When all participants confirm their participation in DKG round, the node will proceed to the next step.
+
+#### Distributed key generation ceremony
+
+Once confirmations are sent by all participants, you'll have a new operation:
 
 ```
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
@@ -210,19 +225,18 @@ Please, select operation:
                 Description: send commits for the DKG round
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
-
 ```
+
+##### Getting familiar with the secure channel
 
 Select an operation to make the node produce a JSON file for it:
 ```
 json file was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_request.json
 ```
 
-Open the `./qr_reader_bundle/qr-tool.html` in your Web browser on the hot node machine and airgapped machine, allow the page to use your camera and demonstrate the recorded video to the camera.
+Open the [qr tool](https://github.com/lidofinance/dc4bc/blob/master/HowTo.md#qr-encoderdecoder) in your Web browser on the hot node machine and airgapped machine, pull your JSON file to the encoder and save the *.gif file.
 
-Pull your JSON file to the encoder on the hot node machine and save the *.gif file.
-
-Show this animation in the QR-tool on the airgapped machine and get JSON file.
+On the airgapped machine open the decoder section and allow the page to use your camera. Show the animation from the hot node to the airgapped machine and wait until the QR code decoded back to a JSON.
 
 Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains the Operation JSON:
 
@@ -286,7 +300,7 @@ Key generation ceremony is over. `exit` airgapped dkg tool prompt and backup you
 
 To check the backup run `dc4bc_airgapped -db_path /path/to/backup` and run `show_dkg_pubkey` command. If it works the backup is correct.
 
-#### Signature
+### Signature
 
 Now we have to collectively sign a message. Some participant will run the command that sends an invitation to the message board:
 ```shell
@@ -294,6 +308,7 @@ $ echo "the message to sign" > data.txt
 $ ./dc4bc_cli sign_data c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 data.txt --listen_addr localhost:8080
 ```
 
+As the result, all participants will get a new operation suggesting them to partially sign the proposed message:
 ```
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
 Please, select operation:
@@ -306,6 +321,9 @@ Please, select operation:
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 ```
+But before signing, spend some time on taking a look at what you're about to sign.
+
+#### Checking the messages to sign content
 
 At this point the other participants would probably like to take a look at the message they've been proposed to sign. To do so, they can run the following command that reveals a list of all messages related to a given DKG round as well as the messages signing IDs and hashes.
 ```
@@ -322,7 +340,9 @@ Then it's possible to reveal a message data by running the following command:
 the message to sign
 ```
 
-Further steps are similar to the DKG procedure. First, select the new pending operation, feed it to `dc4bc_airgapped`, pass the response to the client, then wait until other participants do the same. Once the number of participants which signed the message is >= than the threshold, you'll see the node tell you that the signature is ready to be reconstructered on the airgapped:
+#### Signing the message
+
+Further steps are similar to the DKG procedure. First, select the pending `send your partial sign for the message` operation, feed it to `dc4bc_airgapped`, pass the response to the client, then wait until other participants do the same. Once the number of participants which signed the message is >= than the threshold, you'll see the node tell you that the signature is ready to be reconstructered on the airgapped:
 ```
 Please, select operation:
 -----------------------------------------------------
