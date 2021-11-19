@@ -116,6 +116,7 @@ func getOperationsRequest(host string) (*OperationsResponse, error) {
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
+
 	return &response, nil
 }
 
@@ -372,14 +373,7 @@ func getOperationPathCommand() *cobra.Command {
 				return fmt.Errorf("failed to get operations: %s", operationResponse.ErrorMessage)
 			}
 
-			var operation types.Operation
-
-			err = json.Unmarshal(operationResponse.Result, &operation)
-			if err != nil {
-				return fmt.Errorf("failed to get operations: %w", err)
-			}
-
-			operationPath := filepath.Join(folder, operation.Filename()+"_request.json")
+			operationPath := filepath.Join(folder, operationResponse.Result.Filename()+"_request.json")
 
 			f, err := os.OpenFile(operationPath, os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
@@ -388,7 +382,12 @@ func getOperationPathCommand() *cobra.Command {
 
 			defer f.Close()
 
-			_, err = f.Write(operationResponse.Result)
+			operationBytes, err := json.Marshal(operationResponse.Result)
+			if err != nil {
+				return fmt.Errorf("failed to get operations: %w", err)
+			}
+
+			_, err = f.Write(operationBytes)
 			if err != nil {
 				return fmt.Errorf("failed to write file: %w", err)
 			}

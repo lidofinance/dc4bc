@@ -50,8 +50,8 @@ type SignatureResponse struct {
 }
 
 type OperationResponse struct {
-	ErrorMessage string `json:"error_message,omitempty"`
-	Result       []byte `json:"result"`
+	ErrorMessage string           `json:"error_message,omitempty"`
+	Result       *types.Operation `json:"result"`
 }
 
 // calcStartDKGMessageHash returns hash of a StartDKGMessage to verify its correctness later

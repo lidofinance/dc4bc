@@ -7,14 +7,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/lidofinance/dc4bc/mocks/serviceMocks"
 
-	"github.com/google/uuid"
 	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	"github.com/lidofinance/dc4bc/client/modules/logger"
 	"github.com/lidofinance/dc4bc/client/services"
-	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
@@ -40,9 +39,12 @@ func TestClient_ProcessMessage(t *testing.T) {
 	keyStore := clientMocks.NewMockKeyStore(ctrl)
 	stg := storageMocks.NewMockStorage(ctrl)
 	fsmService := serviceMocks.NewMockFSMService(ctrl)
+	opService := serviceMocks.NewMockOperationService(ctrl)
 
 	testClientKeyPair := keystore.NewKeyPair()
 	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
+
+	opService.EXPECT().PutOperation(gomock.Any()).Times(1).Return(nil)
 
 	sp := services.ServiceProvider{}
 	sp.SetLogger(logger.NewLogger(userName))
@@ -50,10 +52,14 @@ func TestClient_ProcessMessage(t *testing.T) {
 	sp.SetKeyStore(keyStore)
 	sp.SetStorage(stg)
 	sp.SetFSMService(fsmService)
+	sp.SetOperationService(opService)
 
 	// minimal config to make test
 	cfg := config.Config{
 		Username: userName,
+		KafkaStorageConfig: &config.KafkaStorageConfig{
+			Topic: "topic",
+		},
 	}
 
 	clt, err := NewNode(ctx, &cfg, &sp)
@@ -106,59 +112,8 @@ func TestClient_ProcessMessage(t *testing.T) {
 		message.Signature = ed25519.Sign(senderKeyPair.Priv, message.Bytes())
 
 		fsmService.EXPECT().SaveFSM(gomock.Any(), gomock.Any()).Times(1).Return(nil)
-		state.EXPECT().PutOperation(gomock.Any()).Times(1).Return(nil)
 
 		err = clt.ProcessMessage(message)
 		req.NoError(err)
 	})
-}
-
-func TestClient_GetOperationsList(t *testing.T) {
-	var (
-		ctx  = context.Background()
-		req  = require.New(t)
-		ctrl = gomock.NewController(t)
-	)
-	defer ctrl.Finish()
-
-	userName := "test_client"
-
-	keyStore := clientMocks.NewMockKeyStore(ctrl)
-	testClientKeyPair := keystore.NewKeyPair()
-	keyStore.EXPECT().LoadKeys(userName, "").Times(1).Return(testClientKeyPair, nil)
-
-	state := clientMocks.NewMockState(ctrl)
-	stg := storageMocks.NewMockStorage(ctrl)
-
-	sp := services.ServiceProvider{}
-	sp.SetLogger(logger.NewLogger(userName))
-	sp.SetState(state)
-	sp.SetKeyStore(keyStore)
-	sp.SetStorage(stg)
-
-	// minimal config to make test
-	cfg := config.Config{
-		Username: userName,
-	}
-
-	clt, err := NewNode(ctx, &cfg, &sp)
-	req.NoError(err)
-
-	state.EXPECT().GetOperations().Times(1).Return(map[string]*types.Operation{}, nil)
-	operations, err := clt.GetOperations()
-	req.NoError(err)
-	req.Len(operations, 0)
-
-	operation := &types.Operation{
-		ID:        "operation_id",
-		Type:      types.DKGCommits,
-		Payload:   []byte("operation_payload"),
-		CreatedAt: time.Now(),
-	}
-	state.EXPECT().GetOperations().Times(1).Return(
-		map[string]*types.Operation{operation.ID: operation}, nil)
-	operations, err = clt.GetOperations()
-	req.NoError(err)
-	req.Len(operations, 1)
-	req.Equal(operation, operations[operation.ID])
 }
