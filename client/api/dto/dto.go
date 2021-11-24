@@ -40,7 +40,7 @@ type OperationDTO struct {
 	Payload    []byte
 	ResultMsgs []storage.Message
 	CreatedAt  time.Time
-	DkgID      []byte
+	DkgID      string
 	To         string
 	Event      fsm.Event
 
