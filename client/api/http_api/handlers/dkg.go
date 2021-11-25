@@ -25,7 +25,7 @@ func (a *HTTPApp) StartDKG(c echo.Context) error {
 	defer ctx.Request().Body.Close()
 
 	if err := validator.Validate(request); !err.IsEmpty() {
-		return ctx.JsonError(http.StatusBadRequest, err.Error())
+		return ctx.JsonError(http.StatusBadRequest, fmt.Errorf("invalid request: %w", err.Error()))
 	}
 
 	formDTO := &StartDkgDTO{}
@@ -44,7 +44,7 @@ func (a *HTTPApp) ReInitDKG(c echo.Context) error {
 	request := &req.ReInitDKGForm{}
 	err := ctx.BindToRequest(request)
 	if err != nil {
-		return err
+		return ctx.JsonError(http.StatusBadRequest, err)
 	}
 
 	formDTO := &ReInitDKGDTO{ID: request.ID}

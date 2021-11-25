@@ -16,7 +16,7 @@ func (a *HTTPApp) GetSignatures(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &DkgIdDTO{}
 	if err := stx.BindToDTO(&req.DkgIdForm{}, formDTO); err != nil {
-		return err
+		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
 	signatures, err := a.signature.GetSignatures(formDTO)
@@ -30,7 +30,7 @@ func (a *HTTPApp) GetSignatureByID(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &SignatureByIdDTO{}
 	if err := stx.BindToDTO(&req.SignatureByIDForm{}, formDTO); err != nil {
-		return err
+		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
 	signatures, err := a.signature.GetSignatureByID(formDTO)
@@ -44,7 +44,7 @@ func (a *HTTPApp) ProposeSignMessage(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &ProposeSignMessageDTO{}
 	if err := stx.BindToDTO(&req.ProposeSignMessageForm{}, formDTO); err != nil {
-		return err
+		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
 	batch := ProposeSignBatchMessagesDTO{
@@ -64,7 +64,7 @@ func (a *HTTPApp) ProposeSignBatchMessages(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &ProposeSignBatchMessagesDTO{}
 	if err := stx.BindToDTO(&req.ProposeSignBatchMessagesForm{}, formDTO); err != nil {
-		return err
+		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
 	if err := a.node.ProposeSignMessages(formDTO); err != nil {

@@ -23,7 +23,7 @@ func (a *HTTPApp) ProcessOperation(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &OperationDTO{}
 	if err := stx.BindToDTO(&req.OperationForm{}, formDTO); err != nil {
-		return err
+		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
 	if err := a.node.ProcessOperation(formDTO); err != nil {
@@ -39,7 +39,7 @@ func (a *HTTPApp) GetOperation(c echo.Context) error {
 	formDTO := &OperationIdDTO{}
 
 	if err := stx.BindToDTO(request, formDTO); err != nil {
-		return err
+		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
 	operation, err := a.operation.GetOperationByID(formDTO.OperationID)
@@ -60,7 +60,7 @@ func (a *HTTPApp) ApproveParticipation(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &OperationIdDTO{}
 	if err := stx.BindToDTO(&req.OperationIdForm{}, formDTO); err != nil {
-		return err
+		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
 	if err := a.node.ApproveParticipation(formDTO); err != nil {

@@ -13,7 +13,7 @@ func (a *HTTPApp) GetFSMDump(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &DkgIdDTO{}
 	if err := stx.BindToDTO(&req.DkgIdForm{}, formDTO); err != nil {
-		return err
+		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
 	fsmDump, err := a.fsm.GetFSMDump(formDTO)
