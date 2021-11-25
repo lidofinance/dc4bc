@@ -2,7 +2,6 @@ package context_service
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/censync/go-dto"
 	"github.com/censync/go-validator"
@@ -15,7 +14,7 @@ type CSJsonResp struct {
 
 // Custom error
 type CSErrorResp struct {
-	ErrorMessage string      `json:"error_message,omitempty"`
+	ErrorMessage string `json:"error_message,omitempty"`
 }
 
 func (e *CSErrorResp) Error() string {
@@ -39,10 +38,10 @@ type ContextService struct {
 // and validates the result.
 func (cs *ContextService) BindToRequest(request interface{}) error {
 	if err := cs.Bind(request); err != nil {
-		return cs.JsonError(http.StatusBadRequest, fmt.Errorf("failed to read request body: %v", err))
+		return fmt.Errorf("failed to read request body: %w", err)
 	}
 	if err := validator.Validate(request); !err.IsEmpty() {
-		return cs.JsonError(http.StatusBadRequest, err.Error())
+		return fmt.Errorf("invalid request: %w", err.Error())
 	}
 	return nil
 }
@@ -53,7 +52,7 @@ func (cs *ContextService) BindToDTO(requestForm, dtoForm interface{}) error {
 		return err
 	}
 	if err := dto.RequestToDTO(dtoForm, requestForm); err != nil {
-		return cs.JsonError(http.StatusBadRequest, err)
+		return err
 	}
 	return nil
 }

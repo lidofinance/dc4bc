@@ -14,7 +14,7 @@ func (a *HTTPApp) SaveStateOffset(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &StateOffsetDTO{}
 	if err := stx.BindToDTO(&req.StateOffsetForm{}, formDTO); err != nil {
-		return err
+		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
 	if err := a.node.SaveOffset(formDTO); err != nil {
@@ -37,7 +37,7 @@ func (a *HTTPApp) ResetState(c echo.Context) error {
 
 	formDTO := &ResetStateDTO{}
 	if err := stx.BindToDTO(&req.ResetStateForm{}, formDTO); err != nil {
-		return err
+		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
 	newStateDbPath, err := a.fsm.ResetFSMState(formDTO)
