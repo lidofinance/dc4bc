@@ -8,7 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	types "github.com/lidofinance/dc4bc/client/types"
+	types "github.com/lidofinance/dc4bc/fsm/types"
 )
 
 // MockSignatureRepo is a mock of SignatureRepo interface.

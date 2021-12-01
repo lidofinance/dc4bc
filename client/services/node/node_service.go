@@ -30,6 +30,7 @@ import (
 	dpf "github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	sif "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/storage"
@@ -233,9 +234,10 @@ func (s *BaseNodeService) ProcessOperation(dto *dto.OperationDTO) error {
 		Payload:       dto.Payload,
 		ResultMsgs:    dto.ResultMsgs,
 		CreatedAt:     dto.CreatedAt,
-		DKGIdentifier: hex.EncodeToString(dto.DkgID),
+		DKGIdentifier: dto.DkgID,
 		To:            dto.To,
 		Event:         dto.Event,
+		ExtraData:     dto.ExtraData,
 	}
 
 	return s.executeOperation(operation)
@@ -270,6 +272,23 @@ func (s *BaseNodeService) executeOperation(operation *types.Operation) error {
 		}
 		if err := s.storage.Send(operation.ResultMsgs...); err != nil {
 			return fmt.Errorf("failed to post messages: %w", err)
+		}
+	} else {
+		//for now only ReinitDKG can has the OperationProcessed event
+		dkgID := operation.DKGIdentifier
+		fsm, err := s.fsmService.GetFSMInstance(string(dkgID))
+		if err != nil {
+			return fmt.Errorf("failed to get fsm instance during operation processing: %w", err)
+		}
+		fsm.FSMDump().Payload.DKGProposalPayload.PubPolyBz = operation.ExtraData
+		dump, err := fsm.Dump()
+		if err != nil {
+			return fmt.Errorf("failed to dump fsm instance during operation processing: %w", err)
+		}
+
+		err = s.fsmService.SaveFSM(operation.DKGIdentifier, dump)
+		if err != nil {
+			return fmt.Errorf("failed to save fsm dump during operation processing: %w", err)
 		}
 	}
 
@@ -528,7 +547,7 @@ func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 // processSignature saves a broadcasted reconstructed signature to a LevelDB
 func (s *BaseNodeService) processSignature(message storage.Message) error {
 	var (
-		signatures []types.ReconstructedSignature
+		signatures []fsmtypes.ReconstructedSignature
 		err        error
 	)
 	if err = json.Unmarshal(message.Data, &signatures); err != nil {
@@ -551,9 +570,9 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 	if err = json.Unmarshal(message.Data, &proposal); err != nil {
 		return fmt.Errorf("failed to unmarshal reconstructed signature: %w", err)
 	}
-	signatures := make([]types.ReconstructedSignature, 0, len(proposal.MessagesToSign))
+	signatures := make([]fsmtypes.ReconstructedSignature, 0, len(proposal.MessagesToSign))
 	for _, msg := range proposal.MessagesToSign {
-		sig := types.ReconstructedSignature{
+		sig := fsmtypes.ReconstructedSignature{
 			MessageID:  msg.MessageID,
 			Username:   message.SenderAddr,
 			DKGRoundID: message.DkgRoundID,
@@ -711,8 +730,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 		dpf.StateDkgDealsAwaitConfirmations,
 		dpf.StateDkgResponsesAwaitConfirmations,
 		dpf.StateDkgMasterKeyAwaitConfirmations,
-		sif.StateSigningAwaitPartialSigns,
-		sif.StateSigningPartialSignsCollected:
+		sif.StateSigningAwaitPartialSigns:
 		if resp.Data != nil {
 			operationPayloadBz, err := json.Marshal(resp.Data)
 			if err != nil {
@@ -724,6 +742,11 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 				operationPayloadBz,
 				resp.State,
 			)
+		}
+	case sif.StateSigningPartialSignsCollected:
+		err = s.broadcastReconstructedSignatures(message, resp)
+		if err != nil {
+			return nil, fmt.Errorf("failed to broadcast reconstructed signature: %w", err)
 		}
 	default:
 		s.Logger.Log("State %s does not require an operation", resp.State)
@@ -756,4 +779,24 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 	}
 
 	return operation, nil
+}
+
+func (s *BaseNodeService) broadcastReconstructedSignatures(message storage.Message, resp *fsm.Response) error {
+	sigs, ok := resp.Data.([]fsmtypes.ReconstructedSignature)
+	if !ok {
+		return fmt.Errorf("failed to cast response data to  reconstructed signatures %T", resp.Data)
+	}
+	data, err := json.Marshal(sigs)
+	if err != nil {
+		return fmt.Errorf("failed to marshal reconstructed signatures: %w", err)
+	}
+	m, err := s.buildMessage(message.DkgRoundID, types.SignatureReconstructed, data)
+	if err != nil {
+		return fmt.Errorf("failed to build reconstructed signatures message: %w", err)
+	}
+	err = s.storage.Send(*m)
+	if err != nil {
+		return fmt.Errorf("failed to send reconstructed signatures message: %w", err)
+	}
+	return nil
 }

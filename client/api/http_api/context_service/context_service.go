@@ -15,7 +15,7 @@ type CSJsonResp struct {
 
 // Custom error
 type CSErrorResp struct {
-	ErrorMessage string      `json:"error_message,omitempty"`
+	ErrorMessage string `json:"error_message,omitempty"`
 }
 
 func (e *CSErrorResp) Error() string {

@@ -33,14 +33,6 @@ const (
 	OperationProcessed fsm.Event = "operation_processed_successfully"
 )
 
-type ReconstructedSignature struct {
-	MessageID  string
-	SrcPayload []byte
-	Signature  []byte
-	Username   string
-	DKGRoundID string
-}
-
 // Operation is the type for any Operation that might be required for
 // both DKG and signing process (e.g.,
 type Operation struct {

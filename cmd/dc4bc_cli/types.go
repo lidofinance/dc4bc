@@ -13,6 +13,7 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
+	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 )
@@ -40,13 +41,13 @@ type FSMDumpResponse struct {
 }
 
 type SignaturesResponse struct {
-	ErrorMessage string                                    `json:"error_message,omitempty"`
-	Result       map[string][]types.ReconstructedSignature `json:"result"`
+	ErrorMessage string                                       `json:"error_message,omitempty"`
+	Result       map[string][]fsmtypes.ReconstructedSignature `json:"result"`
 }
 
 type SignatureResponse struct {
-	ErrorMessage string                         `json:"error_message,omitempty"`
-	Result       []types.ReconstructedSignature `json:"result"`
+	ErrorMessage string                            `json:"error_message,omitempty"`
+	Result       []fsmtypes.ReconstructedSignature `json:"result"`
 }
 
 type OperationResponse struct {
