@@ -179,15 +179,9 @@ func (am *Machine) ProcessOperation(operation client.Operation, storeOperation b
 			operation.ID, err)
 	}
 
-	if storeOperation {
+	if storeOperation && !strings.HasPrefix(string(operation.Type), "state_signing_") {
 		if err := am.storeOperation(operation); err != nil {
 			return "", fmt.Errorf("failed to storeOperation: %w", err)
-		}
-	}
-
-	if fsm.State(operation.Type) == signing_proposal_fsm.StateSigningPartialSignsCollected {
-		if err := am.removeSignatureOperations(&operation); err != nil {
-			return "", fmt.Errorf("failed to remove signature operations: %w", err)
 		}
 	}
 
@@ -258,7 +252,6 @@ func (am *Machine) GetOperationResult(operation client.Operation) (client.Operat
 	var (
 		err error
 	)
-
 	// handler gets a pointer to an operation, do necessary things
 	// and write a result (or an error) to .Result field of operation
 	switch fsm.State(operation.Type) {
@@ -274,8 +267,6 @@ func (am *Machine) GetOperationResult(operation client.Operation) (client.Operat
 		err = am.handleStateDkgMasterKeyAwaitConfirmations(&operation)
 	case signing_proposal_fsm.StateSigningAwaitPartialSigns:
 		err = am.handleStateSigningAwaitPartialSigns(&operation)
-	case signing_proposal_fsm.StateSigningPartialSignsCollected:
-		err = am.reconstructThresholdSignature(&operation)
 	default:
 		err = fmt.Errorf("invalid operation type: %s", operation.Type)
 	}

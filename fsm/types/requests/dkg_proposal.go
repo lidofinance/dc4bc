@@ -35,6 +35,7 @@ type DKGProposalMasterKeyConfirmationRequest struct {
 	ParticipantId int
 	MasterKey     []byte
 	CreatedAt     time.Time
+	PubPolyBz     []byte
 }
 
 // States:  "state_dkg_pub_keys_await_confirmations"

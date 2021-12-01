@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/types"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -21,8 +22,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/lidofinance/dc4bc/client/types"
 
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 

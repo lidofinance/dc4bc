@@ -4,8 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/fsm/types"
 	"os"
-	"reflect"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -19,7 +20,6 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/lidofinance/dc4bc/storage"
-	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,7 +41,7 @@ type Node struct {
 	responses                  []requests.DKGProposalResponseConfirmationRequest
 	masterKeys                 []requests.DKGProposalMasterKeyConfirmationRequest
 	partialSigns               []requests.SigningProposalBatchPartialSignRequests
-	reconstructedSignatures    map[string][]client.ReconstructedSignature
+	reconstructedSignatures    map[string][]types.ReconstructedSignature
 }
 
 func (n *Node) storeOperation(msg storage.Message) error {
@@ -82,15 +82,6 @@ func (n *Node) storeOperation(msg storage.Message) error {
 			return fmt.Errorf("failed to unmarshal fsm req: %w", err)
 		}
 		n.partialSigns = append(n.partialSigns, req)
-	case client.SignatureReconstructed:
-		var req []client.ReconstructedSignature
-		if err := json.Unmarshal(msg.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %w", err)
-		}
-		if n.reconstructedSignatures == nil {
-			n.reconstructedSignatures = make(map[string][]client.ReconstructedSignature)
-		}
-		n.reconstructedSignatures[req[0].MessageID] = append(n.reconstructedSignatures[req[0].MessageID], req...)
 	default:
 		return fmt.Errorf("invalid event: %s", msg.Event)
 	}
@@ -154,8 +145,10 @@ func (tr *Transport) processOperation(n *Node, op client.Operation) error {
 	if err != nil {
 		return fmt.Errorf("%s: failed to handle operation %s: %w", n.Participant, op.Type, err)
 	}
-	if err := n.Machine.storeOperation(operation); err != nil {
-		return fmt.Errorf("failed to storeOperation: %w", err)
+	if !strings.HasPrefix(string(operation.Type), "state_signing_") {
+		if err := n.Machine.storeOperation(operation); err != nil {
+			return fmt.Errorf("failed to storeOperation: %w", err)
+		}
 	}
 	for _, msg := range operation.ResultMsgs {
 		if err := tr.BroadcastMessage(msg); err != nil {
@@ -324,74 +317,11 @@ func (tr *Transport) partialSignsStep(batchID string, msgsToSign []requests.Mess
 	})
 }
 
-func (tr *Transport) recoverFullSignStep(batchID string, msgToSign []requests.MessageToSign) error {
-	return runStep(tr, func(n *Node, wg *sync.WaitGroup) error {
-		defer wg.Done()
-
-		var payload responses.SigningProcessParticipantResponse
-
-		for _, req := range n.partialSigns {
-			partialSigns := make(map[string][]byte)
-			for _, ps := range req.PartialSigns {
-				partialSigns[ps.MessageID] = ps.Sign
-			}
-			p := responses.SigningProcessParticipantEntry{
-				ParticipantId: req.ParticipantId,
-				Username:      fmt.Sprintf("Participant#%d", req.ParticipantId),
-				PartialSigns:  partialSigns,
-			}
-			payload.Participants = append(payload.Participants, &p)
-		}
-
-		msgs, err := json.Marshal(msgToSign)
-		if err != nil {
-			return fmt.Errorf("failed to marshal messages: %w", err)
-		}
-
-		payload.SrcPayload = msgs
-		payload.BatchID = batchID
-		op, err := createOperation(string(signing_proposal_fsm.StateSigningPartialSignsCollected), "", payload)
-		if err != nil {
-			return fmt.Errorf("failed to create operation: %w", err)
-		}
-
-		if err := tr.processOperation(n, *op); err != nil {
-			return fmt.Errorf("failed to process operation: %w", err)
-		}
-
-		if fsm.State(op.Type) == signing_proposal_fsm.StateSigningPartialSignsCollected {
-			if err := n.Machine.removeSignatureOperations(op); err != nil {
-				return fmt.Errorf("failed to remove signature operations: %v", err)
-			}
-		}
-		return nil
-	})
-}
-
 func (tr *Transport) checkReconstructedMasterKeys() error {
 	for _, n := range tr.nodes {
 		for i := 0; i < len(n.masterKeys); i++ {
 			if !bytes.Equal(n.masterKeys[0].MasterKey, n.masterKeys[i].MasterKey) {
 				return fmt.Errorf("master keys is not equal")
-			}
-		}
-	}
-	return nil
-}
-
-func (tr *Transport) checkReconstructedSignatures(msgsToSign []requests.MessageToSign) error {
-	for _, msg := range msgsToSign {
-		for _, n := range tr.nodes {
-			for i := 0; i < len(n.reconstructedSignatures[msg.MessageID]); i++ {
-				if !bytes.Equal(n.reconstructedSignatures[msg.MessageID][0].Signature, n.reconstructedSignatures[msg.MessageID][i].Signature) {
-					return fmt.Errorf("signatures are not equal")
-				}
-				if err := n.Machine.VerifySign(msg.Payload, n.reconstructedSignatures[msg.MessageID][i].Signature, DKGIdentifier); err != nil {
-					return fmt.Errorf("signature is not verified")
-				}
-			}
-			if err := testKyberPrysm(n.masterKeys[0].MasterKey, n.reconstructedSignatures[msg.MessageID][0].Signature, msg.Payload); err != nil {
-				return fmt.Errorf("failed to check signatures on prysm compatibility: %w", err)
 			}
 		}
 	}
@@ -443,15 +373,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 		t.Fatalf("failed to do master keys step: %v", err)
 	}
 
-	if err := tr.recoverFullSignStep(successfulBatchSigningID, msgToSign); err != nil {
-		t.Fatalf("failed to do master keys step: %v", err)
-	}
-
-	if err := tr.checkReconstructedSignatures(msgToSign); err != nil {
-		t.Fatalf("failed to vefify signatures: %v", err)
-	}
-
-	fmt.Println("DKG succeeded, signature recovered and verified")
+	fmt.Println("DKG succeeded")
 }
 
 func TestAirgappedMachine_Replay(t *testing.T) {
@@ -525,137 +447,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 		t.Fatalf("failed to do init request: %v", err)
 	}
 
-	if err := tr.recoverFullSignStep(successfulBatchSigningID, msgToSign); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
-
-	if err := tr.checkReconstructedSignatures(msgToSign); err != nil {
-		t.Fatalf("failed to vefify signatures: %v", err)
-	}
-
-	fmt.Println("DKG succeeded, signature recovered and verified")
-}
-
-func TestAirgappedMachine_ClearOperations(t *testing.T) {
-	nodesCount := 10
-	threshold := 2
-
-	if err := os.RemoveAll(testDir); err != nil {
-		t.Fatal("failed to remove test dir:", err.Error())
-	}
-
-	participants := make([]string, nodesCount)
-	for i := 0; i < nodesCount; i++ {
-		participants[i] = fmt.Sprintf("Participant#%d", i)
-	}
-
-	tr, err := createTransport(participants)
-	if err != nil {
-		t.Fatalf("failed to create transport: %v", err)
-	}
-	defer os.RemoveAll(testDir)
-
-	if err := tr.commitsStep(threshold); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
-
-	if err := tr.dealsStep(); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
-
-	if err := tr.responsesStep(); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
-
-	if err := tr.masterKeysStep(); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
-
-	if err := tr.checkReconstructedMasterKeys(); err != nil {
-		t.Fatalf("failed check master keys: %v", err)
-	}
-
-	msgToSign := []requests.MessageToSign{
-		{
-			MessageID: "s1",
-			Payload:   []byte("i am a message"),
-		},
-	}
-
-	//partialSigns
-	if err := tr.partialSignsStep(failedBatchSigningID, msgToSign); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
-
-	// something went wrong and current signing process failed, so we will start a new one
-	for _, n := range tr.nodes {
-		n.partialSigns = nil
-	}
-
-	//save operation logs of all nodes
-	//at this moment the log contains operations of unfinished signature process
-	//and all operations of DKG process
-	oldOperationLogs := make([][]client.Operation, 0, len(tr.nodes))
-	for _, n := range tr.nodes {
-		storedOperations, err := n.Machine.getOperationsLog(DKGIdentifier)
-		if err != nil {
-			t.Fatalf("failed to get operation log: %v", err)
-		}
-		oldOperationLogs = append(oldOperationLogs, storedOperations)
-	}
-
-	//start a new signing process
-	//partialSigns
-	if err := tr.partialSignsStep(successfulBatchSigningID, msgToSign); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
-
-	//recover full signature
-	if err := tr.recoverFullSignStep(successfulBatchSigningID, msgToSign); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
-	}
-
-	if err := tr.checkReconstructedSignatures(msgToSign); err != nil {
-		t.Fatalf("failed to vefify signatures: %v", err)
-	}
-
-	//compare oldOperationLog with current operation log to check following things:
-	// * unfinished signatures operations were NOT removed
-	// * finished signatures operations were removed
-	// * DKG operations were not changed
-	for i, n := range tr.nodes {
-		storedOperations, err := n.Machine.getOperationsLog(DKGIdentifier)
-		if err != nil {
-			t.Fatal("failed to get operations log: ", err.Error())
-		}
-		if !reflect.DeepEqual(oldOperationLogs[i], storedOperations) {
-			for _, op := range oldOperationLogs[i] {
-				fmt.Println(op.ID, op.Type)
-			}
-			fmt.Println("-------------------------")
-			for _, op := range storedOperations {
-				fmt.Println(op.ID, op.Type)
-			}
-			t.Fatalf("old operation log is not equal to cleaned operation log")
-		}
-	}
-
-	fmt.Println("DKG succeeded, signature recovered and verified")
-}
-
-func testKyberPrysm(pubkey, signature, msg []byte) error {
-	prysmSig, err := prysmBLS.SignatureFromBytes(signature)
-	if err != nil {
-		return fmt.Errorf("failed to get prysm sig from bytes: %w", err)
-	}
-	prysmPubKey, err := prysmBLS.PublicKeyFromBytes(pubkey)
-	if err != nil {
-		return fmt.Errorf("failed to get prysm pubkey from bytes: %w", err)
-	}
-	if !prysmSig.Verify(prysmPubKey, msg) {
-		return fmt.Errorf("failed to verify prysm signature")
-	}
-	return nil
+	fmt.Println("DKG succeeded")
 }
 
 func runStep(transport *Transport, cb func(n *Node, wg *sync.WaitGroup) error) error {

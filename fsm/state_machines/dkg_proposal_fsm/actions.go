@@ -416,6 +416,7 @@ func (m *DKGProposalFSM) actionMasterKeyConfirmationReceived(inEvent fsm.Event, 
 
 	dkgProposalParticipant.UpdatedAt = request.CreatedAt
 	m.payload.DKGProposalPayload.UpdatedAt = request.CreatedAt
+	m.payload.DKGProposalPayload.PubPolyBz = request.PubPolyBz
 
 	m.payload.DKGQuorumUpdate(request.ParticipantId, dkgProposalParticipant)
 
