@@ -38,7 +38,6 @@ import (
 
 const (
 	pollingPeriod      = time.Second
-	jsonFilesDir       = "/tmp"
 	emptyParticipantId = -1
 )
 

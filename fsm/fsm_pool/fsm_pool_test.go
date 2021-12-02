@@ -98,13 +98,6 @@ func (m *testMachineFSM1) actionFSM1EmitOut2(fsm.Event, ...interface{}) (outEven
 	return
 }
 
-// Second test machine
-
-type testMachineFSM2 struct {
-	*fsm.FSM
-	data int
-}
-
 const (
 	fsm2Name = "fsm2"
 	// Init process from global idle state
@@ -151,18 +144,6 @@ func NewFSM2() MachineProvider {
 		testing2Callbacks,
 	)
 	return machine
-}
-
-func (m *testMachineFSM2) actionFSM2SetUpData(fsm.Event, ...interface{}) (response interface{}, err error) {
-	return
-}
-
-func (m *testMachineFSM2) actionFSM2ProcessData(fsm.Event, ...interface{}) (response interface{}, err error) {
-	return
-}
-
-func (m *testMachineFSM2) actionFSM2EmitOut2(fsm.Event, ...interface{}) (response interface{}, err error) {
-	return
 }
 
 var testPoolProvider *FSMPool

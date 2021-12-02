@@ -19,7 +19,6 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
-	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -142,33 +141,6 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	log.Println("Successfully replayed Operation log")
 
 	return nil
-}
-
-func (am *Machine) removeSignatureOperations(o *client.Operation) error {
-	var (
-		payload responses.SigningProcessParticipantResponse
-		err     error
-	)
-
-	if err = json.Unmarshal(o.Payload, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
-	}
-
-	removeSignatureOperationsFunc := func(op client.Operation) bool {
-		type signingPayload struct {
-			BatchID string
-		}
-		var sp signingPayload
-		if strings.HasPrefix(string(op.Type), "state_signing_") {
-			if err := json.Unmarshal(op.Payload, &sp); err == nil {
-				if sp.BatchID == payload.BatchID {
-					return true
-				}
-			}
-		}
-		return false
-	}
-	return am.clearOperationsLog(o.DKGIdentifier, removeSignatureOperationsFunc)
 }
 
 func (am *Machine) ProcessOperation(operation client.Operation, storeOperation bool) (string, error) {
