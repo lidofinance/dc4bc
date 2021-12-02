@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/fsm/types"
 	"os"
 	"strings"
 	"sync"
@@ -27,7 +26,6 @@ const (
 	DKGIdentifier            = "dkg_identifier"
 	testDB                   = "test_level_db"
 	testDir                  = "/tmp/airgapped_test"
-	failedBatchSigningID     = "failed_batch_signing_id"
 	successfulBatchSigningID = "successful_batch_signing_id"
 )
 
@@ -41,7 +39,6 @@ type Node struct {
 	responses                  []requests.DKGProposalResponseConfirmationRequest
 	masterKeys                 []requests.DKGProposalMasterKeyConfirmationRequest
 	partialSigns               []requests.SigningProposalBatchPartialSignRequests
-	reconstructedSignatures    map[string][]types.ReconstructedSignature
 }
 
 func (n *Node) storeOperation(msg storage.Message) error {
