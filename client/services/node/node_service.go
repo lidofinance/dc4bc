@@ -233,7 +233,7 @@ func (s *BaseNodeService) ProcessOperation(dto *dto.OperationDTO) error {
 		Payload:       dto.Payload,
 		ResultMsgs:    dto.ResultMsgs,
 		CreatedAt:     dto.CreatedAt,
-		DKGIdentifier: hex.EncodeToString(dto.DkgID),
+		DKGIdentifier: dto.DkgID,
 		To:            dto.To,
 		Event:         dto.Event,
 	}
