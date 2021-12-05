@@ -13,7 +13,7 @@ func (a *HTTPApp) SendMessage(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &MessageDTO{}
 	if err := stx.BindToDTO(&req.MessageForm{}, formDTO); err != nil {
-		return err
+		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
 	if err := a.node.SendMessage(formDTO); err != nil {
