@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/corestario/kyber"
@@ -151,7 +150,7 @@ func (am *Machine) ProcessOperation(operation client.Operation, storeOperation b
 			operation.ID, err)
 	}
 
-	if storeOperation && !strings.HasPrefix(string(operation.Type), "state_signing_") {
+	if storeOperation && !operation.IsSigningState() {
 		if err := am.storeOperation(operation); err != nil {
 			return "", fmt.Errorf("failed to storeOperation: %w", err)
 		}
