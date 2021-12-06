@@ -4,12 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/corestario/kyber/pairing"
-	"github.com/corestario/kyber/pairing/bls12381"
-	"github.com/corestario/kyber/sign/tbls"
-	"github.com/lidofinance/dc4bc/dkg"
-	"github.com/lidofinance/dc4bc/fsm/types"
-
 	"github.com/lidofinance/dc4bc/fsm/config"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/internal"
@@ -151,52 +145,6 @@ func (m *SigningProposalFSM) actionPartialSignConfirmationReceived(inEvent fsm.E
 	return
 }
 
-func (m *SigningProposalFSM) reconstructThresholdSignature(payload responses.SigningProcessParticipantResponse) ([]types.ReconstructedSignature, error) {
-	batchPartialSignatures := make(types.BatchPartialSignatures)
-	var messagesPayload []requests.MessageToSign
-	for _, participant := range payload.Participants {
-		for messageID, sign := range participant.PartialSigns {
-			batchPartialSignatures.AddPartialSignature(messageID, sign)
-		}
-	}
-	err := json.Unmarshal(payload.SrcPayload, &messagesPayload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal MessagesToSign: %w", err)
-	}
-	// just convert slice to map
-	messages := make(map[string][]byte)
-	for _, m := range messagesPayload {
-		messages[m.MessageID] = m.Payload
-	}
-	response := make([]types.ReconstructedSignature, 0, len(batchPartialSignatures))
-	dkgID := m.payload.DkgId
-	for messageID, messagePartialSignatures := range batchPartialSignatures {
-		reconstructedSignature, err := m.recoverFullSign(messages[messageID], messagePartialSignatures, m.payload.Threshold,
-			len(m.payload.PubKeys))
-		if err != nil {
-			return nil, fmt.Errorf("failed to reconsruct full signature for msg: %w", err)
-		}
-		response = append(response, types.ReconstructedSignature{
-			MessageID:  messageID,
-			Signature:  reconstructedSignature,
-			DKGRoundID: dkgID,
-			SrcPayload: messages[messageID],
-		})
-	}
-	return response, nil
-}
-
-// recoverFullSign recovers full threshold signature for a message
-// with using of a reconstructed public DKG key of a given DKG round
-func (m *SigningProposalFSM) recoverFullSign(msg []byte, sigShares [][]byte, t, n int) ([]byte, error) {
-	suite := bls12381.NewBLS12381Suite(nil)
-	blsKeyring, err := dkg.LoadPubPolyBLSKeyringFromBytes(suite, m.payload.DKGProposalPayload.PubPolyBz)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal BLSKeyring's PubPoly")
-	}
-	return tbls.Recover(suite.(pairing.Suite), blsKeyring.PubPoly, msg, sigShares, t, n)
-}
-
 func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()
@@ -252,10 +200,8 @@ func (m *SigningProposalFSM) actionValidateSigningPartialSignsAwaitConfirmations
 		responseData.Participants = append(responseData.Participants, responseEntry)
 	}
 
-	response, err = m.reconstructThresholdSignature(responseData)
-	if err != nil {
-		err = fmt.Errorf("failed to reconstruct signatures: %w", err)
-	}
+	response = responseData
+
 	return
 }
 

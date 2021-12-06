@@ -8,6 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/corestario/kyber/pairing"
+	"github.com/corestario/kyber/pairing/bls12381"
+	"github.com/corestario/kyber/sign/tbls"
+	"github.com/lidofinance/dc4bc/dkg"
 	"log"
 	"strings"
 	"sync"
@@ -743,10 +747,21 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 			)
 		}
 	case sif.StateSigningPartialSignsCollected:
-		err = s.broadcastReconstructedSignatures(message, resp)
+		signingProcessResponse, ok := resp.Data.(responses.SigningProcessParticipantResponse)
+		if !ok {
+			return nil, fmt.Errorf("failed to cast fsm response payload to responses.SigningProcessParticipantResponse: %w", err)
+		}
+
+		reconstructedSignatures, err := reconstructThresholdSignature(fsmInstance, signingProcessResponse)
+		if err != nil {
+			return nil, fmt.Errorf("failed to recontruct signatures: %w", err)
+		}
+
+		err = s.broadcastReconstructedSignatures(message, reconstructedSignatures)
 		if err != nil {
 			return nil, fmt.Errorf("failed to broadcast reconstructed signature: %w", err)
 		}
+
 	default:
 		s.Logger.Log("State %s does not require an operation", resp.State)
 	}
@@ -780,11 +795,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 	return operation, nil
 }
 
-func (s *BaseNodeService) broadcastReconstructedSignatures(message storage.Message, resp *fsm.Response) error {
-	sigs, ok := resp.Data.([]fsmtypes.ReconstructedSignature)
-	if !ok {
-		return fmt.Errorf("failed to cast response data to  reconstructed signatures %T", resp.Data)
-	}
+func (s *BaseNodeService) broadcastReconstructedSignatures(message storage.Message, sigs []fsmtypes.ReconstructedSignature) error {
 	data, err := json.Marshal(sigs)
 	if err != nil {
 		return fmt.Errorf("failed to marshal reconstructed signatures: %w", err)
@@ -798,4 +809,49 @@ func (s *BaseNodeService) broadcastReconstructedSignatures(message storage.Messa
 		return fmt.Errorf("failed to send reconstructed signatures message: %w", err)
 	}
 	return nil
+}
+
+func reconstructThresholdSignature(signingFSM *state_machines.FSMInstance, payload responses.SigningProcessParticipantResponse) ([]fsmtypes.ReconstructedSignature, error) {
+	batchPartialSignatures := make(fsmtypes.BatchPartialSignatures)
+	var messagesPayload []requests.MessageToSign
+	for _, participant := range payload.Participants {
+		for messageID, sign := range participant.PartialSigns {
+			batchPartialSignatures.AddPartialSignature(messageID, sign)
+		}
+	}
+	err := json.Unmarshal(payload.SrcPayload, &messagesPayload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal MessagesToSign: %w", err)
+	}
+	// just convert slice to map
+	messages := make(map[string][]byte)
+	for _, m := range messagesPayload {
+		messages[m.MessageID] = m.Payload
+	}
+	response := make([]fsmtypes.ReconstructedSignature, 0, len(batchPartialSignatures))
+	for messageID, messagePartialSignatures := range batchPartialSignatures {
+		reconstructedSignature, err := recoverFullSign(signingFSM, messages[messageID], messagePartialSignatures, signingFSM.FSMDump().Payload.Threshold,
+			len(signingFSM.FSMDump().Payload.PubKeys))
+		if err != nil {
+			return nil, fmt.Errorf("failed to reconsruct full signature for msg: %w", err)
+		}
+		response = append(response, fsmtypes.ReconstructedSignature{
+			MessageID:  messageID,
+			Signature:  reconstructedSignature,
+			DKGRoundID: signingFSM.FSMDump().Payload.DkgId,
+			SrcPayload: messages[messageID],
+		})
+	}
+	return response, nil
+}
+
+// recoverFullSign recovers full threshold signature for a message
+// with using of a reconstructed public DKG key of a given DKG round
+func recoverFullSign(signingFSM *state_machines.FSMInstance, msg []byte, sigShares [][]byte, t, n int) ([]byte, error) {
+	suite := bls12381.NewBLS12381Suite(nil)
+	blsKeyring, err := dkg.LoadPubPolyBLSKeyringFromBytes(suite, signingFSM.FSMDump().Payload.DKGProposalPayload.PubPolyBz)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal BLSKeyring's PubPoly")
+	}
+	return tbls.Recover(suite.(pairing.Suite), blsKeyring.PubPoly, msg, sigShares, t, n)
 }
