@@ -273,7 +273,7 @@ func (s *BaseNodeService) executeOperation(operation *types.Operation) error {
 			return fmt.Errorf("failed to post messages: %w", err)
 		}
 	} else {
-		//for now only ReinitDKG can has the OperationProcessed event
+		//for now only ReinitDKG has the OperationProcessed event
 		dkgID := operation.DKGIdentifier
 		fsm, err := s.fsmService.GetFSMInstance(string(dkgID))
 		if err != nil {

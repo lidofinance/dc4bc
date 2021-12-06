@@ -784,7 +784,7 @@ func convertDKGMessageto0_1_4(orig types.ReDKG) types.ReDKG {
 			continue
 		}
 		if fsm.Event(m.Event) == dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived {
-			// removing PolyPob from old log
+			// removing PolyPub from old log
 			var req requests.DKGProposalMasterKeyConfirmationRequest
 			err := json.Unmarshal(m.Data, &req)
 			if err != nil {
