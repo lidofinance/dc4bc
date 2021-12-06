@@ -163,7 +163,7 @@ func getOperationsCommand() *cobra.Command {
 				colorTitle.Print("\t\tDescription:")
 				fmt.Printf(" %s\n", getShortOperationDescription(operation.Type))
 
-				if strings.HasPrefix(string(operation.Type), "state_signing_") {
+				if operation.IsSigningState() {
 					var payload responses.SigningPartialSignsParticipantInvitationsResponse
 					if err := json.Unmarshal(operation.Payload, &payload); err != nil {
 						return fmt.Errorf("failed to unmarshal operation payload")

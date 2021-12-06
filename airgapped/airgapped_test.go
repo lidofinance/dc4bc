@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -142,7 +141,7 @@ func (tr *Transport) processOperation(n *Node, op client.Operation) error {
 	if err != nil {
 		return fmt.Errorf("%s: failed to handle operation %s: %w", n.Participant, op.Type, err)
 	}
-	if !strings.HasPrefix(string(operation.Type), "state_signing_") {
+	if !operation.IsSigningState() {
 		if err := n.Machine.storeOperation(operation); err != nil {
 			return fmt.Errorf("failed to storeOperation: %w", err)
 		}
