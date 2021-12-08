@@ -240,12 +240,17 @@ func getSignaturesCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
-			signatures, err := getSignaturesRequest(listenAddr, args[0])
+			dkgID := args[0]
+			signatures, err := getSignaturesRequest(listenAddr, dkgID)
 			if err != nil {
 				return fmt.Errorf("failed to get signatures: %w", err)
 			}
 			if signatures.ErrorMessage != "" {
 				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
+			}
+			if len(signatures.Result) == 0 {
+				fmt.Printf("No signatures found for dkgID %s", dkgID)
+				return nil
 			}
 			for sigID, signature := range signatures.Result {
 				fmt.Printf("Signing ID: %s\n", sigID)
