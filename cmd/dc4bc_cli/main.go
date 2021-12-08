@@ -654,7 +654,7 @@ func startDKGCommand() *cobra.Command {
 
 func approveDKGParticipationCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "approve_participation [OPERATION_ID]",
+		Use:   "approve_participation [operationID]",
 		Args:  cobra.ExactArgs(1),
 		Short: "approve participation in a DKG process",
 		RunE: func(cmd *cobra.Command, args []string) error {
