@@ -68,7 +68,7 @@ func TestClient_ProcessMessage(t *testing.T) {
 	t.Run("test_process_dkg_init", func(t *testing.T) {
 		fsm, err := state_machines.Create(dkgRoundID)
 		req.NoError(err)
-		fsmService.EXPECT().GetFSMInstance(dkgRoundID).Times(1).Return(fsm, nil)
+		fsmService.EXPECT().GetFSMInstance(dkgRoundID, true).Times(1).Return(fsm, nil)
 
 		senderKeyPair := keystore.NewKeyPair()
 		senderAddr := senderKeyPair.GetAddr()

@@ -349,7 +349,8 @@ func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessag
 		messagesToSign = append(messagesToSign, messageDataSign)
 	}
 
-	fsmInstance, err := s.fsmService.GetFSMInstance(hex.EncodeToString(dtoMsg.DkgID))
+	encodedDkgID := hex.EncodeToString(dtoMsg.DkgID)
+	fsmInstance, err := s.fsmService.GetFSMInstance(encodedDkgID, false)
 	if err != nil {
 		return fmt.Errorf("failed to get FSM instance: %w", err)
 	}
@@ -371,7 +372,7 @@ func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessag
 		return fmt.Errorf("failed to marshal SigningBatchProposalStartRequest: %w", err)
 	}
 
-	message, err := s.buildMessage(hex.EncodeToString(dtoMsg.DkgID), sif.EventSigningStart, batchBz)
+	message, err := s.buildMessage(encodedDkgID, sif.EventSigningStart, batchBz)
 	if err != nil {
 		return fmt.Errorf("failed to build message: %w", err)
 	}
@@ -506,7 +507,7 @@ func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 	}
 
 	// save new comm keys into FSM to verify future messages
-	fsmInstance, err := s.fsmService.GetFSMInstance(req.DKGID)
+	fsmInstance, err := s.fsmService.GetFSMInstance(req.DKGID, true)
 	if err != nil {
 		return fmt.Errorf("failed to get FSM instance: %w", err)
 	}
@@ -570,7 +571,7 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 }
 
 func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operation, error) {
-	fsmInstance, err := s.fsmService.GetFSMInstance(message.DkgRoundID)
+	fsmInstance, err := s.fsmService.GetFSMInstance(message.DkgRoundID, true)
 	if err != nil {
 		return nil, fmt.Errorf("failed to getFSMInstance: %w", err)
 	}
