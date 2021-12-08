@@ -51,18 +51,18 @@ func (mr *MockFSMServiceMockRecorder) GetFSMDump(dto interface{}) *gomock.Call {
 }
 
 // GetFSMInstance mocks base method.
-func (m *MockFSMService) GetFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error) {
+func (m *MockFSMService) GetFSMInstance(dkgRoundID string, createIfMissing bool) (*state_machines.FSMInstance, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetFSMInstance", dkgRoundID)
+	ret := m.ctrl.Call(m, "GetFSMInstance", dkgRoundID, createIfMissing)
 	ret0, _ := ret[0].(*state_machines.FSMInstance)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetFSMInstance indicates an expected call of GetFSMInstance.
-func (mr *MockFSMServiceMockRecorder) GetFSMInstance(dkgRoundID interface{}) *gomock.Call {
+func (mr *MockFSMServiceMockRecorder) GetFSMInstance(dkgRoundID, createIfMissing interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFSMInstance", reflect.TypeOf((*MockFSMService)(nil).GetFSMInstance), dkgRoundID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFSMInstance", reflect.TypeOf((*MockFSMService)(nil).GetFSMInstance), dkgRoundID, createIfMissing)
 }
 
 // GetFSMList mocks base method.
