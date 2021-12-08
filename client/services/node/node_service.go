@@ -377,6 +377,15 @@ func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessag
 		return fmt.Errorf("failed to get FSM instance: %w", err)
 	}
 
+	fsmState, err := fsmInstance.State()
+	if err != nil {
+		return fmt.Errorf("failed to determine FSM instance state: %w", err)
+	}
+
+	if fsmState != sif.StateSigningIdle {
+		return fmt.Errorf("required FSM state is %s, but have %s", sif.StateSigningIdle, fsmState)
+	}
+
 	participantID, err := fsmInstance.GetIDByUsername(s.GetUsername())
 	if err != nil {
 		return fmt.Errorf("failed to get participantID: %w", err)
