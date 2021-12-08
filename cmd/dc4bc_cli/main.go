@@ -955,6 +955,10 @@ func getFSMListCommand() *cobra.Command {
 				return fmt.Errorf("failed to make HTTP request to get FSM list: %v", resp.ErrorMessage)
 			}
 			fsms := resp.Result.(map[string]interface{})
+			if len(fsms) == 0 {
+				fmt.Printf("There are no FSMs yet")
+				return nil
+			}
 			for dkgID, state := range fsms {
 				fmt.Printf("DKG ID: %s - FSM state: %s\n", dkgID, state.(string))
 			}
