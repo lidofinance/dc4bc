@@ -30,6 +30,8 @@ type KafkaAuthCredentials struct {
 }
 
 type KafkaStorage struct {
+	readerCtx                            context.Context
+	readerCtxCancel                      context.CancelFunc
 	reader                               *kafka.Reader
 	writer                               *kafka.Writer
 	tlsConfig                            *tls.Config
@@ -98,10 +100,10 @@ func NewKafkaStorage(cfg *config.KafkaStorageConfig) (*KafkaStorage, error) {
 
 func (ks *KafkaStorage) Close() error {
 	if ks.reader != nil {
+		ks.readerCtxCancel()
 		if err := ks.reader.Close(); err != nil {
 			return fmt.Errorf("failed to Close reader: %w", err)
 		}
-
 	}
 
 	if ks.writer != nil {
@@ -127,7 +129,8 @@ func (ks *KafkaStorage) Send(messages ...storage.Message) error {
 }
 
 func (ks *KafkaStorage) GetMessages(_ uint64) ([]storage.Message, error) {
-	ctx, _ := context.WithDeadline(context.Background(), time.Now().Add(time.Second*10))
+	ctx, cancel := context.WithDeadline(ks.readerCtx, time.Now().Add(time.Second*10))
+	defer cancel()
 
 	var (
 		message  storage.Message
@@ -136,7 +139,7 @@ func (ks *KafkaStorage) GetMessages(_ uint64) ([]storage.Message, error) {
 	for {
 		kafkaMessage, err := ks.reader.ReadMessage(ctx)
 		if err != nil {
-			if errors.Is(err, context.DeadlineExceeded) {
+			if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
 				break
 			} else {
 				return nil, fmt.Errorf("failed to ReadMessage: %w", err)
@@ -224,6 +227,7 @@ func (ks *KafkaStorage) reset() error {
 			SASLMechanism: ks.consumerCreds,
 		},
 	})
+	ks.readerCtx, ks.readerCtxCancel = context.WithCancel(context.Background())
 
 	kafka.DefaultTransport = &kafka.Transport{
 		Dial: (&net.Dialer{
