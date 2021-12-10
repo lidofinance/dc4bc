@@ -243,12 +243,12 @@ Now go to `dc4bc_airgapped` prompt and enter the path to the file that contains 
 ```
 >>> read_operation
 > Enter the path to Operation JSON file: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_request.json
-Operation JSON was handled successfully, the result Operation JSON was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_response.json
+Operation JSON was handled successfully, the result Operation JSON was saved to: /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_result.json
 ```
 
 Encode the result JSON file to a QR GIF on the airgapped machine and show the animation to the hot node machine. Then go to the node, decode GIF to JSON and run the following command using the path to the decoded json:
 ```
-$ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_response.json
+$ ./dc4bc_cli read_operation_result --listen_addr localhost:8080 /tmp/dkg_id_c04f3_step_1_send_commits_for_the_DKG_round_df482_result.json
 ```
 ```
 [john_doe] message event_dkg_commit_confirm_received done successfully from john_doe

@@ -161,7 +161,7 @@ func (am *Machine) ProcessOperation(operation client.Operation, storeOperation b
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	path := filepath.Join(am.ResultFolder, operation.Filename()+"_response.json")
+	path := filepath.Join(am.ResultFolder, operation.Filename()+"_result.json")
 
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
