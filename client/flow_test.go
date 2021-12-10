@@ -56,6 +56,8 @@ var (
 
 var sigReconstructedRegexp = regexp.MustCompile(`(?m)\[node_\d] Successfully processed message with offset \d{0,3}, type signature_reconstructed`)
 
+var sigReconstructionStarted = regexp.MustCompile(`(?m)\[node_\d] Collected enough partial signatures. Full signature reconstruction just started`)
+
 var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
 
 type nodeInstance struct {
@@ -511,6 +513,14 @@ func TestStandardFlow(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	time.Sleep(15 * time.Second)
+
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 70); matches != 1 {
+			t.Fatalf("not enough checks: %d", matches)
+		} else {
+			fmt.Println("reconstruction started")
+		}
+	}
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 4 {
