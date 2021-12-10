@@ -747,6 +747,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 			)
 		}
 	case sif.StateSigningPartialSignsCollected:
+		s.Logger.Log("Collected enough partial signatures. Full signature reconstruction just started.")
 		signingProcessResponse, ok := resp.Data.(responses.SigningProcessParticipantResponse)
 		if !ok {
 			return nil, fmt.Errorf("failed to cast fsm response payload to responses.SigningProcessParticipantResponse: %w", err)
