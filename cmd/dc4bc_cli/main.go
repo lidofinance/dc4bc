@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/types"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -21,8 +22,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/lidofinance/dc4bc/client/types"
 
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
@@ -164,7 +163,7 @@ func getOperationsCommand() *cobra.Command {
 				colorTitle.Print("\t\tDescription:")
 				fmt.Printf(" %s\n", getShortOperationDescription(operation.Type))
 
-				if strings.HasPrefix(string(operation.Type), "state_signing_") {
+				if operation.IsSigningState() {
 					var payload responses.SigningPartialSignsParticipantInvitationsResponse
 					if err := json.Unmarshal(operation.Payload, &payload); err != nil {
 						return fmt.Errorf("failed to unmarshal operation payload")

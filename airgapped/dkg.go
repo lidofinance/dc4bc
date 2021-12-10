@@ -47,7 +47,18 @@ func (am *Machine) handleReinitDKG(operation *client.Operation) error {
 			return fmt.Errorf("failed to process operation: %w", err)
 		}
 	}
+	blsKeyring, err := am.loadBLSKeyring(operation.DKGIdentifier)
+	if err != nil {
+		return fmt.Errorf("failed to load bls keyring during ReinitDKG: %w", err)
+	}
+
+	pubPolyBz, err := blsKeyring.PubPolyBytes()
+	if err != nil {
+		return fmt.Errorf("failed to marshal BLSKeyring's PubPoly during ReinitDKG: %w", err)
+	}
+
 	operation.Event = client.OperationProcessed
+	operation.ExtraData = pubPolyBz
 	return nil
 }
 
@@ -330,10 +341,15 @@ func (am *Machine) handleStateDkgMasterKeyAwaitConfirmations(o *client.Operation
 		return fmt.Errorf("failed to save BLSKeyring: %w", err)
 	}
 
+	pubPolyBz, err := blsKeyring.PubPolyBytes()
+	if err != nil {
+		return fmt.Errorf("failed to marshal BLSKeyring's PubPoly: %w", err)
+	}
 	req := requests.DKGProposalMasterKeyConfirmationRequest{
 		ParticipantId: dkgInstance.ParticipantID,
 		MasterKey:     masterPubKeyBz,
 		CreatedAt:     o.CreatedAt,
+		PubPolyBz:     pubPolyBz,
 	}
 	reqBz, err := json.Marshal(req)
 	if err != nil {

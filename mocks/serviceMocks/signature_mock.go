@@ -9,7 +9,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	dto "github.com/lidofinance/dc4bc/client/api/dto"
-	types "github.com/lidofinance/dc4bc/client/types"
+	types "github.com/lidofinance/dc4bc/fsm/types"
 )
 
 // MockSignatureService is a mock of SignatureService interface.

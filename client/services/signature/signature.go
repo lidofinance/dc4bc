@@ -3,7 +3,7 @@ package signature
 import (
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/repositories/signature"
-	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/fsm/types"
 )
 
 type SignatureService interface {

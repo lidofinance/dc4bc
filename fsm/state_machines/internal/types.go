@@ -154,6 +154,7 @@ type DKGConfirmation struct {
 	CreatedAt time.Time
 	UpdatedAt time.Time
 	ExpiresAt time.Time
+	PubPolyBz []byte
 }
 
 func (c *DKGConfirmation) IsExpired() bool {

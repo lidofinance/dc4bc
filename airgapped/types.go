@@ -93,9 +93,3 @@ func (am *Machine) GetBLSKeyrings() (map[string]*dkg.BLSKeyring, error) {
 	}
 	return keyrings, iter.Error()
 }
-
-type BatchPartialSignatures map[string][][]byte
-
-func (b BatchPartialSignatures) AddPartialSignature(messageID string, partialSignature []byte) {
-	b[messageID] = append(b[messageID], partialSignature)
-}

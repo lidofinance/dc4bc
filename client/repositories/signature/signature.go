@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/lidofinance/dc4bc/client/modules/state"
-	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/fsm/types"
 )
 
 const (

@@ -33,14 +33,6 @@ const (
 	OperationProcessed fsm.Event = "operation_processed_successfully"
 )
 
-type ReconstructedSignature struct {
-	MessageID  string
-	SrcPayload []byte
-	Signature  []byte
-	Username   string
-	DKGRoundID string
-}
-
 // Operation is the type for any Operation that might be required for
 // both DKG and signing process (e.g.,
 type Operation struct {
@@ -96,7 +88,7 @@ func (o *Operation) Equal(o2 *Operation) error {
 func (o *Operation) Filename() (filename string) {
 	filename = fmt.Sprintf("dkg_id_%s", o.DKGIdentifier[:5])
 
-	if strings.HasPrefix(string(o.Type), "state_signing_") {
+	if o.IsSigningState() {
 		var payload responses.SigningPartialSignsParticipantInvitationsResponse
 
 		if err := json.Unmarshal(o.Payload, &payload); err == nil {
@@ -111,6 +103,13 @@ func (o *Operation) Filename() (filename string) {
 		getShortOperationDescription(o.Type),
 		o.ID[:5],
 	)
+}
+
+func (o *Operation) IsSigningState() bool {
+	if o != nil && strings.HasPrefix(string(o.Type), "state_signing_") {
+		return true
+	}
+	return false
 }
 
 func getShortOperationDescription(operationType OperationType) string {

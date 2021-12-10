@@ -56,6 +56,8 @@ var (
 
 var sigReconstructedRegexp = regexp.MustCompile(`(?m)\[node_\d] Successfully processed message with offset \d{0,3}, type signature_reconstructed`)
 
+var sigReconstructionStarted = regexp.MustCompile(`(?m)\[node_\d] Collected enough partial signatures. Full signature reconstruction just started`)
+
 var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
 
 type nodeInstance struct {
@@ -448,6 +450,22 @@ func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCal
 	return runCancel
 }
 
+func verifySignatures(dkgID string, n *nodeInstance, messageIDS []string) error {
+	signs, err := n.sigService.GetSignatures(&dto.DkgIdDTO{DkgID: dkgID})
+	if err != nil {
+		return err
+	}
+	for _, mID := range messageIDS {
+		for _, s := range signs[mID] {
+			err = n.air.VerifySign(s.SrcPayload, s.Signature, dkgID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func RemoveContents(dir, mask string) error {
 	files, err := filepath.Glob(filepath.Join(dir, mask))
 	if err != nil {
@@ -495,6 +513,14 @@ func TestStandardFlow(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 	time.Sleep(15 * time.Second)
+
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 70); matches != 1 {
+			t.Fatalf("not enough checks: %d", matches)
+		} else {
+			fmt.Println("reconstruction started")
+		}
+	}
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 4 {
@@ -604,18 +630,9 @@ func TestStandardBatchFlow(t *testing.T) {
 		node.clientCancel()
 	}
 
-	signs, err := nodes[0].sigService.GetSignatures(&dto.DkgIdDTO{DkgID: hex.EncodeToString(dkgID[:])})
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2", "messageID3", "messageID4"})
 	if err != nil {
-		t.Fatalf("failed to get signatures: %v\n", err)
-	}
-
-	for _, messageID := range []string{"messageID1", "messageID2", "messageID3", "messageID4"} {
-		for _, s := range signs[messageID] {
-			fmt.Println(s)
-		}
-		if len(signs[messageID]) != 4 {
-			t.Fatalf("not enough signs: want 4, got %d\n", len(signs[messageID]))
-		}
+		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
 }
 
@@ -776,6 +793,19 @@ func convertDKGMessageto0_1_4(orig types.ReDKG) types.ReDKG {
 		if fsm.Event(m.Event) == dkg_proposal_fsm.EventDKGDealConfirmationReceived && m.SenderAddr == m.RecipientAddr {
 			continue
 		}
+		if fsm.Event(m.Event) == dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived {
+			// removing PolyPub from old log
+			var req requests.DKGProposalMasterKeyConfirmationRequest
+			err := json.Unmarshal(m.Data, &req)
+			if err != nil {
+				panic("failed to unmarshal data")
+			}
+			req.PubPolyBz = nil
+			m.Data, err = json.Marshal(req)
+			if err != nil {
+				panic("failed to marshal data")
+			}
+		}
 		m.Offset = newOffset
 		newDKG.Messages = append(newDKG.Messages, m)
 		newOffset++
@@ -817,8 +847,12 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 	time.Sleep(30 * time.Second)
 
 	log.Println("Propose message to sign")
+	messagesToSign := map[string][]byte{
+		"messageID1": []byte("message to sign1"),
+		"messageID2": []byte("message to sign2"),
+	}
 
-	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[len(nodes)-1].listenAddr)
+	messageDataBz, err = signBatchMessages(dkgID[:], messagesToSign, nodes[len(nodes)-1].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -830,6 +864,11 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		} else {
 			fmt.Println("messaged signed successfully")
 		}
+	}
+
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2"})
+	if err != nil {
+		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
 
 	fmt.Println("Reinit DKG...")
@@ -916,7 +955,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 
 	time.Sleep(10 * time.Second)
 
-	messageDataBz, err = signMessage(dkgID[:], "message to sign", newNodes[len(newNodes)-1].listenAddr)
+	messageDataBz, err = signBatchMessages(dkgID[:], messagesToSign, nodes[len(nodes)-1].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -929,12 +968,28 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 			fmt.Println("message signed successfully")
 		}
 	}
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2"})
+	if err != nil {
+		t.Fatalf("failed to verify signatures: %v\n", err)
+	}
 
 	fmt.Println("Sign message again")
-	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignMessage", newNodes[len(newNodes)-1].listenAddr),
+	messageDataBz, err = json.Marshal(
+		map[string]interface{}{
+			"data": map[string][]byte{
+				"messageID3": []byte("message to sign3"),
+				"messageID4": []byte("message to sign4"),
+			},
+			"dkgID": dkgID})
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignBatchMessages", nodes[len(nodes)-1].listenAddr),
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
+
 	time.Sleep(15 * time.Second)
 
 	for _, n := range newNodes {
@@ -943,6 +998,10 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		} else {
 			fmt.Println("messaged signed successfully")
 		}
+	}
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2", "messageID3", "messageID4"})
+	if err != nil {
+		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
 
 	runCancel()

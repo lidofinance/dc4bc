@@ -66,7 +66,7 @@ func NewPrompt(machine *airgapped.Machine) (*prompt, error) {
 
 	p.addCommand("read_operation", &promptCommand{
 		commandHandler: p.readOperationCommand,
-		description:    "reads base64-encoded Operation, handles a decoded operation and returns the path to the JSON with operation's result",
+		description:    "reads the json file with an operation, handles a decoded operation and returns the path to the JSON with operation's result",
 	})
 	p.addCommand("help", &promptCommand{
 		commandHandler: p.helpCommand,

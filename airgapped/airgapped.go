@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/corestario/kyber"
@@ -19,7 +18,6 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
-	"github.com/lidofinance/dc4bc/fsm/types/responses"
 	"github.com/syndtr/goleveldb/leveldb"
 )
 
@@ -144,33 +142,6 @@ func (am *Machine) ReplayOperationsLog(dkgIdentifier string) error {
 	return nil
 }
 
-func (am *Machine) removeSignatureOperations(o *client.Operation) error {
-	var (
-		payload responses.SigningProcessParticipantResponse
-		err     error
-	)
-
-	if err = json.Unmarshal(o.Payload, &payload); err != nil {
-		return fmt.Errorf("failed to unmarshal payload: %w", err)
-	}
-
-	removeSignatureOperationsFunc := func(op client.Operation) bool {
-		type signingPayload struct {
-			BatchID string
-		}
-		var sp signingPayload
-		if strings.HasPrefix(string(op.Type), "state_signing_") {
-			if err := json.Unmarshal(op.Payload, &sp); err == nil {
-				if sp.BatchID == payload.BatchID {
-					return true
-				}
-			}
-		}
-		return false
-	}
-	return am.clearOperationsLog(o.DKGIdentifier, removeSignatureOperationsFunc)
-}
-
 func (am *Machine) ProcessOperation(operation client.Operation, storeOperation bool) (string, error) {
 	resultOperation, err := am.GetOperationResult(operation)
 	if err != nil {
@@ -179,15 +150,9 @@ func (am *Machine) ProcessOperation(operation client.Operation, storeOperation b
 			operation.ID, err)
 	}
 
-	if storeOperation {
+	if storeOperation && !operation.IsSigningState() {
 		if err := am.storeOperation(operation); err != nil {
 			return "", fmt.Errorf("failed to storeOperation: %w", err)
-		}
-	}
-
-	if fsm.State(operation.Type) == signing_proposal_fsm.StateSigningPartialSignsCollected {
-		if err := am.removeSignatureOperations(&operation); err != nil {
-			return "", fmt.Errorf("failed to remove signature operations: %w", err)
 		}
 	}
 
@@ -196,7 +161,7 @@ func (am *Machine) ProcessOperation(operation client.Operation, storeOperation b
 		return "", fmt.Errorf("failed to marshal operation: %w", err)
 	}
 
-	path := filepath.Join(am.ResultFolder, operation.Filename()+"_response.json")
+	path := filepath.Join(am.ResultFolder, operation.Filename()+"_result.json")
 
 	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0600)
 	if err != nil {
@@ -258,7 +223,6 @@ func (am *Machine) GetOperationResult(operation client.Operation) (client.Operat
 	var (
 		err error
 	)
-
 	// handler gets a pointer to an operation, do necessary things
 	// and write a result (or an error) to .Result field of operation
 	switch fsm.State(operation.Type) {
@@ -274,8 +238,6 @@ func (am *Machine) GetOperationResult(operation client.Operation) (client.Operat
 		err = am.handleStateDkgMasterKeyAwaitConfirmations(&operation)
 	case signing_proposal_fsm.StateSigningAwaitPartialSigns:
 		err = am.handleStateSigningAwaitPartialSigns(&operation)
-	case signing_proposal_fsm.StateSigningPartialSignsCollected:
-		err = am.reconstructThresholdSignature(&operation)
 	default:
 		err = fmt.Errorf("invalid operation type: %s", operation.Type)
 	}

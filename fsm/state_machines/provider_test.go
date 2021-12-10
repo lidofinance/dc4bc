@@ -954,82 +954,6 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitPartialSigns])
 }
 
-func Test_SigningProposal_EventSigningPartialKeyReceived_Positive(t *testing.T) {
-	var (
-		fsmResponse      *fsm.Response
-		testFSMDumpLocal []byte
-	)
-
-	testMessageID := "test-message-id"
-
-	participantsCount := len(testIdMapParticipants)
-
-	participantCounter := participantsCount
-
-	testFSMDumpLocal = testFSMDump[sif.StateSigningAwaitPartialSigns]
-
-	broadcastParticipantsCount := 0
-	for participantId, participant := range testIdMapParticipants {
-		if broadcastParticipantsCount >= threshold {
-			break
-		}
-		participantCounter--
-
-		testFSMInstance, err := FromDump(testFSMDumpLocal)
-
-		compareErrNil(t, err)
-
-		compareFSMInstanceNotNil(t, testFSMInstance)
-
-		inState, _ := testFSMInstance.State()
-		compareState(t, sif.StateSigningAwaitPartialSigns, inState)
-
-		fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningPartialSignReceived, requests.SigningProposalBatchPartialSignRequests{
-			BatchID:       "test-batch-id",
-			ParticipantId: participantId,
-			PartialSigns: []requests.PartialSign{{
-				MessageID: testMessageID,
-				Sign:      participant.DkgPartialKey,
-			}},
-			CreatedAt: time.Now(),
-		})
-
-		compareErrNil(t, err)
-
-		compareDumpNotZero(t, testFSMDumpLocal)
-
-		compareFSMResponseNotNil(t, fsmResponse)
-
-		broadcastParticipantsCount++
-
-		if broadcastParticipantsCount < threshold {
-			compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
-		} else if broadcastParticipantsCount >= threshold {
-			compareState(t, sif.StateSigningPartialSignsCollected, fsmResponse.State)
-		}
-	}
-
-	compareState(t, sif.StateSigningPartialSignsCollected, fsmResponse.State)
-
-	response, ok := fsmResponse.Data.(responses.SigningProcessParticipantResponse)
-
-	if !ok {
-		t.Fatalf("expected response {SigningProcessParticipantResponse}")
-	}
-
-	if response.BatchID == "" {
-		t.Fatalf("expected field {BatchID}")
-	}
-
-	if !reflect.DeepEqual(response.SrcPayload, testSigningPayload) {
-		t.Fatalf("expected matched {SrcPayload}")
-	}
-
-	testFSMDump[sif.StateSigningPartialSignsCollected] = testFSMDumpLocal
-
-	compareDumpNotZero(t, testFSMDump[sif.StateSigningPartialSignsCollected])
-}
-
 func Test_SigningProposal_EventPartialKeysReceived_Failed_Participants(t *testing.T) {
 	var (
 		fsmResponse      *fsm.Response
@@ -1084,34 +1008,6 @@ func Test_SigningProposal_EventPartialKeysReceived_Failed_Participants(t *testin
 	}
 
 	compareState(t, sif.StateSigningPartialSignsAwaitCancelledByError, fsmResponse.State)
-}
-
-func Test_DkgProposal_EventSigningRestart_Positive(t *testing.T) {
-	var (
-		fsmResponse      *fsm.Response
-		testFSMDumpLocal []byte
-	)
-
-	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningPartialSignsCollected])
-
-	compareErrNil(t, err)
-
-	compareFSMInstanceNotNil(t, testFSMInstance)
-
-	inState, _ := testFSMInstance.State()
-	compareState(t, sif.StateSigningPartialSignsCollected, inState)
-
-	fsmResponse, testFSMDumpLocal, err = testFSMInstance.Do(sif.EventSigningRestart, requests.DefaultRequest{
-		CreatedAt: time.Now(),
-	})
-
-	compareErrNil(t, err)
-
-	compareFSMResponseNotNil(t, fsmResponse)
-
-	compareState(t, sif.StateSigningIdle, fsmResponse.State)
-
-	compareDumpNotZero(t, testFSMDumpLocal)
 }
 
 func Test_Parallel(t *testing.T) {
