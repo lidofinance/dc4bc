@@ -13,6 +13,7 @@ type KafkaStorageConfig struct {
 	TlsConfig           string `mapstructure:"kafka_truststore_path"`
 	ProducerCredentials string `mapstructure:"producer_credentials"`
 	ConsumerCredentials string `mapstructure:"consumer_credentials"`
+	ReadDuration        string `mapstructure:"kafka_read_duration"`
 	Timeout             string `mapstructure:"kafka_timeout"`
 
 	IgnoredMessages    string `mapstructure:"storage_ignore_messages"`

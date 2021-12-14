@@ -29,6 +29,7 @@ const (
 	flagKafkaConsumerCredentials = "consumer_credentials"
 	flagKafkaTrustStorePath      = "kafka_truststore_path"
 	flagKafkaConsumerGroup       = "kafka_consumer_group"
+	flagKafkaReadDuration        = "kafka_read_duration"
 	flagKafkaTimeout             = "kafka_timeout"
 	flagStoreDBDSN               = "key_store_dbdsn"
 	flagConfig                   = "config"
@@ -55,6 +56,7 @@ func init() {
 	rootCmd.PersistentFlags().String(flagKafkaConsumerCredentials, "consumer:consumerpass", "Consumer credentials for Kafka: username:password")
 	rootCmd.PersistentFlags().String(flagKafkaTrustStorePath, "certs/ca.pem", "Path to kafka truststore")
 	rootCmd.PersistentFlags().String(flagKafkaConsumerGroup, "", "Kafka consumer group")
+	rootCmd.PersistentFlags().String(flagKafkaReadDuration, "10s", "Duration of a single Kafka read messages subscription")
 	rootCmd.PersistentFlags().String(flagKafkaTimeout, "60s", "Kafka I/O Timeout")
 	rootCmd.PersistentFlags().String(flagStoreDBDSN, "./dc4bc_key_store", "Key Store DBDSN")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, flagConfig, "", "path to your config file")
@@ -73,6 +75,7 @@ func init() {
 	exitIfError(viper.BindPFlag(flagKafkaConsumerCredentials, rootCmd.PersistentFlags().Lookup(flagKafkaConsumerCredentials)))
 	exitIfError(viper.BindPFlag(flagKafkaTrustStorePath, rootCmd.PersistentFlags().Lookup(flagKafkaTrustStorePath)))
 	exitIfError(viper.BindPFlag(flagKafkaConsumerGroup, rootCmd.PersistentFlags().Lookup(flagKafkaConsumerGroup)))
+	exitIfError(viper.BindPFlag(flagKafkaReadDuration, rootCmd.PersistentFlags().Lookup(flagKafkaReadDuration)))
 	exitIfError(viper.BindPFlag(flagKafkaTimeout, rootCmd.PersistentFlags().Lookup(flagKafkaTimeout)))
 	exitIfError(viper.BindPFlag(flagStoreDBDSN, rootCmd.PersistentFlags().Lookup(flagStoreDBDSN)))
 	exitIfError(viper.BindPFlag(flagUserName, rootCmd.PersistentFlags().Lookup(flagUserName)))
