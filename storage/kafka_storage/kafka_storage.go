@@ -32,6 +32,7 @@ type KafkaAuthCredentials struct {
 type KafkaStorage struct {
 	readerCtx                            context.Context
 	readerCtxCancel                      context.CancelFunc
+	readDuration                         time.Duration
 	reader                               *kafka.Reader
 	writer                               *kafka.Writer
 	tlsConfig                            *tls.Config
@@ -74,12 +75,18 @@ func NewKafkaStorage(cfg *config.KafkaStorageConfig) (*KafkaStorage, error) {
 		return nil, fmt.Errorf("failed to init tsl config: %w", err)
 	}
 
+	readDuration, err := time.ParseDuration(cfg.ReadDuration)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse timeout duration: %w", err)
+	}
+
 	timeout, err := time.ParseDuration(cfg.Timeout)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse timeout duration: %w", err)
 	}
 
 	ks := &KafkaStorage{
+		readDuration:   readDuration,
 		brokerEndpoint: cfg.DBDSN,
 		topic:          cfg.Topic,
 		consumerGroup:  cfg.ConsumerGroup,
@@ -129,7 +136,7 @@ func (ks *KafkaStorage) Send(messages ...storage.Message) error {
 }
 
 func (ks *KafkaStorage) GetMessages(_ uint64) ([]storage.Message, error) {
-	ctx, cancel := context.WithDeadline(ks.readerCtx, time.Now().Add(time.Second*10))
+	ctx, cancel := context.WithDeadline(ks.readerCtx, time.Now().Add(ks.readDuration))
 	defer cancel()
 
 	var (
