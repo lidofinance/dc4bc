@@ -16,7 +16,7 @@ const (
 )
 
 type FSMService interface {
-	GetFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error)
+	GetFSMInstance(dkgRoundID string, createIfMissing bool) (*state_machines.FSMInstance, error)
 	GetFSMDump(dto *dto.DkgIdDTO) (*state_machines.FSMDump, error)
 	GetFSMList() (map[string]string, error)
 	ResetFSMState(dto *dto.ResetStateDTO) (string, error)
@@ -96,7 +96,7 @@ func (fsm *FSM) SaveFSM(dkgRoundID string, dump []byte) error {
 }
 
 // GetFSMInstance returns FSM for a necessary DKG round.
-func (fsm *FSM) GetFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, error) {
+func (fsm *FSM) GetFSMInstance(dkgRoundID string, createIfMissing bool) (*state_machines.FSMInstance, error) {
 	var err error
 	fsmInstance, ok, err := fsm.loadFSM(dkgRoundID)
 	if err != nil {
@@ -104,6 +104,9 @@ func (fsm *FSM) GetFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, 
 	}
 
 	if !ok {
+		if !createIfMissing {
+			return nil, fmt.Errorf("no FSM instance found for the given dkgID %s", dkgRoundID)
+		}
 		fsmInstance, err = state_machines.Create(dkgRoundID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create FSM instance: %w", err)
@@ -123,9 +126,9 @@ func (fsm *FSM) GetFSMInstance(dkgRoundID string) (*state_machines.FSMInstance, 
 }
 
 func (fsm *FSM) GetFSMDump(dto *dto.DkgIdDTO) (*state_machines.FSMDump, error) {
-	fsmInstance, err := fsm.GetFSMInstance(dto.DkgID)
+	fsmInstance, err := fsm.GetFSMInstance(dto.DkgID, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get FSM instance for DKG round ID %s: %w", dto.DkgID, err)
+		return nil, fmt.Errorf("failed to get FSM instance: %w", err)
 	}
 	return fsmInstance.FSMDump(), nil
 }

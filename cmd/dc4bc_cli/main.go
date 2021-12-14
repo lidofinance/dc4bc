@@ -239,12 +239,17 @@ func getSignaturesCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
-			signatures, err := getSignaturesRequest(listenAddr, args[0])
+			dkgID := args[0]
+			signatures, err := getSignaturesRequest(listenAddr, dkgID)
 			if err != nil {
 				return fmt.Errorf("failed to get signatures: %w", err)
 			}
 			if signatures.ErrorMessage != "" {
 				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
+			}
+			if len(signatures.Result) == 0 {
+				fmt.Printf("No signatures found for dkgID %s", dkgID)
+				return nil
 			}
 			for sigID, signature := range signatures.Result {
 				fmt.Printf("Signing ID: %s\n", sigID)
@@ -648,7 +653,7 @@ func startDKGCommand() *cobra.Command {
 
 func approveDKGParticipationCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "approve_participation [OPERATION_ID]",
+		Use:   "approve_participation [operationID]",
 		Args:  cobra.ExactArgs(1),
 		Short: "approve participation in a DKG process",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -950,6 +955,10 @@ func getFSMListCommand() *cobra.Command {
 				return fmt.Errorf("failed to make HTTP request to get FSM list: %v", resp.ErrorMessage)
 			}
 			fsms := resp.Result.(map[string]interface{})
+			if len(fsms) == 0 {
+				fmt.Printf("There are no FSMs yet")
+				return nil
+			}
 			for dkgID, state := range fsms {
 				fmt.Printf("DKG ID: %s - FSM state: %s\n", dkgID, state.(string))
 			}
