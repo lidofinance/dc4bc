@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/types"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -20,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lidofinance/dc4bc/client/types"
 
 	"github.com/google/uuid"
 
@@ -38,6 +39,7 @@ import (
 )
 
 const (
+	flagJSONOutputFolder   = "json_output_folder"
 	flagListenAddr         = "listen_addr"
 	flagJSONFilesFolder    = "json_files_folder"
 	flagNewStateDBDSN      = "new_state_dbdsn"
@@ -239,6 +241,12 @@ func getSignaturesCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
+
+			jsonOutputFolder, err := cmd.Flags().GetString(flagJSONOutputFolder)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
 			dkgID := args[0]
 			signatures, err := getSignaturesRequest(listenAddr, dkgID)
 			if err != nil {
@@ -260,6 +268,30 @@ func getSignaturesCommand() *cobra.Command {
 					fmt.Println()
 				}
 			}
+
+			if jsonOutputFolder == "" {
+				return nil
+			}
+
+			f, err := os.OpenFile(jsonOutputFolder, os.O_WRONLY|os.O_CREATE, 0600)
+			if err != nil {
+				return fmt.Errorf("failed to open file: %w", err)
+			}
+
+			defer f.Close()
+
+			bytes, err := json.Marshal(signatures.Result)
+			if err != nil {
+				return fmt.Errorf("failed to marshal result: %w", err)
+			}
+
+			_, err = f.Write(bytes)
+			if err != nil {
+				return fmt.Errorf("failed to write file: %w", err)
+			}
+
+			fmt.Printf("json file was saved to: %s\n", jsonOutputFolder)
+
 			return nil
 		},
 	}
