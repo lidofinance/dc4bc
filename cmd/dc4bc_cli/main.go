@@ -39,7 +39,6 @@ import (
 )
 
 const (
-	flagJSONOutputFolder   = "json_output_folder"
 	flagListenAddr         = "listen_addr"
 	flagJSONFilesFolder    = "json_files_folder"
 	flagNewStateDBDSN      = "new_state_dbdsn"
@@ -242,7 +241,7 @@ func getSignaturesCommand() *cobra.Command {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
 
-			jsonOutputFolder, err := cmd.Flags().GetString(flagJSONOutputFolder)
+			jsonOutputFolder, err := cmd.Flags().GetString(flagJSONFilesFolder)
 			if err != nil {
 				return fmt.Errorf("failed to read configuration: %v", err)
 			}
@@ -273,7 +272,9 @@ func getSignaturesCommand() *cobra.Command {
 				return nil
 			}
 
-			f, err := os.OpenFile(jsonOutputFolder, os.O_WRONLY|os.O_CREATE, 0600)
+			filename := fmt.Sprintf("%s.json", dkgID)
+
+			f, err := os.OpenFile(jsonOutputFolder+filename, os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
 				return fmt.Errorf("failed to open file: %w", err)
 			}

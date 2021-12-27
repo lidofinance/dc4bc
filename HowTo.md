@@ -327,9 +327,9 @@ Signing ID: ca800cac-2c13-4a14-8ca3-72c36112c5e4
                 Reconstructed signature for the data:
 ```
 
-To save this list of all messages to json, you should use this command with flag --json_output_folder:
+To save this list of all messages to json, you should use this command with flag --json_files_folder:
 ```
-./dc4bc_cli get_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 --json_output_folder .
+./dc4bc_cli get_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 --json_files_folder .
 Signing ID: ca800cac-2c13-4a14-8ca3-72c36112c5e4
                 DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
                 Participant: john_doe
