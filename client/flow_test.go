@@ -60,6 +60,8 @@ var sigReconstructionStarted = regexp.MustCompile(`(?m)\[node_\d] Collected enou
 
 var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
 
+type operationHandler func(operation *types.Operation, callback processedOperationCallback) error
+
 type nodeInstance struct {
 	ctx          context.Context
 	client       node.NodeService
@@ -71,6 +73,8 @@ type nodeInstance struct {
 	air          *airgapped.Machine
 	listenAddr   string
 	httpApi      *http_api.RESTApiProvider
+	// operationHandlers allows to define special handlers for some operations
+	operationHandlers map[types.OperationType]operationHandler
 }
 
 type OperationsResponse struct {
@@ -186,18 +190,21 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 
 		server := http_api.NewRESTApi(&cfg, clt, &sp)
 
-		nodes[nodeID] = &nodeInstance{
-			ctx:          ctx,
-			client:       clt,
-			clientCancel: cancel,
-			clientLogger: logger,
-			storage:      stg,
-			keyPair:      keyPair,
-			sigService:   sigService,
-			air:          airgappedMachine,
-			listenAddr:   fmt.Sprintf("localhost:%d", startingPort),
-			httpApi:      server,
+		instance := &nodeInstance{
+			ctx:               ctx,
+			client:            clt,
+			clientCancel:      cancel,
+			clientLogger:      logger,
+			storage:           stg,
+			keyPair:           keyPair,
+			sigService:        sigService,
+			air:               airgappedMachine,
+			listenAddr:        fmt.Sprintf("localhost:%d", startingPort),
+			httpApi:           server,
+			operationHandlers: make(map[types.OperationType]operationHandler),
 		}
+		instance.setOperationHandler(types.OperationType(spf.StateAwaitParticipantsConfirmations), instance.awaitParticipantConfirmationsHandler)
+		nodes[nodeID] = instance
 		startingPort++
 	}
 
@@ -338,6 +345,10 @@ func signBatchMessages(dkgID []byte, msg map[string][]byte, addr string) ([]byte
 	return messageDataBz, nil
 }
 
+func (n *nodeInstance) setOperationHandler(operationType types.OperationType, handler operationHandler) {
+	n.operationHandlers[operationType] = handler
+}
+
 func (n *nodeInstance) run(callback processedOperationCallback, ctx context.Context) {
 	for {
 		select {
@@ -358,70 +369,82 @@ func (n *nodeInstance) run(callback processedOperationCallback, ctx context.Cont
 
 			n.client.GetLogger().Log("Got %d Operations from pool", len(operations))
 			for _, operation := range operations {
-				if fsm.State(operation.Type) == spf.StateAwaitParticipantsConfirmations {
-					payloadBz, err := json.Marshal(map[string]string{"operationID": operation.ID})
-					if err != nil {
-						panic(fmt.Sprintf("failed to marshal payload: %v", err))
-					}
-
-					resp, err := http.Post(fmt.Sprintf("http://%s/approveDKGParticipation", n.listenAddr), "application/json", bytes.NewReader(payloadBz))
-					if err != nil {
-						panic(fmt.Sprintf("failed to make HTTP request to get operation: %v", err))
-					}
-
-					responseBody, err := ioutil.ReadAll(resp.Body)
-					if err != nil {
-						panic(fmt.Sprintf("failed to read body %v", err))
-					}
-					resp.Body.Close()
-
-					var response responses.BaseResponse
-					if err = json.Unmarshal(responseBody, &response); err != nil {
-						panic(fmt.Sprintf("failed to unmarshal response: %v", err))
-					}
-					if response.ErrorMessage != "" {
-						panic(fmt.Sprintf("failed to approve participation: %s", response.ErrorMessage))
-					}
-					continue
+				handler, ex := n.operationHandlers[operation.Type]
+				if !ex {
+					handler = n.defaultOperationHandler
 				}
-				n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
-				processedOperation, err := n.air.GetOperationResult(*operation)
-				if err != nil {
-					n.client.GetLogger().Log("Failed to handle operation: %v", err)
+				if err := handler(operation, callback); err != nil {
+					panic(err)
 				}
-
-				n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
-					operation.Type, processedOperation.Event)
-
-				// for integration tests
-				if processedOperation.Event == dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived {
-					msg := processedOperation.ResultMsgs[0]
-					var pubKeyReq requests.DKGProposalMasterKeyConfirmationRequest
-					if err = json.Unmarshal(msg.Data, &pubKeyReq); err != nil {
-						panic(fmt.Sprintf("failed to unmarshal pubKey request: %v", err))
-					}
-					if err = ioutil.WriteFile(fmt.Sprintf("/tmp/participant_%d.pubkey",
-						pubKeyReq.ParticipantId), []byte(hex.EncodeToString(pubKeyReq.MasterKey)), 0666); err != nil {
-						panic(fmt.Sprintf("failed to write pubkey to temp file: %v", err))
-					}
-				}
-
-				if callback != nil {
-					callback(n, &processedOperation)
-				}
-
-				if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
-					processedOperation); err != nil {
-					n.client.GetLogger().Log("Failed to handle processed operation: %v", err)
-				} else {
-					n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
-				}
-
-				time.Sleep(1 * time.Second)
 			}
 			time.Sleep(1 * time.Second)
 		}
 	}
+}
+
+func (n *nodeInstance) awaitParticipantConfirmationsHandler(operation *types.Operation, _ processedOperationCallback) error {
+	payloadBz, err := json.Marshal(map[string]string{"operationID": operation.ID})
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %w", err)
+	}
+
+	resp, err := http.Post(fmt.Sprintf("http://%s/approveDKGParticipation", n.listenAddr), "application/json", bytes.NewReader(payloadBz))
+	if err != nil {
+		return fmt.Errorf("failed to make HTTP request to get operation: %w", err)
+	}
+
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read body %w", err)
+	}
+	resp.Body.Close()
+
+	var response responses.BaseResponse
+	if err = json.Unmarshal(responseBody, &response); err != nil {
+		return fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	if response.ErrorMessage != "" {
+		return fmt.Errorf("failed to approve participation: %s", response.ErrorMessage)
+	}
+	return nil
+}
+
+func (n *nodeInstance) defaultOperationHandler(operation *types.Operation, callback processedOperationCallback) error {
+	n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
+	processedOperation, err := n.air.GetOperationResult(*operation)
+	if err != nil {
+		n.client.GetLogger().Log("Failed to handle operation: %v", err)
+	}
+
+	n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
+		operation.Type, processedOperation.Event)
+
+	// for integration tests
+	if processedOperation.Event == dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived {
+		msg := processedOperation.ResultMsgs[0]
+		var pubKeyReq requests.DKGProposalMasterKeyConfirmationRequest
+		if err = json.Unmarshal(msg.Data, &pubKeyReq); err != nil {
+			panic(fmt.Sprintf("failed to unmarshal pubKey request: %v", err))
+		}
+		if err = ioutil.WriteFile(fmt.Sprintf("/tmp/participant_%d.pubkey",
+			pubKeyReq.ParticipantId), []byte(hex.EncodeToString(pubKeyReq.MasterKey)), 0666); err != nil {
+			panic(fmt.Sprintf("failed to write pubkey to temp file: %v", err))
+		}
+	}
+
+	if callback != nil {
+		callback(n, &processedOperation)
+	}
+
+	if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
+		processedOperation); err != nil {
+		n.client.GetLogger().Log("Failed to handle processed operation: %v", err)
+	} else {
+		n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
+	}
+
+	time.Sleep(1 * time.Second)
+	return nil
 }
 
 func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCallback) context.CancelFunc {
@@ -900,9 +923,8 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 
 	time.Sleep(10 * time.Second)
 
-	var newNodes = make([]*nodeInstance, numNodes)
 	var newStoragePath = "/tmp/dc4bc_new_storage"
-	newNodes, err = initNodes(numNodes, startingPort, newStoragePath, topic, mnemonics)
+	newNodes, err := initNodes(numNodes, startingPort, newStoragePath, topic, mnemonics)
 	if err != nil {
 		t.Fatalf("Failed to init nodes, err: %v", err)
 	}
