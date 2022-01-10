@@ -236,7 +236,7 @@ func handleProcessedOperation(url string, operation types.Operation) error {
 	}
 	resp, err := http.Post(url, "application/json", bytes.NewReader(operationBz))
 	if err != nil {
-		return fmt.Errorf("failed to handle processed operation %w", err)
+		return fmt.Errorf("request to node API failed: %w", err)
 	}
 	defer resp.Body.Close()
 	responseBody, err := ioutil.ReadAll(resp.Body)
@@ -249,7 +249,7 @@ func handleProcessedOperation(url string, operation types.Operation) error {
 		return fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 	if response.ErrorMessage != "" {
-		return fmt.Errorf("failed to handle processed operation: %s", response.ErrorMessage)
+		return fmt.Errorf("node returned an error response: %s", response.ErrorMessage)
 	}
 	return nil
 }
