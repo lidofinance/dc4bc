@@ -17,33 +17,30 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lidofinance/dc4bc/airgapped"
 	"github.com/lidofinance/dc4bc/client/api/dto"
-	oprepo "github.com/lidofinance/dc4bc/client/repositories/operation"
-	sigrepo "github.com/lidofinance/dc4bc/client/repositories/signature"
-	"github.com/lidofinance/dc4bc/client/services/fsmservice"
-	"github.com/lidofinance/dc4bc/client/services/operation"
-	"github.com/lidofinance/dc4bc/client/services/signature"
-
 	"github.com/lidofinance/dc4bc/client/api/http_api"
-	"github.com/lidofinance/dc4bc/client/api/http_api/responses"
+	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"
+	api_responses "github.com/lidofinance/dc4bc/client/api/http_api/responses"
 	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	state2 "github.com/lidofinance/dc4bc/client/modules/state"
+	oprepo "github.com/lidofinance/dc4bc/client/repositories/operation"
+	sigrepo "github.com/lidofinance/dc4bc/client/repositories/signature"
 	"github.com/lidofinance/dc4bc/client/services"
+	"github.com/lidofinance/dc4bc/client/services/fsmservice"
 	"github.com/lidofinance/dc4bc/client/services/node"
-
-	"github.com/lidofinance/dc4bc/storage"
-
-	"github.com/lidofinance/dc4bc/fsm/fsm"
-	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
-	"github.com/lidofinance/dc4bc/storage/file_storage"
-
-	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"
-
-	"github.com/lidofinance/dc4bc/airgapped"
+	"github.com/lidofinance/dc4bc/client/services/operation"
+	"github.com/lidofinance/dc4bc/client/services/signature"
 	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
+	signature_fsm "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	signing_fsm "github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	fsm_responses "github.com/lidofinance/dc4bc/fsm/types/responses"
+	"github.com/lidofinance/dc4bc/storage"
+	"github.com/lidofinance/dc4bc/storage/file_storage"
 )
 
 var (
@@ -59,6 +56,8 @@ var sigReconstructedRegexp = regexp.MustCompile(`(?m)\[node_\d] Successfully pro
 var sigReconstructionStarted = regexp.MustCompile(`(?m)\[node_\d] Collected enough partial signatures. Full signature reconstruction just started`)
 
 var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
+
+var processOperationPayloadMismatchRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to handle processed operation: node returned an error response: processed operation does not match stored operation: o1.Payload .+ != o2.Payload .+`)
 
 type operationHandler func(operation *types.Operation, callback processedOperationCallback) error
 
@@ -203,7 +202,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			httpApi:           server,
 			operationHandlers: make(map[types.OperationType]operationHandler),
 		}
-		instance.setOperationHandler(types.OperationType(spf.StateAwaitParticipantsConfirmations), instance.awaitParticipantConfirmationsHandler)
+		instance.setOperationHandler(types.OperationType(signature_fsm.StateAwaitParticipantsConfirmations), instance.awaitParticipantConfirmationsHandler)
 		nodes[nodeID] = instance
 		startingPort++
 	}
@@ -244,7 +243,7 @@ func handleProcessedOperation(url string, operation types.Operation) error {
 		return fmt.Errorf("failed to read body %v", err)
 	}
 
-	var response responses.BaseResponse
+	var response api_responses.BaseResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return fmt.Errorf("failed to unmarshal response: %w", err)
 	}
@@ -304,7 +303,7 @@ func signMessage(dkgID []byte, msg, addr string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read HTTP response body: %w", err)
 	}
 
-	var response responses.BaseResponse
+	var response api_responses.BaseResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal HTTP response body: %w", err)
 	}
@@ -334,7 +333,7 @@ func signBatchMessages(dkgID []byte, msg map[string][]byte, addr string) ([]byte
 		return nil, fmt.Errorf("failed to read HTTP response body: %w", err)
 	}
 
-	var response responses.BaseResponse
+	var response api_responses.BaseResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal HTTP response body: %w", err)
 	}
@@ -399,7 +398,7 @@ func (n *nodeInstance) awaitParticipantConfirmationsHandler(operation *types.Ope
 	}
 	resp.Body.Close()
 
-	var response responses.BaseResponse
+	var response api_responses.BaseResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return fmt.Errorf("failed to unmarshal response: %w", err)
 	}
@@ -445,6 +444,29 @@ func (n *nodeInstance) defaultOperationHandler(operation *types.Operation, callb
 
 	time.Sleep(1 * time.Second)
 	return nil
+}
+
+func (n *nodeInstance) editAndSignMessageHandler(operation *types.Operation, callback processedOperationCallback) error {
+	var operationPayload fsm_responses.SigningPartialSignsParticipantInvitationsResponse
+	err := json.Unmarshal(operation.Payload, &operationPayload)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal operation payload: %w", err)
+	}
+
+	var msgs []*requests.MessageToSign
+	if err = json.Unmarshal(operationPayload.SrcPayload, &msgs); err != nil {
+		return fmt.Errorf("failed to unmarshal messages to sign: %w", err)
+	}
+
+	msgs[0].Payload = append(msgs[0].Payload, []byte(" edited")...)
+	if operationPayload.SrcPayload, err = json.Marshal(msgs); err != nil {
+		return fmt.Errorf("failed to marshal edited messages to sign: %w", err)
+	}
+
+	if operation.Payload, err = json.Marshal(operationPayload); err != nil {
+		return fmt.Errorf("failed to marshal edited operation payload: %w", err)
+	}
+	return n.defaultOperationHandler(operation, callback)
 }
 
 func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCallback) context.CancelFunc {
@@ -1039,4 +1061,62 @@ func TestReinitDKGFlow(t *testing.T) {
 
 func TestReinitDKGFlowWithDump0_1_4(t *testing.T) {
 	testReinitDKGFlow(t, true)
+}
+
+func TestModifiedMessageSigned(t *testing.T) {
+	_ = RemoveContents("/tmp", "dc4bc_*")
+	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
+
+	numNodes := 2
+	threshold := 2
+	startingPort := 8085
+	topic := "test_topic"
+	storagePath := "/tmp/dc4bc_storage"
+	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil)
+	if err != nil {
+		t.Fatalf("Failed to init nodes, err: %v", err)
+	}
+
+	maliciousNodeIdx := 0
+	maliciousNode := nodes[maliciousNodeIdx]
+	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.editAndSignMessageHandler)
+	soundNodeIdx := 1
+
+	// Each nodeInstance starts to Poll().
+	runCancel := startServerRunAndPoll(nodes, nil)
+
+	// Last nodeInstance tells other participants to start DKG.
+	messageDataBz, err := startDkg(nodes, threshold)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	time.Sleep(15 * time.Second)
+
+	log.Println("Propose message to sign")
+
+	dkgID := sha256.Sum256(messageDataBz)
+	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[soundNodeIdx].listenAddr)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	time.Sleep(10 * time.Second)
+
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 70); matches != 0 {
+			t.Fatalf("signature reconstruction should not have started")
+		}
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 0 {
+			t.Fatalf("signature should not have been reconstructured")
+		}
+	}
+	if matches := maliciousNode.clientLogger.checkLogsWithRegexp(processOperationPayloadMismatchRegexp, 70); matches == 0 {
+		t.Fatalf("an operations mismatch error is expected for the malicious node")
+	}
+
+	runCancel()
+	for _, node := range nodes {
+		node.httpApi.Stop(node.ctx)
+		node.clientCancel()
+	}
 }
