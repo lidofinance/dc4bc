@@ -79,7 +79,7 @@ func (o *Operation) Equal(o2 *Operation) error {
 	}
 
 	if !bytes.Equal(o.Payload, o2.Payload) {
-		return fmt.Errorf("o1.Payload (%v) != o2.Payload (%v)", o.Payload, o2.Payload)
+		return fmt.Errorf("o1.Payload (%s) != o2.Payload (%s)", o.Payload, o2.Payload)
 	}
 
 	return nil
