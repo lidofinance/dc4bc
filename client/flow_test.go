@@ -503,7 +503,7 @@ func TestStandardFlow(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	log.Println("Propose message to sign")
 
@@ -702,7 +702,7 @@ func TestResetStateFlow(t *testing.T) {
 	log.Print("\n\n\nStopping nodes and resetting their states\n\n\n")
 
 	runCancel()
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	// Searching for an injected error message to ignore it and eventually recover aborted DKG
 	msgs, err := nodes[0].storage.GetMessages(0)
@@ -733,7 +733,7 @@ func TestResetStateFlow(t *testing.T) {
 		}
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	runCtx, runCancel := context.WithCancel(context.Background())
 	for _, n := range nodes {
@@ -898,7 +898,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		t.Fatalf(err.Error())
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	var newNodes = make([]*nodeInstance, numNodes)
 	var newStoragePath = "/tmp/dc4bc_new_storage"
@@ -953,7 +953,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		t.Fatalf("failed to send HTTP request to reinit DKG: %v\n", err)
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	messageDataBz, err = signBatchMessages(dkgID[:], messagesToSign, nodes[len(nodes)-1].listenAddr)
 	if err != nil {
