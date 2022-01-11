@@ -39,11 +39,12 @@ import (
 )
 
 const (
-	flagListenAddr         = "listen_addr"
-	flagJSONFilesFolder    = "json_files_folder"
-	flagNewStateDBDSN      = "new_state_dbdsn"
-	flagUseOffsetInsteadId = "use_offset_instead_id"
-	flagKafkaConsumerGroup = "kafka_consumer_group"
+	flagListenAddr              = "listen_addr"
+	flagJSONFilesFolder         = "json_files_folder"
+	flagPrintFullSignaturesInfo = "print_full_signatures_info"
+	flagNewStateDBDSN           = "new_state_dbdsn"
+	flagUseOffsetInsteadId      = "use_offset_instead_id"
+	flagKafkaConsumerGroup      = "kafka_consumer_group"
 )
 
 var (
@@ -65,6 +66,7 @@ var (
 func init() {
 	rootCmd.PersistentFlags().String(flagListenAddr, "localhost:8080", "Listen Address")
 	rootCmd.PersistentFlags().String(flagJSONFilesFolder, "/tmp", "Folder to save JSON files")
+	rootCmd.PersistentFlags().Bool(flagPrintFullSignaturesInfo, false, "Print full signatures info (each participant)")
 
 	refreshStateCmd.Flags().BoolVarP(&useOffset, flagUseOffsetInsteadId, "o", false,
 		"Ignore messages by offset instead of ids")
@@ -87,7 +89,7 @@ func main() {
 		getPubKeyCommand(),
 		getHashOfStartDKGCommand(),
 		getHashOfReinitDKGMessageCommand(),
-		getSignaturesCommand(),
+		exportSignaturesCommand(),
 		getSignatureCommand(),
 		saveOffsetCommand(),
 		getOffsetCommand(),
@@ -230,11 +232,11 @@ func getSignaturesRequest(host string, dkgID string) (*SignaturesResponse, error
 	return &response, nil
 }
 
-func getSignaturesCommand() *cobra.Command {
+func exportSignaturesCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get_signatures [dkgID]",
+		Use:   "export_signatures [dkgID]",
 		Args:  cobra.ExactArgs(1),
-		Short: "returns all signatures for the given DKG round that were reconstructed on the airgapped machine",
+		Short: "export all signatures for the given DKG to JSON",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
@@ -243,7 +245,12 @@ func getSignaturesCommand() *cobra.Command {
 
 			jsonOutputFolder, err := cmd.Flags().GetString(flagJSONFilesFolder)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read flagJSONFilesFolder: %v", err)
+			}
+
+			printFullSignaturesInfo, err := cmd.Flags().GetBool(flagPrintFullSignaturesInfo)
+			if err != nil {
+				return fmt.Errorf("failed to read flagPrintFullSignaturesInfo: %v", err)
 			}
 
 			dkgID := args[0]
@@ -251,47 +258,62 @@ func getSignaturesCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get signatures: %w", err)
 			}
+
 			if signatures.ErrorMessage != "" {
 				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
 			}
+
 			if len(signatures.Result) == 0 {
 				fmt.Printf("No signatures found for dkgID %s", dkgID)
 				return nil
 			}
-			for sigID, signature := range signatures.Result {
-				fmt.Printf("Signing ID: %s\n", sigID)
-				for _, participantSig := range signature {
-					fmt.Printf("\tDKG round ID: %s\n", participantSig.DKGRoundID)
-					fmt.Printf("\tParticipant: %s\n", participantSig.Username)
-					fmt.Printf("\tReconstructed signature for the data: %s\n", base64.StdEncoding.EncodeToString(participantSig.Signature))
-					fmt.Println()
+
+			if printFullSignaturesInfo {
+				for sigID, signature := range signatures.Result {
+					fmt.Printf("Signing ID: %s\n", sigID)
+					for _, participantSig := range signature {
+						fmt.Printf("\tDKG round ID: %s\n", participantSig.DKGRoundID)
+						fmt.Printf("\tParticipant: %s\n", participantSig.Username)
+						fmt.Printf("\tReconstructed signature for the data: %s\n", base64.StdEncoding.EncodeToString(participantSig.Signature))
+						fmt.Println()
+					}
 				}
 			}
 
-			if jsonOutputFolder == "" {
-				return nil
-			}
+			filename := fmt.Sprintf("dkg_signatures_dump_%s.json", dkgID[:5])
 
-			filename := fmt.Sprintf("%s.json", dkgID)
-
-			f, err := os.OpenFile(jsonOutputFolder+filename, os.O_WRONLY|os.O_CREATE, 0600)
+			f, err := os.OpenFile(path.Join(jsonOutputFolder, filename), os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
 				return fmt.Errorf("failed to open file: %w", err)
 			}
 
 			defer f.Close()
 
-			bytes, err := json.Marshal(signatures.Result)
+			var output = map[string]interface{}{}
+			for messageID, entries := range signatures.Result {
+				if len(entries) == 0 {
+					return fmt.Errorf("no reconstructed signatures found for message %s", messageID)
+				}
+				output[messageID] = struct {
+					Payload   []byte `json:"payload_base64"`
+					Signature []byte `json:"signature"`
+				}{
+					Payload:   entries[0].SrcPayload,
+					Signature: entries[0].Signature,
+				}
+			}
+
+			bz, err := json.Marshal(output)
 			if err != nil {
 				return fmt.Errorf("failed to marshal result: %w", err)
 			}
 
-			_, err = f.Write(bytes)
+			_, err = f.Write(bz)
 			if err != nil {
 				return fmt.Errorf("failed to write file: %w", err)
 			}
 
-			fmt.Printf("json file was saved to: %s\n", jsonOutputFolder)
+			fmt.Printf("json file was saved to: %s\n", path.Join(jsonOutputFolder, filename))
 
 			return nil
 		},
@@ -317,7 +339,7 @@ func getSignatureRequest(host string, dkgID, dataHash string) (*SignatureRespons
 
 func getSignatureCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get_signature [dkgID] [signing_id]",
+		Use:   "get_signature [dkgID] [batch_id]",
 		Args:  cobra.ExactArgs(2),
 		Short: "returns a list of reconstructed signatures of the signed data broadcasted by users",
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -344,7 +366,7 @@ func getSignatureCommand() *cobra.Command {
 
 func getSignatureDataCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:   "get_signature_data [dkgID] [signing_id]",
+		Use:   "get_signature_data [dkgID] [batch_id]",
 		Args:  cobra.ExactArgs(2),
 		Short: "returns a data which was signed",
 		RunE: func(cmd *cobra.Command, args []string) error {
