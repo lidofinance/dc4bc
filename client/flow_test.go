@@ -414,21 +414,11 @@ func (n *nodeInstance) defaultOperationHandler(operation *types.Operation, callb
 	if err != nil {
 		n.client.GetLogger().Log("Failed to handle operation: %v", err)
 	}
-
 	n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
 		operation.Type, processedOperation.Event)
 
-	// for integration tests
-	if processedOperation.Event == dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived {
-		msg := processedOperation.ResultMsgs[0]
-		var pubKeyReq requests.DKGProposalMasterKeyConfirmationRequest
-		if err = json.Unmarshal(msg.Data, &pubKeyReq); err != nil {
-			panic(fmt.Sprintf("failed to unmarshal pubKey request: %v", err))
-		}
-		if err = ioutil.WriteFile(fmt.Sprintf("/tmp/participant_%d.pubkey",
-			pubKeyReq.ParticipantId), []byte(hex.EncodeToString(pubKeyReq.MasterKey)), 0666); err != nil {
-			panic(fmt.Sprintf("failed to write pubkey to temp file: %v", err))
-		}
+	if err := handleFinishDKG(processedOperation); err != nil {
+		return err
 	}
 
 	if callback != nil {
@@ -467,6 +457,23 @@ func (n *nodeInstance) editAndSignMessageHandler(operation *types.Operation, cal
 		return fmt.Errorf("failed to marshal edited operation payload: %w", err)
 	}
 	return n.defaultOperationHandler(operation, callback)
+}
+
+
+// handleFinishDKG is used for integration tests.
+func handleFinishDKG(operation types.Operation) error {
+	if operation.Event == dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived {
+		msg := operation.ResultMsgs[0]
+		var pubKeyReq requests.DKGProposalMasterKeyConfirmationRequest
+		if err := json.Unmarshal(msg.Data, &pubKeyReq); err != nil {
+			return fmt.Errorf("failed to unmarshal pubKey request: %w", err)
+		}
+		if err := ioutil.WriteFile(fmt.Sprintf("/tmp/participant_%d.pubkey",
+			pubKeyReq.ParticipantId), []byte(hex.EncodeToString(pubKeyReq.MasterKey)), 0666); err != nil {
+			return fmt.Errorf("failed to write pubkey to temp file: %w", err)
+		}
+	}
+	return nil
 }
 
 func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCallback) context.CancelFunc {
