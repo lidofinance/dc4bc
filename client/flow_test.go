@@ -59,6 +59,8 @@ var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d go
 
 var processOperationPayloadMismatchRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to handle processed operation: node returned an error response: processed operation does not match stored operation: o1.Payload .+ != o2.Payload .+`)
 
+var failedSignRecoverRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to process message with offset \d{0,3}: failed to reconstruct signatures: failed to reconstruct full signature for msg [\d\w-]+: .+`)
+
 type operationHandler func(operation *types.Operation, callback processedOperationCallback) error
 
 type nodeInstance struct {
@@ -436,6 +438,8 @@ func (n *nodeInstance) defaultOperationHandler(operation *types.Operation, callb
 	return nil
 }
 
+// editAndSignMessageHandler is an operationHandler that edits the content of the message that has
+// been proposed to be signed.
 func (n *nodeInstance) editAndSignMessageHandler(operation *types.Operation, callback processedOperationCallback) error {
 	var operationPayload fsm_responses.SigningPartialSignsParticipantInvitationsResponse
 	err := json.Unmarshal(operation.Payload, &operationPayload)
@@ -459,6 +463,29 @@ func (n *nodeInstance) editAndSignMessageHandler(operation *types.Operation, cal
 	return n.defaultOperationHandler(operation, callback)
 }
 
+// junkSignMessageHandler is an operationHandler that spoofs the airgapped response signature.
+func (n *nodeInstance) junkSignMessageHandler(operation *types.Operation, _ processedOperationCallback) error {
+	n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
+	processedOperation, err := n.air.GetOperationResult(*operation)
+	if err != nil {
+		n.client.GetLogger().Log("Failed to handle operation: %v", err)
+	}
+	n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
+		operation.Type, processedOperation.Event)
+	if err := spoofSignature(processedOperation); err != nil {
+		return err
+	}
+
+	if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
+		processedOperation); err != nil {
+		n.client.GetLogger().Log("Failed to handle processed operation: %v", err)
+	} else {
+		n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
+	}
+
+	time.Sleep(1 * time.Second)
+	return nil
+}
 
 // handleFinishDKG is used for integration tests.
 func handleFinishDKG(operation types.Operation) error {
@@ -473,6 +500,21 @@ func handleFinishDKG(operation types.Operation) error {
 			return fmt.Errorf("failed to write pubkey to temp file: %w", err)
 		}
 	}
+	return nil
+}
+
+// spoofSignature replaces the first operation message signature with a junk one.
+func spoofSignature(operation types.Operation) error {
+	var messageData requests.SigningProposalBatchPartialSignRequests
+	if err := json.Unmarshal(operation.ResultMsgs[0].Data, &messageData); err != nil {
+		return fmt.Errorf("failed to unmarshal message data: %w", err)
+	}
+	messageData.PartialSigns[0].Sign = []byte("junk message")
+	messageDataEncoded, err := json.Marshal(messageData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal edited message data: %w", err)
+	}
+	operation.ResultMsgs[0].Data = messageDataEncoded
 	return nil
 }
 
@@ -1118,7 +1160,65 @@ func TestModifiedMessageSigned(t *testing.T) {
 		}
 	}
 	if matches := maliciousNode.clientLogger.checkLogsWithRegexp(processOperationPayloadMismatchRegexp, 70); matches == 0 {
-		t.Fatalf("an operations mismatch error is expected for the malicious node")
+		t.Fatalf("an operations' payloads mismatch error is expected for the malicious node")
+	}
+
+	runCancel()
+	for _, node := range nodes {
+		node.httpApi.Stop(node.ctx)
+		node.clientCancel()
+	}
+}
+
+func TestJunkPartialSignature(t *testing.T) {
+	_ = RemoveContents("/tmp", "dc4bc_*")
+	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
+
+	numNodes := 2
+	threshold := 2
+	startingPort := 8085
+	topic := "test_topic"
+	storagePath := "/tmp/dc4bc_storage"
+	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil)
+	if err != nil {
+		t.Fatalf("Failed to init nodes, err: %v", err)
+	}
+
+	maliciousNodeIdx := 0
+	maliciousNode := nodes[maliciousNodeIdx]
+	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.junkSignMessageHandler)
+	soundNodeIdx := 1
+
+	// Each nodeInstance starts to Poll().
+	runCancel := startServerRunAndPoll(nodes, nil)
+
+	// Last nodeInstance tells other participants to start DKG.
+	messageDataBz, err := startDkg(nodes, threshold)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	time.Sleep(15 * time.Second)
+
+	log.Println("Propose message to sign")
+
+	dkgID := sha256.Sum256(messageDataBz)
+	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[soundNodeIdx].listenAddr)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	time.Sleep(10 * time.Second)
+
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 70); matches != 1 {
+			t.Fatalf("signature reconstruction should have started")
+		}
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 0 {
+			t.Fatalf("signature should not have been reconstructured")
+		}
+		if matches := n.clientLogger.checkLogsWithRegexp(failedSignRecoverRegexp, 70); matches != 1 {
+			t.Fatalf("signature reconstruction should have failed")
+		}
 	}
 
 	runCancel()
