@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sync"
 	"testing"
 	"time"
 
@@ -64,16 +65,17 @@ var failedSignRecoverRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to proce
 type operationHandler func(operation *types.Operation, callback processedOperationCallback) error
 
 type nodeInstance struct {
-	ctx          context.Context
-	client       node.NodeService
-	sigService   signature.SignatureService
-	clientCancel context.CancelFunc
-	clientLogger *savingLogger
-	storage      storage.Storage
-	keyPair      *keystore.KeyPair
-	air          *airgapped.Machine
-	listenAddr   string
-	httpApi      *http_api.RESTApiProvider
+	ctx                 context.Context
+	client              node.NodeService
+	sigService          signature.SignatureService
+	clientCancel        context.CancelFunc
+	clientLogger        *savingLogger
+	storage             storage.Storage
+	keyPair             *keystore.KeyPair
+	air                 *airgapped.Machine
+	listenAddr          string
+	httpApi             *http_api.RESTApiProvider
+	operationHandlersMu *sync.Mutex
 	// operationHandlers allows to define special handlers for some operations
 	operationHandlers map[types.OperationType]operationHandler
 }
@@ -192,17 +194,18 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 		server := http_api.NewRESTApi(&cfg, clt, &sp)
 
 		instance := &nodeInstance{
-			ctx:               ctx,
-			client:            clt,
-			clientCancel:      cancel,
-			clientLogger:      logger,
-			storage:           stg,
-			keyPair:           keyPair,
-			sigService:        sigService,
-			air:               airgappedMachine,
-			listenAddr:        fmt.Sprintf("localhost:%d", startingPort),
-			httpApi:           server,
-			operationHandlers: make(map[types.OperationType]operationHandler),
+			ctx:                 ctx,
+			client:              clt,
+			clientCancel:        cancel,
+			clientLogger:        logger,
+			storage:             stg,
+			keyPair:             keyPair,
+			sigService:          sigService,
+			air:                 airgappedMachine,
+			listenAddr:          fmt.Sprintf("localhost:%d", startingPort),
+			httpApi:             server,
+			operationHandlersMu: &sync.Mutex{},
+			operationHandlers:   make(map[types.OperationType]operationHandler),
 		}
 		instance.setOperationHandler(types.OperationType(signature_fsm.StateAwaitParticipantsConfirmations), instance.awaitParticipantConfirmationsHandler)
 		nodes[nodeID] = instance
@@ -347,7 +350,15 @@ func signBatchMessages(dkgID []byte, msg map[string][]byte, addr string) ([]byte
 }
 
 func (n *nodeInstance) setOperationHandler(operationType types.OperationType, handler operationHandler) {
+	n.operationHandlersMu.Lock()
+	defer n.operationHandlersMu.Unlock()
 	n.operationHandlers[operationType] = handler
+}
+
+func (n *nodeInstance) getOperationHandler(operationType types.OperationType) operationHandler {
+	n.operationHandlersMu.Lock()
+	defer n.operationHandlersMu.Unlock()
+	return n.operationHandlers[operationType]
 }
 
 func (n *nodeInstance) run(callback processedOperationCallback, ctx context.Context) {
@@ -370,8 +381,8 @@ func (n *nodeInstance) run(callback processedOperationCallback, ctx context.Cont
 
 			n.client.GetLogger().Log("Got %d Operations from pool", len(operations))
 			for _, operation := range operations {
-				handler, ex := n.operationHandlers[operation.Type]
-				if !ex {
+				handler := n.getOperationHandler(operation.Type)
+				if handler == nil {
 					handler = n.defaultOperationHandler
 				}
 				if err := handler(operation, callback); err != nil {
@@ -1161,6 +1172,18 @@ func TestModifiedMessageSigned(t *testing.T) {
 	}
 	if matches := maliciousNode.clientLogger.checkLogsWithRegexp(processOperationPayloadMismatchRegexp, 70); matches == 0 {
 		t.Fatalf("an operations' payloads mismatch error is expected for the malicious node")
+	}
+
+	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.defaultOperationHandler)
+	fmt.Println("Sign message again without malware")
+	time.Sleep(5 * time.Second)
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 70); matches != 1 {
+			t.Fatalf("signature reconstruction should have started for all nodes")
+		}
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 2 {
+			t.Fatalf("signature reconstruction should have succeeded for all nodes")
+		}
 	}
 
 	runCancel()
