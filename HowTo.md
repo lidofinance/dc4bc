@@ -163,13 +163,13 @@ Example of start_dkg_propose.json file structure:
   "Participants": [
     {
       "Username": "john_doe",
-      "PubKey": "EcVs+nTi4iFERVeBHUPePDmvknBx95co7csKj0sZNuo=",
-      "DkgPubKey": "sN7XbnvZCRtg650dVCCpPK/hQ/rMTSlxrdnvzJ75zV4W/Uzk9suvjNPtyRt7PDXLDTGNimn+4X/FcJj2K6vDdgqOrr9BHwMqJXnQykcv3IV0ggIUjpMMgdbQ+0iSseyq"
+      "PubKey": "GW7lJ6ojeOQYtIKU6y3/LghSFo1N9Rq5rGBwMRKRl8o=",
+      "DkgPubKey": "hV+MxO1iPIWH/T3Y4kspQTE0uLzYsaTcWK88bGbhoVYBGuP59hs/jhrhkTvDiF2y"
     },
     {
       "Username": "jane_doe",
-      "PubKey": "cHVia2V5Mg==",
-      "DkgPubKey": "ZGtnX3B1YmtleV8y"
+      "PubKey": "WCOSdutt0SkbYiNy/XENfvx1fYErM3Y41I517fHhX9c=",
+      "DkgPubKey": "p00s39o7fsWBu5ldRW+VBeMJup3SGMw4jLIg79lAXRG+D6UIF8mw5M4dTVgB58g7"
     }
   ]
 }
@@ -301,6 +301,8 @@ $ echo "the message to sign" > data.txt
 $ ./dc4bc_cli sign_data c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 data.txt --listen_addr localhost:8080
 ```
 
+**Note: if you want to sign a batch of messages, create a new directory, put all messages in separate files in that directory and use the `./dc4bc_cli sign_batch_data [dkg_id] [messages_dir]` command.**
+
 As the result, all participants will get a new operation suggesting them to partially sign the proposed message:
 ```
 $ ./dc4bc_cli get_operations --listen_addr localhost:8080
@@ -310,7 +312,7 @@ Please, select operation:
                 Operation ID: 6a42609eb81c6a733d8ff4bb511b0d35
                 Description: send your partial sign for the message
                 Hash of the data to sign - 4a80926796c7646c1a50accf0477ea4ffb2e3ad55eacf083ce7ca472c4219bbf
-                Signing ID: 1ad6a966-64d1-4a1a-ad96-022790cf57f0
+                Batch ID: 1ad6a966-64d1-4a1a-ad96-022790cf57f0
 -----------------------------------------------------
 Select operation and press Enter. Ctrl+C for cancel
 ```
@@ -320,11 +322,24 @@ But before signing, spend some time on taking a look at what you're about to sig
 
 At this point the other participants would probably like to take a look at the message they've been proposed to sign. To do so, they can run the following command that reveals a list of all messages related to a given DKG round as well as the messages signing IDs and hashes.
 ```
-./dc4bc_cli get_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
-Signing ID: ca800cac-2c13-4a14-8ca3-72c36112c5e4
-                DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
-                Participant: john_doe
-                Reconstructed signature for the data:
+./dc4bc_cli export_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 --json_files_folder /tmp/
+json file was saved to: /tmp/dkg_signatures_dump_cc1e5.json
+```
+
+You can view the file with:
+
+```
+cat /tmp/dkg_signatures_dump_cc1e5.json | jq
+{
+  "665b9621-8fd0-454c-8294-c9466f5dce8f": {
+    "payload_base64": "bWVzc2FnZSAyCg==",
+    "signature": "sXQD+89/6+dtR7vuSFWK4DERFD1ygEvkA/AcYhKj1L/TRWARzhR7lj/i0qCwY8aDDRnEiEihZsXpIMwFnopeycnAhmAcBDyf2Mekpbc3Vrim9RCcNrxFqzHGTFC95kqD"
+  },
+  "c9e50034-112d-46c5-ad64-e718dccf8dd6": {
+    "payload_base64": "bWVzc2FnZSAxCg==",
+    "signature": "kWOAJ2QejehdUkMkOn3qhW430fcxrc2wdS6vlxpP9fOrTzYDgjCWWZtRJFfUILpxFOB5IWgQEI/BC/uDJM4AZNEX4tjucmgwx37hjMaE3qbc/rtS59IjLBnbeNYdM9ae"
+  }
+}
 ```
 
 Then it's possible to reveal a message data by running the following command:
@@ -359,9 +374,9 @@ Received data from: john_doe
 Successfully processed message with offset 40, type signature_reconstructed
 ```
 
-By performing the recover operation participants reconstructure the signature using the collected partial signs and share the reconstructured signatures between each other. These signatures get stored then and can be viewed at any time by running the following command that will show you a list of broadcasted reconstructed signatures for a given DKG round.
+By performing the recover operation participants reconstructure the signature using the collected partial signs and share the reconstructed signatures between each other. These signatures get stored then and can be viewed at any time by running the following command that will show you a list of broadcasted reconstructed signatures for a given DKG round.
 ```
-./dc4bc_cli get_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+./dc4bc_cli export_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 --print_only
 Signing ID: ca800cac-2c13-4a14-8ca3-72c36112c5e4
                 DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
                 Participant: john_doe

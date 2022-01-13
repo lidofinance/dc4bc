@@ -8,14 +8,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/corestario/kyber/pairing"
-	"github.com/corestario/kyber/pairing/bls12381"
-	"github.com/corestario/kyber/sign/tbls"
-	"github.com/lidofinance/dc4bc/dkg"
 	"log"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/corestario/kyber/pairing"
+	"github.com/corestario/kyber/pairing/bls12381"
+	"github.com/corestario/kyber/sign/tbls"
+	"github.com/lidofinance/dc4bc/dkg"
 
 	"github.com/lidofinance/dc4bc/client/services/fsmservice"
 	"github.com/lidofinance/dc4bc/client/services/operation"
@@ -279,7 +280,7 @@ func (s *BaseNodeService) executeOperation(operation *types.Operation) error {
 	} else {
 		//for now only ReinitDKG can have the OperationProcessed event
 		dkgID := operation.DKGIdentifier
-		fsm, err := s.fsmService.GetFSMInstance(string(dkgID))
+		fsm, err := s.fsmService.GetFSMInstance(string(dkgID), false)
 		if err != nil {
 			return fmt.Errorf("failed to get fsm instance during operation processing: %w", err)
 		}
