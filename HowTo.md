@@ -376,7 +376,7 @@ Successfully processed message with offset 40, type signature_reconstructed
 
 By performing the recover operation participants reconstructure the signature using the collected partial signs and share the reconstructed signatures between each other. These signatures get stored then and can be viewed at any time by running the following command that will show you a list of broadcasted reconstructed signatures for a given DKG round.
 ```
-./dc4bc_cli export_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 --print_full_signatures_info
+./dc4bc_cli export_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 --print_only
 Signing ID: ca800cac-2c13-4a14-8ca3-72c36112c5e4
                 DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
                 Participant: john_doe

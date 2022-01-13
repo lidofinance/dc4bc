@@ -41,7 +41,7 @@ import (
 const (
 	flagListenAddr              = "listen_addr"
 	flagJSONFilesFolder         = "json_files_folder"
-	flagPrintFullSignaturesInfo = "print_full_signatures_info"
+	flagPrintFullSignaturesInfo = "print_only"
 	flagNewStateDBDSN           = "new_state_dbdsn"
 	flagUseOffsetInsteadId      = "use_offset_instead_id"
 	flagKafkaConsumerGroup      = "kafka_consumer_group"
@@ -248,7 +248,7 @@ func exportSignaturesCommand() *cobra.Command {
 				return fmt.Errorf("failed to read flagJSONFilesFolder: %v", err)
 			}
 
-			printFullSignaturesInfo, err := cmd.Flags().GetBool(flagPrintFullSignaturesInfo)
+			printOnly, err := cmd.Flags().GetBool(flagPrintFullSignaturesInfo)
 			if err != nil {
 				return fmt.Errorf("failed to read flagPrintFullSignaturesInfo: %v", err)
 			}
@@ -268,7 +268,7 @@ func exportSignaturesCommand() *cobra.Command {
 				return nil
 			}
 
-			if printFullSignaturesInfo {
+			if printOnly {
 				for sigID, signature := range signatures.Result {
 					fmt.Printf("Signing ID: %s\n", sigID)
 					for _, participantSig := range signature {
@@ -278,6 +278,8 @@ func exportSignaturesCommand() *cobra.Command {
 						fmt.Println()
 					}
 				}
+
+				return nil
 			}
 
 			filename := fmt.Sprintf("dkg_signatures_dump_%s.json", dkgID[:5])
