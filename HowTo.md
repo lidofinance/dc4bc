@@ -162,12 +162,12 @@ Example of start_dkg_propose.json file structure:
   "SigningThreshold": 2,
   "Participants": [
     {
-      "Username": "user1",
+      "Username": "john_doe",
       "PubKey": "GW7lJ6ojeOQYtIKU6y3/LghSFo1N9Rq5rGBwMRKRl8o=",
       "DkgPubKey": "hV+MxO1iPIWH/T3Y4kspQTE0uLzYsaTcWK88bGbhoVYBGuP59hs/jhrhkTvDiF2y"
     },
     {
-      "Username": "user2",
+      "Username": "jane_doe",
       "PubKey": "WCOSdutt0SkbYiNy/XENfvx1fYErM3Y41I517fHhX9c=",
       "DkgPubKey": "p00s39o7fsWBu5ldRW+VBeMJup3SGMw4jLIg79lAXRG+D6UIF8mw5M4dTVgB58g7"
     }
@@ -322,7 +322,7 @@ But before signing, spend some time on taking a look at what you're about to sig
 
 At this point the other participants would probably like to take a look at the message they've been proposed to sign. To do so, they can run the following command that reveals a list of all messages related to a given DKG round as well as the messages signing IDs and hashes.
 ```
-./dc4bc_cli get_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 --json_files_folder /tmp/
+./dc4bc_cli export_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 --json_files_folder /tmp/
 json file was saved to: /tmp/dkg_signatures_dump_cc1e5.json
 ```
 
@@ -374,9 +374,9 @@ Received data from: john_doe
 Successfully processed message with offset 40, type signature_reconstructed
 ```
 
-By performing the recover operation participants reconstructure the signature using the collected partial signs and share the reconstructured signatures between each other. These signatures get stored then and can be viewed at any time by running the following command that will show you a list of broadcasted reconstructed signatures for a given DKG round.
+By performing the recover operation participants reconstructure the signature using the collected partial signs and share the reconstructed signatures between each other. These signatures get stored then and can be viewed at any time by running the following command that will show you a list of broadcasted reconstructed signatures for a given DKG round.
 ```
-./dc4bc_cli get_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
+./dc4bc_cli export_signatures c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2 --print_full_signatures_info
 Signing ID: ca800cac-2c13-4a14-8ca3-72c36112c5e4
                 DKG round ID: c04f3d54718dfc801d1cbe86e3a265f5342ec2550f82c1c3152c36763af3b8f2
                 Participant: john_doe
