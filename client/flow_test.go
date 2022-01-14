@@ -1163,11 +1163,11 @@ func TestModifiedMessageSigned(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	for _, n := range nodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 70); matches != 0 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 50); matches != 0 {
 			t.Fatalf("signature reconstruction should not have started")
 		}
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 0 {
-			t.Fatalf("signature should not have been reconstructured")
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 50); matches != 0 {
+			t.Fatalf("signature should not have been reconstructed")
 		}
 	}
 	if matches := maliciousNode.clientLogger.checkLogsWithRegexp(processOperationPayloadMismatchRegexp, 70); matches == 0 {
@@ -1178,10 +1178,10 @@ func TestModifiedMessageSigned(t *testing.T) {
 	fmt.Println("Sign message again without malware")
 	time.Sleep(5 * time.Second)
 	for _, n := range nodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 70); matches != 1 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 50); matches != 1 {
 			t.Fatalf("signature reconstruction should have started for all nodes")
 		}
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 2 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 50); matches != 2 {
 			t.Fatalf("signature reconstruction should have succeeded for all nodes")
 		}
 	}
@@ -1230,16 +1230,16 @@ func TestJunkPartialSignature(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 
 	for _, n := range nodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 70); matches != 1 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 20); matches != 1 {
 			t.Fatalf("signature reconstruction should have started")
 		}
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 0 {
-			t.Fatalf("signature should not have been reconstructured")
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 20); matches != 0 {
+			t.Fatalf("signature should not have been reconstructed")
 		}
-		if matches := n.clientLogger.checkLogsWithRegexp(failedSignRecoverRegexp, 70); matches != 1 {
+		if matches := n.clientLogger.checkLogsWithRegexp(failedSignRecoverRegexp, 20); matches != 1 {
 			t.Fatalf("signature reconstruction should have failed")
 		}
 	}
