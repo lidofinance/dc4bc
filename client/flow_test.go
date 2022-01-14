@@ -552,7 +552,7 @@ func spoofSignature(operation types.Operation) error {
 	if err := json.Unmarshal(operation.ResultMsgs[0].Data, &messageData); err != nil {
 		return fmt.Errorf("failed to unmarshal message data: %w", err)
 	}
-	messageData.PartialSigns[0].Sign = []byte("junk message")
+	messageData.PartialSigns[0].Sign = []byte("junk signature")
 	messageDataEncoded, err := json.Marshal(messageData)
 	if err != nil {
 		return fmt.Errorf("failed to marshal edited message data: %w", err)
