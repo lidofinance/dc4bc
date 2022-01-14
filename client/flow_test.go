@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -61,6 +62,12 @@ var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d go
 var processOperationPayloadMismatchRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to handle processed operation: node returned an error response: processed operation does not match stored operation: o1.Payload .+ != o2.Payload .+`)
 
 var failedSignRecoverRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to process message with offset \d{0,3}: failed to reconstruct signatures: failed to reconstruct full signature for msg [\d\w-]+: .+`)
+
+var partialSignReceivedNodeRegexp = regexp.MustCompile(`(?m)\[node_\d] message event_signing_partial_sign_received done successfully from (node_\d)`)
+
+var partialSignReceivedOffsetRegexp = regexp.MustCompile(`(?m)\[node_\d] Handling message with offset (\d+), type event_signing_partial_sign_received`)
+
+var failedMessageProcessingOffsetRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to process message with offset (\d{0,3}): .+`)
 
 type operationHandler func(operation *types.Operation, callback processedOperationCallback) error
 
@@ -111,6 +118,31 @@ func (l *savingLogger) checkLogsWithRegexp(re *regexp.Regexp, batchSize int) (ma
 	}
 
 	return matches
+}
+
+// findNodePartialSignMsgOffset returns the offset of the earliest message with the node's partial sign.
+func (l *savingLogger) findNodePartialSignMsgOffset(batchSize int) int {
+	startPos := 0
+	if len(l.logs)-batchSize > 0 {
+		startPos = len(l.logs) - batchSize
+	}
+	logs := l.logs[startPos:]
+	var offset int
+	for _, str := range logs {
+		if matches := partialSignReceivedOffsetRegexp.FindStringSubmatch(str); matches != nil {
+			offset, _ = strconv.Atoi(matches[1])
+		} else if matches := partialSignReceivedNodeRegexp.FindStringSubmatch(str); matches != nil {
+			nodeName := matches[1]
+			if nodeName == l.userName {
+				return offset
+			}
+		}
+	}
+	return -1
+}
+
+func (l *savingLogger) resetLogs() {
+	l.logs = make([]string, 0)
 }
 
 func initNodes(numNodes int, startingPort int, storagePath string, topic string, mnemonics []string) (nodes []*nodeInstance, err error) {
@@ -1211,6 +1243,7 @@ func TestJunkPartialSignature(t *testing.T) {
 	maliciousNode := nodes[maliciousNodeIdx]
 	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.junkSignMessageHandler)
 	soundNodeIdx := 1
+	soundNode := nodes[soundNodeIdx]
 
 	// Each nodeInstance starts to Poll().
 	runCancel := startServerRunAndPoll(nodes, nil)
@@ -1226,7 +1259,7 @@ func TestJunkPartialSignature(t *testing.T) {
 	log.Println("Propose message to sign")
 
 	dkgID := sha256.Sum256(messageDataBz)
-	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[soundNodeIdx].listenAddr)
+	messageDataBz, err = signMessage(dkgID[:], "message to sign", soundNode.listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -1244,9 +1277,47 @@ func TestJunkPartialSignature(t *testing.T) {
 		}
 	}
 
+	fmt.Println("Reset nodes states and sign the message again without malware")
+	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.defaultOperationHandler)
+	spoiledMessageOffset := strconv.Itoa(maliciousNode.clientLogger.findNodePartialSignMsgOffset(10))
+	if err := resetNodesStates(nodes, []string{spoiledMessageOffset}); err != nil {
+		t.Fatalf("failed to reset nodes states: %v", err)
+	}
+	for _, n := range nodes {
+		n.clientLogger.resetLogs() // to perform next signing checks only with relative logs
+	}
+
+	time.Sleep(10 * time.Second)
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 50); matches != 1 {
+			t.Fatalf("signature reconstruction should have started for all nodes")
+		}
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 50); matches != 2 {
+			t.Fatalf("signature reconstruction should have succeeded for all nodes")
+		}
+	}
+
 	runCancel()
 	for _, node := range nodes {
 		node.httpApi.Stop(node.ctx)
 		node.clientCancel()
 	}
+}
+
+func resetNodesStates(nodes []*nodeInstance, ignoreOffsets []string) error {
+	for _, node := range nodes {
+		resetReq := httprequests.ResetStateForm{
+			UseOffset: true,
+			Messages:  ignoreOffsets,
+		}
+		resetReqBz, err := json.Marshal(resetReq)
+		if err != nil {
+			return fmt.Errorf("failed to marshal ResetStateRequest: %w", err)
+		}
+		if _, err := http.Post(fmt.Sprintf("http://%s/resetState", node.listenAddr),
+			"application/json", bytes.NewReader(resetReqBz)); err != nil {
+			return fmt.Errorf("failed to send HTTP request to reset state: %w", err)
+		}
+	}
+	return nil
 }
