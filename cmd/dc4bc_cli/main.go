@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"os"
 	"path"
@@ -21,8 +22,6 @@ import (
 	"time"
 
 	"github.com/lidofinance/dc4bc/client/types"
-
-	"github.com/google/uuid"
 
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 
@@ -839,6 +838,15 @@ func proposeSignMessageCommand() *cobra.Command {
 	}
 }
 
+func getSignID(rawID string) string {
+	letterBytes := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	tail := make([]byte, 5)
+	for i := range tail {
+		tail[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return strings.Replace(rawID, " ", "-", -1) + string(tail)
+}
+
 func proposeSignBatchMessagesCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "sign_batch_data [dkg_id] [dir_path]",
@@ -874,7 +882,7 @@ func proposeSignBatchMessagesCommand() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("failed to read the file")
 				}
-				req.Data[uuid.New().String()] = data
+				req.Data[getSignID(f.Name())] = data
 			}
 
 			messageDataBz, err := json.Marshal(&req)
