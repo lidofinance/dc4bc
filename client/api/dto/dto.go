@@ -34,6 +34,11 @@ type SignatureByIdDTO struct {
 	DkgID string
 }
 
+type SignaturesByBatchIdDTO struct {
+	BatchID string
+	DkgID   string
+}
+
 type OperationDTO struct {
 	ID         string // UUID4
 	Type       string
