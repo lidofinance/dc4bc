@@ -131,7 +131,7 @@ func (r *BaseSignatureRepo) SaveSignatures(batchID string, signaturesToSave []ty
 
 	key := state.MakeCompositeKeyString(SignaturesKeyPrefix, signaturesToSave[0].DKGRoundID)
 
-	// TODO: ideally we have to make both save operations in single transaction
+	// WARN: ideally we have to make both save operations in single transaction
 	if err := r.state.Set(key, signaturesJSON); err != nil {
 		return fmt.Errorf("failed to save signatures: %w", err)
 	}

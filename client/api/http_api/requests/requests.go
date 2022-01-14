@@ -32,7 +32,7 @@ type SignatureByIDForm struct {
 	DkgID string `query:"dkgID" json:"dkgID" validate:"attr=dkgID,min=32,max=512"`
 }
 
-type SignatureByBatchIDForm struct {
+type SignaturesByBatchIDForm struct {
 	BatchID string `query:"batchID" json:"batchID" validate:"attr=id,min=32,max=512"`
 	DkgID   string `query:"dkgID" json:"dkgID" validate:"attr=dkgID,min=32,max=512"`
 }

@@ -16,7 +16,7 @@ import (
 type SignatureService interface {
 	GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.ReconstructedSignature, error)
 	GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error)
-	GetSignatureByBatchID(dto *dto.SignaturesByBatchIdDTO) (map[string][]types.ReconstructedSignature, error)
+	GetSignaturesByBatchID(dto *dto.SignaturesByBatchIdDTO) (map[string][]types.ReconstructedSignature, error)
 	GetBatches(dto *dto.DkgIdDTO) (map[string][]string, error)
 	SaveSignatures(batchID string, signature []types.ReconstructedSignature) error
 	VerifySign(signingFSM *state_machines.FSMInstance, dto *dto.SignatureByIdDTO) error
@@ -40,7 +40,7 @@ func (s *BaseSignatureService) GetSignatureByID(dto *dto.SignatureByIdDTO) ([]ty
 	return s.signatureRepo.GetSignatureByID(dto.DkgID, dto.ID)
 }
 
-func (s *BaseSignatureService) GetSignatureByBatchID(dto *dto.SignaturesByBatchIdDTO) (map[string][]types.ReconstructedSignature, error) {
+func (s *BaseSignatureService) GetSignaturesByBatchID(dto *dto.SignaturesByBatchIdDTO) (map[string][]types.ReconstructedSignature, error) {
 	return s.signatureRepo.GetSignaturesByBatchID(dto.DkgID, dto.BatchID)
 }
 
