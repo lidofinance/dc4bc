@@ -29,7 +29,7 @@ func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc, node node.NodeServ
 	e.POST("/reinitDKG", h.ReInitDKG)
 
 	e.POST("/saveOffset", h.SaveStateOffset)
-	e.POST("/getOffset", h.GetStateOffset)
+	e.GET("/getOffset", h.GetStateOffset)
 
 	e.GET("/getFSMDump", h.GetFSMDump)
 	e.GET("/getFSMList", h.GetFSMList)
