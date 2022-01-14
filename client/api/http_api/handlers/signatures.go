@@ -58,11 +58,11 @@ func (a *HTTPApp) GetSignatureByID(c echo.Context) error {
 func (a *HTTPApp) VerifyByBatchID(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &SignaturesByBatchIdDTO{}
-	if err := stx.BindToDTO(&req.SignatureByBatchIDForm{}, formDTO); err != nil {
+	if err := stx.BindToDTO(&req.SignaturesByBatchIDForm{}, formDTO); err != nil {
 		return stx.JsonError(http.StatusBadRequest, err)
 	}
 
-	signatures, err := a.signature.GetSignatureByBatchID(formDTO)
+	signatures, err := a.signature.GetSignaturesByBatchID(formDTO)
 	if err != nil {
 		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to get signatures: %w", err))
 	}

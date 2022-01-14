@@ -51,21 +51,6 @@ func (mr *MockSignatureServiceMockRecorder) GetBatches(dto interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBatches", reflect.TypeOf((*MockSignatureService)(nil).GetBatches), dto)
 }
 
-// GetSignatureByBatchID mocks base method.
-func (m *MockSignatureService) GetSignatureByBatchID(dto *dto.SignaturesByBatchIdDTO) (map[string][]types.ReconstructedSignature, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetSignatureByBatchID", dto)
-	ret0, _ := ret[0].(map[string][]types.ReconstructedSignature)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetSignatureByBatchID indicates an expected call of GetSignatureByBatchID.
-func (mr *MockSignatureServiceMockRecorder) GetSignatureByBatchID(dto interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignatureByBatchID", reflect.TypeOf((*MockSignatureService)(nil).GetSignatureByBatchID), dto)
-}
-
 // GetSignatureByID mocks base method.
 func (m *MockSignatureService) GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error) {
 	m.ctrl.T.Helper()
@@ -94,6 +79,21 @@ func (m *MockSignatureService) GetSignatures(dto *dto.DkgIdDTO) (map[string][]ty
 func (mr *MockSignatureServiceMockRecorder) GetSignatures(dto interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignatures", reflect.TypeOf((*MockSignatureService)(nil).GetSignatures), dto)
+}
+
+// GetSignaturesByBatchID mocks base method.
+func (m *MockSignatureService) GetSignaturesByBatchID(dto *dto.SignaturesByBatchIdDTO) (map[string][]types.ReconstructedSignature, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSignaturesByBatchID", dto)
+	ret0, _ := ret[0].(map[string][]types.ReconstructedSignature)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSignaturesByBatchID indicates an expected call of GetSignaturesByBatchID.
+func (mr *MockSignatureServiceMockRecorder) GetSignaturesByBatchID(dto interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignaturesByBatchID", reflect.TypeOf((*MockSignatureService)(nil).GetSignaturesByBatchID), dto)
 }
 
 // SaveSignatures mocks base method.
