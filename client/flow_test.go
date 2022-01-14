@@ -467,21 +467,7 @@ func verifySignatures(dkgID string, n *nodeInstance, messageIDS []string) error 
 		}
 	}
 
-	//verifying on hotnode
-	fsmInstance, err := n.fsmService.GetFSMInstance(dkgID, false)
-	if err != nil {
-		return err
-	}
-	for _, mID := range messageIDS {
-		err = n.sigService.VerifySign(fsmInstance, &dto.SignatureByIdDTO{
-			ID:    mID,
-			DkgID: dkgID,
-		})
-		if err != nil {
-			return err
-		}
-	}
-
+	////verifying on hotnode
 	batches, err := n.sigService.GetBatches(&dto.DkgIdDTO{DkgID: dkgID})
 	if err != nil {
 		return err
@@ -601,7 +587,7 @@ func TestStandardBatchFlow(t *testing.T) {
 
 	numNodes := 4
 	threshold := 2
-	startingPort := 8100
+	startingPort := 8105
 	topic := "test_topic"
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil)
@@ -870,6 +856,9 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 	numNodes := 4
 	threshold := 2
 	startingPort := 8095
+	if convertDKGTo10_1_4 {
+		startingPort = 8100
+	}
 	topic := "test_topic"
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, mnemonics)
