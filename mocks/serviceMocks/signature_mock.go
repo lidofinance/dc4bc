@@ -9,6 +9,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	dto "github.com/lidofinance/dc4bc/client/api/dto"
+	state_machines "github.com/lidofinance/dc4bc/fsm/state_machines"
 	types "github.com/lidofinance/dc4bc/fsm/types"
 )
 
@@ -33,6 +34,36 @@ func NewMockSignatureService(ctrl *gomock.Controller) *MockSignatureService {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockSignatureService) EXPECT() *MockSignatureServiceMockRecorder {
 	return m.recorder
+}
+
+// GetBatches mocks base method.
+func (m *MockSignatureService) GetBatches(dto *dto.DkgIdDTO) (map[string][]string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBatches", dto)
+	ret0, _ := ret[0].(map[string][]string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBatches indicates an expected call of GetBatches.
+func (mr *MockSignatureServiceMockRecorder) GetBatches(dto interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBatches", reflect.TypeOf((*MockSignatureService)(nil).GetBatches), dto)
+}
+
+// GetSignatureByBatchID mocks base method.
+func (m *MockSignatureService) GetSignatureByBatchID(dto *dto.SignaturesByBatchIdDTO) (map[string][]types.ReconstructedSignature, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSignatureByBatchID", dto)
+	ret0, _ := ret[0].(map[string][]types.ReconstructedSignature)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSignatureByBatchID indicates an expected call of GetSignatureByBatchID.
+func (mr *MockSignatureServiceMockRecorder) GetSignatureByBatchID(dto interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSignatureByBatchID", reflect.TypeOf((*MockSignatureService)(nil).GetSignatureByBatchID), dto)
 }
 
 // GetSignatureByID mocks base method.
@@ -66,15 +97,29 @@ func (mr *MockSignatureServiceMockRecorder) GetSignatures(dto interface{}) *gomo
 }
 
 // SaveSignatures mocks base method.
-func (m *MockSignatureService) SaveSignatures(signature []types.ReconstructedSignature) error {
+func (m *MockSignatureService) SaveSignatures(batchID string, signature []types.ReconstructedSignature) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveSignatures", signature)
+	ret := m.ctrl.Call(m, "SaveSignatures", batchID, signature)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SaveSignatures indicates an expected call of SaveSignatures.
-func (mr *MockSignatureServiceMockRecorder) SaveSignatures(signature interface{}) *gomock.Call {
+func (mr *MockSignatureServiceMockRecorder) SaveSignatures(batchID, signature interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSignatures", reflect.TypeOf((*MockSignatureService)(nil).SaveSignatures), signature)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSignatures", reflect.TypeOf((*MockSignatureService)(nil).SaveSignatures), batchID, signature)
+}
+
+// VerifySign mocks base method.
+func (m *MockSignatureService) VerifySign(signingFSM *state_machines.FSMInstance, dto *dto.SignatureByIdDTO) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VerifySign", signingFSM, dto)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// VerifySign indicates an expected call of VerifySign.
+func (mr *MockSignatureServiceMockRecorder) VerifySign(signingFSM, dto interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifySign", reflect.TypeOf((*MockSignatureService)(nil).VerifySign), signingFSM, dto)
 }

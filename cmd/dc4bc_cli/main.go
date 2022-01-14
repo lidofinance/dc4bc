@@ -95,6 +95,8 @@ func main() {
 		getPubKeyCommand(),
 		getHashOfStartDKGCommand(),
 		getHashOfReinitDKGMessageCommand(),
+		getBatchesCommand(),
+		getVerifyBatchCommand(),
 		exportSignaturesCommand(),
 		getSignatureCommand(),
 		saveOffsetCommand(),
@@ -215,6 +217,97 @@ func getOperationsCommand() *cobra.Command {
 				color.New(color.FgRed).Println("Unknown operation action")
 			}
 
+			return nil
+		},
+	}
+}
+
+func getBatchesRequest(host string, dkgID string) (*BatchesResponse, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/getBatches?dkgID=%s", host, dkgID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get batches: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %w", err)
+	}
+
+	var response BatchesResponse
+	if err = json.Unmarshal(responseBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	return &response, nil
+}
+
+func getBatchesCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_batches [dkgID]",
+		Args:  cobra.ExactArgs(1),
+		Short: "returns all batches with reconstructed signatures",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+			dkgID := args[0]
+			batches, err := getBatchesRequest(listenAddr, dkgID)
+			if err != nil {
+				return fmt.Errorf("failed to get batches: %w", err)
+			}
+			if batches.ErrorMessage != "" {
+				return fmt.Errorf("failed to get batches: %s", batches.ErrorMessage)
+			}
+			if len(batches.Result) == 0 {
+				fmt.Printf("No batches found for dkgID %s", dkgID)
+				return nil
+			}
+			for batchID, signatures := range batches.Result {
+				fmt.Printf("Batch ID \"%s\" contains %d signatures\n", batchID, len(signatures))
+			}
+			return nil
+		},
+	}
+}
+
+func getVerifyBatchRequest(host string, dkgID string, batchID string) (*httpresponses.BaseResponse, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/verifyByBatchID?dkgID=%s&batchID=%s", host, dkgID, batchID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to make verification request: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %w", err)
+	}
+
+	var response httpresponses.BaseResponse
+	if err = json.Unmarshal(responseBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+	}
+	return &response, nil
+}
+
+func getVerifyBatchCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "verify_batch [dkgID] [batchID]",
+		Args:  cobra.ExactArgs(2),
+		Short: "verifies all reconstructed signatures with a given batchID on a hotnode",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %w", err)
+			}
+			dkgID := args[0]
+			batchID := args[1]
+			batches, err := getVerifyBatchRequest(listenAddr, dkgID, batchID)
+			if err != nil {
+				return fmt.Errorf("failed to verify batch: %w", err)
+			}
+			if batches.ErrorMessage != "" {
+				return fmt.Errorf("failed to verify batch: %s", batches.ErrorMessage)
+			}
+			fmt.Println(batches.Result)
 			return nil
 		},
 	}

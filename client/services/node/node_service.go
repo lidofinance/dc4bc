@@ -15,6 +15,7 @@ import (
 
 	"github.com/corestario/kyber/pairing"
 	"github.com/corestario/kyber/pairing/bls12381"
+	"github.com/corestario/kyber/sign/bls"
 	"github.com/corestario/kyber/sign/tbls"
 	"github.com/lidofinance/dc4bc/dkg"
 
@@ -571,7 +572,8 @@ func (s *BaseNodeService) processSignature(message storage.Message) error {
 		signatures[i].Username = message.SenderAddr
 		signatures[i].DKGRoundID = message.DkgRoundID
 	}
-	return s.sigService.SaveSignatures(signatures)
+	// empty batchID - updates only signatures data
+	return s.sigService.SaveSignatures("", signatures)
 }
 
 // processBatchSignature saves a broadcasted reconstructed batch signatures to a LevelDB
@@ -595,7 +597,7 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 		signatures = append(signatures, sig)
 	}
 
-	err = s.sigService.SaveSignatures(signatures)
+	err = s.sigService.SaveSignatures(proposal.BatchID, signatures)
 	if err != nil {
 		return fmt.Errorf("failed to save signature: %w", err)
 	}
@@ -866,4 +868,15 @@ func recoverFullSign(signingFSM *state_machines.FSMInstance, msg []byte, sigShar
 		return nil, fmt.Errorf("failed to unmarshal BLSKeyring's PubPoly")
 	}
 	return tbls.Recover(suite.(pairing.Suite), blsKeyring.PubPoly, msg, sigShares, t, n)
+}
+
+// VerifySign verifies a signature of a message
+func VerifySign(signingFSM *state_machines.FSMInstance, msg []byte, fullSignature []byte) error {
+	suite := bls12381.NewBLS12381Suite(nil)
+	blsKeyring, err := dkg.LoadPubPolyBLSKeyringFromBytes(suite, signingFSM.FSMDump().Payload.DKGProposalPayload.PubPolyBz)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal BLSKeyring's PubPoly")
+	}
+
+	return bls.Verify(suite.(pairing.Suite), blsKeyring.PubPoly.Commit(), msg, fullSignature)
 }

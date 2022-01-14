@@ -45,6 +45,11 @@ type SignaturesResponse struct {
 	Result       map[string][]fsmtypes.ReconstructedSignature `json:"result"`
 }
 
+type BatchesResponse struct {
+	ErrorMessage string              `json:"error_message,omitempty"`
+	Result       map[string][]string `json:"result"`
+}
+
 type SignatureResponse struct {
 	ErrorMessage string                            `json:"error_message,omitempty"`
 	Result       []fsmtypes.ReconstructedSignature `json:"result"`

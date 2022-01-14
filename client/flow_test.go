@@ -81,6 +81,7 @@ type nodeInstance struct {
 	ctx                 context.Context
 	client              node.NodeService
 	sigService          signature.SignatureService
+	fsmService   fsmservice.FSMService
 	clientCancel        context.CancelFunc
 	clientLogger        *savingLogger
 	storage             storage.Storage
@@ -243,6 +244,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			storage:               stg,
 			keyPair:               keyPair,
 			sigService:            sigService,
+			fsmService:   fsmService,
 			air:                   airgappedMachine,
 			listenAddr:            fmt.Sprintf("localhost:%d", startingPort),
 			httpApi:               server,
@@ -250,6 +252,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			operationHandlers:     make(map[types.OperationType]operationHandler),
 			necessaryOperationsMu: &sync.Mutex{},
 			necessaryOperations:   make(map[types.OperationType]struct{}),
+
 		}
 		instance.setOperationHandler(types.OperationType(signature_fsm.StateAwaitParticipantsConfirmations), instance.awaitParticipantConfirmationsHandler)
 		nodes[nodeID] = instance
@@ -648,6 +651,7 @@ func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCal
 }
 
 func verifySignatures(dkgID string, n *nodeInstance, messageIDS []string) error {
+	//verifying on airgapped node
 	signs, err := n.sigService.GetSignatures(&dto.DkgIdDTO{DkgID: dkgID})
 	if err != nil {
 		return err
@@ -660,6 +664,46 @@ func verifySignatures(dkgID string, n *nodeInstance, messageIDS []string) error 
 			}
 		}
 	}
+
+	//verifying on hotnode
+	fsmInstance, err := n.fsmService.GetFSMInstance(dkgID, false)
+	if err != nil {
+		return err
+	}
+	for _, mID := range messageIDS {
+		err = n.sigService.VerifySign(fsmInstance, &dto.SignatureByIdDTO{
+			ID:    mID,
+			DkgID: dkgID,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	batches, err := n.sigService.GetBatches(&dto.DkgIdDTO{DkgID: dkgID})
+	if err != nil {
+		return err
+	}
+
+	for batchID := range batches {
+		resp, err := http.Get(fmt.Sprintf("http://%s/verifyByBatchID?BatchID=%s&DkgID=%s", n.listenAddr, batchID, dkgID))
+		if err != nil {
+			return err
+		}
+		responseBody := struct {
+			Result string
+		}{}
+		decoder := json.NewDecoder(resp.Body)
+		err = decoder.Decode(&responseBody)
+		if err != nil {
+			return err
+		}
+		if responseBody.Result != api_responses.VerificationSuccessful {
+			return fmt.Errorf("verification failed")
+		}
+		resp.Body.Close()
+	}
+
 	return nil
 }
 
@@ -821,15 +865,15 @@ func TestStandardBatchFlow(t *testing.T) {
 		}
 	}
 
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2", "messageID3", "messageID4"})
+	if err != nil {
+		t.Fatalf("failed to verify signatures: %v\n", err)
+	}
+
 	runCancel()
 	for _, node := range nodes {
 		node.httpApi.Stop(node.ctx)
 		node.clientCancel()
-	}
-
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2", "messageID3", "messageID4"})
-	if err != nil {
-		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
 }
 
