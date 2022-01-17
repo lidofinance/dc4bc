@@ -559,6 +559,37 @@ func (n *nodeInstance) junkSignMessageHandler(operation *types.Operation, _ proc
 	return nil
 }
 
+// messageHandlerWithReplacedDKG creates an operationHandler that replaces the operation DKG identifier.
+func (n *nodeInstance) messageHandlerWithReplacedDKG(dkg string) operationHandler {
+	return func(operation *types.Operation, callback processedOperationCallback) error {
+		originalDKG := operation.DKGIdentifier
+
+		operation.DKGIdentifier = dkg
+		n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
+		processedOperation, err := n.air.GetOperationResult(*operation)
+		if err != nil {
+			n.client.GetLogger().Log("Failed to handle operation: %v", err)
+		}
+		n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
+			operation.Type, processedOperation.Event)
+
+		processedOperation.DKGIdentifier = originalDKG
+		for idx := range processedOperation.ResultMsgs {
+			processedOperation.ResultMsgs[idx].DkgRoundID = originalDKG
+		}
+
+		if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
+			processedOperation); err != nil {
+			n.client.GetLogger().Log("Failed to handle processed operation: %v", err)
+		} else {
+			n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
+		}
+
+		time.Sleep(1 * time.Second)
+		return nil
+	}
+}
+
 // handleFinishDKG is used for integration tests.
 func handleFinishDKG(operation types.Operation) error {
 	if operation.Event == dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived {
@@ -1279,9 +1310,9 @@ func TestJunkPartialSignature(t *testing.T) {
 		}
 	}
 
-	fmt.Println("Reset nodes states and sign the message again without malware")
-	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.defaultOperationHandler)
 	spoiledMessageOffset := strconv.Itoa(maliciousNode.clientLogger.findNodePartialSignMsgOffset(10))
+	fmt.Printf("\n\nReset nodes states ignoring msg with offset=%s and sign the message again without malware\n", spoiledMessageOffset)
+	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.defaultOperationHandler)
 	if err := resetNodesStates(nodes, []string{spoiledMessageOffset}, true); err != nil {
 		t.Fatalf("failed to reset nodes states: %v", err)
 	}
@@ -1307,6 +1338,92 @@ func TestJunkPartialSignature(t *testing.T) {
 	}
 }
 
+func TestSignWithDifferentDKG(t *testing.T) {
+	_ = RemoveContents("/tmp", "dc4bc_*")
+	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
+
+	numNodes := 3
+	startingPort := 8085
+	topic := "test_topic"
+	storagePath := "/tmp/dc4bc_storage"
+	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil)
+	if err != nil {
+		t.Fatalf("Failed to init nodes, err: %v", err)
+	}
+
+	maliciousNodeIdx := 0
+	maliciousNode := nodes[maliciousNodeIdx]
+	soundNodeIdx := 1
+	soundNode := nodes[soundNodeIdx]
+
+	// Each nodeInstance starts to Poll().
+	runCancel := startServerRunAndPoll(nodes, nil)
+
+	fmt.Printf("\n\nStarting the first DKG round\n")
+	// Last nodeInstance tells other participants to start DKG.
+	messageDataBz, err := startDkg(nodes, numNodes)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	time.Sleep(15 * time.Second)
+	firstDkgID := sha256.Sum256(messageDataBz)
+
+	fmt.Printf("\n\nStarting the second DKG round\n")
+	// Last nodeInstance tells other participants to start another DKG.
+	messageDataBz, err = startDkg(nodes, numNodes-1) // different threshold to create different keys
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	time.Sleep(15 * time.Second)
+	secondDkgID := sha256.Sum256(messageDataBz)
+
+	log.Println("Propose message to sign")
+	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.messageHandlerWithReplacedDKG(fmt.Sprintf("%x", secondDkgID)))
+	messageDataBz, err = signMessage(firstDkgID[:], "message to sign", soundNode.listenAddr)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	time.Sleep(10 * time.Second)
+
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 20); matches != 1 {
+			t.Fatalf("signature reconstruction should have started")
+		}
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 20); matches != 0 {
+			t.Fatalf("signature should not have been reconstructed")
+		}
+		if matches := n.clientLogger.checkLogsWithRegexp(failedSignRecoverRegexp, 20); matches != 1 {
+			t.Fatalf("signature reconstruction should have failed")
+		}
+	}
+
+	spoiledMessageOffset := strconv.Itoa(maliciousNode.clientLogger.findNodePartialSignMsgOffset(10))
+	fmt.Printf("\n\nReset nodes states ignoring msg with offset=%s and sign the message again without malware\n", spoiledMessageOffset)
+	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.defaultOperationHandler)
+	if err := resetNodesStates(nodes, []string{spoiledMessageOffset}, true); err != nil {
+		t.Fatalf("failed to reset nodes states: %v", err)
+	}
+	for _, n := range nodes {
+		n.addNecessaryOperations(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns))
+		n.clientLogger.resetLogs() // to perform next signing checks only with relative logs
+	}
+
+	time.Sleep(5 * time.Second)
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 40); matches != 1 {
+			t.Fatalf("signature reconstruction should have started for all nodes")
+		}
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 40); matches != 3 {
+			t.Fatalf("signature reconstruction should have succeeded for all nodes")
+		}
+	}
+
+	runCancel()
+	for _, node := range nodes {
+		node.httpApi.Stop(node.ctx)
+		node.clientCancel()
+	}
+}
 
 func resetNodesStates(nodes []*nodeInstance, ignoreMsgs []string, offsets bool) error {
 	for _, node := range nodes {
