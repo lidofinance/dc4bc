@@ -84,7 +84,11 @@ type nodeInstance struct {
 	httpApi             *http_api.RESTApiProvider
 	operationHandlersMu *sync.Mutex
 	// operationHandlers allows to define special handlers for some operations
-	operationHandlers map[types.OperationType]operationHandler
+	operationHandlers     map[types.OperationType]operationHandler
+	necessaryOperationsMu *sync.Mutex
+	// necessaryOperations defines a list of operations needed to be picked out of the available
+	// operations list and processed. If empty, all operations are necessary.
+	necessaryOperations map[types.OperationType]struct{}
 }
 
 type OperationsResponse struct {
@@ -226,18 +230,20 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 		server := http_api.NewRESTApi(&cfg, clt, &sp)
 
 		instance := &nodeInstance{
-			ctx:                 ctx,
-			client:              clt,
-			clientCancel:        cancel,
-			clientLogger:        logger,
-			storage:             stg,
-			keyPair:             keyPair,
-			sigService:          sigService,
-			air:                 airgappedMachine,
-			listenAddr:          fmt.Sprintf("localhost:%d", startingPort),
-			httpApi:             server,
-			operationHandlersMu: &sync.Mutex{},
-			operationHandlers:   make(map[types.OperationType]operationHandler),
+			ctx:                   ctx,
+			client:                clt,
+			clientCancel:          cancel,
+			clientLogger:          logger,
+			storage:               stg,
+			keyPair:               keyPair,
+			sigService:            sigService,
+			air:                   airgappedMachine,
+			listenAddr:            fmt.Sprintf("localhost:%d", startingPort),
+			httpApi:               server,
+			operationHandlersMu:   &sync.Mutex{},
+			operationHandlers:     make(map[types.OperationType]operationHandler),
+			necessaryOperationsMu: &sync.Mutex{},
+			necessaryOperations:   make(map[types.OperationType]struct{}),
 		}
 		instance.setOperationHandler(types.OperationType(signature_fsm.StateAwaitParticipantsConfirmations), instance.awaitParticipantConfirmationsHandler)
 		nodes[nodeID] = instance
@@ -393,6 +399,24 @@ func (n *nodeInstance) getOperationHandler(operationType types.OperationType) op
 	return n.operationHandlers[operationType]
 }
 
+func (n *nodeInstance) addNecessaryOperations(operations ...types.OperationType) {
+	n.necessaryOperationsMu.Lock()
+	defer n.necessaryOperationsMu.Unlock()
+	for _, operationType := range operations {
+		n.necessaryOperations[operationType] = struct{}{}
+	}
+}
+
+func (n *nodeInstance) isNecessaryOperation(operation types.OperationType) bool {
+	n.necessaryOperationsMu.Lock()
+	defer n.necessaryOperationsMu.Unlock()
+	if len(n.necessaryOperations) == 0 {
+		return true
+	}
+	_, ex := n.necessaryOperations[operation]
+	return ex
+}
+
 func (n *nodeInstance) run(callback processedOperationCallback, ctx context.Context) {
 	for {
 		select {
@@ -405,7 +429,12 @@ func (n *nodeInstance) run(callback processedOperationCallback, ctx context.Cont
 				panic(fmt.Sprintf("failed to get operations: %v", err))
 			}
 
-			operations := operationsResponse.Result
+			operations := make(map[string]*types.Operation)
+			for opID, op := range operationsResponse.Result {
+				if n.isNecessaryOperation(op.Type) {
+					operations[opID] = op
+				}
+			}
 			if len(operations) == 0 {
 				time.Sleep(1 * time.Second)
 				continue
@@ -1257,10 +1286,11 @@ func TestJunkPartialSignature(t *testing.T) {
 		t.Fatalf("failed to reset nodes states: %v", err)
 	}
 	for _, n := range nodes {
+		n.addNecessaryOperations(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns))
 		n.clientLogger.resetLogs() // to perform next signing checks only with relative logs
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(5 * time.Second)
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 50); matches != 1 {
 			t.Fatalf("signature reconstruction should have started for all nodes")
