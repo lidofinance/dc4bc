@@ -12,7 +12,7 @@ import (
 )
 
 // init -> awaitingConfirmations
-// args: payload, signing id, participants list
+// args: payload, batch id, participants list
 func (m *SignatureProposalFSM) actionInitSignatureProposal(inEvent fsm.Event, args ...interface{}) (outEvent fsm.Event, response interface{}, err error) {
 	m.payloadMu.Lock()
 	defer m.payloadMu.Unlock()

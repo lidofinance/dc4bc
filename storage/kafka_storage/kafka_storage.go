@@ -77,7 +77,7 @@ func NewKafkaStorage(cfg *config.KafkaStorageConfig) (*KafkaStorage, error) {
 
 	readDuration, err := time.ParseDuration(cfg.ReadDuration)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse timeout duration: %w", err)
+		return nil, fmt.Errorf("failed to parse read duration: %w", err)
 	}
 
 	timeout, err := time.ParseDuration(cfg.Timeout)
