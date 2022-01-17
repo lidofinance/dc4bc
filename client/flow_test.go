@@ -700,7 +700,7 @@ func TestStandardFlow(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	log.Println("Propose message to sign")
 
@@ -1068,7 +1068,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		t.Fatalf(err.Error())
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	var newStoragePath = "/tmp/dc4bc_new_storage"
 	newNodes, err := initNodes(numNodes, startingPort, newStoragePath, topic, mnemonics)
@@ -1122,7 +1122,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		t.Fatalf("failed to send HTTP request to reinit DKG: %v\n", err)
 	}
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(15 * time.Second)
 
 	messageDataBz, err = signBatchMessages(dkgID[:], messagesToSign, nodes[len(nodes)-1].listenAddr)
 	if err != nil {

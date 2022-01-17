@@ -18,6 +18,7 @@ var (
 	testConsumerGroup       = "test_consumer_group"
 	testTruststorePath      = "../../ca.crt"
 	testTimeout             = "10s"
+	testReadDuration        = "10s"
 	testProducerCredentials = "producer:producerpass"
 	testConsumerCredentials = "consumer:consumerpass"
 )
@@ -30,6 +31,7 @@ func getTestStorage() storage.Storage {
 		TlsConfig:           testTruststorePath,
 		ProducerCredentials: testProducerCredentials,
 		ConsumerCredentials: testConsumerCredentials,
+		ReadDuration:        testReadDuration,
 		Timeout:             testTimeout,
 	}
 
