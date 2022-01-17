@@ -836,11 +836,6 @@ func TestResetStateFlow(t *testing.T) {
 		}
 	}
 
-	log.Print("\n\n\nStopping nodes and resetting their states\n\n\n")
-
-	runCancel()
-	time.Sleep(10 * time.Second)
-
 	// Searching for an injected error message to ignore it and eventually recover aborted DKG
 	msgs, err := nodes[0].storage.GetMessages(0)
 	if err != nil {
@@ -853,41 +848,19 @@ func TestResetStateFlow(t *testing.T) {
 		}
 	}
 
-	resetReq := httprequests.ResetStateForm{
-		NewStateDBDSN: "",
-		UseOffset:     false,
-		Messages:      []string{msgToIgnore},
+	log.Print("\n\n\nResetting nodes states\n\n\n")
+	if err := resetNodesStates(nodes, []string{msgToIgnore}, false); err != nil {
+		t.Fatalf("failed to reset nodes states: %v", err)
 	}
-	resetReqBz, err := json.Marshal(resetReq)
-	if err != nil {
-		t.Fatalf("failed to marshal ResetStateRequest: %v\n", err)
-	}
-
-	for i := startingPort; i < startingPort+numNodes; i++ {
-		if _, err := http.Post(fmt.Sprintf("http://localhost:%d/resetState", i),
-			"application/json", bytes.NewReader(resetReqBz)); err != nil {
-			t.Fatalf("failed to send HTTP request to reset state: %v\n", err)
-		}
-	}
-
 	time.Sleep(10 * time.Second)
-
-	runCtx, runCancel := context.WithCancel(context.Background())
-	for _, n := range nodes {
-		go n.run(nil, runCtx)
-	}
-
 	log.Print("\n\n\nState recreated\n\n\n")
 
-	time.Sleep(20 * time.Second)
-
 	log.Println("Propose message to sign")
-
 	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[len(nodes)-1].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(15 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 4 {
@@ -902,7 +875,7 @@ func TestResetStateFlow(t *testing.T) {
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
-	time.Sleep(15 * time.Second)
+	time.Sleep(10 * time.Second)
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 8 {
@@ -1280,7 +1253,7 @@ func TestJunkPartialSignature(t *testing.T) {
 	fmt.Println("Reset nodes states and sign the message again without malware")
 	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.defaultOperationHandler)
 	spoiledMessageOffset := strconv.Itoa(maliciousNode.clientLogger.findNodePartialSignMsgOffset(10))
-	if err := resetNodesStates(nodes, []string{spoiledMessageOffset}); err != nil {
+	if err := resetNodesStates(nodes, []string{spoiledMessageOffset}, true); err != nil {
 		t.Fatalf("failed to reset nodes states: %v", err)
 	}
 	for _, n := range nodes {
@@ -1304,11 +1277,12 @@ func TestJunkPartialSignature(t *testing.T) {
 	}
 }
 
-func resetNodesStates(nodes []*nodeInstance, ignoreOffsets []string) error {
+
+func resetNodesStates(nodes []*nodeInstance, ignoreMsgs []string, offsets bool) error {
 	for _, node := range nodes {
 		resetReq := httprequests.ResetStateForm{
-			UseOffset: true,
-			Messages:  ignoreOffsets,
+			UseOffset: offsets,
+			Messages:  ignoreMsgs,
 		}
 		resetReqBz, err := json.Marshal(resetReq)
 		if err != nil {
