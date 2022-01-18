@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"github.com/lidofinance/dc4bc/client/modules/state"
 	"github.com/lidofinance/dc4bc/fsm/types"
 )

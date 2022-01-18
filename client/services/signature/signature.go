@@ -3,6 +3,7 @@ package signature
 import (
 	"bytes"
 	"fmt"
+
 	"github.com/corestario/kyber/pairing"
 	"github.com/corestario/kyber/pairing/bls12381"
 	"github.com/corestario/kyber/sign/bls"

@@ -2,8 +2,9 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/api/http_api/responses"
 	"net/http"
+
+	"github.com/lidofinance/dc4bc/client/api/http_api/responses"
 
 	"github.com/google/uuid"
 
