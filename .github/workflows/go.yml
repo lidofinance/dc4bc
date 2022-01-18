@@ -22,4 +22,4 @@ jobs:
       run: make build-linux
 
     - name: Test
-      run: make test-short
+      run: make test
