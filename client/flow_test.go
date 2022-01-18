@@ -55,19 +55,17 @@ var (
 
 var sigReconstructedRegexp = regexp.MustCompile(`(?m)\[node_\d] Successfully processed message with offset \d{0,3}, type signature_reconstructed`)
 
-var sigReconstructionStarted = regexp.MustCompile(`(?m)\[node_\d] Collected enough partial signatures. Full signature reconstruction just started`)
+var sigReconstructionStartedRegexp = regexp.MustCompile(`(?m)\[node_\d] Collected enough partial signatures. Full signature reconstruction just started`)
 
 var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
 
-var processOperationPayloadMismatchRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to handle processed operation: node returned an error response: processed operation does not match stored operation: o1.Payload .+ != o2.Payload .+`)
+var processedOperationPayloadMismatchRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to handle processed operation: node returned an error response: processed operation does not match stored operation: o1.Payload .+ != o2.Payload .+`)
 
 var failedSignRecoverRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to process message with offset \d{0,3}: failed to reconstruct signatures: failed to reconstruct full signature for msg [\d\w-]+: .+`)
 
 var partialSignReceivedNodeRegexp = regexp.MustCompile(`(?m)\[node_\d] message event_signing_partial_sign_received done successfully from (node_\d)`)
 
 var partialSignReceivedOffsetRegexp = regexp.MustCompile(`(?m)\[node_\d] Handling message with offset (\d+), type event_signing_partial_sign_received`)
-
-var failedMessageProcessingOffsetRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to process message with offset (\d{0,3}): .+`)
 
 type operationHandler func(operation *types.Operation, callback processedOperationCallback) error
 
@@ -712,7 +710,7 @@ func TestStandardFlow(t *testing.T) {
 	time.Sleep(15 * time.Second)
 
 	for _, n := range nodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 70); matches != 1 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 70); matches != 1 {
 			t.Fatalf("not enough checks: %d", matches)
 		} else {
 			fmt.Println("reconstruction started")
@@ -1228,14 +1226,14 @@ func TestModifiedMessageSigned(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	for _, n := range nodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 50); matches != 0 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 50); matches != 0 {
 			t.Fatalf("signature reconstruction should not have started")
 		}
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 50); matches != 0 {
 			t.Fatalf("signature should not have been reconstructed")
 		}
 	}
-	if matches := maliciousNode.clientLogger.checkLogsWithRegexp(processOperationPayloadMismatchRegexp, 70); matches == 0 {
+	if matches := maliciousNode.clientLogger.checkLogsWithRegexp(processedOperationPayloadMismatchRegexp, 70); matches == 0 {
 		t.Fatalf("an operations' payloads mismatch error is expected for the malicious node")
 	}
 
@@ -1243,7 +1241,7 @@ func TestModifiedMessageSigned(t *testing.T) {
 	fmt.Println("Sign message again without malware")
 	time.Sleep(5 * time.Second)
 	for _, n := range nodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 50); matches != 1 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 50); matches != 1 {
 			t.Fatalf("signature reconstruction should have started for all nodes")
 		}
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 50); matches != 2 {
@@ -1299,7 +1297,7 @@ func TestJunkPartialSignature(t *testing.T) {
 	time.Sleep(5 * time.Second)
 
 	for _, n := range nodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 20); matches != 1 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 20); matches != 1 {
 			t.Fatalf("signature reconstruction should have started")
 		}
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 20); matches != 0 {
@@ -1323,7 +1321,7 @@ func TestJunkPartialSignature(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 	for _, n := range nodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 50); matches != 1 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 50); matches != 1 {
 			t.Fatalf("signature reconstruction should have started for all nodes")
 		}
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 50); matches != 2 {
@@ -1386,7 +1384,7 @@ func TestSignWithDifferentDKG(t *testing.T) {
 	time.Sleep(10 * time.Second)
 
 	for _, n := range nodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 20); matches != 1 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 20); matches != 1 {
 			t.Fatalf("signature reconstruction should have started")
 		}
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 20); matches != 0 {
@@ -1410,7 +1408,7 @@ func TestSignWithDifferentDKG(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 	for _, n := range nodes {
-		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStarted, 40); matches != 1 {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 40); matches != 1 {
 			t.Fatalf("signature reconstruction should have started for all nodes")
 		}
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 40); matches != 3 {
