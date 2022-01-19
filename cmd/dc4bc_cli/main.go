@@ -849,7 +849,7 @@ func getSignID(rawID string) (string, error) {
 		}
 		tail[i] = letterBytes[idx.Uint64()]
 	}
-	return strings.Replace(rawID, " ", "-", -1) + string(tail), nil
+	return strings.Replace(rawID, " ", "-", -1) + "_" + string(tail), nil
 }
 
 func proposeSignBatchMessagesCommand() *cobra.Command {
