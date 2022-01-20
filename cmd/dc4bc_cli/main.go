@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/md5"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -11,6 +12,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/big"
 	"net/http"
 	"os"
 	"path"
@@ -31,7 +33,6 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 
 	"github.com/fatih/color"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -843,6 +844,19 @@ func proposeSignMessageCommand() *cobra.Command {
 	}
 }
 
+func getSignID(rawID string) (string, error) {
+	letterBytes := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	tail := make([]byte, 5)
+	for i := range tail {
+		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(letterBytes))))
+		if err != nil {
+			return "", fmt.Errorf("failed to get rand int: %w", err)
+		}
+		tail[i] = letterBytes[idx.Uint64()]
+	}
+	return strings.Replace(rawID, " ", "-", -1) + "_" + string(tail), nil
+}
+
 func proposeSignBatchMessagesCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "sign_batch_data [dkg_id] [dir_path]",
@@ -878,7 +892,13 @@ func proposeSignBatchMessagesCommand() *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("failed to read the file")
 				}
-				req.Data[uuid.New().String()] = data
+
+				signID, err := getSignID(f.Name())
+				if err != nil {
+					return fmt.Errorf("failed to get SignID")
+				}
+
+				req.Data[signID] = data
 			}
 
 			messageDataBz, err := json.Marshal(&req)
