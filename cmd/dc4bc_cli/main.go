@@ -4,15 +4,14 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/md5"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/dkg"
 	"io/ioutil"
 	"log"
-	"math/big"
 	"net/http"
 	"os"
 	"path"
@@ -389,17 +388,15 @@ func exportSignaturesCommand() *cobra.Command {
 
 			defer f.Close()
 
-			var output = map[string]interface{}{}
+			var output = make(dkg.ExportedSignatures)
 			for messageID, entries := range signatures.Result {
 				if len(entries) == 0 {
 					return fmt.Errorf("no reconstructed signatures found for message %s", messageID)
 				}
-				output[messageID] = struct {
-					Payload   []byte `json:"payload_base64"`
-					Signature []byte `json:"signature"`
-				}{
+				output[messageID] = dkg.ExportedSignatureEntity{
 					Payload:   entries[0].SrcPayload,
 					Signature: entries[0].Signature,
+					File:      entries[0].File,
 				}
 			}
 
@@ -937,19 +934,6 @@ func proposeSignMessageCommand() *cobra.Command {
 	}
 }
 
-func getSignID(rawID string) (string, error) {
-	letterBytes := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	tail := make([]byte, 5)
-	for i := range tail {
-		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(letterBytes))))
-		if err != nil {
-			return "", fmt.Errorf("failed to get rand int: %w", err)
-		}
-		tail[i] = letterBytes[idx.Uint64()]
-	}
-	return strings.Replace(rawID, " ", "-", -1) + "_" + string(tail), nil
-}
-
 func proposeSignBatchMessagesCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "sign_batch_data [dkg_id] [dir_path]",
@@ -986,12 +970,7 @@ func proposeSignBatchMessagesCommand() *cobra.Command {
 					return fmt.Errorf("failed to read the file")
 				}
 
-				signID, err := getSignID(f.Name())
-				if err != nil {
-					return fmt.Errorf("failed to get SignID")
-				}
-
-				req.Data[signID] = data
+				req.Data[f.Name()] = data
 			}
 
 			messageDataBz, err := json.Marshal(&req)

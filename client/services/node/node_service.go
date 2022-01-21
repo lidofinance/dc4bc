@@ -3,12 +3,14 @@ package node
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"strings"
 	"sync"
 	"time"
@@ -364,9 +366,14 @@ func (s *BaseNodeService) buildMessage(dkgRoundID string, event fsm.Event, data 
 
 func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessagesDTO) error {
 	messagesToSign := make([]requests.MessageToSign, 0, len(dtoMsg.Data))
-	for messageID, msg := range dtoMsg.Data {
+	for file, msg := range dtoMsg.Data {
+		signID, err := getSignID(file)
+		if err != nil {
+			return fmt.Errorf("failed to get SignID")
+		}
 		messageDataSign := requests.MessageToSign{
-			MessageID: messageID,
+			MessageID: signID,
+			File:      file,
 			Payload:   msg,
 		}
 
@@ -589,6 +596,7 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 	signatures := make([]fsmtypes.ReconstructedSignature, 0, len(proposal.MessagesToSign))
 	for _, msg := range proposal.MessagesToSign {
 		sig := fsmtypes.ReconstructedSignature{
+			File:       msg.File,
 			MessageID:  msg.MessageID,
 			Username:   message.SenderAddr,
 			DKGRoundID: message.DkgRoundID,
@@ -879,4 +887,17 @@ func VerifySign(signingFSM *state_machines.FSMInstance, msg []byte, fullSignatur
 	}
 
 	return bls.Verify(suite.(pairing.Suite), blsKeyring.PubPoly.Commit(), msg, fullSignature)
+}
+
+func getSignID(rawID string) (string, error) {
+	letterBytes := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	tail := make([]byte, 5)
+	for i := range tail {
+		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(letterBytes))))
+		if err != nil {
+			return "", fmt.Errorf("failed to get rand int: %w", err)
+		}
+		tail[i] = letterBytes[idx.Uint64()]
+	}
+	return strings.Replace(rawID, " ", "-", -1) + "_" + string(tail), nil
 }

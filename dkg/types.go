@@ -222,3 +222,11 @@ func LoadPubPolyBLSKeyringFromBytes(suite vss.Suite, data []byte) (*BLSKeyring, 
 		PubPoly: poly,
 	}, nil
 }
+
+type ExportedSignatureEntity struct {
+	Payload   []byte `json:"payload_base64"`
+	Signature []byte `json:"signature"`
+	File      string `json:"file"`
+}
+
+type ExportedSignatures map[string]ExportedSignatureEntity

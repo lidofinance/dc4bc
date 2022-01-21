@@ -7,6 +7,7 @@ func (b BatchPartialSignatures) AddPartialSignature(messageID string, partialSig
 }
 
 type ReconstructedSignature struct {
+	File       string
 	MessageID  string
 	SrcPayload []byte
 	Signature  []byte
