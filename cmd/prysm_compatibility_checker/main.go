@@ -2,9 +2,12 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/dkg"
 	"io/ioutil"
 	"log"
+	"path"
 
 	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"github.com/spf13/cobra"
@@ -80,6 +83,58 @@ func verify() *cobra.Command {
 	}
 }
 
+func verifyBatch() *cobra.Command {
+	return &cobra.Command{
+		Use:   "verify_batch [exported_signatures] [pubkey] [dir]",
+		Short: "verify_batch signature with Prysm",
+		Args:  cobra.ExactArgs(3),
+		Run: func(cmd *cobra.Command, args []string) {
+			exportedSignaturesFile := args[0]
+			pubkeyb64 := args[1]
+			dataDir := args[2]
+
+			data, err := ioutil.ReadFile(exportedSignaturesFile)
+			if err != nil {
+				log.Fatalf("failed to read exported signatures file: %v", err)
+			}
+
+			exportedSignatures := make(dkg.ExportedSignatures)
+
+			err = json.Unmarshal(data, &exportedSignatures)
+			if err != nil {
+				log.Fatalf("failed to unmarshal exported signatures data: %v", err)
+			}
+
+			pubkey, err := base64.StdEncoding.DecodeString(pubkeyb64)
+			if err != nil {
+				log.Fatalf("failed to decode pubkey bytes from string: %v", err)
+			}
+
+			prysmPubKey, err := prysmBLS.PublicKeyFromBytes(pubkey)
+			if err != nil {
+				log.Fatalf("failed to get prysm pubkey from bytes: %v", err)
+			}
+
+			for _, signature := range exportedSignatures {
+
+				prysmSig, err := prysmBLS.SignatureFromBytes(signature.Signature)
+				if err != nil {
+					log.Fatalf("failed to get prysm sig from bytes(filename - %s): %v", signature.File, err)
+				}
+
+				msg, err := ioutil.ReadFile(path.Join(dataDir, signature.File))
+				if err != nil {
+					log.Fatalf("failed to read file: %v", err)
+				}
+				if !prysmSig.Verify(prysmPubKey, msg) {
+					log.Fatalf("failed to verify prysm signature for file - %s", signature.File)
+				}
+			}
+			fmt.Println("All batch signatures is correct")
+		},
+	}
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "./prysmCompatibilityChecker",
 	Short: "util to check signatures and pubkeys compatibility with Prysm",
@@ -90,6 +145,7 @@ func main() {
 		checkPubKey(),
 		checkSignature(),
 		verify(),
+		verifyBatch(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
