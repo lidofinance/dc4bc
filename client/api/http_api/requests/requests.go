@@ -32,6 +32,11 @@ type SignatureByIDForm struct {
 	DkgID string `query:"dkgID" json:"dkgID" validate:"attr=dkgID,min=32,max=512"`
 }
 
+type SignaturesByBatchIDForm struct {
+	BatchID string `query:"batchID" json:"batchID" validate:"attr=id,min=32,max=512"`
+	DkgID   string `query:"dkgID" json:"dkgID" validate:"attr=dkgID,min=32,max=512"`
+}
+
 type OperationForm struct {
 	ID         string            `json:"ID" validate:"attr=ID,min=32,max=512"` // UUID4
 	Type       string            `json:"Type" validate:"attr=Type,min=1,max=512"`

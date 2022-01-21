@@ -3,13 +3,14 @@ package fsmservice
 import (
 	"errors"
 	"fmt"
+	"testing"
+	"time"
+
 	"github.com/golang/mock/gomock"
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/mocks/clientMocks"
 	"github.com/lidofinance/dc4bc/mocks/storageMocks"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestClient_ResetState(t *testing.T) {
