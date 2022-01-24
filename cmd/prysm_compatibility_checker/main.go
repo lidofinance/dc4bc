@@ -4,11 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/dkg"
+	"github.com/lidofinance/dc4bc/pkg/prysm"
 	"io/ioutil"
 	"log"
-	"path"
-
-	"github.com/lidofinance/dc4bc/dkg"
 
 	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"github.com/spf13/cobra"
@@ -106,30 +105,9 @@ func verifyBatch() *cobra.Command {
 				log.Fatalf("failed to unmarshal exported signatures data: %v", err)
 			}
 
-			pubkey, err := base64.StdEncoding.DecodeString(pubkeyb64)
+			err = prysm.BatchVerification(exportedSignatures, pubkeyb64, dataDir)
 			if err != nil {
-				log.Fatalf("failed to decode pubkey bytes from string: %v", err)
-			}
-
-			prysmPubKey, err := prysmBLS.PublicKeyFromBytes(pubkey)
-			if err != nil {
-				log.Fatalf("failed to get prysm pubkey from bytes: %v", err)
-			}
-
-			for _, signature := range exportedSignatures {
-
-				prysmSig, err := prysmBLS.SignatureFromBytes(signature.Signature)
-				if err != nil {
-					log.Fatalf("failed to get prysm sig from bytes(filename - %s): %v", signature.File, err)
-				}
-
-				msg, err := ioutil.ReadFile(path.Join(dataDir, signature.File))
-				if err != nil {
-					log.Fatalf("failed to read file: %v", err)
-				}
-				if !prysmSig.Verify(prysmPubKey, msg) {
-					log.Fatalf("failed to verify prysm signature for file - %s", signature.File)
-				}
+				log.Fatalln(err)
 			}
 			fmt.Println("All batch signatures are correct")
 		},
