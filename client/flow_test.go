@@ -4,14 +4,18 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/lidofinance/dc4bc/pkg/prysm"
+	"github.com/lidofinance/dc4bc/pkg/utils"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -654,42 +658,62 @@ func verifySignatures(dkgID string, n *nodeInstance) error {
 	//verifying on airgapped node
 	signs, err := n.sigService.GetSignatures(&dto.DkgIdDTO{DkgID: dkgID})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get signatures: %w", err)
 	}
 	for _, participantReconstructedSignatures := range signs {
 		for _, s := range participantReconstructedSignatures {
 			err = n.air.VerifySign(s.SrcPayload, s.Signature, dkgID)
 			if err != nil {
-				return err
+				return fmt.Errorf("failed to verify on airgapped: %w", err)
 			}
 		}
 	}
 
-	//verifying on hotnode
-	batches, err := n.sigService.GetBatches(&dto.DkgIdDTO{DkgID: dkgID})
+	//Verify with prysm compability
+	keyrings, err := n.air.GetBLSKeyrings()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get a list of finished dkgs: %w", err)
 	}
 
-	for batchID := range batches {
-		resp, err := http.Get(fmt.Sprintf("http://%s/verifyByBatchID?BatchID=%s&DkgID=%s", n.listenAddr, batchID, dkgID))
-		if err != nil {
-			return err
-		}
-		responseBody := struct {
-			Result string
-		}{}
-		decoder := json.NewDecoder(resp.Body)
-		err = decoder.Decode(&responseBody)
-		if err != nil {
-			return err
-		}
-		if responseBody.Result != api_responses.VerificationSuccessful {
-			return fmt.Errorf("verification failed")
-		}
-		resp.Body.Close()
+	pubkeyBz, err := keyrings[dkgID].PubPoly.Commit().MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to marshal pubkey: %w", err)
 	}
 
+	pubKeyBase64 := base64.StdEncoding.EncodeToString(pubkeyBz)
+
+	//prepare tmp data dir
+	dir, err := ioutil.TempDir("/tmp", "dc4bc_messages_")
+	if err != nil {
+		return fmt.Errorf("failed to create tmp messages dir: %w", err)
+	}
+	defer os.RemoveAll(dir)
+
+	for _, participantReconstructedSignatures := range signs {
+		s := participantReconstructedSignatures[0]
+		f, err := os.OpenFile(path.Join(dir, s.File), os.O_WRONLY|os.O_CREATE, 0600)
+		if err != nil {
+			return fmt.Errorf("filed to crete tmp file: %w", err)
+		}
+		defer f.Close()
+
+		_, err = f.Write(s.SrcPayload)
+		if err != nil {
+			return fmt.Errorf("filed to write to tmp file: %w", err)
+		}
+	}
+
+	prepared, err := utils.PrepareSignaturesToDump(signs)
+	if err != nil {
+		return fmt.Errorf("failed to convert signatures to \"export\" format: %w", err)
+	}
+
+	err = prysm.BatchVerification(*prepared, pubKeyBase64, dir)
+	if err != nil {
+		return fmt.Errorf("failed to make prysm verifification: %w", err)
+	}
+
+	fmt.Printf("%d signatures verified with prysm compability\n", len(signs))
 	return nil
 }
 

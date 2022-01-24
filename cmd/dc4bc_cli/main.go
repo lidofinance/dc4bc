@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/pkg/utils"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -23,7 +24,6 @@ import (
 
 	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"
 	httpresponses "github.com/lidofinance/dc4bc/client/api/http_api/responses"
-	"github.com/lidofinance/dc4bc/dkg"
 
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
@@ -269,24 +269,6 @@ func getBatchesCommand() *cobra.Command {
 	}
 }
 
-func getVerifyBatchRequest(host string, dkgID string, batchID string) (*httpresponses.BaseResponse, error) {
-	resp, err := http.Get(fmt.Sprintf("http://%s/verifyByBatchID?dkgID=%s&batchID=%s", host, dkgID, batchID))
-	if err != nil {
-		return nil, fmt.Errorf("failed to make verification request: %w", err)
-	}
-	defer resp.Body.Close()
-	responseBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read body: %w", err)
-	}
-
-	var response httpresponses.BaseResponse
-	if err = json.Unmarshal(responseBody, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
-	}
-	return &response, nil
-}
-
 func getSignaturesRequest(host string, dkgID string) (*SignaturesResponse, error) {
 	resp, err := http.Get(fmt.Sprintf("http://%s/getSignatures?dkgID=%s", host, dkgID))
 	if err != nil {
@@ -364,19 +346,12 @@ func exportSignaturesCommand() *cobra.Command {
 
 			defer f.Close()
 
-			var output = make(dkg.ExportedSignatures)
-			for messageID, entries := range signatures.Result {
-				if len(entries) == 0 {
-					return fmt.Errorf("no reconstructed signatures found for message %s", messageID)
-				}
-				output[messageID] = dkg.ExportedSignatureEntity{
-					Payload:   entries[0].SrcPayload,
-					Signature: entries[0].Signature,
-					File:      entries[0].File,
-				}
+			prepared, err := utils.PrepareSignaturesToDump(signatures.Result)
+			if err != nil {
+				return fmt.Errorf("failed to prepare signatures for dump: %w", err)
 			}
 
-			bz, err := json.Marshal(output)
+			bz, err := json.Marshal(prepared)
 			if err != nil {
 				return fmt.Errorf("failed to marshal result: %w", err)
 			}
