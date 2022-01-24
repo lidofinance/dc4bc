@@ -19,7 +19,6 @@ func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc, node node.NodeServ
 	e.GET("/getSignatures", h.GetSignatures)
 	e.GET("/getBatches", h.GetBatches)
 	e.GET("/getSignatureByID", h.GetSignatureByID)
-	e.GET("/verifyByBatchID", h.VerifyByBatchID)
 
 	e.POST("/handleProcessedOperationJSON", h.ProcessOperation)
 	e.GET("/getOperation", h.GetOperation)

@@ -90,7 +90,6 @@ func main() {
 		getHashOfStartDKGCommand(),
 		getHashOfReinitDKGMessageCommand(),
 		getBatchesCommand(),
-		getVerifyBatchCommand(),
 		exportSignaturesCommand(),
 		getSignatureCommand(),
 		saveOffsetCommand(),
@@ -280,31 +279,6 @@ func getVerifyBatchRequest(host string, dkgID string, batchID string) (*httpresp
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
 	return &response, nil
-}
-
-func getVerifyBatchCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "verify_batch [dkgID] [batchID]",
-		Args:  cobra.ExactArgs(2),
-		Short: "verifies all reconstructed signatures with a given batchID on a hotnode",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
-			if err != nil {
-				return fmt.Errorf("failed to read configuration: %w", err)
-			}
-			dkgID := args[0]
-			batchID := args[1]
-			batches, err := getVerifyBatchRequest(listenAddr, dkgID, batchID)
-			if err != nil {
-				return fmt.Errorf("failed to verify batch: %w", err)
-			}
-			if batches.ErrorMessage != "" {
-				return fmt.Errorf("failed to verify batch: %s", batches.ErrorMessage)
-			}
-			fmt.Println(batches.Result)
-			return nil
-		},
-	}
 }
 
 func getSignaturesRequest(host string, dkgID string) (*SignaturesResponse, error) {
