@@ -846,22 +846,23 @@ func reconstructThresholdSignature(signingFSM *state_machines.FSMInstance, paylo
 		return nil, fmt.Errorf("failed to unmarshal MessagesToSign: %w", err)
 	}
 	// just convert slice to map
-	messages := make(map[string][]byte)
+	messages := make(map[string]requests.MessageToSign)
 	for _, m := range messagesPayload {
-		messages[m.MessageID] = m.Payload
+		messages[m.MessageID] = m
 	}
 	response := make([]fsmtypes.ReconstructedSignature, 0, len(batchPartialSignatures))
 	for messageID, messagePartialSignatures := range batchPartialSignatures {
-		reconstructedSignature, err := recoverFullSign(signingFSM, messages[messageID], messagePartialSignatures, signingFSM.FSMDump().Payload.Threshold,
+		reconstructedSignature, err := recoverFullSign(signingFSM, messages[messageID].Payload, messagePartialSignatures, signingFSM.FSMDump().Payload.Threshold,
 			len(signingFSM.FSMDump().Payload.PubKeys))
 		if err != nil {
 			return nil, fmt.Errorf("failed to reconstruct full signature for msg %s: %w", messageID, err)
 		}
 		response = append(response, fsmtypes.ReconstructedSignature{
+			File:       messages[messageID].File,
 			MessageID:  messageID,
 			Signature:  reconstructedSignature,
 			DKGRoundID: signingFSM.FSMDump().Payload.DkgId,
-			SrcPayload: messages[messageID],
+			SrcPayload: messages[messageID].Payload,
 		})
 	}
 	return response, nil
