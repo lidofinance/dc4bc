@@ -452,14 +452,14 @@ func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCal
 	return runCancel
 }
 
-func verifySignatures(dkgID string, n *nodeInstance, messageIDS []string) error {
+func verifySignatures(dkgID string, n *nodeInstance) error {
 	//verifying on airgapped node
 	signs, err := n.sigService.GetSignatures(&dto.DkgIdDTO{DkgID: dkgID})
 	if err != nil {
 		return err
 	}
-	for _, mID := range messageIDS {
-		for _, s := range signs[mID] {
+	for _, participantReconstructedSignatures := range signs {
+		for _, s := range participantReconstructedSignatures {
 			err = n.air.VerifySign(s.SrcPayload, s.Signature, dkgID)
 			if err != nil {
 				return err
@@ -467,7 +467,7 @@ func verifySignatures(dkgID string, n *nodeInstance, messageIDS []string) error 
 		}
 	}
 
-	////verifying on hotnode
+	//verifying on hotnode
 	batches, err := n.sigService.GetBatches(&dto.DkgIdDTO{DkgID: dkgID})
 	if err != nil {
 		return err
@@ -653,7 +653,7 @@ func TestStandardBatchFlow(t *testing.T) {
 		}
 	}
 
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2", "messageID3", "messageID4"})
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
@@ -898,7 +898,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		}
 	}
 
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2"})
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
@@ -1000,7 +1000,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 			fmt.Println("message signed successfully")
 		}
 	}
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2"})
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
@@ -1031,7 +1031,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 			fmt.Println("messaged signed successfully")
 		}
 	}
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2", "messageID3", "messageID4"})
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}

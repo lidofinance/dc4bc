@@ -9,7 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/dkg"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -20,6 +19,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/lidofinance/dc4bc/dkg"
 
 	"github.com/lidofinance/dc4bc/client/types"
 
@@ -363,6 +364,7 @@ func exportSignaturesCommand() *cobra.Command {
 			if printOnly {
 				for sigID, signature := range signatures.Result {
 					fmt.Printf("Signing ID: %s\n", sigID)
+					fmt.Println(signature[0].File)
 					for _, participantSig := range signature {
 						fmt.Printf("\tDKG round ID: %s\n", participantSig.DKGRoundID)
 						fmt.Printf("\tParticipant: %s\n", participantSig.Username)

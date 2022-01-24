@@ -4,10 +4,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/dkg"
 	"io/ioutil"
 	"log"
 	"path"
+
+	"github.com/lidofinance/dc4bc/dkg"
 
 	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"github.com/spf13/cobra"
@@ -130,7 +131,7 @@ func verifyBatch() *cobra.Command {
 					log.Fatalf("failed to verify prysm signature for file - %s", signature.File)
 				}
 			}
-			fmt.Println("All batch signatures is correct")
+			fmt.Println("All batch signatures are correct")
 		},
 	}
 }
