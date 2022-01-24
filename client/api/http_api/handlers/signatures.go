@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/lidofinance/dc4bc/client/api/http_api/responses"
-
 	"github.com/google/uuid"
 
 	"github.com/labstack/echo/v4"
@@ -54,35 +52,6 @@ func (a *HTTPApp) GetSignatureByID(c echo.Context) error {
 		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to get signatures: %w", err))
 	}
 	return stx.Json(http.StatusOK, signatures)
-}
-
-func (a *HTTPApp) VerifyByBatchID(c echo.Context) error {
-	stx := c.(*cs.ContextService)
-	formDTO := &SignaturesByBatchIdDTO{}
-	if err := stx.BindToDTO(&req.SignaturesByBatchIDForm{}, formDTO); err != nil {
-		return stx.JsonError(http.StatusBadRequest, err)
-	}
-
-	signatures, err := a.signature.GetSignaturesByBatchID(formDTO)
-	if err != nil {
-		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to get signatures: %w", err))
-	}
-
-	fsmInstance, err := a.fsm.GetFSMInstance(formDTO.DkgID, false)
-	if err != nil {
-		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to fsm instance for dkgID: %w", err))
-	}
-
-	for msgID := range signatures {
-		err = a.signature.VerifySign(fsmInstance, &SignatureByIdDTO{
-			ID:    msgID,
-			DkgID: formDTO.DkgID,
-		})
-		if err != nil {
-			return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to verify signature %s: %w", msgID, err))
-		}
-	}
-	return stx.Json(http.StatusOK, responses.VerificationSuccessful)
 }
 
 func (a *HTTPApp) ProposeSignMessage(c echo.Context) error {
