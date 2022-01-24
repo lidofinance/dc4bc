@@ -32,8 +32,7 @@ func BatchVerification(exportedSignatures dkg.ExportedSignatures, pubkeyb64 stri
 			return fmt.Errorf("failed to read file: %w", err)
 		}
 
-		if !prysmSig.Verify(prysmPubKey, signature.Payload) {
-			fmt.Println(string(msg))
+		if !prysmSig.Verify(prysmPubKey, msg) {
 			return fmt.Errorf("failed to verify prysm signature for file - %s", signature.File)
 		}
 	}
