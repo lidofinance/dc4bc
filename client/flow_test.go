@@ -51,21 +51,29 @@ var (
 	errEvent                  fsm.Event
 	msgToIgnore               string
 	roundToIgnore             string
+
+	sigReconstructedRegexp = regexp.MustCompile(`(?m)\[node_\d] Successfully processed message with offset \d{0,3}, type signature_reconstructed`)
+
+	sigReconstructionStartedRegexp = regexp.MustCompile(`(?m)\[node_\d] Collected enough partial signatures. Full signature reconstruction just started`)
+
+	dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
+
+	processedOperationPayloadMismatchRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to handle processed operation: node returned an error response: processed operation does not match stored operation: o1.Payload .+ != o2.Payload .+`)
+
+	failedSignRecoverRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to process message with offset \d{0,3}: failed to reconstruct signatures: failed to reconstruct full signature for msg [\d\w-]+: .+`)
+
+	partialSignReceivedNodeRegexp = regexp.MustCompile(`(?m)\[node_\d] message event_signing_partial_sign_received done successfully from (node_\d)`)
+
+	partialSignReceivedOffsetRegexp = regexp.MustCompile(`(?m)\[node_\d] Handling message with offset (\d+), type event_signing_partial_sign_received`)
 )
 
-var sigReconstructedRegexp = regexp.MustCompile(`(?m)\[node_\d] Successfully processed message with offset \d{0,3}, type signature_reconstructed`)
-
-var sigReconstructionStartedRegexp = regexp.MustCompile(`(?m)\[node_\d] Collected enough partial signatures. Full signature reconstruction just started`)
-
-var dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
-
-var processedOperationPayloadMismatchRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to handle processed operation: node returned an error response: processed operation does not match stored operation: o1.Payload .+ != o2.Payload .+`)
-
-var failedSignRecoverRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to process message with offset \d{0,3}: failed to reconstruct signatures: failed to reconstruct full signature for msg [\d\w-]+: .+`)
-
-var partialSignReceivedNodeRegexp = regexp.MustCompile(`(?m)\[node_\d] message event_signing_partial_sign_received done successfully from (node_\d)`)
-
-var partialSignReceivedOffsetRegexp = regexp.MustCompile(`(?m)\[node_\d] Handling message with offset (\d+), type event_signing_partial_sign_received`)
+const (
+	pollPauseDuration  = 500 * time.Millisecond
+	dkgDuration        = 12 * time.Second
+	signMsgDuration    = 8 * time.Second
+	resetStateDuration = 8 * time.Second
+	nodesStopDuration  = 5 * time.Second
+)
 
 type operationHandler func(operation *types.Operation, callback processedOperationCallback) error
 
@@ -434,7 +442,7 @@ func (n *nodeInstance) run(callback processedOperationCallback, ctx context.Cont
 				}
 			}
 			if len(operations) == 0 {
-				time.Sleep(1 * time.Second)
+				time.Sleep(pollPauseDuration)
 				continue
 			}
 
@@ -448,7 +456,7 @@ func (n *nodeInstance) run(callback processedOperationCallback, ctx context.Cont
 					panic(err)
 				}
 			}
-			time.Sleep(1 * time.Second)
+			time.Sleep(pollPauseDuration)
 		}
 	}
 }
@@ -503,8 +511,6 @@ func (n *nodeInstance) defaultOperationHandler(operation *types.Operation, callb
 	} else {
 		n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
 	}
-
-	time.Sleep(1 * time.Second)
 	return nil
 }
 
@@ -552,8 +558,6 @@ func (n *nodeInstance) junkSignMessageHandler(operation *types.Operation, _ proc
 	} else {
 		n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
 	}
-
-	time.Sleep(1 * time.Second)
 	return nil
 }
 
@@ -582,8 +586,6 @@ func (n *nodeInstance) messageHandlerWithReplacedDKG(dkg string) operationHandle
 		} else {
 			n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
 		}
-
-		time.Sleep(1 * time.Second)
 		return nil
 	}
 }
@@ -698,7 +700,7 @@ func TestStandardFlow(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	time.Sleep(15 * time.Second)
+	waitForDKG()
 
 	log.Println("Propose message to sign")
 
@@ -707,7 +709,7 @@ func TestStandardFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(15 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 70); matches != 1 {
@@ -730,7 +732,7 @@ func TestStandardFlow(t *testing.T) {
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
-	time.Sleep(15 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 100); matches != 8 {
@@ -770,7 +772,7 @@ func TestStandardBatchFlow(t *testing.T) {
 		t.Fatal(err.Error())
 	}
 
-	time.Sleep(15 * time.Second)
+	waitForDKG()
 
 	log.Println("Propose messages to sign")
 	messagesToSign := map[string][]byte{
@@ -783,7 +785,7 @@ func TestStandardBatchFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(15 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 170); matches != 4 {
@@ -809,7 +811,7 @@ func TestStandardBatchFlow(t *testing.T) {
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
-	time.Sleep(15 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 100); matches != 8 {
@@ -886,7 +888,7 @@ func TestResetStateFlow(t *testing.T) {
 	}
 	dkgID := sha256.Sum256(messageDataBz)
 
-	time.Sleep(20 * time.Second)
+	waitForDKG()
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(dkgAbortedRegexp, 30); matches < 1 {
@@ -910,7 +912,7 @@ func TestResetStateFlow(t *testing.T) {
 	if err := resetNodesStates(nodes, []string{msgToIgnore}, false); err != nil {
 		t.Fatalf("failed to reset nodes states: %v", err)
 	}
-	time.Sleep(10 * time.Second)
+	waitForResetState()
 	log.Print("\n\n\nState recreated\n\n\n")
 
 	log.Println("Propose message to sign")
@@ -918,7 +920,7 @@ func TestResetStateFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(10 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 4 {
@@ -933,7 +935,7 @@ func TestResetStateFlow(t *testing.T) {
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
-	time.Sleep(10 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 8 {
@@ -1012,7 +1014,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 	}
 	dkgID := sha256.Sum256(messageDataBz)
 
-	time.Sleep(30 * time.Second)
+	waitForDKG()
 
 	log.Println("Propose message to sign")
 	messagesToSign := map[string][]byte{
@@ -1024,7 +1026,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(15 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 4 {
@@ -1066,7 +1068,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		t.Fatalf(err.Error())
 	}
 
-	time.Sleep(15 * time.Second)
+	waitForNodesStop()
 
 	var newStoragePath = "/tmp/dc4bc_new_storage"
 	newNodes, err := initNodes(numNodes, startingPort, newStoragePath, topic, mnemonics)
@@ -1120,13 +1122,13 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		t.Fatalf("failed to send HTTP request to reinit DKG: %v\n", err)
 	}
 
-	time.Sleep(15 * time.Second)
+	waitForDKG()
 
 	messageDataBz, err = signBatchMessages(dkgID[:], messagesToSign, nodes[len(nodes)-1].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(15 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range newNodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 40); matches != 4 {
@@ -1157,7 +1159,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
 
-	time.Sleep(15 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range newNodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 40); matches < 4 {
@@ -1213,17 +1215,15 @@ func TestModifiedMessageSigned(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-
-	time.Sleep(15 * time.Second)
+	waitForDKG()
 
 	log.Println("Propose message to sign")
-
 	dkgID := sha256.Sum256(messageDataBz)
 	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[soundNodeIdx].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(10 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 50); matches != 0 {
@@ -1239,7 +1239,7 @@ func TestModifiedMessageSigned(t *testing.T) {
 
 	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.defaultOperationHandler)
 	fmt.Println("Sign message again without malware")
-	time.Sleep(5 * time.Second)
+	waitForSignMsg()
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 50); matches != 1 {
 			t.Fatalf("signature reconstruction should have started for all nodes")
@@ -1284,17 +1284,15 @@ func TestJunkPartialSignature(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-
-	time.Sleep(15 * time.Second)
+	waitForDKG()
 
 	log.Println("Propose message to sign")
-
 	dkgID := sha256.Sum256(messageDataBz)
 	messageDataBz, err = signMessage(dkgID[:], "message to sign", soundNode.listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(5 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 20); matches != 1 {
@@ -1319,7 +1317,7 @@ func TestJunkPartialSignature(t *testing.T) {
 		n.clientLogger.resetLogs() // to perform next signing checks only with relative logs
 	}
 
-	time.Sleep(5 * time.Second)
+	waitForResetState()
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 50); matches != 1 {
 			t.Fatalf("signature reconstruction should have started for all nodes")
@@ -1363,7 +1361,7 @@ func TestSignWithDifferentDKG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(15 * time.Second)
+	waitForDKG()
 	firstDkgID := sha256.Sum256(messageDataBz)
 
 	fmt.Printf("\n\nStarting the second DKG round\n")
@@ -1372,7 +1370,7 @@ func TestSignWithDifferentDKG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(15 * time.Second)
+	waitForDKG()
 	secondDkgID := sha256.Sum256(messageDataBz)
 
 	log.Println("Propose message to sign")
@@ -1381,7 +1379,7 @@ func TestSignWithDifferentDKG(t *testing.T) {
 	if err != nil {
 		t.Fatal(err.Error())
 	}
-	time.Sleep(10 * time.Second)
+	waitForSignMsg()
 
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 20); matches != 1 {
@@ -1406,7 +1404,7 @@ func TestSignWithDifferentDKG(t *testing.T) {
 		n.clientLogger.resetLogs() // to perform next signing checks only with relative logs
 	}
 
-	time.Sleep(5 * time.Second)
+	waitForSignMsg()
 	for _, n := range nodes {
 		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 40); matches != 1 {
 			t.Fatalf("signature reconstruction should have started for all nodes")
@@ -1439,4 +1437,20 @@ func resetNodesStates(nodes []*nodeInstance, ignoreMsgs []string, offsets bool) 
 		}
 	}
 	return nil
+}
+
+func waitForDKG() {
+	time.Sleep(dkgDuration)
+}
+
+func waitForSignMsg() {
+	time.Sleep(signMsgDuration)
+}
+
+func waitForResetState() {
+	time.Sleep(resetStateDuration)
+}
+
+func waitForNodesStop() {
+	time.Sleep(nodesStopDuration)
 }
