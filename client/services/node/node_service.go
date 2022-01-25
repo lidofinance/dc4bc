@@ -766,7 +766,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 
 		reconstructedSignatures, err := reconstructThresholdSignature(fsmInstance, signingProcessResponse)
 		if err != nil {
-			return nil, fmt.Errorf("failed to recontruct signatures: %w", err)
+			return nil, fmt.Errorf("failed to reconstruct signatures: %w", err)
 		}
 
 		err = s.broadcastReconstructedSignatures(message, reconstructedSignatures)
@@ -845,7 +845,7 @@ func reconstructThresholdSignature(signingFSM *state_machines.FSMInstance, paylo
 		reconstructedSignature, err := recoverFullSign(signingFSM, messages[messageID], messagePartialSignatures, signingFSM.FSMDump().Payload.Threshold,
 			len(signingFSM.FSMDump().Payload.PubKeys))
 		if err != nil {
-			return nil, fmt.Errorf("failed to reconsruct full signature for msg: %w", err)
+			return nil, fmt.Errorf("failed to reconstruct full signature for msg %s: %w", messageID, err)
 		}
 		response = append(response, fsmtypes.ReconstructedSignature{
 			MessageID:  messageID,

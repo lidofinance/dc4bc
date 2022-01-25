@@ -17,38 +17,38 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/lidofinance/dc4bc/client/types"
-
-	"github.com/lidofinance/dc4bc/fsm/state_machines"
-
-	"github.com/lidofinance/dc4bc/fsm/fsm"
-	"github.com/lidofinance/dc4bc/fsm/types/responses"
-
 	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"
 	httpresponses "github.com/lidofinance/dc4bc/client/api/http_api/responses"
-
-	"github.com/fatih/color"
+	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/fsm/fsm"
+	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
+	"github.com/lidofinance/dc4bc/fsm/types/responses"
+
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
 const (
 	flagListenAddr              = "listen_addr"
 	flagJSONFilesFolder         = "json_files_folder"
-	flagPrintFullSignaturesInfo = "print_only"
 	flagNewStateDBDSN           = "new_state_dbdsn"
 	flagUseOffsetInsteadId      = "use_offset_instead_id"
+	flagMessagesToIgnore        = "messages_to_ignore"
 	flagKafkaConsumerGroup      = "kafka_consumer_group"
+	flagPrintFullSignaturesInfo = "print_only"
 )
 
 var (
 	useOffset          bool
+	messagesToIgnore   string
 	newStateDBDSN      string
 	kafkaConsumerGroup string
 
@@ -58,9 +58,13 @@ var (
 	}
 
 	refreshStateCmd = &cobra.Command{
-		Use:   "refresh_state [--use_offset_instead_id | -o] [--new_state_dbsn | -s] [--kafka_consumer_group | -g] [messageId...]",
+		Use:   "refresh_state [--use_offset_instead_id | -o] [--new_state_dbsn | -s] [--kafka_consumer_group | -g] [--messages_to_ignore | -m]",
 		Short: "drops current state and replays it from storage ignoring messages with provided ids or offsets",
 	}
+
+	messagesToIgnoreSingleRx = regexp.MustCompile(`^(\d+|\w+\-\w+\-\w+\-\w+\-\w+)$`)
+	messagesToIgnoreListRx   = regexp.MustCompile(`^[\w-]+,[\w,-]+$`)
+	messagesToIgnoreSpanRx   = regexp.MustCompile(`^\d+\-\d+$`)
 )
 
 func init() {
@@ -74,6 +78,8 @@ func init() {
 		"State DBDSN")
 	refreshStateCmd.Flags().StringVarP(&kafkaConsumerGroup, flagKafkaConsumerGroup, "g", "",
 		"Kafka consumer group")
+	refreshStateCmd.Flags().StringVarP(&messagesToIgnore, flagMessagesToIgnore, "m", "",
+		"Messages to be ignored. IDs examples: id0,id1,id2 or id0. Offset examples: 0,1,2, 0 or 0-2 (marginal values are included)")
 }
 
 func main() {
@@ -262,7 +268,6 @@ func exportSignaturesCommand() *cobra.Command {
 			if signatures.ErrorMessage != "" {
 				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
 			}
-
 			if len(signatures.Result) == 0 {
 				fmt.Printf("No signatures found for dkgID %s", dkgID)
 				return nil
@@ -1059,10 +1064,19 @@ func refreshState() *cobra.Command {
 			kafkaConsumerGroup = fmt.Sprintf("%s_%d", username, time.Now().Unix())
 		}
 
+		var msgsToIgnore []string
+		if messagesToIgnore != "" {
+			msgsToIgnore, err = parseMessagesToIgnore(messagesToIgnore)
+			if err != nil {
+				return err
+			}
+		}
+
 		req := httprequests.ResetStateForm{
 			NewStateDBDSN:      newStateDBDSN,
 			UseOffset:          useOffset,
 			KafkaConsumerGroup: kafkaConsumerGroup,
+			Messages:           msgsToIgnore,
 		}
 		reqBytes, err := json.Marshal(req)
 		if err != nil {
@@ -1087,4 +1101,24 @@ func refreshState() *cobra.Command {
 	refreshStateCmd.RunE = runFunc
 
 	return refreshStateCmd
+}
+
+func parseMessagesToIgnore(input string) ([]string, error) {
+	switch {
+	case messagesToIgnoreListRx.MatchString(input):
+		return strings.Split(input, ","), nil
+	case messagesToIgnoreSingleRx.MatchString(input):
+		return []string{input}, nil
+	case messagesToIgnoreSpanRx.MatchString(input):
+		dashIdx := strings.Index(input, "-")
+		from, _ := strconv.Atoi(input[:dashIdx])
+		to, _ := strconv.Atoi(input[dashIdx+1:])
+		offsets := make([]string, 0, to-from)
+		for i := from; i <= to; i++ {
+			offsets = append(offsets, strconv.Itoa(i))
+		}
+		return offsets, nil
+	default:
+		return nil, fmt.Errorf("invalid messages to ignore flag %s, please refer to the flag usage", input)
+	}
 }
