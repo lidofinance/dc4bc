@@ -85,8 +85,8 @@ func verify() *cobra.Command {
 
 func verifyBatch() *cobra.Command {
 	return &cobra.Command{
-		Use:   "verify_batch [exported_signatures] [pubkey] [dir]",
-		Short: "verify_batch signature with Prysm",
+		Use:   "verify_batch [exported_signatures_file] [pubkey] [dir]",
+		Short: "verify batch signatures exported with './dc4bc_cli export_signatures' command with Prysm",
 		Args:  cobra.ExactArgs(3),
 		Run: func(cmd *cobra.Command, args []string) {
 			exportedSignaturesFile := args[0]

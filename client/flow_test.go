@@ -9,8 +9,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/pkg/prysm"
-	"github.com/lidofinance/dc4bc/pkg/utils"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -24,6 +22,9 @@ import (
 	"time"
 
 	"github.com/lidofinance/dc4bc/airgapped"
+	"github.com/lidofinance/dc4bc/pkg/prysm"
+	"github.com/lidofinance/dc4bc/pkg/utils"
+
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/api/http_api"
 	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"

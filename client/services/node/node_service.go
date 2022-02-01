@@ -17,7 +17,6 @@ import (
 
 	"github.com/corestario/kyber/pairing"
 	"github.com/corestario/kyber/pairing/bls12381"
-	"github.com/corestario/kyber/sign/bls"
 	"github.com/corestario/kyber/sign/tbls"
 	"github.com/lidofinance/dc4bc/dkg"
 
@@ -367,9 +366,9 @@ func (s *BaseNodeService) buildMessage(dkgRoundID string, event fsm.Event, data 
 func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessagesDTO) error {
 	messagesToSign := make([]requests.MessageToSign, 0, len(dtoMsg.Data))
 	for file, msg := range dtoMsg.Data {
-		signID, err := getSignID(file)
+		signID, err := createSignID(file)
 		if err != nil {
-			return fmt.Errorf("failed to get SignID")
+			return fmt.Errorf("failed to create SignID for file %s", file)
 		}
 		messageDataSign := requests.MessageToSign{
 			MessageID: signID,
@@ -879,18 +878,7 @@ func recoverFullSign(signingFSM *state_machines.FSMInstance, msg []byte, sigShar
 	return tbls.Recover(suite.(pairing.Suite), blsKeyring.PubPoly, msg, sigShares, t, n)
 }
 
-// VerifySign verifies a signature of a message
-func VerifySign(signingFSM *state_machines.FSMInstance, msg []byte, fullSignature []byte) error {
-	suite := bls12381.NewBLS12381Suite(nil)
-	blsKeyring, err := dkg.LoadPubPolyBLSKeyringFromBytes(suite, signingFSM.FSMDump().Payload.DKGProposalPayload.PubPolyBz)
-	if err != nil {
-		return fmt.Errorf("failed to unmarshal BLSKeyring's PubPoly")
-	}
-
-	return bls.Verify(suite.(pairing.Suite), blsKeyring.PubPoly.Commit(), msg, fullSignature)
-}
-
-func getSignID(rawID string) (string, error) {
+func createSignID(rawID string) (string, error) {
 	letterBytes := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	tail := make([]byte, 5)
 	for i := range tail {
