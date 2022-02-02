@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	signature "github.com/lidofinance/dc4bc/client/repositories/signature"
 	types "github.com/lidofinance/dc4bc/fsm/types"
 )
 
@@ -35,10 +36,10 @@ func (m *MockSignatureRepo) EXPECT() *MockSignatureRepoMockRecorder {
 }
 
 // GetBatches mocks base method.
-func (m *MockSignatureRepo) GetBatches(dkgID string) (map[string][]string, error) {
+func (m *MockSignatureRepo) GetBatches(dkgID string) ([]string, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetBatches", dkgID)
-	ret0, _ := ret[0].(map[string][]string)
+	ret0, _ := ret[0].([]string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -65,10 +66,10 @@ func (mr *MockSignatureRepoMockRecorder) GetSignatureByID(dkgID, signatureID int
 }
 
 // GetSignatures mocks base method.
-func (m *MockSignatureRepo) GetSignatures(dkgID string) (map[string][]types.ReconstructedSignature, error) {
+func (m *MockSignatureRepo) GetSignatures(dkgID string) (signature.SignaturesStorage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetSignatures", dkgID)
-	ret0, _ := ret[0].(map[string][]types.ReconstructedSignature)
+	ret0, _ := ret[0].(signature.SignaturesStorage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -95,15 +96,15 @@ func (mr *MockSignatureRepoMockRecorder) GetSignaturesByBatchID(dkgID, batchID i
 }
 
 // SaveSignatures mocks base method.
-func (m *MockSignatureRepo) SaveSignatures(batchID string, signature []types.ReconstructedSignature) error {
+func (m *MockSignatureRepo) SaveSignatures(signature []types.ReconstructedSignature) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SaveSignatures", batchID, signature)
+	ret := m.ctrl.Call(m, "SaveSignatures", signature)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SaveSignatures indicates an expected call of SaveSignatures.
-func (mr *MockSignatureRepoMockRecorder) SaveSignatures(batchID, signature interface{}) *gomock.Call {
+func (mr *MockSignatureRepoMockRecorder) SaveSignatures(signature interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSignatures", reflect.TypeOf((*MockSignatureRepo)(nil).SaveSignatures), batchID, signature)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveSignatures", reflect.TypeOf((*MockSignatureRepo)(nil).SaveSignatures), signature)
 }

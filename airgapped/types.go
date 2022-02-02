@@ -89,7 +89,7 @@ func (am *Machine) GetBLSKeyrings() (map[string]*dkg.BLSKeyring, error) {
 		if blsKeyring, err = dkg.LoadBLSKeyringFromBytes(am.baseSuite, decryptedKeyring); err != nil {
 			return nil, fmt.Errorf("failed to decode bls keyring: %w", err)
 		}
-		keyrings[strings.TrimPrefix(string(key), blsKeyringPrefix)] = blsKeyring
+		keyrings[strings.TrimPrefix(string(key), blsKeyringPrefix+"_")] = blsKeyring
 	}
 	return keyrings, iter.Error()
 }

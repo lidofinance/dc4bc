@@ -657,15 +657,18 @@ func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCal
 
 func verifySignatures(dkgID string, n *nodeInstance) error {
 	//verifying on airgapped node
-	signs, err := n.sigService.GetSignatures(&dto.DkgIdDTO{DkgID: dkgID})
+	allSignatures, err := n.sigService.GetSignatures(&dto.DkgIdDTO{DkgID: dkgID})
 	if err != nil {
 		return fmt.Errorf("failed to get signatures: %w", err)
 	}
-	for _, participantReconstructedSignatures := range signs {
-		for _, s := range participantReconstructedSignatures {
-			err = n.air.VerifySign(s.SrcPayload, s.Signature, dkgID)
-			if err != nil {
-				return fmt.Errorf("failed to verify on airgapped: %w", err)
+
+	for _, batchSignatures := range allSignatures {
+		for _, participantReconstructedSignatures := range batchSignatures {
+			for _, s := range participantReconstructedSignatures {
+				err = n.air.VerifySign(s.SrcPayload, s.Signature, dkgID)
+				if err != nil {
+					return fmt.Errorf("failed to verify on airgapped: %w", err)
+				}
 			}
 		}
 	}
@@ -683,38 +686,41 @@ func verifySignatures(dkgID string, n *nodeInstance) error {
 
 	pubKeyBase64 := base64.StdEncoding.EncodeToString(pubkeyBz)
 
-	//prepare tmp data dir
-	dir, err := ioutil.TempDir("/tmp", "dc4bc_messages_")
-	if err != nil {
-		return fmt.Errorf("failed to create tmp messages dir: %w", err)
-	}
-	defer os.RemoveAll(dir)
-
-	for _, participantReconstructedSignatures := range signs {
-		s := participantReconstructedSignatures[0]
-		f, err := os.OpenFile(path.Join(dir, s.File), os.O_WRONLY|os.O_CREATE, 0600)
+	for _, batchSignatures := range allSignatures {
+		//prepare tmp data dir
+		dir, err := ioutil.TempDir("/tmp", "dc4bc_messages_")
 		if err != nil {
-			return fmt.Errorf("filed to crete tmp file: %w", err)
+			return fmt.Errorf("failed to create tmp messages dir: %w", err)
 		}
-		defer f.Close()
 
-		_, err = f.Write(s.SrcPayload)
+		defer os.RemoveAll(dir)
+		for _, participantReconstructedSignatures := range batchSignatures {
+			s := participantReconstructedSignatures[0]
+			f, err := os.OpenFile(path.Join(dir, s.File), os.O_WRONLY|os.O_CREATE, 0600)
+			if err != nil {
+				return fmt.Errorf("filed to crete tmp file: %w", err)
+			}
+			defer f.Close()
+
+			_, err = f.Write(s.SrcPayload)
+			if err != nil {
+				return fmt.Errorf("filed to write to tmp file: %w", err)
+			}
+		}
+
+		prepared, err := utils.PrepareSignaturesToDump(batchSignatures)
 		if err != nil {
-			return fmt.Errorf("filed to write to tmp file: %w", err)
+			return fmt.Errorf("failed to convert signatures to \"export\" format: %w", err)
 		}
+
+		err = prysm.BatchVerification(*prepared, pubKeyBase64, dir)
+		if err != nil {
+			return fmt.Errorf("failed to make prysm verifification: %w", err)
+		}
+
+		fmt.Printf("%d signatures verified with prysm compability\n", len(allSignatures))
 	}
 
-	prepared, err := utils.PrepareSignaturesToDump(signs)
-	if err != nil {
-		return fmt.Errorf("failed to convert signatures to \"export\" format: %w", err)
-	}
-
-	err = prysm.BatchVerification(*prepared, pubKeyBase64, dir)
-	if err != nil {
-		return fmt.Errorf("failed to make prysm verifification: %w", err)
-	}
-
-	fmt.Printf("%d signatures verified with prysm compability\n", len(signs))
 	return nil
 }
 

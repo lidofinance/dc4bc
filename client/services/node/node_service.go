@@ -578,8 +578,7 @@ func (s *BaseNodeService) processSignature(message storage.Message) error {
 		signatures[i].Username = message.SenderAddr
 		signatures[i].DKGRoundID = message.DkgRoundID
 	}
-	// empty batchID - updates only signatures data
-	return s.sigService.SaveSignatures("", signatures)
+	return s.sigService.SaveSignatures(signatures)
 }
 
 // processBatchSignature saves a broadcasted reconstructed batch signatures to a LevelDB
@@ -597,6 +596,7 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 		sig := fsmtypes.ReconstructedSignature{
 			File:       msg.File,
 			MessageID:  msg.MessageID,
+			BatchID:    proposal.BatchID,
 			Username:   message.SenderAddr,
 			DKGRoundID: message.DkgRoundID,
 			SrcPayload: msg.Payload,
@@ -604,7 +604,7 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 		signatures = append(signatures, sig)
 	}
 
-	err = s.sigService.SaveSignatures(proposal.BatchID, signatures)
+	err = s.sigService.SaveSignatures(signatures)
 	if err != nil {
 		return fmt.Errorf("failed to save signature: %w", err)
 	}
@@ -859,6 +859,7 @@ func reconstructThresholdSignature(signingFSM *state_machines.FSMInstance, paylo
 		response = append(response, fsmtypes.ReconstructedSignature{
 			File:       messages[messageID].File,
 			MessageID:  messageID,
+			BatchID:    payload.BatchID,
 			Signature:  reconstructedSignature,
 			DKGRoundID: signingFSM.FSMDump().Payload.DkgId,
 			SrcPayload: messages[messageID].Payload,
