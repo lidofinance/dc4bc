@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
 	"github.com/lidofinance/dc4bc/pkg/utils"
 	"io/ioutil"
 	"log"
@@ -269,7 +270,7 @@ func getBatchesCommand() *cobra.Command {
 	}
 }
 
-func getSignaturesRequest(host string, dkgID string) (*SignaturesResponse, error) {
+func getSignatures(host string, dkgID string) (map[string][]fsmtypes.ReconstructedSignature, error) {
 	resp, err := http.Get(fmt.Sprintf("http://%s/getSignatures?dkgID=%s", host, dkgID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get signatures: %w", err)
@@ -284,7 +285,19 @@ func getSignaturesRequest(host string, dkgID string) (*SignaturesResponse, error
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
-	return &response, nil
+
+	if response.ErrorMessage != "" {
+		return nil, fmt.Errorf("failed to get signatures: %s", response.ErrorMessage)
+	}
+
+	var signatures map[string][]fsmtypes.ReconstructedSignature
+	for _, batchSignatures := range response.Result {
+		for signID := range batchSignatures {
+			signatures[signID] = batchSignatures[signID]
+		}
+	}
+
+	return signatures, nil
 }
 
 func exportSignaturesCommand() *cobra.Command {
@@ -309,21 +322,18 @@ func exportSignaturesCommand() *cobra.Command {
 			}
 
 			dkgID := args[0]
-			signatures, err := getSignaturesRequest(listenAddr, dkgID)
+			signatures, err := getSignatures(listenAddr, dkgID)
 			if err != nil {
 				return fmt.Errorf("failed to get signatures: %w", err)
 			}
-
-			if signatures.ErrorMessage != "" {
-				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
-			}
-			if len(signatures.Result) == 0 {
+			
+			if len(signatures) == 0 {
 				fmt.Printf("No signatures found for dkgID %s", dkgID)
 				return nil
 			}
 
 			if printOnly {
-				for sigID, signature := range signatures.Result {
+				for sigID, signature := range signatures {
 					fmt.Printf("Signing ID: %s\n", sigID)
 					fmt.Println(signature[0].File)
 					for _, participantSig := range signature {
@@ -346,7 +356,7 @@ func exportSignaturesCommand() *cobra.Command {
 
 			defer f.Close()
 
-			prepared, err := utils.PrepareSignaturesToDump(signatures.Result)
+			prepared, err := utils.PrepareSignaturesToDump(signatures)
 			if err != nil {
 				return fmt.Errorf("failed to prepare signatures for dump: %w", err)
 			}

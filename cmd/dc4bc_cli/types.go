@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"github.com/lidofinance/dc4bc/client/repositories/signature"
 	"sort"
 
 	"github.com/lidofinance/dc4bc/client/types"
@@ -41,8 +42,8 @@ type FSMDumpResponse struct {
 }
 
 type SignaturesResponse struct {
-	ErrorMessage string                                       `json:"error_message,omitempty"`
-	Result       map[string][]fsmtypes.ReconstructedSignature `json:"result"`
+	ErrorMessage string                      `json:"error_message,omitempty"`
+	Result       signature.SignaturesStorage `json:"result"`
 }
 
 type BatchesResponse struct {

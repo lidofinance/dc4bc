@@ -656,12 +656,12 @@ func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCal
 }
 
 func verifySignatures(dkgID string, n *nodeInstance) error {
-	//verifying on airgapped node
 	allSignatures, err := n.sigService.GetSignatures(&dto.DkgIdDTO{DkgID: dkgID})
 	if err != nil {
 		return fmt.Errorf("failed to get signatures: %w", err)
 	}
 
+	//verifying on airgapped node
 	for _, batchSignatures := range allSignatures {
 		for _, participantReconstructedSignatures := range batchSignatures {
 			for _, s := range participantReconstructedSignatures {
