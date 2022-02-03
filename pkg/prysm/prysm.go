@@ -3,10 +3,11 @@ package prysm
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/lidofinance/dc4bc/dkg"
-	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"io/ioutil"
 	"path"
+
+	"github.com/lidofinance/dc4bc/dkg"
+	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 )
 
 func BatchVerification(exportedSignatures dkg.ExportedSignatures, pubkeyb64 string, dataDir string) error {

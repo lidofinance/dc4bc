@@ -9,10 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/corestario/kyber/pairing/bls12381"
-	"github.com/lidofinance/dc4bc/dkg"
-	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
-	"github.com/lidofinance/dc4bc/pkg/utils"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -24,6 +20,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/corestario/kyber/pairing/bls12381"
+	"github.com/lidofinance/dc4bc/dkg"
+	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
+	"github.com/lidofinance/dc4bc/pkg/utils"
 
 	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"
 	httpresponses "github.com/lidofinance/dc4bc/client/api/http_api/responses"
@@ -328,7 +329,7 @@ func exportSignaturesCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to get signatures: %w", err)
 			}
-			
+
 			if len(signatures) == 0 {
 				fmt.Printf("No signatures found for dkgID %s", dkgID)
 				return nil

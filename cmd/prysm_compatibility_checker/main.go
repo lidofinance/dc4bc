@@ -4,10 +4,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/dkg"
-	"github.com/lidofinance/dc4bc/pkg/prysm"
 	"io/ioutil"
 	"log"
+
+	"github.com/lidofinance/dc4bc/dkg"
+	"github.com/lidofinance/dc4bc/pkg/prysm"
 
 	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"github.com/spf13/cobra"

@@ -5,8 +5,9 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/client/repositories/signature"
 	"sort"
+
+	"github.com/lidofinance/dc4bc/client/repositories/signature"
 
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/fsm"

@@ -86,7 +86,7 @@ type nodeInstance struct {
 	ctx                 context.Context
 	client              node.NodeService
 	sigService          signature.SignatureService
-	fsmService   fsmservice.FSMService
+	fsmService          fsmservice.FSMService
 	clientCancel        context.CancelFunc
 	clientLogger        *savingLogger
 	storage             storage.Storage
@@ -249,7 +249,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			storage:               stg,
 			keyPair:               keyPair,
 			sigService:            sigService,
-			fsmService:   fsmService,
+			fsmService:            fsmService,
 			air:                   airgappedMachine,
 			listenAddr:            fmt.Sprintf("localhost:%d", startingPort),
 			httpApi:               server,
@@ -257,7 +257,6 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			operationHandlers:     make(map[types.OperationType]operationHandler),
 			necessaryOperationsMu: &sync.Mutex{},
 			necessaryOperations:   make(map[types.OperationType]struct{}),
-
 		}
 		instance.setOperationHandler(types.OperationType(signature_fsm.StateAwaitParticipantsConfirmations), instance.awaitParticipantConfirmationsHandler)
 		nodes[nodeID] = instance

@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+
 	"github.com/lidofinance/dc4bc/dkg"
 	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
 )
