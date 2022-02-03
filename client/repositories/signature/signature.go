@@ -15,6 +15,29 @@ const (
 
 type SignaturesStorage map[string]map[string][]types.ReconstructedSignature
 
+func (s *SignaturesStorage) AddReconstructedSignature(reconstructedSignature types.ReconstructedSignature) {
+	batchSignatures, found := (*s)[reconstructedSignature.BatchID]
+	var signs []types.ReconstructedSignature
+	if found {
+		signs = batchSignatures[reconstructedSignature.MessageID]
+	} else {
+		batchSignatures = make(map[string][]types.ReconstructedSignature)
+	}
+	usernameFound := false
+	for i, s := range signs {
+		if s.Username == reconstructedSignature.Username {
+			signs[i] = reconstructedSignature
+			usernameFound = true
+			break
+		}
+	}
+	if !usernameFound {
+		signs = append(signs, reconstructedSignature)
+	}
+	batchSignatures[reconstructedSignature.MessageID] = signs
+	(*s)[reconstructedSignature.BatchID] = batchSignatures
+}
+
 type SignatureRepo interface {
 	SaveSignatures(signature []types.ReconstructedSignature) error
 	GetSignatureByID(dkgID, signatureID string) ([]types.ReconstructedSignature, error)
@@ -79,38 +102,19 @@ func (r *BaseSignatureRepo) SaveSignatures(signaturesToSave []types.Reconstructe
 		return errors.New("nothing to save")
 	}
 
-	signatures, err := r.GetSignatures(signaturesToSave[0].DKGRoundID)
+	storedSignatures, err := r.GetSignatures(signaturesToSave[0].DKGRoundID)
 	if err != nil {
 		return fmt.Errorf("failed to getSignatures: %w", err)
 	}
-	if signatures == nil {
-		signatures = make(SignaturesStorage)
+	if storedSignatures == nil {
+		storedSignatures = make(SignaturesStorage)
 	}
 
 	for _, signatureToSave := range signaturesToSave {
-		batchSignatures, found := signatures[signatureToSave.BatchID]
-		var signs []types.ReconstructedSignature
-		if found {
-			signs = batchSignatures[signatureToSave.MessageID]
-		} else {
-			batchSignatures = make(map[string][]types.ReconstructedSignature)
-		}
-		usernameFound := false
-		for i, s := range signs {
-			if s.Username == signatureToSave.Username {
-				signs[i] = signatureToSave
-				usernameFound = true
-				break
-			}
-		}
-		if !usernameFound {
-			signs = append(signs, signatureToSave)
-		}
-		batchSignatures[signatureToSave.MessageID] = signs
-		signatures[signatureToSave.BatchID] = batchSignatures
+		storedSignatures.AddReconstructedSignature(signatureToSave)
 	}
 
-	signaturesJSON, err := json.Marshal(signatures)
+	signaturesJSON, err := json.Marshal(storedSignatures)
 	if err != nil {
 		return fmt.Errorf("failed to marshal signatures: %w", err)
 	}
