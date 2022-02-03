@@ -9,6 +9,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/corestario/kyber/pairing/bls12381"
+	"github.com/lidofinance/dc4bc/dkg"
 	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
 	"github.com/lidofinance/dc4bc/pkg/utils"
 	"io/ioutil"
@@ -290,7 +292,7 @@ func getSignatures(host string, dkgID string) (map[string][]fsmtypes.Reconstruct
 		return nil, fmt.Errorf("failed to get signatures: %s", response.ErrorMessage)
 	}
 
-	var signatures map[string][]fsmtypes.ReconstructedSignature
+	signatures := make(map[string][]fsmtypes.ReconstructedSignature)
 	for _, batchSignatures := range response.Result {
 		for signID := range batchSignatures {
 			signatures[signID] = batchSignatures[signID]
@@ -1044,6 +1046,20 @@ func getFSMStatusCommand() *cobra.Command {
 			}
 			if len(failed) > 0 {
 				fmt.Printf("Participants who got some error during a process: %s\n", strings.Join(waiting, ", "))
+			}
+
+			if len(dump.Payload.DKGProposalPayload.PubPolyBz) != 0 {
+				suite := bls12381.NewBLS12381Suite(nil)
+				blsKeyring, err := dkg.LoadPubPolyBLSKeyringFromBytes(suite, dump.Payload.DKGProposalPayload.PubPolyBz)
+				if err != nil {
+					return fmt.Errorf("failed to unmarshal BLSKeyring's PubPoly: %w", err)
+				}
+
+				pubkeyBz, err := blsKeyring.PubPoly.Commit().MarshalBinary()
+				if err != nil {
+					return fmt.Errorf("failed to marshal pubkey: %w", err)
+				}
+				fmt.Printf("PubKey: %s\n", base64.StdEncoding.EncodeToString(pubkeyBz))
 			}
 
 			return nil

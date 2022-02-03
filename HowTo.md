@@ -401,3 +401,25 @@ Now the ceremony is over.
 ### Reinitialize DKG
 
 If you've lost all your states, communication keys, but your mnemonic for private DKG key is safe, it is possible to reinitialize the whole DKG to recover DKG master key. Please refer to [this guide](https://github.com/lidofinance/dc4bc/blob/master/HowToReinit.md) in order to do that.
+
+### Batch signature verification
+Signatures can be verified with a prysm compatibility checker utility.\
+After the batch signing process is complete you can verify signatures with a prysm compatibility utility.\
+Firstly export the signatures you have just reconstructed `./dc4bc_cli export_signatures [dkgID]`
+```shell
+./dc4bc_cli export_signatures a7a26547e393127baa
+7c852b706af62f                                                                                             
+json file was saved to: /tmp/dkg_signatures_dump_a7a26.json
+```
+Get the finished DKG round pubkey with a command
+```shell
+./dc4bc_cli show_fsm_status a7a26547e393127baa7c852b706af62f
+FSM current status is stage_signing_idle
+PubKey: mWkXWHsaqcGbmCqcGEn9vnLkVS+df54mzF3nxd6ObDF6Mvr2Hs1rThjYPkSGllM8
+```
+After that verify exported signatures with `./dc4bc_prysm_compatibility_checker [exported_signatures_file] [pubkey] [dir] [flags]`\
+Pass as argument path to exported signatures file, dkg pubkey and a dir with a data you just signed
+```shell
+./dc4bc_prysm_compatibility_checker verify_batch /tmp/dkg_signatures_dump_a7a26.json mWkXWHsaqcGbmCqcGEn9vnLkVS+df54mzF3nxd6ObDF6Mvr2Hs1rThjYPkSGllM8 /tmp/messages
+All batch signatures are correct
+```
