@@ -417,7 +417,7 @@ Get the finished DKG round pubkey with a command
 FSM current status is stage_signing_idle
 PubKey: mWkXWHsaqcGbmCqcGEn9vnLkVS+df54mzF3nxd6ObDF6Mvr2Hs1rThjYPkSGllM8
 ```
-After that verify exported signatures with `./dc4bc_prysm_compatibility_checker [exported_signatures_file] [pubkey] [dir] [flags]`\
+After that verify exported signatures with `./dc4bc_prysm_compatibility_checker verify_batch [exported_signatures_file] [pubkey] [dir] [flags]`\
 Pass as argument path to exported signatures file, dkg pubkey and a dir with a data you just signed
 ```shell
 ./dc4bc_prysm_compatibility_checker verify_batch /tmp/dkg_signatures_dump_a7a26.json mWkXWHsaqcGbmCqcGEn9vnLkVS+df54mzF3nxd6ObDF6Mvr2Hs1rThjYPkSGllM8 /tmp/messages
