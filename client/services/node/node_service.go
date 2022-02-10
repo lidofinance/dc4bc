@@ -3,12 +3,14 @@ package node
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"strings"
 	"sync"
 	"time"
@@ -363,9 +365,14 @@ func (s *BaseNodeService) buildMessage(dkgRoundID string, event fsm.Event, data 
 
 func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessagesDTO) error {
 	messagesToSign := make([]requests.MessageToSign, 0, len(dtoMsg.Data))
-	for messageID, msg := range dtoMsg.Data {
+	for file, msg := range dtoMsg.Data {
+		signID, err := createSignID(file)
+		if err != nil {
+			return fmt.Errorf("failed to create SignID for file %s", file)
+		}
 		messageDataSign := requests.MessageToSign{
-			MessageID: messageID,
+			MessageID: signID,
+			File:      file,
 			Payload:   msg,
 		}
 
@@ -587,7 +594,9 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 	signatures := make([]fsmtypes.ReconstructedSignature, 0, len(proposal.MessagesToSign))
 	for _, msg := range proposal.MessagesToSign {
 		sig := fsmtypes.ReconstructedSignature{
+			File:       msg.File,
 			MessageID:  msg.MessageID,
+			BatchID:    proposal.BatchID,
 			Username:   message.SenderAddr,
 			DKGRoundID: message.DkgRoundID,
 			SrcPayload: msg.Payload,
@@ -836,22 +845,24 @@ func reconstructThresholdSignature(signingFSM *state_machines.FSMInstance, paylo
 		return nil, fmt.Errorf("failed to unmarshal MessagesToSign: %w", err)
 	}
 	// just convert slice to map
-	messages := make(map[string][]byte)
+	messages := make(map[string]requests.MessageToSign)
 	for _, m := range messagesPayload {
-		messages[m.MessageID] = m.Payload
+		messages[m.MessageID] = m
 	}
 	response := make([]fsmtypes.ReconstructedSignature, 0, len(batchPartialSignatures))
 	for messageID, messagePartialSignatures := range batchPartialSignatures {
-		reconstructedSignature, err := recoverFullSign(signingFSM, messages[messageID], messagePartialSignatures, signingFSM.FSMDump().Payload.Threshold,
+		reconstructedSignature, err := recoverFullSign(signingFSM, messages[messageID].Payload, messagePartialSignatures, signingFSM.FSMDump().Payload.Threshold,
 			len(signingFSM.FSMDump().Payload.PubKeys))
 		if err != nil {
 			return nil, fmt.Errorf("failed to reconstruct full signature for msg %s: %w", messageID, err)
 		}
 		response = append(response, fsmtypes.ReconstructedSignature{
+			File:       messages[messageID].File,
 			MessageID:  messageID,
+			BatchID:    payload.BatchID,
 			Signature:  reconstructedSignature,
 			DKGRoundID: signingFSM.FSMDump().Payload.DkgId,
-			SrcPayload: messages[messageID],
+			SrcPayload: messages[messageID].Payload,
 		})
 	}
 	return response, nil
@@ -866,4 +877,17 @@ func recoverFullSign(signingFSM *state_machines.FSMInstance, msg []byte, sigShar
 		return nil, fmt.Errorf("failed to unmarshal BLSKeyring's PubPoly")
 	}
 	return tbls.Recover(suite.(pairing.Suite), blsKeyring.PubPoly, msg, sigShares, t, n)
+}
+
+func createSignID(rawID string) (string, error) {
+	letterBytes := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	tail := make([]byte, 5)
+	for i := range tail {
+		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(letterBytes))))
+		if err != nil {
+			return "", fmt.Errorf("failed to get rand int: %w", err)
+		}
+		tail[i] = letterBytes[idx.Uint64()]
+	}
+	return strings.Replace(rawID, " ", "-", -1) + "_" + string(tail), nil
 }

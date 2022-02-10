@@ -2,9 +2,13 @@ package main
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
+
+	"github.com/lidofinance/dc4bc/dkg"
+	"github.com/lidofinance/dc4bc/pkg/prysm"
 
 	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
 	"github.com/spf13/cobra"
@@ -80,6 +84,37 @@ func verify() *cobra.Command {
 	}
 }
 
+func verifyBatch() *cobra.Command {
+	return &cobra.Command{
+		Use:   "verify_batch [exported_signatures_file] [pubkey] [dir]",
+		Short: "verify batch signatures exported with './dc4bc_cli export_signatures' command with Prysm",
+		Args:  cobra.ExactArgs(3),
+		Run: func(cmd *cobra.Command, args []string) {
+			exportedSignaturesFile := args[0]
+			pubkeyb64 := args[1]
+			dataDir := args[2]
+
+			data, err := ioutil.ReadFile(exportedSignaturesFile)
+			if err != nil {
+				log.Fatalf("failed to read exported signatures file: %v", err)
+			}
+
+			exportedSignatures := make(dkg.ExportedSignatures)
+
+			err = json.Unmarshal(data, &exportedSignatures)
+			if err != nil {
+				log.Fatalf("failed to unmarshal exported signatures data: %v", err)
+			}
+
+			err = prysm.BatchVerification(exportedSignatures, pubkeyb64, dataDir)
+			if err != nil {
+				log.Fatalln(err)
+			}
+			fmt.Println("All batch signatures are correct")
+		},
+	}
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "./prysmCompatibilityChecker",
 	Short: "util to check signatures and pubkeys compatibility with Prysm",
@@ -90,6 +125,7 @@ func main() {
 		checkPubKey(),
 		checkSignature(),
 		verify(),
+		verifyBatch(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)

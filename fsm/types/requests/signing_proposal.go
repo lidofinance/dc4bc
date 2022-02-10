@@ -4,6 +4,7 @@ import "time"
 
 type MessageToSign struct {
 	MessageID string
+	File      string
 	Payload   []byte
 }
 

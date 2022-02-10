@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -12,6 +13,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -20,6 +22,9 @@ import (
 	"time"
 
 	"github.com/lidofinance/dc4bc/airgapped"
+	"github.com/lidofinance/dc4bc/pkg/prysm"
+	"github.com/lidofinance/dc4bc/pkg/utils"
+
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/api/http_api"
 	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"
@@ -81,6 +86,7 @@ type nodeInstance struct {
 	ctx                 context.Context
 	client              node.NodeService
 	sigService          signature.SignatureService
+	fsmService          fsmservice.FSMService
 	clientCancel        context.CancelFunc
 	clientLogger        *savingLogger
 	storage             storage.Storage
@@ -243,6 +249,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 			storage:               stg,
 			keyPair:               keyPair,
 			sigService:            sigService,
+			fsmService:            fsmService,
 			air:                   airgappedMachine,
 			listenAddr:            fmt.Sprintf("localhost:%d", startingPort),
 			httpApi:               server,
@@ -647,19 +654,72 @@ func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCal
 	return runCancel
 }
 
-func verifySignatures(dkgID string, n *nodeInstance, messageIDS []string) error {
-	signs, err := n.sigService.GetSignatures(&dto.DkgIdDTO{DkgID: dkgID})
+func verifySignatures(dkgID string, n *nodeInstance) error {
+	allSignatures, err := n.sigService.GetSignatures(&dto.DkgIdDTO{DkgID: dkgID})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get signatures: %w", err)
 	}
-	for _, mID := range messageIDS {
-		for _, s := range signs[mID] {
-			err = n.air.VerifySign(s.SrcPayload, s.Signature, dkgID)
-			if err != nil {
-				return err
+
+	//verifying on airgapped node
+	for _, batchSignatures := range allSignatures {
+		for _, participantReconstructedSignatures := range batchSignatures {
+			for _, s := range participantReconstructedSignatures {
+				err = n.air.VerifySign(s.SrcPayload, s.Signature, dkgID)
+				if err != nil {
+					return fmt.Errorf("failed to verify on airgapped: %w", err)
+				}
 			}
 		}
 	}
+
+	//Verify with prysm compability
+	keyrings, err := n.air.GetBLSKeyrings()
+	if err != nil {
+		return fmt.Errorf("failed to get a list of finished dkgs: %w", err)
+	}
+
+	pubkeyBz, err := keyrings[dkgID].PubPoly.Commit().MarshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to marshal pubkey: %w", err)
+	}
+
+	pubKeyBase64 := base64.StdEncoding.EncodeToString(pubkeyBz)
+
+	for _, batchSignatures := range allSignatures {
+		//prepare tmp data dir
+		dir, err := ioutil.TempDir("/tmp", "dc4bc_messages_")
+		if err != nil {
+			return fmt.Errorf("failed to create tmp messages dir: %w", err)
+		}
+
+		defer os.RemoveAll(dir)
+		for _, participantReconstructedSignatures := range batchSignatures {
+			s := participantReconstructedSignatures[0]
+			f, err := os.OpenFile(path.Join(dir, s.File), os.O_WRONLY|os.O_CREATE, 0600)
+			if err != nil {
+				return fmt.Errorf("filed to crete tmp file: %w", err)
+			}
+			defer f.Close()
+
+			_, err = f.Write(s.SrcPayload)
+			if err != nil {
+				return fmt.Errorf("filed to write to tmp file: %w", err)
+			}
+		}
+
+		prepared, err := utils.PrepareSignaturesToDump(batchSignatures)
+		if err != nil {
+			return fmt.Errorf("failed to convert signatures to \"export\" format: %w", err)
+		}
+
+		err = prysm.BatchVerification(*prepared, pubKeyBase64, dir)
+		if err != nil {
+			return fmt.Errorf("failed to make prysm verifification: %w", err)
+		}
+
+		fmt.Printf("%d signatures verified with prysm compability\n", len(allSignatures))
+	}
+
 	return nil
 }
 
@@ -755,7 +815,7 @@ func TestStandardBatchFlow(t *testing.T) {
 
 	numNodes := 4
 	threshold := 2
-	startingPort := 8100
+	startingPort := 8105
 	topic := "test_topic"
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil)
@@ -821,15 +881,15 @@ func TestStandardBatchFlow(t *testing.T) {
 		}
 	}
 
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
+	if err != nil {
+		t.Fatalf("failed to verify signatures: %v\n", err)
+	}
+
 	runCancel()
 	for _, node := range nodes {
 		node.httpApi.Stop(node.ctx)
 		node.clientCancel()
-	}
-
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2", "messageID3", "messageID4"})
-	if err != nil {
-		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
 }
 
@@ -997,6 +1057,9 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 	numNodes := 4
 	threshold := 2
 	startingPort := 8095
+	if convertDKGTo10_1_4 {
+		startingPort = 8100
+	}
 	topic := "test_topic"
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, mnemonics)
@@ -1036,7 +1099,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		}
 	}
 
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2"})
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
@@ -1137,7 +1200,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 			fmt.Println("message signed successfully")
 		}
 	}
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2"})
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
@@ -1168,7 +1231,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 			fmt.Println("messaged signed successfully")
 		}
 	}
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []string{"messageID1", "messageID2", "messageID3", "messageID4"})
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}

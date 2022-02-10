@@ -7,8 +7,10 @@ import (
 )
 
 type SignatureService interface {
-	GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.ReconstructedSignature, error)
+	GetSignatures(dto *dto.DkgIdDTO) (signature.SignaturesStorage, error)
 	GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error)
+	GetSignaturesByBatchID(dto *dto.SignaturesByBatchIdDTO) (map[string][]types.ReconstructedSignature, error)
+	GetBatches(dto *dto.DkgIdDTO) ([]string, error)
 	SaveSignatures(signature []types.ReconstructedSignature) error
 }
 
@@ -22,12 +24,20 @@ func NewSignatureService(signatureRepo signature.SignatureRepo) *BaseSignatureSe
 
 // GetSignatures returns all signatures for the given DKG round that were reconstructed on the airgapped machine and
 // broadcasted by users
-func (s *BaseSignatureService) GetSignatures(dto *dto.DkgIdDTO) (map[string][]types.ReconstructedSignature, error) {
+func (s *BaseSignatureService) GetSignatures(dto *dto.DkgIdDTO) (signature.SignaturesStorage, error) {
 	return s.signatureRepo.GetSignatures(dto.DkgID)
 }
 
 func (s *BaseSignatureService) GetSignatureByID(dto *dto.SignatureByIdDTO) ([]types.ReconstructedSignature, error) {
 	return s.signatureRepo.GetSignatureByID(dto.DkgID, dto.ID)
+}
+
+func (s *BaseSignatureService) GetSignaturesByBatchID(dto *dto.SignaturesByBatchIdDTO) (map[string][]types.ReconstructedSignature, error) {
+	return s.signatureRepo.GetSignaturesByBatchID(dto.DkgID, dto.BatchID)
+}
+
+func (s *BaseSignatureService) GetBatches(dto *dto.DkgIdDTO) ([]string, error) {
+	return s.signatureRepo.GetBatches(dto.DkgID)
 }
 
 func (s *BaseSignatureService) SaveSignatures(signature []types.ReconstructedSignature) error {

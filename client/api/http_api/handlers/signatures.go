@@ -26,6 +26,20 @@ func (a *HTTPApp) GetSignatures(c echo.Context) error {
 	return stx.Json(http.StatusOK, signatures)
 }
 
+func (a *HTTPApp) GetBatches(c echo.Context) error {
+	stx := c.(*cs.ContextService)
+	formDTO := &DkgIdDTO{}
+	if err := stx.BindToDTO(&req.DkgIdForm{}, formDTO); err != nil {
+		return stx.JsonError(http.StatusBadRequest, err)
+	}
+
+	batches, err := a.signature.GetBatches(formDTO)
+	if err != nil {
+		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to get batches: %w", err))
+	}
+	return stx.Json(http.StatusOK, batches)
+}
+
 func (a *HTTPApp) GetSignatureByID(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	formDTO := &SignatureByIdDTO{}

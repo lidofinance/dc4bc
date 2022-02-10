@@ -28,8 +28,13 @@ type DkgIdForm struct {
 }
 
 type SignatureByIDForm struct {
-	ID    string `query:"id" json:"id" validate:"attr=id,min=32,max=512"`
+	ID    string `query:"id" json:"id" validate:"attr=id,max=512"`
 	DkgID string `query:"dkgID" json:"dkgID" validate:"attr=dkgID,min=32,max=512"`
+}
+
+type SignaturesByBatchIDForm struct {
+	BatchID string `query:"batchID" json:"batchID" validate:"attr=id,min=32,max=512"`
+	DkgID   string `query:"dkgID" json:"dkgID" validate:"attr=dkgID,min=32,max=512"`
 }
 
 type OperationForm struct {

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/md5"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -12,7 +11,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"math/big"
 	"net/http"
 	"os"
 	"path"
@@ -23,8 +21,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/corestario/kyber/pairing/bls12381"
+	"github.com/lidofinance/dc4bc/dkg"
+	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
+	"github.com/lidofinance/dc4bc/pkg/utils"
+
 	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"
 	httpresponses "github.com/lidofinance/dc4bc/client/api/http_api/responses"
+
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
@@ -95,6 +99,7 @@ func main() {
 		getPubKeyCommand(),
 		getHashOfStartDKGCommand(),
 		getHashOfReinitDKGMessageCommand(),
+		getBatchesCommand(),
 		exportSignaturesCommand(),
 		getSignatureCommand(),
 		saveOffsetCommand(),
@@ -220,7 +225,55 @@ func getOperationsCommand() *cobra.Command {
 	}
 }
 
-func getSignaturesRequest(host string, dkgID string) (*SignaturesResponse, error) {
+func getBatchesRequest(host string, dkgID string) (*BatchesResponse, error) {
+	resp, err := http.Get(fmt.Sprintf("http://%s/getBatches?dkgID=%s", host, dkgID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get batches: %w", err)
+	}
+	defer resp.Body.Close()
+	responseBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read body: %w", err)
+	}
+
+	var response BatchesResponse
+	if err = json.Unmarshal(responseBody, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
+	}
+	return &response, nil
+}
+
+func getBatchesCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get_batches [dkgID]",
+		Args:  cobra.ExactArgs(1),
+		Short: "returns all batches with reconstructed signatures",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+			dkgID := args[0]
+			batches, err := getBatchesRequest(listenAddr, dkgID)
+			if err != nil {
+				return fmt.Errorf("failed to get batches: %w", err)
+			}
+			if batches.ErrorMessage != "" {
+				return fmt.Errorf("failed to get batches: %s", batches.ErrorMessage)
+			}
+			if len(batches.Result) == 0 {
+				fmt.Printf("No batches found for dkgID %s", dkgID)
+				return nil
+			}
+			for batchID, signatures := range batches.Result {
+				fmt.Printf("Batch ID \"%s\" contains %d signatures\n", batchID, len(signatures))
+			}
+			return nil
+		},
+	}
+}
+
+func getSignatures(host string, dkgID string) (map[string][]fsmtypes.ReconstructedSignature, error) {
 	resp, err := http.Get(fmt.Sprintf("http://%s/getSignatures?dkgID=%s", host, dkgID))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get signatures: %w", err)
@@ -235,7 +288,19 @@ func getSignaturesRequest(host string, dkgID string) (*SignaturesResponse, error
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
 	}
-	return &response, nil
+
+	if response.ErrorMessage != "" {
+		return nil, fmt.Errorf("failed to get signatures: %s", response.ErrorMessage)
+	}
+
+	signatures := make(map[string][]fsmtypes.ReconstructedSignature)
+	for _, batchSignatures := range response.Result {
+		for signID := range batchSignatures {
+			signatures[signID] = batchSignatures[signID]
+		}
+	}
+
+	return signatures, nil
 }
 
 func exportSignaturesCommand() *cobra.Command {
@@ -260,22 +325,20 @@ func exportSignaturesCommand() *cobra.Command {
 			}
 
 			dkgID := args[0]
-			signatures, err := getSignaturesRequest(listenAddr, dkgID)
+			signatures, err := getSignatures(listenAddr, dkgID)
 			if err != nil {
 				return fmt.Errorf("failed to get signatures: %w", err)
 			}
 
-			if signatures.ErrorMessage != "" {
-				return fmt.Errorf("failed to get signatures: %s", signatures.ErrorMessage)
-			}
-			if len(signatures.Result) == 0 {
+			if len(signatures) == 0 {
 				fmt.Printf("No signatures found for dkgID %s", dkgID)
 				return nil
 			}
 
 			if printOnly {
-				for sigID, signature := range signatures.Result {
+				for sigID, signature := range signatures {
 					fmt.Printf("Signing ID: %s\n", sigID)
+					fmt.Println(signature[0].File)
 					for _, participantSig := range signature {
 						fmt.Printf("\tDKG round ID: %s\n", participantSig.DKGRoundID)
 						fmt.Printf("\tParticipant: %s\n", participantSig.Username)
@@ -296,21 +359,12 @@ func exportSignaturesCommand() *cobra.Command {
 
 			defer f.Close()
 
-			var output = map[string]interface{}{}
-			for messageID, entries := range signatures.Result {
-				if len(entries) == 0 {
-					return fmt.Errorf("no reconstructed signatures found for message %s", messageID)
-				}
-				output[messageID] = struct {
-					Payload   []byte `json:"payload_base64"`
-					Signature []byte `json:"signature"`
-				}{
-					Payload:   entries[0].SrcPayload,
-					Signature: entries[0].Signature,
-				}
+			prepared, err := utils.PrepareSignaturesToDump(signatures)
+			if err != nil {
+				return fmt.Errorf("failed to prepare signatures for dump: %w", err)
 			}
 
-			bz, err := json.Marshal(output)
+			bz, err := json.Marshal(prepared)
 			if err != nil {
 				return fmt.Errorf("failed to marshal result: %w", err)
 			}
@@ -844,19 +898,6 @@ func proposeSignMessageCommand() *cobra.Command {
 	}
 }
 
-func getSignID(rawID string) (string, error) {
-	letterBytes := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	tail := make([]byte, 5)
-	for i := range tail {
-		idx, err := rand.Int(rand.Reader, big.NewInt(int64(len(letterBytes))))
-		if err != nil {
-			return "", fmt.Errorf("failed to get rand int: %w", err)
-		}
-		tail[i] = letterBytes[idx.Uint64()]
-	}
-	return strings.Replace(rawID, " ", "-", -1) + "_" + string(tail), nil
-}
-
 func proposeSignBatchMessagesCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "sign_batch_data [dkg_id] [dir_path]",
@@ -893,12 +934,7 @@ func proposeSignBatchMessagesCommand() *cobra.Command {
 					return fmt.Errorf("failed to read the file")
 				}
 
-				signID, err := getSignID(f.Name())
-				if err != nil {
-					return fmt.Errorf("failed to get SignID")
-				}
-
-				req.Data[signID] = data
+				req.Data[f.Name()] = data
 			}
 
 			messageDataBz, err := json.Marshal(&req)
@@ -1011,6 +1047,20 @@ func getFSMStatusCommand() *cobra.Command {
 			}
 			if len(failed) > 0 {
 				fmt.Printf("Participants who got some error during a process: %s\n", strings.Join(waiting, ", "))
+			}
+
+			if len(dump.Payload.DKGProposalPayload.PubPolyBz) != 0 {
+				suite := bls12381.NewBLS12381Suite(nil)
+				blsKeyring, err := dkg.LoadPubPolyBLSKeyringFromBytes(suite, dump.Payload.DKGProposalPayload.PubPolyBz)
+				if err != nil {
+					return fmt.Errorf("failed to unmarshal BLSKeyring's PubPoly: %w", err)
+				}
+
+				pubkeyBz, err := blsKeyring.PubPoly.Commit().MarshalBinary()
+				if err != nil {
+					return fmt.Errorf("failed to marshal pubkey: %w", err)
+				}
+				fmt.Printf("PubKey: %s\n", base64.StdEncoding.EncodeToString(pubkeyBz))
 			}
 
 			return nil

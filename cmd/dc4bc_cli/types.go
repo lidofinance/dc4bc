@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/lidofinance/dc4bc/client/repositories/signature"
+
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
@@ -41,8 +43,13 @@ type FSMDumpResponse struct {
 }
 
 type SignaturesResponse struct {
-	ErrorMessage string                                       `json:"error_message,omitempty"`
-	Result       map[string][]fsmtypes.ReconstructedSignature `json:"result"`
+	ErrorMessage string                      `json:"error_message,omitempty"`
+	Result       signature.SignaturesStorage `json:"result"`
+}
+
+type BatchesResponse struct {
+	ErrorMessage string              `json:"error_message,omitempty"`
+	Result       map[string][]string `json:"result"`
 }
 
 type SignatureResponse struct {
