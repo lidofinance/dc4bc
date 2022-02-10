@@ -7,7 +7,7 @@ import (
 	"path"
 
 	"github.com/lidofinance/dc4bc/dkg"
-	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
+	prysmBLS "github.com/prysmaticlabs/prysm/crypto/bls"
 )
 
 func BatchVerification(exportedSignatures dkg.ExportedSignatures, pubkeyb64 string, dataDir string) error {
