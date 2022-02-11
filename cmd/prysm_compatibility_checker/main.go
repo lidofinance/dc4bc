@@ -10,7 +10,7 @@ import (
 	"github.com/lidofinance/dc4bc/dkg"
 	"github.com/lidofinance/dc4bc/pkg/prysm"
 
-	prysmBLS "github.com/prysmaticlabs/prysm/shared/bls"
+	prysmBLS "github.com/prysmaticlabs/prysm/crypto/bls"
 	"github.com/spf13/cobra"
 )
 
