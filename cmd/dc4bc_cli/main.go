@@ -957,6 +957,55 @@ func proposeSignBatchMessagesCommand() *cobra.Command {
 	}
 }
 
+func proposeSignBakedMessagesCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "sign_baked [dkg_id] [range_start] [range_end]",
+		Args:  cobra.ExactArgs(2),
+		Short: "sends a propose message to sign the part of data baked into the binary",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration: %v", err)
+			}
+
+			dkgID, err := hex.DecodeString(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to decode dkgID: %w", err)
+			}
+
+			range_start, err := strconv.Atoi(args[1])
+			if err != nil {
+				return fmt.Errorf("failed to parse range_start: %w", err)
+			}
+			range_end, err := strconv.Atoi(args[1])
+			if err != nil {
+				return fmt.Errorf("failed to parse range_end: %w", err)
+			}
+
+			req := httprequests.ProposeSignBakedMessagesForm{
+				DkgID:      dkgID,
+				RangeStart: range_start,
+				RangeEnd:   range_end,
+			}
+
+			messageDataBz, err := json.Marshal(&req)
+			if err != nil {
+				return fmt.Errorf("failed to Marshal ProposeSignBakedMessagesForm request: %w", err)
+			}
+
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/proposeSignBakedMessages", listenAddr),
+				"application/json", messageDataBz)
+			if err != nil {
+				return fmt.Errorf("failed to make HTTP request to propose message to sign: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to make HTTP request to propose message to sign: %v", resp.ErrorMessage)
+			}
+			return nil
+		},
+	}
+}
+
 func getFSMDumpRequest(host string, dkgID string) (*FSMDumpResponse, error) {
 	resp, err := http.Get(fmt.Sprintf("http://%s/getFSMDump?dkgID=%s", host, dkgID))
 	if err != nil {

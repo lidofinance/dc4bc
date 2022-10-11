@@ -86,3 +86,24 @@ func (a *HTTPApp) ProposeSignBatchMessages(c echo.Context) error {
 	}
 	return stx.Json(http.StatusOK, "ok")
 }
+
+func (a *HTTPApp) ProposeSignBakedMessages(c echo.Context) error {
+	stx := c.(*cs.ContextService)
+	formDTO := &ProposeSignBakedMessagesDTO{}
+	if err := stx.BindToDTO(&req.ProposeSignBakedMessagesForm{}, formDTO); err != nil {
+		return stx.JsonError(http.StatusBadRequest, err)
+	}
+
+	batch := ProposeSignBatchMessagesDTO{
+		DkgID: formDTO.DkgID,
+		Range: &Range{
+			Start: formDTO.RangeStart,
+			End:   formDTO.RangeEnd,
+		},
+	}
+
+	if err := a.node.ProposeSignMessages(&batch); err != nil {
+		return stx.JsonError(http.StatusInternalServerError, err)
+	}
+	return stx.Json(http.StatusOK, "ok")
+}

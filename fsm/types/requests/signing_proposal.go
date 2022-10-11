@@ -2,10 +2,20 @@ package requests
 
 import "time"
 
+// MessageToSign is a message to sign on airgapped machine.
+// It can either contains a contant as Payload or a range of baked into airgapped messages
 type MessageToSign struct {
 	MessageID string
 	File      string
 	Payload   []byte
+}
+
+type SigningTask struct {
+	MessageID  string
+	File       string
+	Payload    []byte
+	RangeStart int
+	RangeEnd   int
 }
 
 // States: "stage_signing_idle"

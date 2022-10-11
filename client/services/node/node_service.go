@@ -363,20 +363,39 @@ func (s *BaseNodeService) buildMessage(dkgRoundID string, event fsm.Event, data 
 	return &message, nil
 }
 
-func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessagesDTO) error {
-	messagesToSign := make([]requests.MessageToSign, 0, len(dtoMsg.Data))
-	for file, msg := range dtoMsg.Data {
-		signID, err := createSignID(file)
-		if err != nil {
-			return fmt.Errorf("failed to create SignID for file %s", file)
-		}
-		messageDataSign := requests.MessageToSign{
-			MessageID: signID,
-			File:      file,
-			Payload:   msg,
-		}
+func extractTasksFromDTO(dtoMsg *dto.ProposeSignBatchMessagesDTO) ([]requests.SigningTask, error) {
+	if dtoMsg.Data != nil {
+		messagesToSign := make([]requests.SigningTask, 0, len(dtoMsg.Data))
+		for file, msg := range dtoMsg.Data {
+			signID, err := createSignID(file)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create SignID for file %s", file)
+			}
+			messageDataSign := requests.SigningTask{
+				MessageID: signID,
+				File:      file,
+				Payload:   msg,
+			}
 
-		messagesToSign = append(messagesToSign, messageDataSign)
+			messagesToSign = append(messagesToSign, messageDataSign)
+		}
+		return messagesToSign, nil
+	} else if dtoMsg.Range != nil {
+		return []requests.SigningTask{
+			{
+				MessageID:  uuid.New().String(),
+				RangeStart: dtoMsg.Range.Start,
+				RangeEnd:   dtoMsg.Range.End,
+			},
+		}, nil
+	}
+	return nil, errors.New("neither data tosign nor range were provided")
+}
+
+func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessagesDTO) error {
+	messagesToSign, err := extractTasksFromDTO(dtoMsg)
+	if err != nil {
+		return fmt.Errorf("failed to extract messages from DTO: %w", err)
 	}
 
 	encodedDkgID := hex.EncodeToString(dtoMsg.DkgID)
@@ -591,6 +610,7 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 	if err = json.Unmarshal(message.Data, &proposal); err != nil {
 		return fmt.Errorf("failed to unmarshal reconstructed signature: %w", err)
 	}
+	// TODO
 	signatures := make([]fsmtypes.ReconstructedSignature, 0, len(proposal.MessagesToSign))
 	for _, msg := range proposal.MessagesToSign {
 		sig := fsmtypes.ReconstructedSignature{

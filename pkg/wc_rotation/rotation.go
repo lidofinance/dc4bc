@@ -1,7 +1,12 @@
 package wc_rotation
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"sync"
+
+	_ "embed"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/lidofinance/dc4bc/pkg/wc_rotation/entity"
@@ -26,7 +31,23 @@ var (
 
 	signingDomain    []byte
 	computeDomainErr error
+
+	//go:embed payloads.csv
+	Payloads string
 )
+
+func GetValidatorsIndexes(start, end int) ([]uint64, error) {
+	strids := strings.Split(Payloads, "\n")
+	ids := make([]uint64, 0, end-start)
+	for _, strid := range strids[start:end] {
+		id, err := strconv.Atoi(strid)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse id into int: %w", err)
+		}
+		ids = append(ids, uint64(id))
+	}
+	return ids, nil
+}
 
 func GetSigningRoot(validatorIndex uint64) ([32]byte, error) {
 	onceDefaultClient.Do(func() {
