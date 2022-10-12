@@ -393,7 +393,7 @@ func extractTasksFromDTO(dtoMsg *dto.ProposeSignBatchMessagesDTO) ([]requests.Si
 }
 
 func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessagesDTO) error {
-	messagesToSign, err := extractTasksFromDTO(dtoMsg)
+	signingTasks, err := extractTasksFromDTO(dtoMsg)
 	if err != nil {
 		return fmt.Errorf("failed to extract messages from DTO: %w", err)
 	}
@@ -419,10 +419,10 @@ func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessag
 	}
 
 	batch := requests.SigningBatchProposalStartRequest{
-		BatchID:        uuid.New().String(),
-		ParticipantId:  participantID,
-		CreatedAt:      time.Now(), // Is better to use time from node?
-		MessagesToSign: messagesToSign,
+		BatchID:       uuid.New().String(),
+		ParticipantId: participantID,
+		CreatedAt:     time.Now(), // Is better to use time from node?
+		SigningTasks:  signingTasks,
 	}
 
 	batchBz, err := json.Marshal(batch)
@@ -610,9 +610,14 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 	if err = json.Unmarshal(message.Data, &proposal); err != nil {
 		return fmt.Errorf("failed to unmarshal reconstructed signature: %w", err)
 	}
-	// TODO
-	signatures := make([]fsmtypes.ReconstructedSignature, 0, len(proposal.MessagesToSign))
-	for _, msg := range proposal.MessagesToSign {
+
+	messagesToSign, err := requests.TasksToMessages(proposal.SigningTasks)
+	if err != nil {
+		return fmt.Errorf("failed to extract messages from tasks: %w", err)
+	}
+
+	signatures := make([]fsmtypes.ReconstructedSignature, 0, len(messagesToSign))
+	for _, msg := range messagesToSign {
 		sig := fsmtypes.ReconstructedSignature{
 			File:       msg.File,
 			MessageID:  msg.MessageID,
@@ -854,16 +859,22 @@ func (s *BaseNodeService) broadcastReconstructedSignatures(message storage.Messa
 
 func reconstructThresholdSignature(signingFSM *state_machines.FSMInstance, payload responses.SigningProcessParticipantResponse) ([]fsmtypes.ReconstructedSignature, error) {
 	batchPartialSignatures := make(fsmtypes.BatchPartialSignatures)
-	var messagesPayload []requests.MessageToSign
+	var signingTasks []requests.SigningTask
 	for _, participant := range payload.Participants {
 		for messageID, sign := range participant.PartialSigns {
 			batchPartialSignatures.AddPartialSignature(messageID, sign)
 		}
 	}
-	err := json.Unmarshal(payload.SrcPayload, &messagesPayload)
+	err := json.Unmarshal(payload.SrcPayload, &signingTasks)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal MessagesToSign: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal signingTasks: %w", err)
 	}
+
+	messagesPayload, err := requests.TasksToMessages(signingTasks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract messages from signingTasks: %w", err)
+	}
+
 	// just convert slice to map
 	messages := make(map[string]requests.MessageToSign)
 	for _, m := range messagesPayload {

@@ -3,8 +3,6 @@ package airgapped
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/corestario/kyber/pairing"
 	"github.com/corestario/kyber/sign/bls"
@@ -13,7 +11,6 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
-	"github.com/lidofinance/dc4bc/pkg/wc_rotation"
 )
 
 type SignData struct {
@@ -21,78 +18,41 @@ type SignData struct {
 	Data []byte
 }
 
-func extractMessageFromBaked(id int) (SignData, error) {
-	validatorsIDS := strings.Split(wc_rotation.Payloads, "\n")
-	vID, err := strconv.Atoi(validatorsIDS[id])
-	if err != nil {
-		return SignData{}, fmt.Errorf("failed to parse int from str(%s): %w", validatorsIDS[id], err)
-	}
-	root, err := wc_rotation.GetSigningRoot(uint64(vID))
-	if err != nil {
-		return SignData{}, fmt.Errorf("failed to get signed root: %w", err)
-	}
-	return SignData{
-		ID:   fmt.Sprintf("bakedrange%d", id),
-		Data: root[:],
-	}, nil
-}
-
-func getPayloadFromMessages(msgs []requests.MessageToSign) ([]SignData, error) {
-	var signData []SignData
-	for _, m := range msgs {
-		if m.Payload != nil {
-			signData = append(signData, SignData{
-				ID:   m.MessageID,
-				Data: m.Payload,
-			})
-		} else {
-			for i := m.RangeStart; i <= m.RangeEnd; i++ {
-				data, err := extractMessageFromBaked(i)
-				if err != nil {
-					return nil, fmt.Errorf("failed to extractMessageFromBaked: %w", err)
-				}
-				signData = append(signData, data)
-			}
-		}
-	}
-	return signData, nil
-}
-
 // handleStateSigningAwaitPartialSigns takes a data to sign as payload and returns a partial sign for the data to broadcast
 func (am *Machine) handleStateSigningAwaitPartialSigns(o *client.Operation) error {
 	var (
-		payload        responses.SigningPartialSignsParticipantInvitationsResponse
-		messagesToSign []requests.MessageToSign
-		err            error
+		payload      responses.SigningPartialSignsParticipantInvitationsResponse
+		signingTasks []requests.SigningTask
+		err          error
 	)
 
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
 
-	if err = json.Unmarshal(payload.SrcPayload, &messagesToSign); err != nil {
+	if err = json.Unmarshal(payload.SrcPayload, &signingTasks); err != nil {
 		return fmt.Errorf("failed to unmarshal messages to sign: %w", err)
 	}
 
-	signs := make([]requests.PartialSign, 0, len(messagesToSign))
+	signs := make([]requests.PartialSign, 0, len(signingTasks))
 	participantID, err := am.getParticipantID(o.DKGIdentifier)
 	if err != nil {
 		return fmt.Errorf("failed to get paricipant id: %w", err)
 	}
 
-	signData, err := getPayloadFromMessages(messagesToSign)
+	messagesToSign, err := requests.TasksToMessages(signingTasks)
 	if err != nil {
-		return fmt.Errorf("failed to extract messages from task: %w", err)
+		return fmt.Errorf("failed to extract messages from tasks: %w", err)
 	}
 
-	for _, s := range signData {
-		partialSign, err := am.createPartialSign(s.Data, o.DKGIdentifier)
+	for _, s := range messagesToSign {
+		partialSign, err := am.createPartialSign(s.Payload, o.DKGIdentifier)
 		if err != nil {
 			return fmt.Errorf("failed to create partialSign for msg: %w", err)
 		}
 
 		signs = append(signs, requests.PartialSign{
-			MessageID: s.ID,
+			MessageID: s.MessageID,
 			Sign:      partialSign,
 		})
 	}

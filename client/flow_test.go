@@ -370,6 +370,40 @@ func signMessage(dkgID []byte, msg, addr string) ([]byte, error) {
 	return messageDataBz, nil
 }
 
+func signBakedMessage(dkgID []byte, range_start, range_end int, addr string) ([]byte, error) {
+	req := httprequests.ProposeSignBakedMessagesForm{
+		DkgID:      dkgID,
+		RangeStart: range_start,
+		RangeEnd:   range_end,
+	}
+
+	messageDataBz, err := json.Marshal(&req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to Marshal ProposeSignBakedMessagesForm request: %w", err)
+	}
+
+	resp, err := http.Post(fmt.Sprintf("http://%s/proposeSignBakedMessages", addr),
+		"application/json", bytes.NewReader(messageDataBz))
+	if err != nil {
+		return nil, fmt.Errorf("failed to send HTTP request to sign message: %v\n", err)
+	}
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read HTTP response body: %w", err)
+	}
+
+	var response api_responses.BaseResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal HTTP response body: %w", err)
+	}
+
+	if len(response.ErrorMessage) != 0 {
+		return nil, fmt.Errorf("failed to propose sign message: %s", response.ErrorMessage)
+	}
+	return messageDataBz, nil
+}
+
 func signBatchMessages(dkgID []byte, msg map[string][]byte, addr string) ([]byte, error) {
 
 	messageDataBz, err := json.Marshal(map[string]interface{}{"data": msg,
@@ -697,13 +731,13 @@ func verifySignatures(dkgID string, n *nodeInstance) error {
 			s := participantReconstructedSignatures[0]
 			f, err := os.OpenFile(path.Join(dir, s.File), os.O_WRONLY|os.O_CREATE, 0600)
 			if err != nil {
-				return fmt.Errorf("filed to crete tmp file: %w", err)
+				return fmt.Errorf("failed to create tmp file: %w", err)
 			}
 			defer f.Close()
 
 			_, err = f.Write(s.SrcPayload)
 			if err != nil {
-				return fmt.Errorf("filed to write to tmp file: %w", err)
+				return fmt.Errorf("failed to write to tmp file: %w", err)
 			}
 		}
 
@@ -765,6 +799,7 @@ func TestStandardFlow(t *testing.T) {
 	log.Println("Propose message to sign")
 
 	dkgID := sha256.Sum256(messageDataBz)
+
 	messageDataBz, err = signMessage(dkgID[:], "message to sign", nodes[len(nodes)-1].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
@@ -785,6 +820,83 @@ func TestStandardFlow(t *testing.T) {
 		} else {
 			fmt.Println("messaged signed successfully")
 		}
+	}
+
+	fmt.Println("Sign message again")
+	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignMessage", nodes[len(nodes)-1].listenAddr),
+		"application/json", bytes.NewReader(messageDataBz)); err != nil {
+		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
+	}
+	waitForSignMsg()
+
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 100); matches != 8 {
+			t.Fatalf("not enough checks: %d", matches)
+		} else {
+			fmt.Println("messaged signed successfully")
+		}
+	}
+
+	runCancel()
+	for _, node := range nodes {
+		node.httpApi.Stop(node.ctx)
+		node.clientCancel()
+	}
+}
+
+func TestBakedMessagesFlow(t *testing.T) {
+	_ = RemoveContents("/tmp", "dc4bc_*")
+	defer func() { _ = RemoveContents("/tmp", "dc4bc_*") }()
+
+	numNodes := 4
+	threshold := 2
+	startingPort := 8085
+	topic := "test_topic"
+	storagePath := "/tmp/dc4bc_storage"
+	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil)
+	if err != nil {
+		t.Fatalf("Failed to init nodes, err: %v", err)
+	}
+
+	// Each nodeInstance starts to Poll().
+	runCancel := startServerRunAndPoll(nodes, nil)
+
+	// Last nodeInstance tells other participants to start DKG.
+	messageDataBz, err := startDkg(nodes, threshold)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+
+	waitForDKG()
+
+	log.Println("Propose message to sign")
+
+	dkgID := sha256.Sum256(messageDataBz)
+	messageDataBz, err = signBakedMessage(dkgID[:], 1, 5, nodes[len(nodes)-1].listenAddr)
+	if err != nil {
+		t.Fatal(err.Error())
+	}
+	waitForSignMsg()
+
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructionStartedRegexp, 70); matches != 1 {
+			t.Fatalf("not enough checks: %d", matches)
+		} else {
+			fmt.Println("reconstruction started")
+		}
+	}
+
+	for _, n := range nodes {
+		if matches := n.clientLogger.checkLogsWithRegexp(sigReconstructedRegexp, 70); matches != 4 {
+			t.Fatalf("not enough checks: %d", matches)
+		} else {
+			fmt.Println("messaged signed successfully")
+		}
+	}
+
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
+	if err != nil {
+		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
 
 	fmt.Println("Sign message again")

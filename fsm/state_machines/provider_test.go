@@ -66,7 +66,7 @@ var (
 
 func init() {
 	var err error
-	testSigningPayload, err = json.Marshal(&[]requests.MessageToSign{
+	testSigningPayload, err = json.Marshal(&[]requests.SigningTask{
 		{
 			MessageID: "test-signing-id",
 			Payload:   []byte("message to sign"),
@@ -915,7 +915,7 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 	fsmResponse, testFSMDump[sif.StateSigningAwaitPartialSigns], err = testFSMInstance.Do(sif.EventSigningStart, requests.SigningBatchProposalStartRequest{
 		BatchID:       "test-batch-id",
 		ParticipantId: 1,
-		MessagesToSign: []requests.MessageToSign{
+		SigningTasks: []requests.SigningTask{
 			{
 				MessageID: "test-signing-id",
 				Payload:   []byte("message to sign"),
