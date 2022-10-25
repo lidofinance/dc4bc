@@ -57,9 +57,10 @@ var (
 		CreatedAt:    tm,
 	}
 
-	testBatchSigningId   string
-	testSigningInitiator int
-	testSigningPayload   []byte
+	testBatchSigningId      string
+	testSigningInitiator    int
+	testSigningPayload      []byte
+	testSigningBakedPayload []byte
 
 	testFSMDump = map[fsm.State][]byte{}
 )
@@ -70,6 +71,17 @@ func init() {
 		{
 			MessageID: "test-signing-id",
 			Payload:   []byte("message to sign"),
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	testSigningBakedPayload, err = json.Marshal(&[]requests.SigningTask{
+		{
+			MessageID:  "bakeddata",
+			RangeStart: 1,
+			RangeEnd:   10,
 		},
 	})
 	if err != nil {
@@ -945,6 +957,63 @@ func Test_SigningProposal_EventSigningStart(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(response.SrcPayload, testSigningPayload) {
+		t.Fatalf("expected matched {SrcPayload}")
+	}
+
+	testBatchSigningId = response.BatchID
+	testSigningInitiator = response.InitiatorId
+
+	compareDumpNotZero(t, testFSMDump[sif.StateSigningAwaitPartialSigns])
+}
+
+func Test_SigningProposal_EventSigningStart_BakedData(t *testing.T) {
+	var (
+		fsmResponse *fsm.Response
+	)
+
+	testFSMInstance, err := FromDump(testFSMDump[sif.StateSigningIdle])
+
+	compareErrNil(t, err)
+
+	compareFSMInstanceNotNil(t, testFSMInstance)
+
+	inState, _ := testFSMInstance.State()
+	compareState(t, sif.StateSigningIdle, inState)
+
+	fsmResponse, testFSMDump[sif.StateSigningAwaitPartialSigns], err = testFSMInstance.Do(sif.EventSigningStart, requests.SigningBatchProposalStartRequest{
+		BatchID:       "test-batch-id2",
+		ParticipantId: 1,
+		SigningTasks: []requests.SigningTask{
+			{
+				MessageID:  "bakeddata",
+				RangeStart: 1,
+				RangeEnd:   10,
+			},
+		},
+		CreatedAt: time.Now(),
+	})
+
+	compareErrNil(t, err)
+
+	compareFSMResponseNotNil(t, fsmResponse)
+
+	compareState(t, sif.StateSigningAwaitPartialSigns, fsmResponse.State)
+
+	response, ok := fsmResponse.Data.(responses.SigningPartialSignsParticipantInvitationsResponse)
+
+	if !ok {
+		t.Fatalf("expected response {SigningPartialSignsParticipantInvitationsResponse}")
+	}
+
+	if len(response.Participants) != len(testParticipantsListRequest.Participants) {
+		t.Fatalf("expected response len {%d}, got {%d}", len(testParticipantsListRequest.Participants), len(response.Participants))
+	}
+
+	if response.BatchID == "" {
+		t.Fatalf("expected field {BatchID}")
+	}
+
+	if !reflect.DeepEqual(response.SrcPayload, testSigningBakedPayload) {
 		t.Fatalf("expected matched {SrcPayload}")
 	}
 
