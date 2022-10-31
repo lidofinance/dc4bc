@@ -19,10 +19,10 @@ func (b *BLSToExecutionChange) MarshalSSZTo(buf []byte) (dst []byte, err error) 
 	dst = ssz.MarshalUint64(dst, b.ValidatorIndex)
 
 	// Field (1) 'Pubkey'
-	dst = append(dst, b.Pubkey[:]...)
+	dst = append(dst, b.FromBlsPubkey[:]...)
 
 	// Field (2) 'WithdrawalCredentials'
-	dst = append(dst, b.WithdrawalCredentials[:]...)
+	dst = append(dst, b.ToExecutionAddress[:]...)
 
 	return
 }
@@ -39,10 +39,10 @@ func (b *BLSToExecutionChange) UnmarshalSSZ(buf []byte) error {
 	b.ValidatorIndex = ssz.UnmarshallUint64(buf[0:8])
 
 	// Field (1) 'Pubkey'
-	copy(b.Pubkey[:], buf[8:56])
+	copy(b.FromBlsPubkey[:], buf[8:56])
 
 	// Field (2) 'WithdrawalCredentials'
-	copy(b.WithdrawalCredentials[:], buf[56:88])
+	copy(b.ToExecutionAddress[:], buf[56:88])
 
 	return err
 }
@@ -66,10 +66,10 @@ func (b *BLSToExecutionChange) HashTreeRootWith(hh *ssz.Hasher) (err error) {
 	hh.PutUint64(b.ValidatorIndex)
 
 	// Field (1) 'Pubkey'
-	hh.PutBytes(b.Pubkey[:])
+	hh.PutBytes(b.FromBlsPubkey[:])
 
 	// Field (2) 'WithdrawalCredentials'
-	hh.PutBytes(b.WithdrawalCredentials[:])
+	hh.PutBytes(b.ToExecutionAddress[:])
 
 	hh.Merkleize(indx)
 	return
