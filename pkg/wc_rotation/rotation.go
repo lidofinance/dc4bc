@@ -3,10 +3,11 @@ package wc_rotation
 import (
 	"errors"
 	"fmt"
-	"github.com/prysmaticlabs/prysm/beacon-chain/core/signing"
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/prysmaticlabs/prysm/beacon-chain/core/signing"
 
 	_ "embed"
 
@@ -45,13 +46,13 @@ var (
 
 	confPreset = ConfPreset{
 		TestPreset: LidoConf{
-			LidoBLSPubKey: `0xb67aca71f04b673037b54009b760f1961f3836e5714141c892afdb75ec0834dce6784d9c72ed8ad7db328cff8fe9f13e`,
-			LidoWC:        `0x010000000000000000000000b9d7934878b5fb9610b3fe8a5e441e8fad7e293f`,
+			LidoBLSPubKey: T_BLSPubKey,
+			LidoWC:        T_EXECUTION_ADDRESS_GOERLY,
 		},
 		// TODO: replace with prduction values
 		ProdPreset: LidoConf{
-			LidoBLSPubKey: T_BLSPubKey,
-			LidoWC:        T_EXECUTION_ADDRESS_GOERLY,
+			LidoBLSPubKey: `0xb67aca71f04b673037b54009b760f1961f3836e5714141c892afdb75ec0834dce6784d9c72ed8ad7db328cff8fe9f13e`,
+			LidoWC:        `0x010000000000000000000000b9d7934878b5fb9610b3fe8a5e441e8fad7e293f`,
 		},
 	}
 

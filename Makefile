@@ -20,7 +20,7 @@ build-darwin:
 	@echo "Building dc4bc_cli..."
 	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dc4bc_cli_darwin ./cmd/dc4bc_cli/
 	@echo "Building dc4bc_airgapped..."
-	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dc4bc_airgapped_darwin ./cmd/airgapped/
+	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dc4bc_airgapped_darwin ./cmd/airgapped/
 	@echo "Building dc4bc_prysm_compatibility_checker..."
 	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o dc4bc_prysm_compatibility_checker_darwin ./cmd/prysm_compatibility_checker/
 	@echo "Building dkg_reinitializer..."
@@ -32,7 +32,7 @@ build-linux:
 	@echo "Building dc4bc_cli..."
 	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o dc4bc_cli_linux ./cmd/dc4bc_cli/
 	@echo "Building dc4bc_airgapped..."
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o dc4bc_airgapped_linux ./cmd/airgapped/
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o dc4bc_airgapped_linux ./cmd/airgapped/
 	@echo "Building dc4bc_prysm_compatibility_checker..."
 	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o dc4bc_prysm_compatibility_checker_linux ./cmd/prysm_compatibility_checker/
 	@echo "Building dkg_reinitializer..."
@@ -44,7 +44,7 @@ build:
 	@echo "Building dc4bc_cli..."
 	go build $(LDFLAGS) -o dc4bc_cli ./cmd/dc4bc_cli/
 	@echo "Building dc4bc_airgapped..."
-	CGO_ENABLED=0 go build $(LDFLAGS) -o dc4bc_airgapped ./cmd/airgapped/
+	go build $(LDFLAGS) -o dc4bc_airgapped ./cmd/airgapped/
 	@echo "Building dc4bc_prysm_compatibility_checker..."
 	go build $(LDFLAGS) -o dc4bc_prysm_compatibility_checker ./cmd/prysm_compatibility_checker/
 	@echo "Building dkg_reinitializer..."

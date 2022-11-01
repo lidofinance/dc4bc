@@ -108,6 +108,7 @@ func main() {
 		getFSMListCommand(),
 		getSignatureDataCommand(),
 		refreshState(),
+		proposeSignBakedMessagesCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
 		log.Fatalf("Failed to execute root command: %v", err)
@@ -237,6 +238,7 @@ func getBatchesRequest(host string, dkgID string) (*BatchesResponse, error) {
 	}
 
 	var response BatchesResponse
+	fmt.Println(string(responseBody))
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
@@ -960,7 +962,7 @@ func proposeSignBatchMessagesCommand() *cobra.Command {
 func proposeSignBakedMessagesCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "sign_baked [dkg_id] [range_start] [range_end]",
-		Args:  cobra.ExactArgs(2),
+		Args:  cobra.ExactArgs(3),
 		Short: "sends a propose message to sign the part of data baked into the binary",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
@@ -977,7 +979,7 @@ func proposeSignBakedMessagesCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to parse range_start: %w", err)
 			}
-			range_end, err := strconv.Atoi(args[1])
+			range_end, err := strconv.Atoi(args[2])
 			if err != nil {
 				return fmt.Errorf("failed to parse range_end: %w", err)
 			}

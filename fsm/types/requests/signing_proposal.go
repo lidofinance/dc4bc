@@ -58,7 +58,7 @@ func TasksToMessages(msgs []SigningTask) ([]MessageToSign, error) {
 				Payload:   m.Payload,
 			})
 		} else {
-			for i := m.RangeStart; i <= m.RangeEnd; i++ {
+			for i := m.RangeStart; i < m.RangeEnd; i++ {
 				data, err := ReconstructBakedMessage(i)
 				if err != nil {
 					return nil, fmt.Errorf("failed to ReconstructBakedMessage: %w", err)
