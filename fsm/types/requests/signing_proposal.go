@@ -15,6 +15,8 @@ type MessageToSign struct {
 	MessageID string
 	File      string
 	Payload   []byte
+	// BakedDataPayload if set true, the messages was generated from baked payload
+	BakedDataPayload bool
 }
 
 type SigningTask struct {
@@ -72,7 +74,7 @@ func TasksToMessages(msgs []SigningTask) ([]MessageToSign, error) {
 
 func ReconstructBakedMessage(id int) (MessageToSign, error) {
 	validatorsIDS := strings.Split(wc_rotation.ValidatorsIndexesTest, "\n")
-	vID, err := strconv.Atoi(validatorsIDS[id])
+	vID, err := strconv.ParseInt(validatorsIDS[id], 10, 64)
 	if err != nil {
 		return MessageToSign{}, fmt.Errorf("failed to parse int from str(%s): %w", validatorsIDS[id], err)
 	}
@@ -82,8 +84,9 @@ func ReconstructBakedMessage(id int) (MessageToSign, error) {
 	}
 	messageID := fmt.Sprintf("bakedrange%d", id)
 	return MessageToSign{
-		File:      messageID,
-		MessageID: messageID,
-		Payload:   root[:],
+		File:             messageID,
+		MessageID:        validatorsIDS[id],
+		Payload:          root[:],
+		BakedDataPayload: true,
 	}, nil
 }

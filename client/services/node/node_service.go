@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -626,6 +627,13 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 			DKGRoundID: message.DkgRoundID,
 			SrcPayload: msg.Payload,
 		}
+		if msg.BakedDataPayload {
+			ValIdx, err := strconv.ParseInt(msg.MessageID, 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse int from str(%s): %w", msg.MessageID, err)
+			}
+			sig.ValIdx = ValIdx
+		}
 		signatures = append(signatures, sig)
 	}
 
@@ -887,14 +895,25 @@ func reconstructThresholdSignature(signingFSM *state_machines.FSMInstance, paylo
 		if err != nil {
 			return nil, fmt.Errorf("failed to reconstruct full signature for msg %s: %w", messageID, err)
 		}
-		response = append(response, fsmtypes.ReconstructedSignature{
+
+		sig := fsmtypes.ReconstructedSignature{
 			File:       messages[messageID].File,
 			MessageID:  messageID,
 			BatchID:    payload.BatchID,
 			Signature:  reconstructedSignature,
 			DKGRoundID: signingFSM.FSMDump().Payload.DkgId,
 			SrcPayload: messages[messageID].Payload,
-		})
+		}
+
+		if messages[messageID].BakedDataPayload {
+			ValIdx, err := strconv.ParseInt(messages[messageID].MessageID, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse int from str(%s): %w", messages[messageID].MessageID, err)
+			}
+			sig.ValIdx = ValIdx
+		}
+
+		response = append(response, sig)
 	}
 	return response, nil
 }

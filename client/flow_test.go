@@ -24,6 +24,7 @@ import (
 	"github.com/lidofinance/dc4bc/airgapped"
 	"github.com/lidofinance/dc4bc/pkg/prysm"
 	"github.com/lidofinance/dc4bc/pkg/utils"
+	"github.com/lidofinance/dc4bc/pkg/wc_rotation"
 
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/api/http_api"
@@ -688,11 +689,13 @@ func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCal
 	return runCancel
 }
 
-func verifySignatures(dkgID string, n *nodeInstance) error {
+func verifySignatures(dkgID string, n *nodeInstance, validxs []int64) error {
 	allSignatures, err := n.sigService.GetSignatures(&dto.DkgIdDTO{DkgID: dkgID})
 	if err != nil {
 		return fmt.Errorf("failed to get signatures: %w", err)
 	}
+
+	singedRoot := map[int64][]byte{}
 
 	//verifying on airgapped node
 	for _, batchSignatures := range allSignatures {
@@ -702,6 +705,24 @@ func verifySignatures(dkgID string, n *nodeInstance) error {
 				if err != nil {
 					return fmt.Errorf("failed to verify on airgapped: %w", err)
 				}
+				if len(validxs) > 0 {
+					singedRoot[s.ValIdx] = s.SrcPayload
+				}
+				fmt.Println(s.ValIdx, s.SrcPayload)
+			}
+		}
+	}
+
+	// check we signed all validx's roots with signbakeddata method
+	if len(validxs) > 0 {
+		for _, id := range validxs {
+			root := singedRoot[id]
+			expectedRoot, err := wc_rotation.GetSigningRoot(uint64(id))
+			if err != nil {
+				return fmt.Errorf("failed to get signed root for %d: %w", id, err)
+			}
+			if !bytes.Equal(root, expectedRoot[:]) {
+				return fmt.Errorf("expected root {%x}, got {%x}", expectedRoot, root)
 			}
 		}
 	}
@@ -872,7 +893,7 @@ func TestBakedMessagesFlow(t *testing.T) {
 	log.Println("Propose message to sign")
 
 	dkgID := sha256.Sum256(messageDataBz)
-	messageDataBz, err = signBakedMessage(dkgID[:], 1, 5, nodes[len(nodes)-1].listenAddr)
+	messageDataBz, err = signBakedMessage(dkgID[:], 0, 5, nodes[len(nodes)-1].listenAddr)
 	if err != nil {
 		t.Fatal(err.Error())
 	}
@@ -894,13 +915,13 @@ func TestBakedMessagesFlow(t *testing.T) {
 		}
 	}
 
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []int64{393395, 393396, 393397, 393398, 393399})
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
 
 	fmt.Println("Sign message again")
-	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignMessage", nodes[len(nodes)-1].listenAddr),
+	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignBakedMessages", nodes[len(nodes)-1].listenAddr),
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
 		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
 	}
@@ -993,7 +1014,7 @@ func TestStandardBatchFlow(t *testing.T) {
 		}
 	}
 
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], nil)
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
@@ -1211,7 +1232,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 		}
 	}
 
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], nil)
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
@@ -1312,7 +1333,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 			fmt.Println("message signed successfully")
 		}
 	}
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], nil)
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
@@ -1343,7 +1364,7 @@ func testReinitDKGFlow(t *testing.T, convertDKGTo10_1_4 bool) {
 			fmt.Println("messaged signed successfully")
 		}
 	}
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], nil)
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}

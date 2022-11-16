@@ -14,4 +14,6 @@ type ReconstructedSignature struct {
 	Signature  []byte
 	Username   string
 	DKGRoundID string
+	// Special field with additional info for "sign baked data" routine
+	ValIdx int64
 }
