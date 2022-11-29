@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-// The same result we got on TS variant
 func TestGetSigningRoot(t *testing.T) {
 	type args struct {
 		validatorIndex uint64
@@ -21,7 +20,7 @@ func TestGetSigningRoot(t *testing.T) {
 			args: args{
 				validatorIndex: 393395,
 			},
-			want:    `2202563bc9261c6371fa133be05da0bd42762a7df037a1da7d69d4f756528eb0`,
+			want:    `22ff29dacce459cab9b81242127c9dbb54d2d2522b88e88dd2957fec635736a6`,
 			wantErr: false,
 		},
 	}

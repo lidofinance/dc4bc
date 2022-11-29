@@ -54,7 +54,7 @@ func init() {
 	rootCmd.PersistentFlags().String(flagStorageTopic, "messages", "Storage Topic (Kafka)")
 	rootCmd.PersistentFlags().String(flagKafkaProducerCredentials, "producer:producerpass", "Producer credentials for Kafka: username:password")
 	rootCmd.PersistentFlags().String(flagKafkaConsumerCredentials, "consumer:consumerpass", "Consumer credentials for Kafka: username:password")
-	rootCmd.PersistentFlags().String(flagKafkaTrustStorePath, "certs/ca.pem", "Path to kafka truststore")
+	rootCmd.PersistentFlags().String(flagKafkaTrustStorePath, "", "Path to kafka truststore")
 	rootCmd.PersistentFlags().String(flagKafkaConsumerGroup, "", "Kafka consumer group")
 	rootCmd.PersistentFlags().String(flagKafkaReadDuration, "10s", "Duration of a single Kafka read messages subscription")
 	rootCmd.PersistentFlags().String(flagKafkaTimeout, "60s", "Kafka I/O Timeout")
