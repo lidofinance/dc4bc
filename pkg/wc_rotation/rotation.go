@@ -21,7 +21,7 @@ var (
 	ToExecutionAddress = [32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 185, 215, 147, 72, 120, 181, 251, 150, 16, 179, 254, 138, 94, 68, 30, 143, 173, 126, 41, 63}
 
 	//go:embed payloads.csv
-	ValidatorsIndexesTest string
+	ValidatorsIndexes string
 )
 
 func GetValidatorsIndexes(start, end int) ([]uint64, error) {
