@@ -10,16 +10,21 @@ import (
 )
 
 var (
-	// CapellaForkVersion 0x03000000
-	CapellaForkVersion = [4]byte{3, 0, 0, 0}
+	// CapellaForkVersion 0x20000092
+	CapellaForkVersion = [4]byte{32, 0, 0, 146}
+
 	// DomainBlsToExecutionChange 0x0A000000
 	DomainBlsToExecutionChange = [4]byte{10, 0, 0, 0}
+
+	// GenesisValidatorRoot 0x34b7b2d25fa9fd1fc079cad9a4840f94f29ea49918cc997d73aa7a196d37cbbe
+	// {beacon api}/eth/v1/beacon/genesis
+	GenesisValidatorRoot = [32]byte{52, 183, 178, 210, 95, 169, 253, 31, 192, 121, 202, 217, 164, 132, 15, 148, 242, 158, 164, 153, 24, 204, 153, 125, 115, 170, 122, 25, 109, 55, 203, 190}
 
 	// LidoBlsPubKeyBB 0x8199b7a8c6998aafb30a955794f5d72a454ed1caf51bdbfc3065973153f64eeb64ff07a5b43cb9007cba3e3ec76ed756
 	LidoBlsPubKeyBB = [48]byte{129, 153, 183, 168, 198, 153, 138, 175, 179, 10, 149, 87, 148, 245, 215, 42, 69, 78, 209, 202, 245, 27, 219, 252, 48, 101, 151, 49, 83, 246, 78, 235, 100, 255, 7, 165, 180, 60, 185, 0, 124, 186, 62, 62, 199, 110, 215, 86}
 
-	// ToExecutionAddress 0x010000000000000000000000b9d7934878b5fb9610b3fe8a5e441e8fad7e293f
-	ToExecutionAddress = [32]byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 185, 215, 147, 72, 120, 181, 251, 150, 16, 179, 254, 138, 94, 68, 30, 143, 173, 126, 41, 63}
+	// ToExecutionAddress 0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f
+	ToExecutionAddress = [20]byte{185, 215, 147, 72, 120, 181, 251, 150, 16, 179, 254, 138, 94, 68, 30, 143, 173, 126, 41, 63}
 
 	//go:embed payloads.csv
 	ValidatorsIndexesTest string
@@ -51,7 +56,7 @@ func GetSigningRoot(validatorIndex uint64) ([32]byte, error) {
 	signingDomain, computeDomainErr := signing.ComputeDomain(
 		DomainBlsToExecutionChange,
 		CapellaForkVersion[:],
-		make([]byte, 32),
+		GenesisValidatorRoot[:],
 	)
 
 	if computeDomainErr != nil {
