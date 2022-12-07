@@ -3,7 +3,7 @@
 package entity
 
 import (
-	ssz "github.com/ferranbt/fastssz"
+	ssz "github.com/prysmaticlabs/fastssz"
 )
 
 // MarshalSSZ ssz marshals the BLSToExecutionChange object
@@ -59,7 +59,7 @@ func (b *BLSToExecutionChange) HashTreeRoot() ([32]byte, error) {
 }
 
 // HashTreeRootWith ssz hashes the BLSToExecutionChange object with a hasher
-func (b *BLSToExecutionChange) HashTreeRootWith(hh ssz.HashWalker) (err error) {
+func (b *BLSToExecutionChange) HashTreeRootWith(hh *ssz.Hasher) (err error) {
 	indx := hh.Index()
 
 	// Field (0) 'ValidatorIndex'
@@ -73,9 +73,4 @@ func (b *BLSToExecutionChange) HashTreeRootWith(hh ssz.HashWalker) (err error) {
 
 	hh.Merkleize(indx)
 	return
-}
-
-// GetTree ssz hashes the BLSToExecutionChange object
-func (b *BLSToExecutionChange) GetTree() (*ssz.Node, error) {
-	return ssz.ProofTree(b)
 }
