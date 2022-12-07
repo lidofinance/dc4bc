@@ -16,7 +16,7 @@ var (
 	// DomainBlsToExecutionChange 0x0A000000
 	DomainBlsToExecutionChange = [4]byte{10, 0, 0, 0}
 
-	// GenesisValidatorRoot 0x34b7b2d25fa9fd1fc079cad9a4840f94f29ea49918cc997d73aa7a196d37cbbe
+	// GenesisValidatorRoot 0x6b56bdf72fa8b59d39499621e5a9bf98e22fc1eb8d48c78492b5adfb09cb7b8f
 	// {beacon api}/eth/v1/beacon/genesis
 	GenesisValidatorRoot = [32]byte{107, 86, 189, 247, 47, 168, 181, 157, 57, 73, 150, 33, 229, 169, 191, 152, 226, 47, 193, 235, 141, 72, 199, 132, 146, 181, 173, 251, 9, 203, 123, 143}
 
