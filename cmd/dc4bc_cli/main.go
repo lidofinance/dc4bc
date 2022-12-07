@@ -1156,14 +1156,14 @@ func refreshState() *cobra.Command {
 			return fmt.Errorf("failed to read listen address: %v", err)
 		}
 
-		if len(kafkaConsumerGroup) < 1 {
-			username, err := getUsername(listenAddr)
-			if err != nil {
-				return fmt.Errorf("failed to get node's username: %w", err)
-			}
+		// if len(kafkaConsumerGroup) < 1 {
+		// 	username, err := getUsername(listenAddr)
+		// 	if err != nil {
+		// 		return fmt.Errorf("failed to get node's username: %w", err)
+		// 	}
 
-			kafkaConsumerGroup = fmt.Sprintf("%s_%d", username, time.Now().Unix())
-		}
+		// 	kafkaConsumerGroup = fmt.Sprintf("%s_%d", username, time.Now().Unix())
+		// }
 
 		var msgsToIgnore []string
 		if messagesToIgnore != "" {
@@ -1176,7 +1176,7 @@ func refreshState() *cobra.Command {
 		req := httprequests.ResetStateForm{
 			NewStateDBDSN:      newStateDBDSN,
 			UseOffset:          useOffset,
-			KafkaConsumerGroup: kafkaConsumerGroup,
+			KafkaConsumerGroup: "",
 			Messages:           msgsToIgnore,
 		}
 		reqBytes, err := json.Marshal(req)
