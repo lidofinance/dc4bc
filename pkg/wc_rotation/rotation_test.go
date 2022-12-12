@@ -20,7 +20,7 @@ func TestGetSigningRoot(t *testing.T) {
 			args: args{
 				validatorIndex: 393395,
 			},
-			want:    `1c73d0d8e77ad408ef2ad17b20f85108b64d96f1fdcd89ff55789eb33c5d560c`,
+			want:    `5c57b22ed4078f4e4e8ec3188c8c25895154a55c62525488f40b37a3464da6fe`,
 			wantErr: false,
 		},
 	}
