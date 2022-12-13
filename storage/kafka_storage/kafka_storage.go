@@ -22,6 +22,7 @@ const (
 	kafkaMinBytes    = 10
 	kafkaMaxBytes    = 10e6
 	kafkaMaxAttempts = 16
+	kafkaBatchBytes  = 10e6
 )
 
 type KafkaAuthCredentials struct {
@@ -248,6 +249,7 @@ func (ks *KafkaStorage) reset() error {
 		Topic:        ks.topic,
 		Balancer:     &kafka.LeastBytes{},
 		MaxAttempts:  kafkaMaxAttempts,
+		BatchBytes:   kafkaBatchBytes,
 		BatchTimeout: ks.timeout,
 		ReadTimeout:  ks.timeout,
 		WriteTimeout: ks.timeout,
