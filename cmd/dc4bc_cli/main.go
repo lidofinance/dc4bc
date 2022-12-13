@@ -238,7 +238,6 @@ func getBatchesRequest(host string, dkgID string) (*BatchesResponse, error) {
 	}
 
 	var response BatchesResponse
-	fmt.Println(string(responseBody))
 	if err = json.Unmarshal(responseBody, &response); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
