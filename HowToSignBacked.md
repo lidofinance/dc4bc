@@ -2,8 +2,8 @@
 
 Ethereum staking started with only one type of withdrawal credential, called 0x0. This allowed only a BLS address type to be the owner of a validator.
 In December 2020, the introduction of 0x01 allowed Ethereum addresses to own a validator.
-To switch the withdrawal credentials of an existing validator, one would have to unstake the ETH and then restake it with the new credentials. However, unstaked ETH cannot be restaked until withdrawals are enabled. So to switch from 0x0 to 0x01 today, a special mechanism is required, which would allow validators to switch their withdrawal credentials “in-flight.”
-There are [18,632 Lido validators](./pkg/wc_rotation/payloads.csv) using 0x00 withdrawal credentials. To rotate them to 0x01, Lido has developed the dc4bc software with recently added batch-signing capability.
+It'd be possible to switch the withdrawal credentials of an existing validator from 0x00 to 0x01 with Capella fork. There are [18,632 Lido validators](./pkg/wc_rotation/payloads.csv) using 0x00 withdrawal credentials.
+To rotate them to 0x01, Lido has developed the dc4bc software with recently added batch-signing capability.
 
 ### Command
 ```
@@ -30,12 +30,6 @@ class SignedBLSToExecutionChange(Container):
 ```
 Filling up [SignedBLSToExecutionChange](https://github.com/ethereum/consensus-specs/blob/dev/specs/capella/beacon-chain.md#signedblstoexecutionchange) requires another container 
 [BlsToExecutionChange](https://github.com/ethereum/consensus-specs/blob/dev/specs/capella/beacon-chain.md#blstoexecutionchange) and his signature.
-
-```python
-class BLSToExecutionChange(Container):
-    message: BLSToExecutionChange
-    signature: BLSSignature
-```
 ```python
 class BLSToExecutionChange(Container):
     validator_index: ValidatorIndex
@@ -62,7 +56,7 @@ Dc4bc contains itself list of validator indexes embedded in [payload.csv](./pkg/
 * [ExecutionAddress](https://mainnet.lido.fi/#/lido-dao/0x2e59a20f205bb85a89c53f1936454680651e618e/vote/78/)
   * ``0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f``
   * ``[20]byte{185, 215, 147, 72, 120, 181, 251, 150, 16, 179, 254, 138, 94, 68, 30, 143, 173, 126, 41, 63}``
-* ``GenesisValidatorRoot`` // {beacon api}/eth/v1/beacon/genesis
+* [GenesisValidatorRoot](https://ethereum.github.io/beacon-APIs/#/Beacon/getGenesis)
   * ``0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95``
   * ``[32]byte{75, 54, 61, 185, 78, 40, 97, 32, 215, 110, 185, 5, 52, 15, 221, 78, 84, 191, 233, 240, 107, 243, 63, 246, 207, 90, 210, 127, 81, 27, 254, 149}``
 
@@ -72,4 +66,12 @@ Each value covered by unit test [here](./pkg/wc_rotation/variables_test.go)
 The validator's list was collected by [wc-collector](https://github.com/sergeyWh1te/wc-collector). It searches validator indexes with 0x00 Lido's wc([0x009690e5d4472c7c0dbdf490425d89862535d2a52fb686333f3a0a9ff5d2125e](https://mainnet.lido.fi/#/lido-dao/0x2e59a20f205bb85a89c53f1936454680651e618e/vote/0/)) and stores them into db.
 Image with data can be found in [one docker hub](https://hub.docker.com/r/snack008/wc-exchange-postgres).The data with validator indexes has been saved in [payload.csv](./pkg/wc_rotation/payloads.csv)
 
-### How to check payload.csv
+### How to test payload.csv
+Dc4bc contains itself [payload_csv_test.sh](./pkg/wc_rotation/payload_csv_test.sh). For his work, it's required to install utility
+[jq](https://stedolan.github.io/jq/download/) for your os. Also, when you run the script, it asks from a user ``Please provide consensus layer node host``.
+
+During working [payload_csv_test.sh](./pkg/wc_rotation/payload_csv_test.sh), it fetches data with all validators in ETH blockchain. Then filters validators with Lido's 0x00 wc ([0x009690e5d4472c7c0dbdf490425d89862535d2a52fb686333f3a0a9ff5d2125e](https://mainnet.lido.fi/#/lido-dao/0x2e59a20f205bb85a89c53f1936454680651e618e/vote/0/))
+Stores filtered data into `actual.csv` and using `diff` shows the difference between `actual.csv` and `payload.csv`. To pass a test, the content must be the same.
+
+Here's an example of a successful result.
+![](images/payload_csv_test_example.png)

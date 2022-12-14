@@ -1,7 +1,7 @@
 #!/bin/bash
 
 WITHDRAWAL_CREDENTIALS="0x009690e5d4472c7c0dbdf490425d89862535d2a52fb686333f3a0a9ff5d2125e"
-echo "Please provide the HOST for the ETH beacon node."
+echo "Please provide provide consensus layer node host."
 read -r NODE_HOST
 
 if [[ $NODE_HOST == '' ]]
