@@ -72,4 +72,12 @@ Each value covered by unit test [here](./pkg/wc_rotation/variables_test.go)
 The validator's list was collected by [wc-collector](https://github.com/sergeyWh1te/wc-collector). It searches validator indexes with 0x00 Lido's wc([0x009690e5d4472c7c0dbdf490425d89862535d2a52fb686333f3a0a9ff5d2125e](https://mainnet.lido.fi/#/lido-dao/0x2e59a20f205bb85a89c53f1936454680651e618e/vote/0/)) and stores them into db.
 Image with data can be found in [one docker hub](https://hub.docker.com/r/snack008/wc-exchange-postgres).The data with validator indexes has been saved in [payload.csv](./pkg/wc_rotation/payloads.csv)
 
-### How to check payload.csv
+### How to test payload.csv
+Dc4bc contains itself [payload_csv_test.sh](./pkg/wc_rotation/payload_csv_test.sh). For his work, it's required to install utility
+[jq](https://stedolan.github.io/jq/download/) for your os. Also, when you run the script, it asks from a user ``Please provide the HOST for the ETH beacon node.`` like [Infura](https://infura.io/), [Alchemy](https://alchemy.com), or your custom node.
+
+During working [payload_csv_test.sh](./pkg/wc_rotation/payload_csv_test.sh), it fetches data with all validators in ETH blockchain. Then filters validators with Lido's 0x00 wc ([0x009690e5d4472c7c0dbdf490425d89862535d2a52fb686333f3a0a9ff5d2125e](https://mainnet.lido.fi/#/lido-dao/0x2e59a20f205bb85a89c53f1936454680651e618e/vote/0/))
+Stores filtered data into `actual.csv` and using `diff` shows the difference between `actual.csv` and `payload.csv`. To pass a test, the content must be the same.
+
+Here's an example of a successful result.
+![](images/payload_csv_test_example.png)
