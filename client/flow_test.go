@@ -915,7 +915,7 @@ func TestBakedMessagesFlow(t *testing.T) {
 		}
 	}
 
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []int64{393395, 393396, 393397, 393398, 393399})
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []int64{52694, 52695, 52696, 52697, 52698})
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
