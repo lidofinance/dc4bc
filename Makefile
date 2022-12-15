@@ -42,7 +42,7 @@ build:
 	@echo "Building dc4bc_cli..."
 	go build -o dc4bc_cli ./cmd/dc4bc_cli/
 	@echo "Building dc4bc_airgapped..."
-	CGO_ENABLED=0 go build -o dc4bc_airgapped ./cmd/airgapped/
+	go build -o dc4bc_airgapped ./cmd/airgapped/
 	@echo "Building dc4bc_prysm_compatibility_checker..."
 	go build -o dc4bc_prysm_compatibility_checker ./cmd/prysm_compatibility_checker/
 	@echo "Building dkg_reinitializer..."
