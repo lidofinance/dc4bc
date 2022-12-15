@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/lidofinance/dc4bc/pkg/wc_rotation/entity"
-	"github.com/prysmaticlabs/prysm/beacon-chain/core/signing"
 	"strconv"
 )
 
@@ -14,6 +13,11 @@ var (
 	//
 	// https://github.com/ethereum/consensus-specs/blob/dev/specs/capella/fork.md#configuration
 	CapellaForkVersion = [4]byte{3, 0, 0, 0}
+
+	// GenesisForkVersion 0x00000000
+	//
+	// https://github.com/ethereum/consensus-specs/blob/5337da5dff85cd584c4330b46a881510c1218ca3/specs/phase0/beacon-chain.md#genesis-settings
+	GenesisForkVersion = [4]byte{0, 0, 0, 0}
 
 	// DomainBlsToExecutionChange 0x0A000000
 	//
@@ -63,10 +67,10 @@ func GetValidatorsIndexes(start, end int) ([]uint64, error) {
 }
 
 func GetSigningRoot(validatorIndex uint64) ([32]byte, error) {
-	signingDomain, computeDomainErr := signing.ComputeDomain(
+	domain, computeDomainErr := computeDomain(
 		DomainBlsToExecutionChange,
-		CapellaForkVersion[:],
-		GenesisValidatorRoot[:],
+		CapellaForkVersion,
+		GenesisValidatorRoot,
 	)
 
 	if computeDomainErr != nil {
@@ -79,5 +83,67 @@ func GetSigningRoot(validatorIndex uint64) ([32]byte, error) {
 		ToExecutionAddress: ToExecutionAddress,
 	}
 
-	return signing.ComputeSigningRoot(message, signingDomain)
+	objRoot, err := message.HashTreeRoot()
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	return (&entity.SigningData{
+		ObjectRoot: objRoot,
+		Domain:     domain,
+	}).HashTreeRoot()
+}
+
+// computeDomain returns the domain for the ``domain_type`` and ``fork_version``.
+//
+// Spec pseudocode definition:
+// def compute_domain(domain_type: DomainType, fork_version: Version=None, genesis_validators_root: Root=None) -> Domain:
+// if fork_version is None:
+// 		fork_version = GENESIS_FORK_VERSION
+// if genesis_validators_root is None:
+// 		genesis_validators_root = Root()  # all bytes zero by default
+// fork_data_root = compute_fork_data_root(fork_version, genesis_validators_root)
+// return Domain(domain_type + fork_data_root[:28])
+//
+// https://github.com/ethereum/consensus-specs/blob/5337da5dff85cd584c4330b46a881510c1218ca3/specs/phase0/beacon-chain.md#compute_domain
+func computeDomain(domainType [4]byte, forkVersion [4]byte, genesisValidatorsRoot [32]byte) ([32]byte, error) {
+	if len(forkVersion[:]) == 0 {
+		forkVersion = GenesisForkVersion
+	}
+
+	if len(genesisValidatorsRoot[:]) == 0 {
+		genesisValidatorsRoot = [32]byte{}
+	}
+
+	forkDataRoot, err := computeForkDataRoot(forkVersion, genesisValidatorsRoot)
+	if err != nil {
+		return [32]byte{}, err
+	}
+
+	var domain [32]byte
+	copy(domain[:], append(domainType[:], forkDataRoot[:28]...))
+
+	return domain, nil
+}
+
+// computeForkDataRoot returns the 32byte fork data root for the ``current_version`` and ``genesis_validators_root``.
+// This is used primarily in signature domains to avoid collisions across forks/chains.
+//
+// Spec pseudocode definition:
+//	def compute_fork_data_root(current_version: Version, genesis_validators_root: Root) -> Root:
+//    return hash_tree_root(ForkData(
+//        current_version=current_version,
+//        genesis_validators_root=genesis_validators_root,
+//    ))
+//
+// https://github.com/ethereum/consensus-specs/blob/5337da5dff85cd584c4330b46a881510c1218ca3/specs/phase0/beacon-chain.md#compute_signing_root
+func computeForkDataRoot(forkVersion [4]byte, genesisValidatorsRoot [32]byte) ([32]byte, error) {
+	r, err := (&entity.ForkData{
+		CurrentVersion:        forkVersion,
+		GenesisValidatorsRoot: genesisValidatorsRoot,
+	}).HashTreeRoot()
+	if err != nil {
+		return [32]byte{}, err
+	}
+	return r, nil
 }

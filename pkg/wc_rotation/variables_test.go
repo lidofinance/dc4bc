@@ -16,6 +16,14 @@ func TestWCRotationVariables(t *testing.T) {
 		}
 	})
 
+	t.Run(`TestGenesisForkVersion`, func(t *testing.T) {
+		actual, _ := hex.DecodeString(`00000000`)
+
+		if bytes.Compare(actual, GenesisForkVersion[:]) != 0 {
+			t.Errorf("GenesisForkVersion is wrong got = %v, want %v", actual, GenesisForkVersion)
+		}
+	})
+
 	t.Run(`DomainBlsToExecutionChange`, func(t *testing.T) {
 		actual, _ := hex.DecodeString(`0A000000`)
 
