@@ -7,6 +7,7 @@ import (
 	"github.com/corestario/kyber/pairing"
 	"github.com/corestario/kyber/sign/bls"
 	"github.com/corestario/kyber/sign/tbls"
+
 	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"

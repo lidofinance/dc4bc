@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/lidofinance/dc4bc/client/modules/state"
 	"github.com/lidofinance/dc4bc/client/types"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPutOperation(t *testing.T) {

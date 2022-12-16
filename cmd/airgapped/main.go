@@ -19,10 +19,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lidofinance/dc4bc/airgapped"
-	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/syndtr/goleveldb/leveldb"
 	"golang.org/x/crypto/ssh/terminal"
+
+	"github.com/lidofinance/dc4bc/airgapped"
+	client "github.com/lidofinance/dc4bc/client/types"
 )
 
 func init() {

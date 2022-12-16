@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lidofinance/dc4bc/client/config"
-
-	"github.com/lidofinance/dc4bc/storage"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lidofinance/dc4bc/client/config"
+	"github.com/lidofinance/dc4bc/storage"
 )
 
 var (

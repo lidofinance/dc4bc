@@ -20,7 +20,8 @@ type SignatureProposalParticipantsEntry struct {
 
 // States: "__idle"
 // Events: "event_sig_proposal_confirm_by_participant"
-// 		   "event_sig_proposal_decline_by_participant"
+//
+//	"event_sig_proposal_decline_by_participant"
 type SignatureProposalParticipantRequest struct {
 	ParticipantId int
 	CreatedAt     time.Time

@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/labstack/echo/v4"
+
 	"github.com/lidofinance/dc4bc/client/api/http_api/handlers"
 	"github.com/lidofinance/dc4bc/client/services"
 	"github.com/lidofinance/dc4bc/client/services/node"

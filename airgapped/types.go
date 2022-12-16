@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/lidofinance/dc4bc/dkg"
 	"github.com/syndtr/goleveldb/leveldb/util"
+
+	"github.com/lidofinance/dc4bc/dkg"
 )
 
 const (

@@ -22,22 +22,20 @@ import (
 	"time"
 
 	"github.com/corestario/kyber/pairing/bls12381"
-	"github.com/lidofinance/dc4bc/dkg"
-	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
-	"github.com/lidofinance/dc4bc/pkg/utils"
+	"github.com/fatih/color"
+	"github.com/spf13/cobra"
 
 	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"
 	httpresponses "github.com/lidofinance/dc4bc/client/api/http_api/responses"
-
 	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/dkg"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
-
-	"github.com/fatih/color"
-	"github.com/spf13/cobra"
+	"github.com/lidofinance/dc4bc/pkg/utils"
 )
 
 const (

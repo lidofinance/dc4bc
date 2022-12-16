@@ -2,10 +2,7 @@ package wc_rotation
 
 import (
 	_ "embed"
-	"errors"
-	"fmt"
 	"github.com/lidofinance/dc4bc/pkg/wc_rotation/entity"
-	"strconv"
 )
 
 var (
@@ -44,28 +41,6 @@ var (
 	ValidatorsIndexes string
 )
 
-func GetValidatorsIndexes(start, end int) ([]uint64, error) {
-	var strids []string
-
-	if end > len(strids) {
-		end = len(strids)
-	}
-
-	if start >= end {
-		return nil, errors.New("invalid range, end should be greater than start")
-	}
-
-	ids := make([]uint64, 0, end-start)
-	for _, strid := range strids[start:end] {
-		id, err := strconv.Atoi(strid)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse id into int: %w", err)
-		}
-		ids = append(ids, uint64(id))
-	}
-	return ids, nil
-}
-
 func GetSigningRoot(validatorIndex uint64) ([32]byte, error) {
 	domain, computeDomainErr := computeDomain(
 		DomainBlsToExecutionChange,
@@ -94,14 +69,18 @@ func GetSigningRoot(validatorIndex uint64) ([32]byte, error) {
 	}).HashTreeRoot()
 }
 
-// computeDomain returns the domain for the ``domain_type`` and ``fork_version``.
+// computeDomain returns the domain for the “domain_type“ and “fork_version“.
 //
 // Spec pseudocode definition:
 // def compute_domain(domain_type: DomainType, fork_version: Version=None, genesis_validators_root: Root=None) -> Domain:
 // if fork_version is None:
-// 		fork_version = GENESIS_FORK_VERSION
+//
+//	fork_version = GENESIS_FORK_VERSION
+//
 // if genesis_validators_root is None:
-// 		genesis_validators_root = Root()  # all bytes zero by default
+//
+//	genesis_validators_root = Root()  # all bytes zero by default
+//
 // fork_data_root = compute_fork_data_root(fork_version, genesis_validators_root)
 // return Domain(domain_type + fork_data_root[:28])
 //
@@ -126,15 +105,16 @@ func computeDomain(domainType [4]byte, forkVersion [4]byte, genesisValidatorsRoo
 	return domain, nil
 }
 
-// computeForkDataRoot returns the 32byte fork data root for the ``current_version`` and ``genesis_validators_root``.
+// computeForkDataRoot returns the 32byte fork data root for the “current_version“ and “genesis_validators_root“.
 // This is used primarily in signature domains to avoid collisions across forks/chains.
 //
 // Spec pseudocode definition:
-//	def compute_fork_data_root(current_version: Version, genesis_validators_root: Root) -> Root:
-//    return hash_tree_root(ForkData(
-//        current_version=current_version,
-//        genesis_validators_root=genesis_validators_root,
-//    ))
+//
+//		def compute_fork_data_root(current_version: Version, genesis_validators_root: Root) -> Root:
+//	   return hash_tree_root(ForkData(
+//	       current_version=current_version,
+//	       genesis_validators_root=genesis_validators_root,
+//	   ))
 //
 // https://github.com/ethereum/consensus-specs/blob/5337da5dff85cd584c4330b46a881510c1218ca3/specs/phase0/beacon-chain.md#compute_signing_root
 func computeForkDataRoot(forkVersion [4]byte, genesisValidatorsRoot [32]byte) ([32]byte, error) {

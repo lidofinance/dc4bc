@@ -4,8 +4,9 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
-	"github.com/lidofinance/dc4bc/storage"
 	"os"
+
+	"github.com/lidofinance/dc4bc/storage"
 
 	"github.com/lidofinance/dc4bc/dkg"
 	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"

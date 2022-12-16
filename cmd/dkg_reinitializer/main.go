@@ -4,16 +4,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/lidofinance/dc4bc/pkg/utils"
 	"io/ioutil"
 	"log"
 	"os"
 
-	"github.com/lidofinance/dc4bc/client/services/node"
+	"github.com/lidofinance/dc4bc/pkg/utils"
+	"github.com/spf13/cobra"
 
+	"github.com/lidofinance/dc4bc/client/services/node"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/storage"
-	"github.com/spf13/cobra"
 )
 
 const (
