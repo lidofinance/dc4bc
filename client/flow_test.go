@@ -879,7 +879,7 @@ func TestBakedMessagesFlow(t *testing.T) {
 	startingPort := 8085
 	topic := "test_topic"
 	storagePath := "/tmp/dc4bc_storage"
-	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil)
+	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil, nil)
 	if err != nil {
 		t.Fatalf("Failed to init nodes, err: %v", err)
 	}
@@ -1265,7 +1265,7 @@ func TestReinitDKGFlow_authentic0_1_4(t *testing.T) {
 			fmt.Println("message signed successfully")
 		}
 	}
-	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0])
+	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []int64{})
 	if err != nil {
 		t.Fatalf("failed to verify signatures: %v\n", err)
 	}
