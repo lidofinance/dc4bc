@@ -45,7 +45,8 @@ func (am *Machine) handleStateSigningAwaitPartialSigns(o *client.Operation) erro
 		return fmt.Errorf("failed to extract messages from tasks: %w", err)
 	}
 
-	for _, s := range messagesToSign {
+	fmt.Println()
+	for i, s := range messagesToSign {
 		partialSign, err := am.createPartialSign(s.Payload, o.DKGIdentifier)
 		if err != nil {
 			return fmt.Errorf("failed to create partialSign for msg: %w", err)
@@ -55,7 +56,10 @@ func (am *Machine) handleStateSigningAwaitPartialSigns(o *client.Operation) erro
 			MessageID: s.MessageID,
 			Sign:      partialSign,
 		})
+		fmt.Print("\033[G\033[K") // clear the line
+		fmt.Printf("Signing progress - %d/%d", i+1, len(messagesToSign))
 	}
+	fmt.Println()
 
 	req := requests.SigningProposalBatchPartialSignRequests{
 		BatchID:       payload.BatchID,
