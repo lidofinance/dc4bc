@@ -12,7 +12,7 @@ require (
 	github.com/google/go-cmp v0.5.6
 	github.com/google/uuid v1.3.0
 	github.com/juju/fslock v0.0.0-20160525022230-4d5c94c67b4b
-	github.com/labstack/echo/v4 v4.6.1
+	github.com/labstack/echo/v4 v4.9.0
 	github.com/prysmaticlabs/prysm v1.4.2-0.20220628130324-b82e2e7d403c
 	github.com/segmentio/kafka-go v0.4.23
 	github.com/spf13/cobra v1.2.1
@@ -40,10 +40,10 @@ require (
 	github.com/kilic/bls12-381 v0.0.0-20200820230200-6b2c19996391 // indirect
 	github.com/klauspost/compress v1.15.1 // indirect
 	github.com/klauspost/cpuid/v2 v2.0.12 // indirect
-	github.com/labstack/gommon v0.3.0 // indirect
+	github.com/labstack/gommon v0.3.1 // indirect
 	github.com/lib/pq v1.10.4 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
-	github.com/mattn/go-colorable v0.1.9 // indirect
+	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/minio/sha256-simd v1.0.0 // indirect
 	github.com/mitchellh/mapstructure v1.4.2 // indirect
