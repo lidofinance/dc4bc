@@ -1,6 +1,6 @@
 module github.com/lidofinance/dc4bc
 
-go 1.18
+go 1.19
 
 require (
 	github.com/censync/go-dto v1.0.6
