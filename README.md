@@ -58,7 +58,7 @@ This allows us to establish communication primitives:
     encrypted_message = { "to" : Participant_j, "message": encrypt(message, PubColdKey_j)}
     broadcast(encrypted_message)
     
-Encryption is done using AES526-GCM + AEAD.
+Encryption is done using AES256-GCM + AEAD.
 
 Bulletin board can be constructed using a trusted centralized service a-la kafka queue (implemented), using public blockchain, or using a consensus between participants to establish a private blockchain. Anyway, it should be abstracted away in the client and signer both and easily switchable.
 
