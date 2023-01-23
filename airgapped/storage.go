@@ -10,10 +10,11 @@ import (
 
 	bls12381 "github.com/corestario/kyber/pairing/bls12381"
 
-	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/tyler-smith/go-bip39"
 	"golang.org/x/crypto/pbkdf2"
+
+	client "github.com/lidofinance/dc4bc/client/types"
 )
 
 const (

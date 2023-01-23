@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lidofinance/dc4bc/client/config"
-
-	"github.com/lidofinance/dc4bc/storage"
 	"github.com/stretchr/testify/require"
+
+	"github.com/lidofinance/dc4bc/client/config"
+	"github.com/lidofinance/dc4bc/storage"
 )
 
 var (
@@ -66,6 +66,8 @@ func getTestStorage() storage.Storage {
 }
 
 func TestKafkaStorage_Send(t *testing.T) {
+	t.Skip("Need to set up creds for kafka instance")
+
 	if testing.Short() {
 		t.Skip("skipping long test")
 	}

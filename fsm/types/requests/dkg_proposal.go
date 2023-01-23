@@ -39,16 +39,18 @@ type DKGProposalMasterKeyConfirmationRequest struct {
 }
 
 // States:  "state_dkg_pub_keys_await_confirmations"
-// 			"state_dkg_commits_sending_await_confirmations"
-//			"state_dkg_deals_await_confirmations"
-//			"state_dkg_responses_await_confirmations"
-// 			"state_dkg_master_key_await_confirmations"
+//
+//	"state_dkg_commits_sending_await_confirmations"
+//	"state_dkg_deals_await_confirmations"
+//	"state_dkg_responses_await_confirmations"
+//	"state_dkg_master_key_await_confirmations"
 //
 // Events:  "event_dkg_pub_key_confirm_canceled_by_error",
-//			"event_dkg_commit_confirm_canceled_by_error"
-//			"event_dkg_deal_confirm_canceled_by_error"
-// 			"event_dkg_response_confirm_canceled_by_error"
-//			"event_dkg_master_key_confirm_canceled_by_error"
+//
+//	"event_dkg_commit_confirm_canceled_by_error"
+//	"event_dkg_deal_confirm_canceled_by_error"
+//	"event_dkg_response_confirm_canceled_by_error"
+//	"event_dkg_master_key_confirm_canceled_by_error"
 type DKGProposalConfirmationErrorRequest struct {
 	ParticipantId int
 	Error         *FSMError

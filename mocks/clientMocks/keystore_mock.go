@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+
 	keystore "github.com/lidofinance/dc4bc/client/modules/keystore"
 )
 

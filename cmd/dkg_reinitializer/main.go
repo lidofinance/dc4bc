@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,11 +8,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/lidofinance/dc4bc/client/services/node"
+	"github.com/lidofinance/dc4bc/pkg/utils"
+	"github.com/spf13/cobra"
 
+	"github.com/lidofinance/dc4bc/client/services/node"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/storage"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -102,12 +102,6 @@ func reinit() *cobra.Command {
 
 func readMessages(cmd *cobra.Command) ([]storage.Message, error) {
 	inputFilePath, _ := cmd.Flags().GetString(flagInputFile)
-	inputFile, err := os.Open(inputFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to Open input file: %w", err)
-	}
-	defer inputFile.Close()
-
 	separator, _ := cmd.Flags().GetString(flagSeparator)
 	if len(separator) < 1 {
 		return nil, errors.New("invalid (empty) separator")
@@ -118,31 +112,8 @@ func readMessages(cmd *cobra.Command) ([]storage.Message, error) {
 		return nil, errors.New("invalid (negative) column index")
 	}
 
-	reader := csv.NewReader(inputFile)
-	reader.Comma = rune(separator[0])
-	reader.LazyQuotes = true
-
-	lines, err := reader.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read dump CSV): %w", err)
-	}
-
 	skipHeader, _ := cmd.Flags().GetBool(flagSkipHeader)
-	if skipHeader {
-		lines = lines[1:]
-	}
-
-	var message storage.Message
-	var messages []storage.Message
-	for _, line := range lines {
-		if err := json.Unmarshal([]byte(line[columnIndex]), &message); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal line `%s`: %w", line[columnIndex], err)
-		}
-
-		messages = append(messages, message)
-	}
-
-	return messages, nil
+	return utils.ReadLogMessages(inputFilePath, rune(separator[0]), skipHeader, columnIndex)
 }
 
 func main() {

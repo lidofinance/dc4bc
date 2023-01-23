@@ -48,18 +48,4 @@ build:
 	@echo "Building dkg_reinitializer..."
 	go build -o dc4bc_dkg_reinitializer ./cmd/dkg_reinitializer/
 
-build-arm64:
-	set CGO_ENABLED=0
-	@echo "Building dc4bc_d..."
-	go build -o dc4bc_d ./cmd/dc4bc_d/
-	@echo "Building dc4bc_cli..."
-	go build -o dc4bc_cli ./cmd/dc4bc_cli/
-	@echo "Building dc4bc_airgapped..."
-	go build -o dc4bc_airgapped ./cmd/airgapped/
-	@echo "Building dc4bc_prysm_compatibility_checker..."
-	go build -o dc4bc_prysm_compatibility_checker ./cmd/prysm_compatibility_checker/
-	@echo "Building dkg_reinitializer..."
-	go build -o dc4bc_dkg_reinitializer ./cmd/dkg_reinitializer/
-	set unset CGO_ENABLED
-
 .PHONY: mocks

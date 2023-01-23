@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+
 	dto "github.com/lidofinance/dc4bc/client/api/dto"
 	state_machines "github.com/lidofinance/dc4bc/fsm/state_machines"
 )

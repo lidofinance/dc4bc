@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lidofinance/dc4bc/client/config"
-
-	"github.com/lidofinance/dc4bc/storage"
 	"github.com/segmentio/kafka-go"
 	"github.com/segmentio/kafka-go/sasl/plain"
+
+	"github.com/lidofinance/dc4bc/client/config"
+	"github.com/lidofinance/dc4bc/storage"
 )
 
 const (

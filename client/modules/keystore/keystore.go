@@ -6,8 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/lidofinance/dc4bc/client/repositories/operation"
 	"github.com/syndtr/goleveldb/leveldb"
+
+	"github.com/lidofinance/dc4bc/client/repositories/operation"
 )
 
 const (

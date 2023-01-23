@@ -3,12 +3,12 @@ package http_api
 import (
 	"context"
 
-	echo_middleware "github.com/labstack/echo/v4/middleware"
-	"github.com/lidofinance/dc4bc/client/services"
-
 	"github.com/labstack/echo/v4"
+	echo_middleware "github.com/labstack/echo/v4/middleware"
+
 	"github.com/lidofinance/dc4bc/client/api/http_api/router"
 	"github.com/lidofinance/dc4bc/client/config"
+	"github.com/lidofinance/dc4bc/client/services"
 	"github.com/lidofinance/dc4bc/client/services/node"
 )
 

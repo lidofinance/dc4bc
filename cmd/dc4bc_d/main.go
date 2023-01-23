@@ -8,15 +8,15 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+
 	"github.com/lidofinance/dc4bc/client/api/http_api"
+	apiconfig "github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	"github.com/lidofinance/dc4bc/client/services"
 	"github.com/lidofinance/dc4bc/client/services/node"
-
-	apiconfig "github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/fsm/config"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 const (

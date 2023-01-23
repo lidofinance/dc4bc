@@ -73,7 +73,7 @@ func TasksToMessages(msgs []SigningTask) ([]MessageToSign, error) {
 }
 
 func ReconstructBakedMessage(id int) (MessageToSign, error) {
-	validatorsIDS := strings.Split(wc_rotation.ValidatorsIndexesTest, "\n")
+	validatorsIDS := strings.Split(wc_rotation.ValidatorsIndexes, "\n")
 	vID, err := strconv.ParseInt(validatorsIDS[id], 10, 64)
 	if err != nil {
 		return MessageToSign{}, fmt.Errorf("failed to parse int from str(%s): %w", validatorsIDS[id], err)
