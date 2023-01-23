@@ -6,10 +6,10 @@ import (
 )
 
 var (
-	// CapellaForkVersion 0x03000000
+	// CapellaForkVersion 0x20000092
 	//
 	// https://github.com/ethereum/consensus-specs/blob/dev/specs/capella/fork.md#configuration
-	CapellaForkVersion = [4]byte{3, 0, 0, 0}
+	CapellaForkVersion = [4]byte{32, 0, 0, 146}
 
 	// GenesisForkVersion 0x00000000
 	//
@@ -23,14 +23,14 @@ var (
 
 	// GenesisValidatorRoot 0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95
 	// {beacon api}/eth/v1/beacon/genesis
-	GenesisValidatorRoot = [32]byte{75, 54, 61, 185, 78, 40, 97, 32, 215, 110, 185, 5, 52, 15, 221, 78, 84, 191, 233, 240, 107, 243, 63, 246, 207, 90, 210, 127, 81, 27, 254, 149}
+	GenesisValidatorRoot = [32]byte{107, 86, 189, 247, 47, 168, 181, 157, 57, 73, 150, 33, 229, 169, 191, 152, 226, 47, 193, 235, 141, 72, 199, 132, 146, 181, 173, 251, 9, 203, 123, 143}
 
 	// LidoBlsPubKeyBB
 	// base64 tnrKcfBLZzA3tUAJt2Dxlh84NuVxQUHIkq/bdewINNzmeE2ccu2K19syjP+P6fE+
 	// hex 0xb67aca71f04b673037b54009b760f1961f3836e5714141c892afdb75ec0834dce6784d9c72ed8ad7db328cff8fe9f13e
 	//
 	// https://blog.lido.fi/lido-withdrawal-key-ceremony/
-	LidoBlsPubKeyBB = [48]byte{182, 122, 202, 113, 240, 75, 103, 48, 55, 181, 64, 9, 183, 96, 241, 150, 31, 56, 54, 229, 113, 65, 65, 200, 146, 175, 219, 117, 236, 8, 52, 220, 230, 120, 77, 156, 114, 237, 138, 215, 219, 50, 140, 255, 143, 233, 241, 62}
+	LidoBlsPubKeyBB = [48]byte{129, 153, 183, 168, 198, 153, 138, 175, 179, 10, 149, 87, 148, 245, 215, 42, 69, 78, 209, 202, 245, 27, 219, 252, 48, 101, 151, 49, 83, 246, 78, 235, 100, 255, 7, 165, 180, 60, 185, 0, 124, 186, 62, 62, 199, 110, 215, 86}
 
 	// ToExecutionAddress 0xb9d7934878b5fb9610b3fe8a5e441e8fad7e293f
 	//
