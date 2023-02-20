@@ -120,7 +120,7 @@ func (b *BLSKeyring) Bytes() ([]byte, error) {
 	var shareBuf bytes.Buffer
 	shareEnc := gob.NewEncoder(&shareBuf)
 	if err := shareEnc.Encode(b.Share); err != nil {
-		return nil, fmt.Errorf("failed to encode private key: %v", err)
+		return nil, fmt.Errorf("failed to encode private key: %w", err)
 	}
 
 	_, commitments := b.PubPoly.Info()
@@ -190,7 +190,7 @@ func LoadBLSKeyringFromBytes(suite vss.Suite, data []byte) (*BLSKeyring, error) 
 
 	priShare, privDec := &share.PriShare{V: suite.(pairing.Suite).G1().Scalar()}, gob.NewDecoder(bytes.NewBuffer(blsKeyringJson.Share))
 	if err := privDec.Decode(priShare); err != nil {
-		return nil, fmt.Errorf("failed to share: %v", err)
+		return nil, fmt.Errorf("failed to share: %w", err)
 	}
 
 	return &BLSKeyring{

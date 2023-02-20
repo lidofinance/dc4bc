@@ -68,21 +68,21 @@ func reinit() *cobra.Command {
 			// Generate the re-DKG message.
 			reDKG, err := types.GenerateReDKGMessage(messages, newCommPubKeys)
 			if err != nil {
-				return fmt.Errorf("failed to generate reDKG message: %v", err)
+				return fmt.Errorf("failed to generate reDKG message:  %w", err)
 			}
 
 			// Adapt from 0.1.4 if required.
 			if adapt014, _ := cmd.Flags().GetBool(flagAdapt014); adapt014 {
 				reDKG, err = node.GetAdaptedReDKG(reDKG)
 				if err != nil {
-					return fmt.Errorf("failed to adapt reinit DKG message from 0.1.4: %v", err)
+					return fmt.Errorf("failed to adapt reinit DKG message from 0.1.4:  %w", err)
 				}
 			}
 
 			// Save to disk.
 			reDKGBz, err := json.MarshalIndent(reDKG, "", "  ")
 			if err != nil {
-				return fmt.Errorf("failed to encode reinit DKG message: %v", err)
+				return fmt.Errorf("failed to encode reinit DKG message:  %w", err)
 			}
 
 			outputFile, _ := cmd.Flags().GetString(flagOutputFile)
@@ -92,7 +92,7 @@ func reinit() *cobra.Command {
 			}
 
 			if err = ioutil.WriteFile(outputFile, reDKGBz, 0666); err != nil {
-				return fmt.Errorf("failed to save reinit DKG JSON: %v", err)
+				return fmt.Errorf("failed to save reinit DKG JSON: %w", err)
 			}
 
 			return nil
@@ -121,6 +121,6 @@ func main() {
 		reinit(),
 	)
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("Failed to execute root command: %v", err)
+		log.Fatal(fmt.Errorf("Failed to execute root command:  %w", err))
 	}
 }

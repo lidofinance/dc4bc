@@ -2,6 +2,7 @@ package airgapped
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -60,7 +61,7 @@ func NewMachine(dbPath string) (*Machine, error) {
 	}
 
 	if _, err = am.db.Get([]byte(operationsLogDBKey), nil); err != nil {
-		if err == leveldb.ErrNotFound {
+		if errors.Is(err, leveldb.ErrNotFound) {
 			operationsLogBz, _ := json.Marshal(RoundOperationLog{})
 			if err := am.db.Put([]byte(operationsLogDBKey), operationsLogBz, nil); err != nil {
 				return nil, fmt.Errorf("failed to init Operation log: %w", err)
@@ -79,14 +80,13 @@ func (am *Machine) SetResultFolder(resultFolder string) {
 
 // InitKeys load keys public and private keys for DKG from LevelDB. If keys do not exist, it creates them.
 func (am *Machine) InitKeys() error {
-	err := am.LoadKeysFromDB()
-	if err != nil && err != leveldb.ErrNotFound {
-		return fmt.Errorf("failed to load keys from db: %w", err)
-	}
+	if err := am.LoadKeysFromDB(); err != nil {
+		// If keys were not generated yet.
+		if errors.Is(err, leveldb.ErrNotFound) {
+			return am.GenerateKeys()
+		}
 
-	// If keys were not generated yet.
-	if err == leveldb.ErrNotFound {
-		return am.GenerateKeys()
+		return fmt.Errorf("failed to load keys from db: %w", err)
 	}
 
 	return nil
