@@ -451,23 +451,33 @@ func (p *prompt) run() error {
 			if err = p.enterEncryptionPasswordIfNeeded(); err != nil {
 				return err
 			}
-			p.airgapped.Lock()
 
-			p.currentCommand = clearCommand
+			terExe := func(prompt *prompt) error {
+				prompt.airgapped.Lock()
+				defer func() {
+					prompt.currentCommand = ""
+					prompt.airgapped.Unlock()
+				}()
 
-			// we need to "turn off" terminal lib during command execution to be able to handle OS notifications inside
-			// commands and to read data from stdin without terminal features
-			p.restoreTerminal()
-			if err := handler.commandHandler(); err != nil {
-				p.printf("failed to execute command %s: %v \n", command, err)
+				prompt.currentCommand = clearCommand
+
+				// we need to "turn off" terminal lib during command execution to be able to handle OS notifications inside
+				// commands and to read data from stdin without terminal features
+				prompt.restoreTerminal()
+				if err := handler.commandHandler(); err != nil {
+					prompt.printf("failed to execute command %s: %v \n", command, err)
+				}
+				// after command done, we turning terminal lib back on
+				if err = prompt.makeTerminal(); err != nil {
+					return err
+				}
+
+				return nil
 			}
-			// after command done, we turning terminal lib back on
-			if err = p.makeTerminal(); err != nil {
-				return err
-			}
 
-			p.currentCommand = ""
-			p.airgapped.Unlock()
+			if termErr := terExe(p); termErr != nil {
+				return termErr
+			}
 		}
 	}
 }
