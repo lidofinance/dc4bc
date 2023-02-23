@@ -99,7 +99,7 @@ func (am *Machine) getBaseSeed() ([]byte, error) {
 func (am *Machine) storeOperation(o client.Operation) error {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if errors.Is(err, leveldb.ErrNotFound) {
 			return err
 		}
 		return fmt.Errorf("failed to get operationsLogBz from db: %w", err)
@@ -124,7 +124,7 @@ func (am *Machine) storeOperation(o client.Operation) error {
 func (am *Machine) getOperationsLog(dkgIdentifier string) ([]client.Operation, error) {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if errors.Is(err, leveldb.ErrNotFound) {
 			return nil, err
 		}
 		return nil, fmt.Errorf("failed to get operationsLogBz from db: %w", err)
@@ -141,7 +141,7 @@ func (am *Machine) getOperationsLog(dkgIdentifier string) ([]client.Operation, e
 func (am *Machine) clearOperationsLog(dkgIdentifier string, remove func(o client.Operation) bool) error {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if errors.Is(err, leveldb.ErrNotFound) {
 			return err
 		}
 		return fmt.Errorf("failed to get operationsLogBz from db: %w", err)
@@ -173,7 +173,7 @@ func (am *Machine) clearOperationsLog(dkgIdentifier string, remove func(o client
 func (am *Machine) dropRoundOperationLog(dkgIdentifier string) error {
 	roundOperationsLog, err := am.getRoundOperationLog()
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if errors.Is(err, leveldb.ErrNotFound) {
 			return err
 		}
 		return fmt.Errorf("failed to get operationsLogBz from db: %w", err)
@@ -210,7 +210,7 @@ func (am *Machine) getRoundOperationLog() (RoundOperationLog, error) {
 func (am *Machine) LoadKeysFromDB() error {
 	pubKeyBz, err := am.db.Get([]byte(pubKeyDBKey), nil)
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if errors.Is(err, leveldb.ErrNotFound) {
 			return err
 		}
 		return fmt.Errorf("failed to get public key from db: %w", err)
@@ -218,7 +218,7 @@ func (am *Machine) LoadKeysFromDB() error {
 
 	privateKeyBz, err := am.db.Get([]byte(privateKeyDBKey), nil)
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if errors.Is(err, leveldb.ErrNotFound) {
 			return err
 		}
 		return fmt.Errorf("failed to get private key from db: %w", err)
@@ -226,7 +226,7 @@ func (am *Machine) LoadKeysFromDB() error {
 
 	salt, err := am.db.Get([]byte(saltDBKey), nil)
 	if err != nil {
-		if err == leveldb.ErrNotFound {
+		if errors.Is(err, leveldb.ErrNotFound) {
 			return err
 		}
 		return fmt.Errorf("failed to read salt from db: %w", err)

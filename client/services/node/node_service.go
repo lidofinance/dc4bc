@@ -163,7 +163,7 @@ func (s *BaseNodeService) Poll() error {
 						message.Offset, message.Event)
 				}
 				if err := s.getState().SaveOffset(message.Offset + 1); err != nil {
-					s.Logger.Log("Failed to save offset: %v", err)
+					s.Logger.Log("Failed to save offset:  %w", err)
 				}
 			}
 		case <-s.ctx.Done():
@@ -499,13 +499,13 @@ func (s *BaseNodeService) ReInitDKG(dto *dto.ReInitDKGDTO) error {
 	message, err := s.buildMessage(dto.ID, fsm.Event(types.ReinitDKG), dto.Payload)
 
 	if err != nil {
-		return fmt.Errorf("failed to build message: %v", err)
+		return fmt.Errorf("failed to build message:  %w", err)
 	}
 
 	err = s.storage.Send(*message)
 
 	if err != nil {
-		return fmt.Errorf("failed to send message: %v", err)
+		return fmt.Errorf("failed to send message:  %w", err)
 	}
 
 	return nil
@@ -515,7 +515,7 @@ func (s *BaseNodeService) SaveOffset(dto *dto.StateOffsetDTO) error {
 	err := s.getState().SaveOffset(dto.Offset)
 
 	if err != nil {
-		return fmt.Errorf("failed to save offset: %v", err)
+		return fmt.Errorf("failed to save offset:  %w", err)
 	}
 
 	return nil
@@ -524,7 +524,7 @@ func (s *BaseNodeService) SaveOffset(dto *dto.StateOffsetDTO) error {
 func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 	var req types.ReDKG
 	if err := json.Unmarshal(message.Data, &req); err != nil {
-		return fmt.Errorf("failed to umarshal request: %v", err)
+		return fmt.Errorf("failed to umarshal request:  %w", err)
 	}
 
 	// temporarily fix cause we can't verify patch messages
@@ -542,7 +542,7 @@ func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 		if msg.RecipientAddr == "" || msg.RecipientAddr == s.GetUsername() {
 			operation, err := s.processMessage(msg)
 			if err != nil {
-				s.Logger.Log("failed to process operation: %v", err)
+				s.Logger.Log("failed to process operation:  %w", err)
 			}
 			if operation != nil {
 				operations = append(operations, operation)
@@ -665,11 +665,11 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 	case types.SignatureReconstructionFailed:
 		errorRequest, err := types.FSMRequestFromMessage(message)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
+			return nil, fmt.Errorf("failed to get FSMRequestFromMessage:  %w", err)
 		}
 		errorRequestTyped, ok := errorRequest.(requests.SignatureProposalConfirmationErrorRequest)
 		if !ok {
-			return nil, fmt.Errorf("failed to convert request to SignatureProposalConfirmationErrorRequest: %v", err)
+			return nil, fmt.Errorf("failed to convert request to SignatureProposalConfirmationErrorRequest:  %w", err)
 		}
 		s.Logger.Log("Participant #%d got an error during signature reconstruction process: %v", errorRequestTyped.ParticipantId, errorRequestTyped.Error)
 		return nil, nil
@@ -740,7 +740,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 
 	fsmReq, err := types.FSMRequestFromMessage(message)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
+		return nil, fmt.Errorf("failed to get FSMRequestFromMessage:  %w", err)
 	}
 
 	resp, fsmDump, err := fsmInstance.Do(fsm.Event(message.Event), fsmReq)
