@@ -47,7 +47,7 @@ func (a *HTTPApp) GetOperation(c echo.Context) error {
 	if err != nil {
 		return stx.JsonError(
 			http.StatusInternalServerError,
-			fmt.Errorf("failed to get operations: %v", err),
+			fmt.Errorf("failed to get operations:  %w", err),
 		)
 	}
 

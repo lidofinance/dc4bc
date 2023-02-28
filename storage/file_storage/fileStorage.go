@@ -54,7 +54,7 @@ func NewFileStorage(filename string, lockFilename ...string) (storage.Storage, e
 	}
 
 	if fs.dataFile, err = os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_RDWR, 0644); err != nil {
-		return nil, fmt.Errorf("failed to open a data file: %v", err)
+		return nil, fmt.Errorf("failed to open a data file:  %w", err)
 	}
 
 	fs.idIgnoreList = map[string]struct{}{}
@@ -69,23 +69,23 @@ func (fs *FileStorage) send(m storage.Message) (storage.Message, error) {
 		err  error
 	)
 	if err = fs.lockFile.Lock(); err != nil {
-		return m, fmt.Errorf("failed to lock a file: %v", err)
+		return m, fmt.Errorf("failed to lock a file:  %w", err)
 	}
 	defer fs.lockFile.Unlock()
 
 	m.ID = uuid.New().String()
 
 	if _, err = fs.dataFile.Seek(0, 0); err != nil { // otherwise countLines will return zero
-		return m, fmt.Errorf("failed to seek a offset to the start of a data file: %v", err)
+		return m, fmt.Errorf("failed to seek a offset to the start of a data file:  %w", err)
 	}
 	m.Offset = countLines(fs.dataFile)
 
 	if data, err = json.Marshal(m); err != nil {
-		return m, fmt.Errorf("failed to marshal a message %v: %v", m, err)
+		return m, fmt.Errorf("failed to marshal a message %v: %w", m, err)
 	}
 
 	if _, err = fmt.Fprintln(fs.dataFile, string(data)); err != nil {
-		return m, fmt.Errorf("failed to write a message to a data file: %v", err)
+		return m, fmt.Errorf("failed to write a message to a data file:  %w", err)
 	}
 	return m, err
 }
@@ -110,7 +110,7 @@ func (fs *FileStorage) GetMessages(offset uint64) ([]storage.Message, error) {
 		data storage.Message
 	)
 	if _, err = fs.dataFile.Seek(0, 0); err != nil {
-		return nil, fmt.Errorf("failed to seek a offset to the start of a data file: %v", err)
+		return nil, fmt.Errorf("failed to seek a offset to the start of a data file:  %w", err)
 	}
 	scanner := bufio.NewScanner(fs.dataFile)
 	buf := make([]byte, 0, 64*1024)
@@ -123,7 +123,7 @@ func (fs *FileStorage) GetMessages(offset uint64) ([]storage.Message, error) {
 
 		row = scanner.Bytes()
 		if err = json.Unmarshal(row, &data); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal a message %s: %v", string(row), err)
+			return nil, fmt.Errorf("failed to unmarshal a message %s: %w", string(row), err)
 		}
 
 		_, idOk := fs.idIgnoreList[data.ID]
@@ -133,7 +133,7 @@ func (fs *FileStorage) GetMessages(offset uint64) ([]storage.Message, error) {
 		}
 	}
 	if scanner.Err() != nil {
-		return nil, fmt.Errorf("failed to read a data file: %v", scanner.Err())
+		return nil, fmt.Errorf("failed to read a data file: %w", scanner.Err())
 	}
 	return msgs, nil
 }
@@ -147,7 +147,7 @@ func (fs *FileStorage) IgnoreMessages(messages []string, useOffset bool) error {
 		if useOffset {
 			offset, err := strconv.ParseUint(msg, 10, 64)
 			if err != nil {
-				return fmt.Errorf("failed to parse message offset: %v", err)
+				return fmt.Errorf("failed to parse message offset:  %w", err)
 			}
 			fs.offsetIgnoreList[offset] = struct{}{}
 

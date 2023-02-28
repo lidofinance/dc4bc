@@ -17,7 +17,7 @@ import (
 func createMessage(origMesage storage.Message) (storage.Message, error) {
 	fsmReq, err := types.FSMRequestFromMessage(origMesage)
 	if err != nil {
-		return storage.Message{}, fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
+		return storage.Message{}, fmt.Errorf("failed to get FSMRequestFromMessage:  %w", err)
 	}
 	request, ok := fsmReq.(requests.DKGProposalDealConfirmationRequest)
 	if !ok {
@@ -30,7 +30,7 @@ func createMessage(origMesage storage.Message) (storage.Message, error) {
 	}
 	data, err := json.Marshal(req)
 	if err != nil {
-		return storage.Message{}, fmt.Errorf("failed to encode FSMRequest: %v", err)
+		return storage.Message{}, fmt.Errorf("failed to encode FSMRequest:  %w", err)
 	}
 	newMsg := storage.Message{
 		ID:            uuid.New().String(),
@@ -58,7 +58,7 @@ func GetAdaptedReDKG(originalDKG *types.ReDKG) (*types.ReDKG, error) {
 			fixedSenders[m.SenderAddr] = struct{}{}
 			workAroundMessage, err := createMessage(m)
 			if err != nil {
-				return nil, fmt.Errorf("failed to construct new message for adapted reinit DKG message: %v", err)
+				return nil, fmt.Errorf("failed to construct new message for adapted reinit DKG message:  %w", err)
 			}
 			workAroundMessage.Offset = newOffset
 			newOffset++

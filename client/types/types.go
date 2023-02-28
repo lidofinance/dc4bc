@@ -168,62 +168,62 @@ func FSMRequestFromMessage(message storage.Message) (interface{}, error) {
 	case signature_proposal_fsm.EventConfirmSignatureProposal, signature_proposal_fsm.EventDeclineProposal:
 		var req requests.SignatureProposalParticipantRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+			return fmt.Errorf("failed to unmarshal fsm req: %w", err), nil
 		}
 		resolvedValue = req
 	case signature_proposal_fsm.EventInitProposal:
 		var req requests.SignatureProposalParticipantsListRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+			return fmt.Errorf("failed to unmarshal fsm req: %w", err), nil
 		}
 		resolvedValue = req
 	case dkg_proposal_fsm.EventDKGCommitConfirmationReceived:
 		var req requests.DKGProposalCommitConfirmationRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+			return fmt.Errorf("failed to unmarshal fsm req: %w", err), nil
 		}
 		resolvedValue = req
 	case dkg_proposal_fsm.EventDKGDealConfirmationReceived:
 		var req requests.DKGProposalDealConfirmationRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+			return fmt.Errorf("failed to unmarshal fsm req: %w", err), nil
 		}
 		resolvedValue = req
 	case dkg_proposal_fsm.EventDKGResponseConfirmationReceived:
 		var req requests.DKGProposalResponseConfirmationRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+			return fmt.Errorf("failed to unmarshal fsm req: %w", err), nil
 		}
 		resolvedValue = req
 	case dkg_proposal_fsm.EventDKGMasterKeyConfirmationReceived:
 		var req requests.DKGProposalMasterKeyConfirmationRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+			return fmt.Errorf("failed to unmarshal fsm req: %w", err), nil
 		}
 		resolvedValue = req
 	case signing_proposal_fsm.EventSigningPartialSignReceived:
 		var req requests.SigningProposalBatchPartialSignRequests
 		if err := json.Unmarshal(message.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+			return fmt.Errorf("failed to unmarshal fsm req: %w", err), nil
 		}
 		resolvedValue = req
 	case signing_proposal_fsm.EventSigningStart:
 		var req requests.SigningBatchProposalStartRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+			return fmt.Errorf("failed to unmarshal fsm req: %w", err), nil
 		}
 		resolvedValue = req
 	case dkg_proposal_fsm.EventDKGCommitConfirmationError, dkg_proposal_fsm.EventDKGDealConfirmationError,
 		dkg_proposal_fsm.EventDKGResponseConfirmationError, dkg_proposal_fsm.EventDKGMasterKeyConfirmationError:
 		var req requests.DKGProposalConfirmationErrorRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+			return fmt.Errorf("failed to unmarshal fsm req: %w", err), nil
 		}
 		resolvedValue = req
 	case signing_proposal_fsm.EventSigningPartialSignError, SignatureReconstructionFailed:
 		var req requests.SignatureProposalConfirmationErrorRequest
 		if err := json.Unmarshal(message.Data, &req); err != nil {
-			return fmt.Errorf("failed to unmarshal fsm req: %v", err), nil
+			return fmt.Errorf("failed to unmarshal fsm req: %w", err), nil
 		}
 		resolvedValue = req
 	default:
@@ -256,7 +256,7 @@ func GenerateReDKGMessage(messages []storage.Message, newCommPubKeys map[string]
 		if fsm.Event(msg.Event) == signature_proposal_fsm.EventInitProposal {
 			req, err := FSMRequestFromMessage(msg)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get FSM request from message: %v", err)
+				return nil, fmt.Errorf("failed to get FSM request from message: %w", err)
 			}
 
 			request, ok := req.(requests.SignatureProposalParticipantsListRequest)

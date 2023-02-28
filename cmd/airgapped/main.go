@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -385,7 +386,7 @@ func (p *prompt) enterEncryptionPasswordIfNeeded() error {
 		return nil
 	}
 
-	repeatPassword := p.airgapped.LoadKeysFromDB() == leveldb.ErrNotFound
+	repeatPassword := errors.Is(p.airgapped.LoadKeysFromDB(), leveldb.ErrNotFound)
 	for {
 		p.print("Enter encryption password: ")
 		password, err := terminal.ReadPassword(syscall.Stdin)
@@ -429,15 +430,16 @@ func (p *prompt) run() error {
 			return nil
 		default:
 			command, err := p.terminal.ReadLine()
-			if err != nil && err != io.EOF {
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					// EOF will be returned by pressing CTRL+C/CTRL+D combinations
+					// But somehow after the pressing ReadLine will always return EOF
+					// So, to avoid this, we just reload the terminal
+					p.reloadTerminal()
+					continue
+				}
+
 				return fmt.Errorf("failed to read command: %w", err)
-			}
-			if err == io.EOF {
-				// EOF will be returned by pressing CTRL+C/CTRL+D combinations
-				// But somehow after the pressing ReadLine will always return EOF
-				// So, to avoid this, we just reload the terminal
-				p.reloadTerminal()
-				continue
 			}
 
 			clearCommand := strings.Trim(command, "\n")
@@ -449,23 +451,33 @@ func (p *prompt) run() error {
 			if err = p.enterEncryptionPasswordIfNeeded(); err != nil {
 				return err
 			}
-			p.airgapped.Lock()
 
-			p.currentCommand = clearCommand
+			terExe := func(prompt *prompt) error {
+				prompt.airgapped.Lock()
+				defer func() {
+					prompt.currentCommand = ""
+					prompt.airgapped.Unlock()
+				}()
 
-			// we need to "turn off" terminal lib during command execution to be able to handle OS notifications inside
-			// commands and to read data from stdin without terminal features
-			p.restoreTerminal()
-			if err := handler.commandHandler(); err != nil {
-				p.printf("failed to execute command %s: %v \n", command, err)
+				prompt.currentCommand = clearCommand
+
+				// we need to "turn off" terminal lib during command execution to be able to handle OS notifications inside
+				// commands and to read data from stdin without terminal features
+				prompt.restoreTerminal()
+				if err := handler.commandHandler(); err != nil {
+					prompt.printf("failed to execute command %s: %v \n", command, err)
+				}
+				// after command done, we turning terminal lib back on
+				if err = prompt.makeTerminal(); err != nil {
+					return err
+				}
+
+				return nil
 			}
-			// after command done, we turning terminal lib back on
-			if err = p.makeTerminal(); err != nil {
-				return err
-			}
 
-			p.currentCommand = ""
-			p.airgapped.Unlock()
+			if termErr := terExe(p); termErr != nil {
+				return termErr
+			}
 		}
 	}
 }

@@ -1,5 +1,3 @@
-#!/bin/bash
-
 WITHDRAWAL_CREDENTIALS="0x009690e5d4472c7c0dbdf490425d89862535d2a52fb686333f3a0a9ff5d2125e"
 echo "Please provide provide consensus layer node host."
 read -r NODE_HOST
@@ -13,12 +11,12 @@ fi
 URL="$NODE_HOST/eth/v1/beacon/states/head/validators"
 echo "Request url is $URL"
 
-RESPONSE=($(curl --request GET --url "$URL" --header 'Content-Type: application/json'))
+RESPONSE=$(curl --fail --raw --request GET --url "$URL" --header 'Content-Type: application/json' | tr -d '[:space:]')
 
 echo "Validating payloads.csv"
 
 JQ_FILTER=".data[] | select(.validator.withdrawal_credentials == \"$WITHDRAWAL_CREDENTIALS\") | .index | tonumber"
-SORTED_VALIDATORS=$(jq -r "$JQ_FILTER" <<< $RESPONSE | jq -s | jq '.|sort')
+SORTED_VALIDATORS=$(jq -r "$JQ_FILTER" <<< "$RESPONSE" | jq -s | jq '.|sort')
 
 jq -r '.[]' <<< "$SORTED_VALIDATORS" > actual.csv
 
@@ -26,7 +24,7 @@ jq -r '.[]' <<< "$SORTED_VALIDATORS" > actual.csv
 
 jq '.|{ first_validator_index: min, last_validator_index: max, total_validators: length}' <<< "$SORTED_VALIDATORS"
 DIFF=$(diff payloads.csv actual.csv)
-if [ "$DIFF" != "" ]
+if [[ "$DIFF" != "" ]]
 then
   echo "actual.csv is not the same payloads.csv $DIFF"
 else

@@ -177,7 +177,7 @@ func (ks *KafkaStorage) IgnoreMessages(messages []string, useOffset bool) error 
 		if useOffset {
 			offset, err := strconv.ParseUint(msg, 10, 64)
 			if err != nil {
-				return fmt.Errorf("failed to parse message offset: %v", err)
+				return fmt.Errorf("failed to parse message offset: %w", err)
 			}
 			ks.offsetIgnoreList[offset] = struct{}{}
 
@@ -209,7 +209,7 @@ func (ks *KafkaStorage) storageToKafkaMessages(messages ...storage.Message) ([]k
 	for i, m := range messages {
 		data, err := json.Marshal(m)
 		if err != nil {
-			return kafkaMessages, fmt.Errorf("failed to marshal a message %v: %v", m, err)
+			return kafkaMessages, fmt.Errorf("failed to marshal a message %v: %w", m, err)
 		}
 		kafkaMessages[i] = kafka.Message{Key: []byte(m.ID), Value: data}
 	}
