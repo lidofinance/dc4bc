@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -155,8 +156,8 @@ func (ks *KafkaStorage) GetMessages(_ uint64) ([]storage.Message, error) {
 		}
 
 		if err = json.Unmarshal(kafkaMessage.Value, &message); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal a message %s: %v",
-				string(kafkaMessage.Value), err)
+			log.Printf("failed to unmarshal a message %s: %s", string(kafkaMessage.Value), err.Error())
+			continue
 		}
 
 		message.Offset = uint64(kafkaMessage.Offset)
