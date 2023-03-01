@@ -548,6 +548,16 @@ func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 		if fsm.Event(msg.Event) == sif.EventSigningStart {
 			break
 		}
+
+		// LDC-07 Messages May Be Sent to a Single Node
+		//
+		// If we remove the broadcast and send only individual messages,
+		// then this behavior will break backward compatibility
+		// with the log of the previous version of the application. (v0.1.4)
+		//
+		// The described case will not lead to a catastrophic scenario,
+		// maximum inconvenience, and restart of the procedure,
+		// which is not very scary compared to the loss of compatibility.
 		if msg.RecipientAddr == "" || msg.RecipientAddr == s.GetUsername() {
 			operation, err := s.processMessage(msg)
 			if err != nil {
