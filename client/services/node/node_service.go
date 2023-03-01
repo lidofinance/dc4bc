@@ -527,6 +527,15 @@ func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 		return fmt.Errorf("failed to umarshal request: %v", err)
 	}
 
+	roundExist, existErr := s.fsmService.IsExist(req.DKGID)
+	if existErr != nil {
+		return existErr
+	}
+
+	if roundExist {
+		return nil
+	}
+
 	// temporarily fix cause we can't verify patch messages
 	// TODO: remove later
 	if !s.GetSkipCommKeysVerification() {
