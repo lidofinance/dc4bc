@@ -119,3 +119,18 @@ func (mr *MockStateMockRecorder) Set(key, value interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Set", reflect.TypeOf((*MockState)(nil).Set), key, value)
 }
+
+// GetOrError mocks base method.
+func (m *MockState) GetOrError(key string) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOrError", key)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOrError indicates an expected call of GetOrError.
+func (mr *MockStateMockRecorder) GetOrError(key interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOrError", reflect.TypeOf((*MockState)(nil).GetOrError), key)
+}
