@@ -28,7 +28,7 @@ func (a *HTTPApp) GetStateOffset(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	offset, err := a.node.GetStateOffset()
 	if err != nil {
-		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to load offset: %v", err))
+		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to load offset: %w", err))
 	}
 	return stx.Json(http.StatusOK, offset)
 }

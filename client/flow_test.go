@@ -64,7 +64,7 @@ var (
 
 	dkgAbortedRegexp = regexp.MustCompile(`(?m)\[node_\d] Participant node_\d got an error during DKG process: test error\. DKG aborted`)
 
-	processedOperationPayloadMismatchRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to handle processed operation: node returned an error response: processed operation does not match stored operation: o1.Payload .+ != o2.Payload .+`)
+	processedOperationPayloadMismatchRegexp = regexp.MustCompile(`(?m)\[node_\d] failed to handle processed operation: node returned an error response: processed operation does not match stored operation: o1.Payload .+ != o2.Payload .+`)
 
 	failedSignRecoverRegexp = regexp.MustCompile(`(?m)\[node_\d] Failed to process message with offset \d{0,3}: failed to reconstruct signatures: failed to reconstruct full signature for msg [\d\w-]+: .+`)
 
@@ -174,27 +174,27 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 
 		var state, err = state2.NewLevelDBState(fmt.Sprintf("/tmp/dc4bc_node_%d_state", nodeID), topic)
 		if err != nil {
-			return nodes, fmt.Errorf("nodeInstance %d failed to init state: %v\n", nodeID, err)
+			return nodes, fmt.Errorf("nodeInstance %d failed to init state: %w\n", nodeID, err)
 		}
 
 		stg, err := file_storage.NewFileStorage(storagePath)
 		if err != nil {
-			return nodes, fmt.Errorf("nodeInstance %d failed to init storage: %v\n", nodeID, err)
+			return nodes, fmt.Errorf("nodeInstance %d failed to init storage: %w\n", nodeID, err)
 		}
 
 		keyStore, err := keystore.NewLevelDBKeyStore(userName, fmt.Sprintf("/tmp/dc4bc_node_%d_key_store", nodeID))
 		if err != nil {
-			return nodes, fmt.Errorf("Failed to init key store: %v", err)
+			return nodes, fmt.Errorf("failed to init key store: %w", err)
 		}
 
 		keyPair := keystore.NewKeyPair()
 		if err := keyStore.PutKeys(userName, keyPair); err != nil {
-			return nodes, fmt.Errorf("Failed to PutKeys: %v\n", err)
+			return nodes, fmt.Errorf("Failed to PutKeys:%w\n", err)
 		}
 
 		airgappedMachine, err := airgapped.NewMachine(fmt.Sprintf("/tmp/dc4bc_node_%d_airgapped_db", nodeID))
 		if err != nil {
-			return nodes, fmt.Errorf("failed to create airgapped machine: %v", err)
+			return nodes, fmt.Errorf("failed to create airgapped machine: %w", err)
 		}
 
 		logger := &savingLogger{userName: userName}
@@ -213,7 +213,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 		sigRepo := sigrepo.NewSignatureRepo(state)
 		opRepo, err := oprepo.NewOperationRepo(state, topic)
 		if err != nil {
-			return nodes, fmt.Errorf("failed to init operation repo: %v", err)
+			return nodes, fmt.Errorf("failed to init operation repo: %w", err)
 		}
 
 		opService := operation.NewOperationService(opRepo)
@@ -231,7 +231,7 @@ func initNodes(numNodes int, startingPort int, storagePath string, topic string,
 
 		clt, err := node.NewNode(ctx, &cfg, &sp)
 		if err != nil {
-			return nodes, fmt.Errorf("nodeInstance %d failed to init nodeInstance: %v\n", nodeID, err)
+			return nodes, fmt.Errorf("nodeInstance %d failed to init nodeInstance: %w\n", nodeID, err)
 		}
 		airgappedMachine.SetEncryptionKey([]byte("very_strong_password")) //just for testing
 
@@ -280,12 +280,12 @@ func getOperations(url string) (*OperationsResponse, error) {
 	defer resp.Body.Close()
 	responseBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read body %v", err)
+		return nil, fmt.Errorf("failed to read body %w", err)
 	}
 
 	var response OperationsResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal response: %w", err)
 	}
 	return &response, nil
 }
@@ -302,7 +302,7 @@ func handleProcessedOperation(url string, operation types.Operation) error {
 	defer resp.Body.Close()
 	responseBody, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("failed to read body %v", err)
+		return fmt.Errorf("failed to read body %w", err)
 	}
 
 	var response api_responses.BaseResponse
@@ -336,12 +336,12 @@ func startDkg(nodes []*nodeInstance, threshold int) ([]byte, error) {
 	}
 	messageDataBz, err := json.Marshal(messageData)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)
+		return nil, fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest:%w\n", err)
 	}
 
 	if _, err := http.Post(fmt.Sprintf("http://%s/startDKG", nodes[len(nodes)-1].listenAddr),
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
-		return nil, fmt.Errorf("failed to send HTTP request to start DKG: %v\n", err)
+		return nil, fmt.Errorf("failed to send HTTP request to start DKG:%w\n", err)
 	}
 
 	return messageDataBz, nil
@@ -351,13 +351,13 @@ func signMessage(dkgID []byte, msg, addr string) ([]byte, error) {
 	messageDataBz, err := json.Marshal(map[string][]byte{"data": []byte(msg),
 		"dkgID": dkgID})
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)
+		return nil, fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest:%w\n", err)
 	}
 
 	resp, err := http.Post(fmt.Sprintf("http://%s/proposeSignMessage", addr),
 		"application/json", bytes.NewReader(messageDataBz))
 	if err != nil {
-		return nil, fmt.Errorf("failed to send HTTP request to sign message: %v\n", err)
+		return nil, fmt.Errorf("failed to send HTTP request to sign message:%w\n", err)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -391,7 +391,7 @@ func signBakedMessage(dkgID []byte, range_start, range_end int, addr string) ([]
 	resp, err := http.Post(fmt.Sprintf("http://%s/proposeSignBakedMessages", addr),
 		"application/json", bytes.NewReader(messageDataBz))
 	if err != nil {
-		return nil, fmt.Errorf("failed to send HTTP request to sign message: %v\n", err)
+		return nil, fmt.Errorf("failed to send HTTP request to sign message:%w\n", err)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -415,13 +415,13 @@ func signBatchMessages(dkgID []byte, msg map[string][]byte, addr string) ([]byte
 	messageDataBz, err := json.Marshal(map[string]interface{}{"data": msg,
 		"dkgID": dkgID})
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest: %v\n", err)
+		return nil, fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest:%w\n", err)
 	}
 
 	resp, err := http.Post(fmt.Sprintf("http://%s/proposeSignBatchMessages", addr),
 		"application/json", bytes.NewReader(messageDataBz))
 	if err != nil {
-		return nil, fmt.Errorf("failed to send HTTP request to sign message: %v\n", err)
+		return nil, fmt.Errorf("failed to send HTTP request to sign message:%w\n", err)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -479,7 +479,7 @@ func (n *nodeInstance) run(callback processedOperationCallback, ctx context.Cont
 		default:
 			operationsResponse, err := getOperations(fmt.Sprintf("http://%s/getOperations", n.listenAddr))
 			if err != nil {
-				panic(fmt.Sprintf("failed to get operations: %v", err))
+				panic(fmt.Errorf("failed to get operations: %w", err))
 			}
 
 			operations := make(map[string]*types.Operation)
@@ -539,7 +539,7 @@ func (n *nodeInstance) defaultOperationHandler(operation *types.Operation, callb
 	n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
 	processedOperation, err := n.air.GetOperationResult(*operation)
 	if err != nil {
-		n.client.GetLogger().Log("Failed to handle operation: %v", err)
+		n.client.GetLogger().Log(fmt.Errorf("failed to handle operation: %w", err).Error())
 	}
 	n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
 		operation.Type, processedOperation.Event)
@@ -554,7 +554,7 @@ func (n *nodeInstance) defaultOperationHandler(operation *types.Operation, callb
 
 	if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
 		processedOperation); err != nil {
-		n.client.GetLogger().Log("Failed to handle processed operation: %v", err)
+		n.client.GetLogger().Log(fmt.Errorf("failed to handle processed operation: %w", err).Error())
 	} else {
 		n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
 	}
@@ -591,7 +591,7 @@ func (n *nodeInstance) junkSignMessageHandler(operation *types.Operation, _ proc
 	n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
 	processedOperation, err := n.air.GetOperationResult(*operation)
 	if err != nil {
-		n.client.GetLogger().Log("Failed to handle operation: %v", err)
+		n.client.GetLogger().Log(fmt.Errorf("failed to handle operation: %w", err).Error())
 	}
 	n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
 		operation.Type, processedOperation.Event)
@@ -601,7 +601,7 @@ func (n *nodeInstance) junkSignMessageHandler(operation *types.Operation, _ proc
 
 	if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
 		processedOperation); err != nil {
-		n.client.GetLogger().Log("Failed to handle processed operation: %v", err)
+		n.client.GetLogger().Log(fmt.Errorf("failed to handle processed operation: %w", err).Error())
 	} else {
 		n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
 	}
@@ -617,7 +617,7 @@ func (n *nodeInstance) messageHandlerWithReplacedDKG(dkg string) operationHandle
 		n.client.GetLogger().Log("Handling operation %s in airgapped", operation.Type)
 		processedOperation, err := n.air.GetOperationResult(*operation)
 		if err != nil {
-			n.client.GetLogger().Log("Failed to handle operation: %v", err)
+			n.client.GetLogger().Log(fmt.Errorf("failed to handle operation: %w", err).Error())
 		}
 		n.client.GetLogger().Log("Operation %s handled in airgapped, result event is %s",
 			operation.Type, processedOperation.Event)
@@ -629,7 +629,7 @@ func (n *nodeInstance) messageHandlerWithReplacedDKG(dkg string) operationHandle
 
 		if err = handleProcessedOperation(fmt.Sprintf("http://%s/handleProcessedOperationJSON", n.listenAddr),
 			processedOperation); err != nil {
-			n.client.GetLogger().Log("Failed to handle processed operation: %v", err)
+			n.client.GetLogger().Log("Failed to handle processed operation: %w", err)
 		} else {
 			n.client.GetLogger().Log("Successfully handled processed operation %s", processedOperation.Event)
 		}
@@ -673,10 +673,10 @@ func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCal
 	for nodeID, n := range nodes {
 		go func(nodeID int, node *nodeInstance) {
 			if err := node.httpApi.Start(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-				panic(fmt.Sprintf("failed to start HTTP server for nodeID #%d: %v\n", nodeID, err))
+				panic(fmt.Errorf("failed to start HTTP server for nodeID #%d: %w\n", nodeID, err))
 			}
 			//if err := node.client.StartHTTPServer(node.listenAddr); err != nil && err != http.ErrServerClosed {
-			//	panic(fmt.Sprintf("failed to start HTTP server for nodeID #%d: %v\n", nodeID, err))
+			//	panic(fmt.Sprintf("failed to start HTTP server for nodeID #%d: %w\n", nodeID, err))
 			//}
 		}(nodeID, n)
 		time.Sleep(1 * time.Second)
@@ -684,7 +684,7 @@ func startServerRunAndPoll(nodes []*nodeInstance, callback processedOperationCal
 
 		go func(nodeID int, node node.NodeService) {
 			if err := node.Poll(); err != nil {
-				panic(fmt.Sprintf("nodeInstance %d poller failed: %v\n", nodeID, err))
+				panic(fmt.Errorf("nodeInstance %d poller failed: %w\n", nodeID, err))
 			}
 		}(nodeID, n.client)
 
@@ -808,7 +808,7 @@ func TestStandardFlow(t *testing.T) {
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil, nil)
 	if err != nil {
-		t.Fatalf("Failed to init nodes, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to init nodes, err: %w", err))
 	}
 
 	// Each nodeInstance starts to Poll().
@@ -851,7 +851,7 @@ func TestStandardFlow(t *testing.T) {
 	fmt.Println("Sign message again")
 	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignMessage", nodes[len(nodes)-1].listenAddr),
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
-		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to send HTTP request to sign message:%w\n", err))
 	}
 	waitForSignMsg()
 
@@ -881,7 +881,7 @@ func TestBakedMessagesFlow(t *testing.T) {
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil, nil)
 	if err != nil {
-		t.Fatalf("Failed to init nodes, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to init nodes, err: %w", err))
 	}
 
 	// Each nodeInstance starts to Poll().
@@ -922,13 +922,13 @@ func TestBakedMessagesFlow(t *testing.T) {
 
 	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []int64{52694, 52695, 52696, 52697, 52698})
 	if err != nil {
-		t.Fatalf("failed to verify signatures: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to verify signatures:%w\n", err))
 	}
 
 	fmt.Println("Sign message again")
 	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignBakedMessages", nodes[len(nodes)-1].listenAddr),
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
-		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to send HTTP request to sign message:%w\n", err))
 	}
 	waitForSignMsg()
 
@@ -958,7 +958,7 @@ func TestStandardBatchFlow(t *testing.T) {
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil, nil)
 	if err != nil {
-		t.Fatalf("Failed to init nodes, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to init nodes, err: %w", err))
 	}
 
 	// Each nodeInstance starts to Poll().
@@ -1007,7 +1007,7 @@ func TestStandardBatchFlow(t *testing.T) {
 
 	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignBatchMessages", nodes[len(nodes)-1].listenAddr),
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
-		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to send HTTP request to sign message:%w\n", err))
 	}
 	waitForSignMsg()
 
@@ -1021,7 +1021,7 @@ func TestStandardBatchFlow(t *testing.T) {
 
 	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], nil)
 	if err != nil {
-		t.Fatalf("failed to verify signatures: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to verify signatures:%w\n", err))
 	}
 
 	runCancel()
@@ -1042,7 +1042,7 @@ func TestResetStateFlow(t *testing.T) {
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil, nil)
 	if err != nil {
-		t.Fatalf("Failed to init nodes, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to init nodes, err: %w", err))
 	}
 
 	// node_3 will produce event_dkg_confirm_cancelled_by_error
@@ -1061,7 +1061,7 @@ func TestResetStateFlow(t *testing.T) {
 			}
 			reqBz, err := json.Marshal(req)
 			if err != nil {
-				n.client.GetLogger().Log("failed to generate fsm request: %v", err)
+				n.client.GetLogger().Log("failed to generate fsm request: %w", err)
 			}
 			errMsg := storage.Message{
 				DkgRoundID: operationMsg.DkgRoundID,
@@ -1097,7 +1097,7 @@ func TestResetStateFlow(t *testing.T) {
 	// Searching for an injected error message to ignore it and eventually recover aborted DKG
 	msgs, err := nodes[0].storage.GetMessages(0)
 	if err != nil {
-		t.Fatalf("failed to get messages from storage: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to get messages from storage:%w\n", err))
 	}
 
 	for _, msg := range msgs {
@@ -1108,7 +1108,7 @@ func TestResetStateFlow(t *testing.T) {
 
 	log.Print("\n\n\nResetting nodes states\n\n\n")
 	if err := resetNodesStates(nodes, []string{msgToIgnore}, false); err != nil {
-		t.Fatalf("failed to reset nodes states: %v", err)
+		t.Fatal(fmt.Errorf("failed to reset nodes states: %w", err))
 	}
 	waitForResetState()
 	log.Print("\n\n\nState recreated\n\n\n")
@@ -1131,7 +1131,7 @@ func TestResetStateFlow(t *testing.T) {
 	fmt.Println("Sign message again")
 	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignMessage", nodes[len(nodes)-1].listenAddr),
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
-		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to send HTTP request to sign message:%w\n", err))
 	}
 	waitForSignMsg()
 
@@ -1206,7 +1206,7 @@ func TestReinitDKGFlow_authentic0_1_4(t *testing.T) {
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, mnemonics, usernames)
 	if err != nil {
-		t.Fatalf("Failed to init nodes, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to init nodes, err: %w", err))
 	}
 
 	// Each nodeInstance starts to Poll().
@@ -1221,7 +1221,7 @@ func TestReinitDKGFlow_authentic0_1_4(t *testing.T) {
 
 	reinitDKGMessage, err := types.GenerateReDKGMessage(messages, newCommKeys)
 	if err != nil {
-		t.Fatalf("Failed to create reinit message, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to create reinit message, err: %w", err))
 	}
 
 	adaptedReDKG, err := node.GetAdaptedReDKG(reinitDKGMessage)
@@ -1236,14 +1236,14 @@ func TestReinitDKGFlow_authentic0_1_4(t *testing.T) {
 
 	if _, err := http.Post(fmt.Sprintf("http://%s/reinitDKG", nodes[0].listenAddr),
 		"application/json", bytes.NewReader(reInitDKGBz)); err != nil {
-		t.Fatalf("failed to send HTTP request to reinit DKG: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to send HTTP request to reinit DKG:%w\n", err))
 	}
 
 	waitForDKG()
 
 	dkgID, err := hex.DecodeString(adaptedReDKG.DKGID)
 	if err != nil {
-		t.Fatalf("failed to decode DKGID, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to decode DKGID, err: %w", err))
 	}
 
 	log.Println("Propose message to sign")
@@ -1267,7 +1267,7 @@ func TestReinitDKGFlow_authentic0_1_4(t *testing.T) {
 	}
 	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], []int64{})
 	if err != nil {
-		t.Fatalf("failed to verify signatures: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to verify signatures:%w\n", err))
 	}
 
 	runCancel()
@@ -1296,7 +1296,7 @@ func TestReinitDKGFlow(t *testing.T) {
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, mnemonics, nil)
 	if err != nil {
-		t.Fatalf("Failed to init nodes, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to init nodes, err: %w", err))
 	}
 
 	// Each nodeInstance starts to Poll().
@@ -1333,7 +1333,7 @@ func TestReinitDKGFlow(t *testing.T) {
 
 	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], nil)
 	if err != nil {
-		t.Fatalf("failed to verify signatures: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to verify signatures:%w\n", err))
 	}
 
 	fmt.Println("Reinit DKG...")
@@ -1368,7 +1368,7 @@ func TestReinitDKGFlow(t *testing.T) {
 	var newStoragePath = "/tmp/dc4bc_new_storage"
 	newNodes, err := initNodes(numNodes, startingPort, newStoragePath, topic, mnemonics, nil)
 	if err != nil {
-		t.Fatalf("Failed to init nodes, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to init nodes, err: %w", err))
 	}
 
 	// Each nodeInstance starts to Poll().
@@ -1395,7 +1395,7 @@ func TestReinitDKGFlow(t *testing.T) {
 
 	if _, err := http.Post(fmt.Sprintf("http://%s/reinitDKG", newNodes[0].listenAddr),
 		"application/json", bytes.NewReader(reInitDKGBz)); err != nil {
-		t.Fatalf("failed to send HTTP request to reinit DKG: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to send HTTP request to reinit DKG:%w\n", err))
 	}
 
 	waitForDKG()
@@ -1415,7 +1415,7 @@ func TestReinitDKGFlow(t *testing.T) {
 	}
 	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], nil)
 	if err != nil {
-		t.Fatalf("failed to verify signatures: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to verify signatures:%w\n", err))
 	}
 
 	fmt.Println("Sign message again")
@@ -1432,7 +1432,7 @@ func TestReinitDKGFlow(t *testing.T) {
 
 	if _, err := http.Post(fmt.Sprintf("http://%s/proposeSignBatchMessages", nodes[len(nodes)-1].listenAddr),
 		"application/json", bytes.NewReader(messageDataBz)); err != nil {
-		t.Fatalf("failed to send HTTP request to sign message: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to send HTTP request to sign message:%w\n", err))
 	}
 
 	waitForSignMsg()
@@ -1446,7 +1446,7 @@ func TestReinitDKGFlow(t *testing.T) {
 	}
 	err = verifySignatures(hex.EncodeToString(dkgID[:]), nodes[0], nil)
 	if err != nil {
-		t.Fatalf("failed to verify signatures: %v\n", err)
+		t.Fatal(fmt.Errorf("failed to verify signatures:%w\n", err))
 	}
 
 	runCancel()
@@ -1467,7 +1467,7 @@ func TestModifiedMessageSigned(t *testing.T) {
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil, nil)
 	if err != nil {
-		t.Fatalf("Failed to init nodes, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to init nodes, err: %w", err))
 	}
 
 	maliciousNodeIdx := 0
@@ -1535,7 +1535,7 @@ func TestJunkPartialSignature(t *testing.T) {
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil, nil)
 	if err != nil {
-		t.Fatalf("Failed to init nodes, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to init nodes, err: %w", err))
 	}
 
 	maliciousNodeIdx := 0
@@ -1578,7 +1578,7 @@ func TestJunkPartialSignature(t *testing.T) {
 	fmt.Printf("\n\nReset nodes states ignoring msg with offset=%s and sign the message again without malware\n", spoiledMessageOffset)
 	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.defaultOperationHandler)
 	if err := resetNodesStates(nodes, []string{spoiledMessageOffset}, true); err != nil {
-		t.Fatalf("failed to reset nodes states: %v", err)
+		t.Fatal(fmt.Errorf("failed to reset nodes states: %w", err))
 	}
 	for _, n := range nodes {
 		n.addNecessaryOperations(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns))
@@ -1612,7 +1612,7 @@ func TestSignWithDifferentDKG(t *testing.T) {
 	storagePath := "/tmp/dc4bc_storage"
 	nodes, err := initNodes(numNodes, startingPort, storagePath, topic, nil, nil)
 	if err != nil {
-		t.Fatalf("Failed to init nodes, err: %v", err)
+		t.Fatal(fmt.Errorf("failed to init nodes, err: %w", err))
 	}
 
 	maliciousNodeIdx := 0
@@ -1665,7 +1665,7 @@ func TestSignWithDifferentDKG(t *testing.T) {
 	fmt.Printf("\n\nReset nodes states ignoring msg with offset=%s and sign the message again without malware\n", spoiledMessageOffset)
 	maliciousNode.setOperationHandler(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns), maliciousNode.defaultOperationHandler)
 	if err := resetNodesStates(nodes, []string{spoiledMessageOffset}, true); err != nil {
-		t.Fatalf("failed to reset nodes states: %v", err)
+		t.Fatal(fmt.Errorf("failed to reset nodes states: %w", err))
 	}
 	for _, n := range nodes {
 		n.addNecessaryOperations(types.OperationType(signing_fsm.StateSigningAwaitPartialSigns))
