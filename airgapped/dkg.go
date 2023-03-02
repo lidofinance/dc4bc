@@ -12,6 +12,7 @@ import (
 
 	"github.com/corestario/kyber"
 	dkgPedersen "github.com/corestario/kyber/share/dkg/pedersen"
+
 	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/dkg"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"

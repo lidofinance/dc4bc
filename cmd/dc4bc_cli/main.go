@@ -22,22 +22,20 @@ import (
 	"time"
 
 	"github.com/corestario/kyber/pairing/bls12381"
-	"github.com/lidofinance/dc4bc/dkg"
-	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
-	"github.com/lidofinance/dc4bc/pkg/utils"
+	"github.com/fatih/color"
+	"github.com/spf13/cobra"
 
 	httprequests "github.com/lidofinance/dc4bc/client/api/http_api/requests"
 	httpresponses "github.com/lidofinance/dc4bc/client/api/http_api/responses"
-
 	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/dkg"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
+	fsmtypes "github.com/lidofinance/dc4bc/fsm/types"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
-
-	"github.com/fatih/color"
-	"github.com/spf13/cobra"
+	"github.com/lidofinance/dc4bc/pkg/utils"
 )
 
 const (
@@ -108,9 +106,10 @@ func main() {
 		getFSMListCommand(),
 		getSignatureDataCommand(),
 		refreshState(),
+		proposeSignBakedMessagesCommand(),
 	)
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("Failed to execute root command: %v", err)
+		log.Fatal(fmt.Errorf("Failed to execute root command:  %w", err))
 	}
 }
 
@@ -127,7 +126,7 @@ func getOperationsRequest(host string) (*OperationsResponse, error) {
 
 	var response OperationsResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal response:  %w", err)
 	}
 
 	return &response, nil
@@ -140,7 +139,7 @@ func getOperationsCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			operations, err := getOperationsRequest(listenAddr)
@@ -251,7 +250,7 @@ func getBatchesCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 			dkgID := args[0]
 			batches, err := getBatchesRequest(listenAddr, dkgID)
@@ -286,7 +285,7 @@ func getSignatures(host string, dkgID string) (map[string][]fsmtypes.Reconstruct
 
 	var response SignaturesResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal response:  %w", err)
 	}
 
 	if response.ErrorMessage != "" {
@@ -311,17 +310,17 @@ func exportSignaturesCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			jsonOutputFolder, err := cmd.Flags().GetString(flagJSONFilesFolder)
 			if err != nil {
-				return fmt.Errorf("failed to read flagJSONFilesFolder: %v", err)
+				return fmt.Errorf("failed to read flagJSONFilesFolder:  %w", err)
 			}
 
 			printOnly, err := cmd.Flags().GetBool(flagPrintFullSignaturesInfo)
 			if err != nil {
-				return fmt.Errorf("failed to read flagPrintFullSignaturesInfo: %v", err)
+				return fmt.Errorf("failed to read flagPrintFullSignaturesInfo:  %w", err)
 			}
 
 			dkgID := args[0]
@@ -393,7 +392,7 @@ func getSignatureRequest(host string, dkgID, dataHash string) (*SignatureRespons
 	}
 	var response SignatureResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal response:  %w", err)
 	}
 	return &response, nil
 }
@@ -406,7 +405,7 @@ func getSignatureCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 			signatures, err := getSignatureRequest(listenAddr, args[0], args[1])
 			if err != nil {
@@ -433,7 +432,7 @@ func getSignatureDataCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 			signatures, err := getSignatureRequest(listenAddr, args[0], args[1])
 			if err != nil {
@@ -463,7 +462,7 @@ func getOperationRequest(host string, operationID string) (*OperationResponse, e
 
 	var response OperationResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal response:  %w", err)
 	}
 	return &response, nil
 }
@@ -476,7 +475,7 @@ func getOperationPathCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			folder, err := cmd.Flags().GetString(flagJSONFilesFolder)
@@ -527,7 +526,7 @@ func reinitDKGPathCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			reDKGFile := args[0]
@@ -559,7 +558,7 @@ func rawGetRequest(url string) (*httpresponses.BaseResponse, error) {
 
 	var response httpresponses.BaseResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal response:  %w", err)
 	}
 	return &response, nil
 }
@@ -571,7 +570,7 @@ func getPubKeyCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			resp, err := rawGetRequest(fmt.Sprintf("http://%s/getPubKey", listenAddr))
@@ -595,7 +594,7 @@ func saveOffsetCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			offset, err := strconv.ParseUint(args[0], 10, 64)
@@ -627,7 +626,7 @@ func getOffsetCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			resp, err := rawGetRequest(fmt.Sprintf("http://%s/getOffset", listenAddr))
@@ -661,7 +660,7 @@ func getUsernameCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			username, err := getUsername(listenAddr)
@@ -688,7 +687,7 @@ func rawPostRequest(url string, contentType string, data []byte) (*httpresponses
 
 	var response httpresponses.BaseResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal response:  %w", err)
 	}
 	return &response, nil
 }
@@ -701,7 +700,7 @@ func readOperationResultCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			operationBz, err := ioutil.ReadFile(strings.Trim(args[0], " \n"))
@@ -732,7 +731,7 @@ func startDKGCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			dkgProposeFileData, err := ioutil.ReadFile(args[0])
@@ -752,7 +751,7 @@ func startDKGCommand() *cobra.Command {
 			messageData := req
 			messageDataBz, err := json.Marshal(messageData)
 			if err != nil {
-				return fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest: %v", err)
+				return fmt.Errorf("failed to marshal SignatureProposalParticipantsListRequest:  %w", err)
 			}
 			resp, err := rawPostRequest(fmt.Sprintf("http://%s/startDKG", listenAddr),
 				"application/json", messageDataBz)
@@ -775,14 +774,14 @@ func approveDKGParticipationCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			operationID := args[0]
 
 			payloadBz, err := json.Marshal(map[string]string{"operationID": operationID})
 			if err != nil {
-				return fmt.Errorf("failed to marshal payload: %v", err)
+				return fmt.Errorf("failed to marshal payload:  %w", err)
 			}
 			resp, err := rawPostRequest(fmt.Sprintf("http://%s/approveDKGParticipation", listenAddr), "application/json", payloadBz)
 			if err != nil {
@@ -866,7 +865,7 @@ func proposeSignMessageCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			dkgID, err := hex.DecodeString(args[0])
@@ -882,7 +881,7 @@ func proposeSignMessageCommand() *cobra.Command {
 			messageDataBz, err := json.Marshal(map[string][]byte{"data": data,
 				"dkgID": dkgID})
 			if err != nil {
-				return fmt.Errorf("failed to marshal SigningProposalStartRequest: %v", err)
+				return fmt.Errorf("failed to marshal SigningProposalStartRequest:  %w", err)
 			}
 
 			resp, err := rawPostRequest(fmt.Sprintf("http://%s/proposeSignMessage", listenAddr),
@@ -906,7 +905,7 @@ func proposeSignBatchMessagesCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			dkgID, err := hex.DecodeString(args[0])
@@ -957,6 +956,55 @@ func proposeSignBatchMessagesCommand() *cobra.Command {
 	}
 }
 
+func proposeSignBakedMessagesCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "sign_baked [dkg_id] [range_start] [range_end]",
+		Args:  cobra.ExactArgs(3),
+		Short: "sends a propose message to sign the part of data baked into the binary",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
+			if err != nil {
+				return fmt.Errorf("failed to read configuration:  %w", err)
+			}
+
+			dkgID, err := hex.DecodeString(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to decode dkgID: %w", err)
+			}
+
+			range_start, err := strconv.Atoi(args[1])
+			if err != nil {
+				return fmt.Errorf("failed to parse range_start: %w", err)
+			}
+			range_end, err := strconv.Atoi(args[2])
+			if err != nil {
+				return fmt.Errorf("failed to parse range_end: %w", err)
+			}
+
+			req := httprequests.ProposeSignBakedMessagesForm{
+				DkgID:      dkgID,
+				RangeStart: range_start,
+				RangeEnd:   range_end,
+			}
+
+			messageDataBz, err := json.Marshal(&req)
+			if err != nil {
+				return fmt.Errorf("failed to Marshal ProposeSignBakedMessagesForm request: %w", err)
+			}
+
+			resp, err := rawPostRequest(fmt.Sprintf("http://%s/proposeSignBakedMessages", listenAddr),
+				"application/json", messageDataBz)
+			if err != nil {
+				return fmt.Errorf("failed to make HTTP request to propose message to sign: %w", err)
+			}
+			if resp.ErrorMessage != "" {
+				return fmt.Errorf("failed to make HTTP request to propose message to sign: %v", resp.ErrorMessage)
+			}
+			return nil
+		},
+	}
+}
+
 func getFSMDumpRequest(host string, dkgID string) (*FSMDumpResponse, error) {
 	resp, err := http.Get(fmt.Sprintf("http://%s/getFSMDump?dkgID=%s", host, dkgID))
 	if err != nil {
@@ -970,7 +1018,7 @@ func getFSMDumpRequest(host string, dkgID string) (*FSMDumpResponse, error) {
 
 	var response FSMDumpResponse
 	if err = json.Unmarshal(responseBody, &response); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal response: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal response:  %w", err)
 	}
 	return &response, nil
 }
@@ -983,7 +1031,7 @@ func getFSMStatusCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			fsmDumpResponse, err := getFSMDumpRequest(listenAddr, args[0])
@@ -1075,7 +1123,7 @@ func getFSMListCommand() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 			if err != nil {
-				return fmt.Errorf("failed to read configuration: %v", err)
+				return fmt.Errorf("failed to read configuration:  %w", err)
 			}
 
 			resp, err := rawGetRequest(fmt.Sprintf("http://%s/getFSMList", listenAddr))
@@ -1102,7 +1150,7 @@ func refreshState() *cobra.Command {
 	runFunc := func(cmd *cobra.Command, args []string) error {
 		listenAddr, err := cmd.Flags().GetString(flagListenAddr)
 		if err != nil {
-			return fmt.Errorf("failed to read listen address: %v", err)
+			return fmt.Errorf("failed to read listen address:  %w", err)
 		}
 
 		if len(kafkaConsumerGroup) < 1 {

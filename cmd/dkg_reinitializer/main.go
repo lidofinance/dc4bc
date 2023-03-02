@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,11 +8,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/lidofinance/dc4bc/client/services/node"
+	"github.com/lidofinance/dc4bc/pkg/utils"
+	"github.com/spf13/cobra"
 
+	"github.com/lidofinance/dc4bc/client/services/node"
 	"github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/storage"
-	"github.com/spf13/cobra"
 )
 
 const (
@@ -68,21 +68,21 @@ func reinit() *cobra.Command {
 			// Generate the re-DKG message.
 			reDKG, err := types.GenerateReDKGMessage(messages, newCommPubKeys)
 			if err != nil {
-				return fmt.Errorf("failed to generate reDKG message: %v", err)
+				return fmt.Errorf("failed to generate reDKG message:  %w", err)
 			}
 
 			// Adapt from 0.1.4 if required.
 			if adapt014, _ := cmd.Flags().GetBool(flagAdapt014); adapt014 {
 				reDKG, err = node.GetAdaptedReDKG(reDKG)
 				if err != nil {
-					return fmt.Errorf("failed to adapt reinit DKG message from 0.1.4: %v", err)
+					return fmt.Errorf("failed to adapt reinit DKG message from 0.1.4:  %w", err)
 				}
 			}
 
 			// Save to disk.
 			reDKGBz, err := json.MarshalIndent(reDKG, "", "  ")
 			if err != nil {
-				return fmt.Errorf("failed to encode reinit DKG message: %v", err)
+				return fmt.Errorf("failed to encode reinit DKG message:  %w", err)
 			}
 
 			outputFile, _ := cmd.Flags().GetString(flagOutputFile)
@@ -92,7 +92,7 @@ func reinit() *cobra.Command {
 			}
 
 			if err = ioutil.WriteFile(outputFile, reDKGBz, 0666); err != nil {
-				return fmt.Errorf("failed to save reinit DKG JSON: %v", err)
+				return fmt.Errorf("failed to save reinit DKG JSON: %w", err)
 			}
 
 			return nil
@@ -102,12 +102,6 @@ func reinit() *cobra.Command {
 
 func readMessages(cmd *cobra.Command) ([]storage.Message, error) {
 	inputFilePath, _ := cmd.Flags().GetString(flagInputFile)
-	inputFile, err := os.Open(inputFilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to Open input file: %w", err)
-	}
-	defer inputFile.Close()
-
 	separator, _ := cmd.Flags().GetString(flagSeparator)
 	if len(separator) < 1 {
 		return nil, errors.New("invalid (empty) separator")
@@ -118,31 +112,8 @@ func readMessages(cmd *cobra.Command) ([]storage.Message, error) {
 		return nil, errors.New("invalid (negative) column index")
 	}
 
-	reader := csv.NewReader(inputFile)
-	reader.Comma = rune(separator[0])
-	reader.LazyQuotes = true
-
-	lines, err := reader.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("failed to read dump CSV): %w", err)
-	}
-
 	skipHeader, _ := cmd.Flags().GetBool(flagSkipHeader)
-	if skipHeader {
-		lines = lines[1:]
-	}
-
-	var message storage.Message
-	var messages []storage.Message
-	for _, line := range lines {
-		if err := json.Unmarshal([]byte(line[columnIndex]), &message); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal line `%s`: %w", line[columnIndex], err)
-		}
-
-		messages = append(messages, message)
-	}
-
-	return messages, nil
+	return utils.ReadLogMessages(inputFilePath, rune(separator[0]), skipHeader, columnIndex)
 }
 
 func main() {
@@ -150,6 +121,6 @@ func main() {
 		reinit(),
 	)
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatalf("Failed to execute root command: %v", err)
+		log.Fatal(fmt.Errorf("Failed to execute root command:  %w", err))
 	}
 }

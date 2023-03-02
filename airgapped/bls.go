@@ -7,44 +7,60 @@ import (
 	"github.com/corestario/kyber/pairing"
 	"github.com/corestario/kyber/sign/bls"
 	"github.com/corestario/kyber/sign/tbls"
+
 	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/lidofinance/dc4bc/fsm/state_machines/signing_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
 	"github.com/lidofinance/dc4bc/fsm/types/responses"
 )
 
+type SignData struct {
+	ID   string
+	Data []byte
+}
+
 // handleStateSigningAwaitPartialSigns takes a data to sign as payload and returns a partial sign for the data to broadcast
 func (am *Machine) handleStateSigningAwaitPartialSigns(o *client.Operation) error {
 	var (
-		payload        responses.SigningPartialSignsParticipantInvitationsResponse
-		messagesToSign []requests.MessageToSign
-		err            error
+		payload      responses.SigningPartialSignsParticipantInvitationsResponse
+		signingTasks []requests.SigningTask
+		err          error
 	)
 
 	if err = json.Unmarshal(o.Payload, &payload); err != nil {
 		return fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
 
-	if err = json.Unmarshal(payload.SrcPayload, &messagesToSign); err != nil {
+	if err = json.Unmarshal(payload.SrcPayload, &signingTasks); err != nil {
 		return fmt.Errorf("failed to unmarshal messages to sign: %w", err)
 	}
 
-	signs := make([]requests.PartialSign, 0, len(messagesToSign))
+	signs := make([]requests.PartialSign, 0, len(signingTasks))
 	participantID, err := am.getParticipantID(o.DKGIdentifier)
 	if err != nil {
 		return fmt.Errorf("failed to get paricipant id: %w", err)
 	}
-	for _, m := range messagesToSign {
-		partialSign, err := am.createPartialSign(m.Payload, o.DKGIdentifier)
+
+	messagesToSign, err := requests.TasksToMessages(signingTasks)
+	if err != nil {
+		return fmt.Errorf("failed to extract messages from tasks: %w", err)
+	}
+
+	fmt.Println()
+	for i, s := range messagesToSign {
+		partialSign, err := am.createPartialSign(s.Payload, o.DKGIdentifier)
 		if err != nil {
 			return fmt.Errorf("failed to create partialSign for msg: %w", err)
 		}
 
 		signs = append(signs, requests.PartialSign{
-			MessageID: m.MessageID,
+			MessageID: s.MessageID,
 			Sign:      partialSign,
 		})
+		fmt.Print("\033[G\033[K") // clear the line
+		fmt.Printf("Signing progress - %d/%d", i+1, len(messagesToSign))
 	}
+	fmt.Println()
 
 	req := requests.SigningProposalBatchPartialSignRequests{
 		BatchID:       payload.BatchID,

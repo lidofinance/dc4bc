@@ -2,7 +2,9 @@ package fsmservice
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/syndtr/goleveldb/leveldb"
 
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/modules/state"
@@ -21,6 +23,7 @@ type FSMService interface {
 	GetFSMList() (map[string]string, error)
 	ResetFSMState(dto *dto.ResetStateDTO) (string, error)
 	SaveFSM(dkgRoundID string, dump []byte) error
+	IsExist(dkgRoundID string) (bool, error)
 }
 
 type FSM struct {
@@ -187,4 +190,28 @@ func (fsm *FSM) ResetFSMState(dto *dto.ResetStateDTO) (string, error) {
 	}
 
 	return newstatepath, err
+}
+
+func (fsm *FSM) IsExist(dkgRoundID string) (bool, error) {
+	bz, err := fsm.state.GetOrError(fsm.getStateKey())
+	if err != nil {
+		if errors.Is(leveldb.ErrNotFound, err) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	fsmInstances := make(map[string][]byte)
+	if len(bz) > 0 {
+		if err = json.Unmarshal(bz, &fsmInstances); err != nil {
+			return false, fmt.Errorf("failed to unmarshal FSM instances: %w", err)
+		}
+	}
+
+	if _, ok := fsmInstances[dkgRoundID]; ok {
+		return true, nil
+	}
+
+	return false, nil
 }

@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/labstack/echo/v4"
+
 	"github.com/lidofinance/dc4bc/client/api/http_api/handlers"
 	"github.com/lidofinance/dc4bc/client/services"
 	"github.com/lidofinance/dc4bc/client/services/node"
@@ -26,6 +27,7 @@ func SetRouter(e *echo.Echo, authHandler echo.MiddlewareFunc, node node.NodeServ
 	e.POST("/startDKG", h.StartDKG)
 	e.POST("/proposeSignMessage", h.ProposeSignMessage)
 	e.POST("/proposeSignBatchMessages", h.ProposeSignBatchMessages)
+	e.POST("/proposeSignBakedMessages", h.ProposeSignBakedMessages)
 	e.POST("/approveDKGParticipation", h.ApproveParticipation)
 	e.POST("/reinitDKG", h.ReInitDKG)
 

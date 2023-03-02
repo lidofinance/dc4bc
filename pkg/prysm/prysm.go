@@ -6,8 +6,9 @@ import (
 	"io/ioutil"
 	"path"
 
+	prysmBLS "github.com/prysmaticlabs/prysm/v3/crypto/bls"
+
 	"github.com/lidofinance/dc4bc/dkg"
-	prysmBLS "github.com/prysmaticlabs/prysm/crypto/bls"
 )
 
 func BatchVerification(exportedSignatures dkg.ExportedSignatures, pubkeyb64 string, dataDir string) error {

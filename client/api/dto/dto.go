@@ -61,9 +61,21 @@ type ProposeSignMessageDTO struct {
 	Data  []byte
 }
 
+type Range struct {
+	Start int
+	End   int
+}
+
 type ProposeSignBatchMessagesDTO struct {
 	DkgID []byte
 	Data  map[string][]byte // use messageID as key
+	Range *Range
+}
+
+type ProposeSignBakedMessagesDTO struct {
+	DkgID      []byte
+	RangeStart int
+	RangeEnd   int
 }
 
 type ReInitDKGDTO struct {

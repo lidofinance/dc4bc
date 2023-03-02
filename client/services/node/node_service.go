@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"log"
 	"math/big"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -18,20 +19,19 @@ import (
 	"github.com/corestario/kyber/pairing"
 	"github.com/corestario/kyber/pairing/bls12381"
 	"github.com/corestario/kyber/sign/tbls"
-	"github.com/lidofinance/dc4bc/dkg"
-
-	"github.com/lidofinance/dc4bc/client/services/fsmservice"
-	"github.com/lidofinance/dc4bc/client/services/operation"
-	"github.com/lidofinance/dc4bc/client/services/signature"
-
 	"github.com/google/uuid"
+
 	"github.com/lidofinance/dc4bc/client/api/dto"
 	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
 	"github.com/lidofinance/dc4bc/client/modules/logger"
 	"github.com/lidofinance/dc4bc/client/modules/state"
 	"github.com/lidofinance/dc4bc/client/services"
+	"github.com/lidofinance/dc4bc/client/services/fsmservice"
+	"github.com/lidofinance/dc4bc/client/services/operation"
+	"github.com/lidofinance/dc4bc/client/services/signature"
 	"github.com/lidofinance/dc4bc/client/types"
+	"github.com/lidofinance/dc4bc/dkg"
 	"github.com/lidofinance/dc4bc/fsm/fsm"
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	dpf "github.com/lidofinance/dc4bc/fsm/state_machines/dkg_proposal_fsm"
@@ -163,7 +163,7 @@ func (s *BaseNodeService) Poll() error {
 						message.Offset, message.Event)
 				}
 				if err := s.getState().SaveOffset(message.Offset + 1); err != nil {
-					s.Logger.Log("Failed to save offset: %v", err)
+					s.Logger.Log("Failed to save offset:  %w", err)
 				}
 			}
 		case <-s.ctx.Done():
@@ -363,20 +363,39 @@ func (s *BaseNodeService) buildMessage(dkgRoundID string, event fsm.Event, data 
 	return &message, nil
 }
 
-func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessagesDTO) error {
-	messagesToSign := make([]requests.MessageToSign, 0, len(dtoMsg.Data))
-	for file, msg := range dtoMsg.Data {
-		signID, err := createSignID(file)
-		if err != nil {
-			return fmt.Errorf("failed to create SignID for file %s", file)
-		}
-		messageDataSign := requests.MessageToSign{
-			MessageID: signID,
-			File:      file,
-			Payload:   msg,
-		}
+func extractTasksFromDTO(dtoMsg *dto.ProposeSignBatchMessagesDTO) ([]requests.SigningTask, error) {
+	if dtoMsg.Data != nil {
+		messagesToSign := make([]requests.SigningTask, 0, len(dtoMsg.Data))
+		for file, msg := range dtoMsg.Data {
+			signID, err := createSignID(file)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create SignID for file %s", file)
+			}
+			messageDataSign := requests.SigningTask{
+				MessageID: signID,
+				File:      file,
+				Payload:   msg,
+			}
 
-		messagesToSign = append(messagesToSign, messageDataSign)
+			messagesToSign = append(messagesToSign, messageDataSign)
+		}
+		return messagesToSign, nil
+	} else if dtoMsg.Range != nil {
+		return []requests.SigningTask{
+			{
+				MessageID:  uuid.New().String(),
+				RangeStart: dtoMsg.Range.Start,
+				RangeEnd:   dtoMsg.Range.End,
+			},
+		}, nil
+	}
+	return nil, errors.New("neither data tosign nor range were provided")
+}
+
+func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessagesDTO) error {
+	signingTasks, err := extractTasksFromDTO(dtoMsg)
+	if err != nil {
+		return fmt.Errorf("failed to extract messages from DTO: %w", err)
 	}
 
 	encodedDkgID := hex.EncodeToString(dtoMsg.DkgID)
@@ -400,10 +419,10 @@ func (s *BaseNodeService) ProposeSignMessages(dtoMsg *dto.ProposeSignBatchMessag
 	}
 
 	batch := requests.SigningBatchProposalStartRequest{
-		BatchID:        uuid.New().String(),
-		ParticipantId:  participantID,
-		CreatedAt:      time.Now(), // Is better to use time from node?
-		MessagesToSign: messagesToSign,
+		BatchID:       uuid.New().String(),
+		ParticipantId: participantID,
+		CreatedAt:     time.Now(), // Is better to use time from node?
+		SigningTasks:  signingTasks,
 	}
 
 	batchBz, err := json.Marshal(batch)
@@ -480,13 +499,13 @@ func (s *BaseNodeService) ReInitDKG(dto *dto.ReInitDKGDTO) error {
 	message, err := s.buildMessage(dto.ID, fsm.Event(types.ReinitDKG), dto.Payload)
 
 	if err != nil {
-		return fmt.Errorf("failed to build message: %v", err)
+		return fmt.Errorf("failed to build message:  %w", err)
 	}
 
 	err = s.storage.Send(*message)
 
 	if err != nil {
-		return fmt.Errorf("failed to send message: %v", err)
+		return fmt.Errorf("failed to send message:  %w", err)
 	}
 
 	return nil
@@ -496,7 +515,7 @@ func (s *BaseNodeService) SaveOffset(dto *dto.StateOffsetDTO) error {
 	err := s.getState().SaveOffset(dto.Offset)
 
 	if err != nil {
-		return fmt.Errorf("failed to save offset: %v", err)
+		return fmt.Errorf("failed to save offset:  %w", err)
 	}
 
 	return nil
@@ -505,7 +524,16 @@ func (s *BaseNodeService) SaveOffset(dto *dto.StateOffsetDTO) error {
 func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 	var req types.ReDKG
 	if err := json.Unmarshal(message.Data, &req); err != nil {
-		return fmt.Errorf("failed to umarshal request: %v", err)
+		return fmt.Errorf("failed to umarshal request:  %w", err)
+	}
+
+	roundExist, existErr := s.fsmService.IsExist(req.DKGID)
+	if existErr != nil {
+		return existErr
+	}
+
+	if roundExist {
+		return nil
 	}
 
 	// temporarily fix cause we can't verify patch messages
@@ -520,10 +548,20 @@ func (s *BaseNodeService) reinitDKG(message storage.Message) error {
 		if fsm.Event(msg.Event) == sif.EventSigningStart {
 			break
 		}
+
+		// LDC-07 Messages May Be Sent to a Single Node
+		//
+		// If we remove the broadcast and send only individual messages,
+		// then this behavior will break backward compatibility
+		// with the log of the previous version of the application. (v0.1.4)
+		//
+		// The described case will not lead to a catastrophic scenario,
+		// maximum inconvenience, and restart of the procedure,
+		// which is not very scary compared to the loss of compatibility.
 		if msg.RecipientAddr == "" || msg.RecipientAddr == s.GetUsername() {
 			operation, err := s.processMessage(msg)
 			if err != nil {
-				s.Logger.Log("failed to process operation: %v", err)
+				s.Logger.Log("failed to process operation:  %w", err)
 			}
 			if operation != nil {
 				operations = append(operations, operation)
@@ -591,8 +629,14 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 	if err = json.Unmarshal(message.Data, &proposal); err != nil {
 		return fmt.Errorf("failed to unmarshal reconstructed signature: %w", err)
 	}
-	signatures := make([]fsmtypes.ReconstructedSignature, 0, len(proposal.MessagesToSign))
-	for _, msg := range proposal.MessagesToSign {
+
+	messagesToSign, err := requests.TasksToMessages(proposal.SigningTasks)
+	if err != nil {
+		return fmt.Errorf("failed to extract messages from tasks: %w", err)
+	}
+
+	signatures := make([]fsmtypes.ReconstructedSignature, 0, len(messagesToSign))
+	for _, msg := range messagesToSign {
 		sig := fsmtypes.ReconstructedSignature{
 			File:       msg.File,
 			MessageID:  msg.MessageID,
@@ -600,6 +644,13 @@ func (s *BaseNodeService) processSignatureProposal(message storage.Message) erro
 			Username:   message.SenderAddr,
 			DKGRoundID: message.DkgRoundID,
 			SrcPayload: msg.Payload,
+		}
+		if msg.BakedDataPayload {
+			ValIdx, err := strconv.ParseInt(msg.MessageID, 10, 64)
+			if err != nil {
+				return fmt.Errorf("failed to parse int from str(%s): %w", msg.MessageID, err)
+			}
+			sig.ValIdx = ValIdx
 		}
 		signatures = append(signatures, sig)
 	}
@@ -633,11 +684,11 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 	case types.SignatureReconstructionFailed:
 		errorRequest, err := types.FSMRequestFromMessage(message)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
+			return nil, fmt.Errorf("failed to get FSMRequestFromMessage:  %w", err)
 		}
 		errorRequestTyped, ok := errorRequest.(requests.SignatureProposalConfirmationErrorRequest)
 		if !ok {
-			return nil, fmt.Errorf("failed to convert request to SignatureProposalConfirmationErrorRequest: %v", err)
+			return nil, fmt.Errorf("failed to convert request to SignatureProposalConfirmationErrorRequest:  %w", err)
 		}
 		s.Logger.Log("Participant #%d got an error during signature reconstruction process: %v", errorRequestTyped.ParticipantId, errorRequestTyped.Error)
 		return nil, nil
@@ -708,7 +759,7 @@ func (s *BaseNodeService) processMessage(message storage.Message) (*types.Operat
 
 	fsmReq, err := types.FSMRequestFromMessage(message)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get FSMRequestFromMessage: %v", err)
+		return nil, fmt.Errorf("failed to get FSMRequestFromMessage:  %w", err)
 	}
 
 	resp, fsmDump, err := fsmInstance.Do(fsm.Event(message.Event), fsmReq)
@@ -834,16 +885,22 @@ func (s *BaseNodeService) broadcastReconstructedSignatures(message storage.Messa
 
 func reconstructThresholdSignature(signingFSM *state_machines.FSMInstance, payload responses.SigningProcessParticipantResponse) ([]fsmtypes.ReconstructedSignature, error) {
 	batchPartialSignatures := make(fsmtypes.BatchPartialSignatures)
-	var messagesPayload []requests.MessageToSign
+	var signingTasks []requests.SigningTask
 	for _, participant := range payload.Participants {
 		for messageID, sign := range participant.PartialSigns {
 			batchPartialSignatures.AddPartialSignature(messageID, sign)
 		}
 	}
-	err := json.Unmarshal(payload.SrcPayload, &messagesPayload)
+	err := json.Unmarshal(payload.SrcPayload, &signingTasks)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal MessagesToSign: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal signingTasks: %w", err)
 	}
+
+	messagesPayload, err := requests.TasksToMessages(signingTasks)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract messages from signingTasks: %w", err)
+	}
+
 	// just convert slice to map
 	messages := make(map[string]requests.MessageToSign)
 	for _, m := range messagesPayload {
@@ -856,14 +913,25 @@ func reconstructThresholdSignature(signingFSM *state_machines.FSMInstance, paylo
 		if err != nil {
 			return nil, fmt.Errorf("failed to reconstruct full signature for msg %s: %w", messageID, err)
 		}
-		response = append(response, fsmtypes.ReconstructedSignature{
+
+		sig := fsmtypes.ReconstructedSignature{
 			File:       messages[messageID].File,
 			MessageID:  messageID,
 			BatchID:    payload.BatchID,
 			Signature:  reconstructedSignature,
 			DKGRoundID: signingFSM.FSMDump().Payload.DkgId,
 			SrcPayload: messages[messageID].Payload,
-		})
+		}
+
+		if messages[messageID].BakedDataPayload {
+			ValIdx, err := strconv.ParseInt(messages[messageID].MessageID, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse int from str(%s): %w", messages[messageID].MessageID, err)
+			}
+			sig.ValIdx = ValIdx
+		}
+
+		response = append(response, sig)
 	}
 	return response, nil
 }

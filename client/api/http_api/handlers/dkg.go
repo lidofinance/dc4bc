@@ -9,6 +9,7 @@ import (
 	"github.com/censync/go-dto"
 	"github.com/censync/go-validator"
 	"github.com/labstack/echo/v4"
+
 	. "github.com/lidofinance/dc4bc/client/api/dto"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
 	req "github.com/lidofinance/dc4bc/client/api/http_api/requests"
@@ -20,7 +21,7 @@ func (a *HTTPApp) StartDKG(c echo.Context) error {
 	request := &req.StartDKGForm{}
 	request.Payload, err = ioutil.ReadAll(ctx.Request().Body)
 	if err != nil {
-		return ctx.JsonError(http.StatusBadRequest, fmt.Errorf("failed to read request body: %v", err))
+		return ctx.JsonError(http.StatusBadRequest, fmt.Errorf("failed to read request body: %w", err))
 	}
 	defer ctx.Request().Body.Close()
 
@@ -50,7 +51,7 @@ func (a *HTTPApp) ReInitDKG(c echo.Context) error {
 	formDTO := &ReInitDKGDTO{ID: request.ID}
 	formDTO.Payload, err = json.Marshal(request)
 	if err != nil {
-		return ctx.JsonError(http.StatusBadRequest, fmt.Errorf("failed to marshal request body: %v", err))
+		return ctx.JsonError(http.StatusBadRequest, fmt.Errorf("failed to marshal request body: %w", err))
 	}
 
 	if err = a.node.ReInitDKG(formDTO); err != nil {

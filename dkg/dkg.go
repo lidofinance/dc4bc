@@ -278,7 +278,7 @@ func (d *DKG) GetBLSKeyring() (*BLSKeyring, error) {
 
 	distKeyShare, err := d.instance.DistKeyShare()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get DistKeyShare: %v", err)
+		return nil, fmt.Errorf("failed to get DistKeyShare: %w", err)
 	}
 
 	masterPubKey := share.NewPubPoly(d.suite, nil, distKeyShare.Commitments())

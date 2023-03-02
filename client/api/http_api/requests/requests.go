@@ -64,6 +64,12 @@ type ProposeSignBatchMessagesForm struct {
 	Data  map[string][]byte `json:"data"`
 }
 
+type ProposeSignBakedMessagesForm struct {
+	DkgID      []byte `json:"dkgID"`
+	RangeStart int    `json:"range_start" validate:"attr=range_start,min=0"`
+	RangeEnd   int    `json:"range_end"`
+}
+
 type ReInitDKGForm struct {
 	ID           string              `json:"dkg_id"`
 	Threshold    int                 `json:"threshold"`

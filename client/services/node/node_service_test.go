@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
-	"github.com/lidofinance/dc4bc/mocks/serviceMocks"
+	"github.com/stretchr/testify/require"
 
 	"github.com/lidofinance/dc4bc/client/config"
 	"github.com/lidofinance/dc4bc/client/modules/keystore"
@@ -17,12 +18,10 @@ import (
 	"github.com/lidofinance/dc4bc/fsm/state_machines"
 	spf "github.com/lidofinance/dc4bc/fsm/state_machines/signature_proposal_fsm"
 	"github.com/lidofinance/dc4bc/fsm/types/requests"
-	"github.com/lidofinance/dc4bc/storage"
-
-	"github.com/golang/mock/gomock"
 	"github.com/lidofinance/dc4bc/mocks/clientMocks"
+	"github.com/lidofinance/dc4bc/mocks/serviceMocks"
 	"github.com/lidofinance/dc4bc/mocks/storageMocks"
-	"github.com/stretchr/testify/require"
+	"github.com/lidofinance/dc4bc/storage"
 )
 
 func TestClient_ProcessMessage(t *testing.T) {

@@ -5,8 +5,9 @@ import (
 	"os"
 	"testing"
 
-	client "github.com/lidofinance/dc4bc/client/types"
 	"github.com/stretchr/testify/require"
+
+	client "github.com/lidofinance/dc4bc/client/types"
 )
 
 func TestMachine_DropOperationsLog(t *testing.T) {

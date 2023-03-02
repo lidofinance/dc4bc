@@ -61,7 +61,7 @@ func (m *SigningProposalFSM) actionStartSigningProposal(inEvent fsm.Event, args 
 		return
 	}
 
-	payload, err := json.Marshal(request.MessagesToSign)
+	payload, err := json.Marshal(request.SigningTasks)
 	if err != nil {
 		err = fmt.Errorf("failed to marshal messages to sign: %w", err)
 		return

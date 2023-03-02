@@ -8,6 +8,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+
 	dto "github.com/lidofinance/dc4bc/client/api/dto"
 	state_machines "github.com/lidofinance/dc4bc/fsm/state_machines"
 )
@@ -107,4 +108,19 @@ func (m *MockFSMService) SaveFSM(dkgRoundID string, dump []byte) error {
 func (mr *MockFSMServiceMockRecorder) SaveFSM(dkgRoundID, dump interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveFSM", reflect.TypeOf((*MockFSMService)(nil).SaveFSM), dkgRoundID, dump)
+}
+
+// IsExist mocks base method.
+func (m *MockFSMService) IsExist(dkgRoundID string) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsExist", dkgRoundID)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsExist indicates an expected call of IsExist.
+func (mr *MockFSMServiceMockRecorder) IsExist(dkgRoundID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsExist", reflect.TypeOf((*MockFSMService)(nil).IsExist), dkgRoundID)
 }

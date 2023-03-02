@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+
 	. "github.com/lidofinance/dc4bc/client/api/dto"
 	cs "github.com/lidofinance/dc4bc/client/api/http_api/context_service"
 	req "github.com/lidofinance/dc4bc/client/api/http_api/requests"
@@ -27,7 +28,7 @@ func (a *HTTPApp) GetStateOffset(c echo.Context) error {
 	stx := c.(*cs.ContextService)
 	offset, err := a.node.GetStateOffset()
 	if err != nil {
-		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to load offset: %v", err))
+		return stx.JsonError(http.StatusInternalServerError, fmt.Errorf("failed to load offset: %w", err))
 	}
 	return stx.Json(http.StatusOK, offset)
 }

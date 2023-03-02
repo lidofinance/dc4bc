@@ -15,12 +15,22 @@ func (m *MessageToSign) Validate() error {
 	return nil
 }
 
+func (m *SigningTask) Validate() error {
+	if m.MessageID == "" {
+		return errors.New("{MessageID} cannot be empty")
+	}
+	if len(m.Payload) == 0 && m.RangeStart > m.RangeEnd {
+		return errors.New("{Payload} cannot zero length and RangeStart cannot be greater than RangeEnd")
+	}
+	return nil
+}
+
 func (r *SigningBatchProposalStartRequest) Validate() error {
 	if len(r.BatchID) == 0 {
 		return fmt.Errorf("{BatchID} can not be empty")
 	}
-	if len(r.MessagesToSign) == 0 {
-		return fmt.Errorf("{MessagesToSign} can not be empty")
+	if len(r.SigningTasks) == 0 {
+		return fmt.Errorf("{SigningTasks} can not be empty")
 	}
 	if r.ParticipantId < 0 {
 		return errors.New("{ParticipantId} cannot be a negative number")
@@ -28,10 +38,10 @@ func (r *SigningBatchProposalStartRequest) Validate() error {
 	if r.CreatedAt.IsZero() {
 		return errors.New("{CreatedAt} is not set")
 	}
-	for _, m := range r.MessagesToSign {
+	for _, m := range r.SigningTasks {
 		err := m.Validate()
 		if err != nil {
-			return fmt.Errorf("failed to validate message to sign %+v: %w", m, err)
+			return fmt.Errorf("failed to validate signing task %+v: %w", m, err)
 		}
 	}
 	return nil
