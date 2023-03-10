@@ -6,24 +6,19 @@ import (
 )
 
 var (
-	// CapellaForkVersion 0x20000092
+	// GenesisForkVersion 0x20000089
 	//
-	// https://github.com/ethereum/consensus-specs/blob/dev/specs/capella/fork.md#configuration
-	CapellaForkVersion = [4]byte{32, 0, 0, 146}
-
-	// GenesisForkVersion 0x00000000
-	//
-	// https://github.com/ethereum/consensus-specs/blob/5337da5dff85cd584c4330b46a881510c1218ca3/specs/phase0/beacon-chain.md#genesis-settings
-	GenesisForkVersion = [4]byte{0, 0, 0, 0}
+	// for local testNet
+	GenesisForkVersion = [4]byte{32, 0, 0, 137}
 
 	// DomainBlsToExecutionChange 0x0A000000
 	//
 	// https://github.com/ethereum/consensus-specs/blob/dev/specs/capella/beacon-chain.md#domain-types
 	DomainBlsToExecutionChange = [4]byte{10, 0, 0, 0}
 
-	// GenesisValidatorRoot 0x4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95
-	// {beacon api}/eth/v1/beacon/genesis
-	GenesisValidatorRoot = [32]byte{107, 86, 189, 247, 47, 168, 181, 157, 57, 73, 150, 33, 229, 169, 191, 152, 226, 47, 193, 235, 141, 72, 199, 132, 146, 181, 173, 251, 9, 203, 123, 143}
+	// GenesisValidatorRoot 0x6cfce3b409fac8249fde5ed10db637d39a12f9546ecf10c0ff64c4332c647aa6
+	// for local testNet
+	GenesisValidatorRoot = [32]byte{108, 252, 227, 180, 9, 250, 200, 36, 159, 222, 94, 209, 13, 182, 55, 211, 154, 18, 249, 84, 110, 207, 16, 192, 255, 100, 196, 51, 44, 100, 122, 166}
 
 	// LidoBlsPubKeyBB
 	// base64 tnrKcfBLZzA3tUAJt2Dxlh84NuVxQUHIkq/bdewINNzmeE2ccu2K19syjP+P6fE+

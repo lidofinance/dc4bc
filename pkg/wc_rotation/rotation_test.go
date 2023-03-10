@@ -20,6 +20,7 @@ func TestGetSigningRoot(t *testing.T) {
 			args: args{
 				validatorIndex: 393395,
 			},
+			// Test for production. Don't merge this branch into master
 			want:    `23ccffc7767e1b9a54b3e18c986f00d0345825bcab21eae5fe92c849d6cfedb4`,
 			wantErr: false,
 		},

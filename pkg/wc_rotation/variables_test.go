@@ -2,22 +2,13 @@ package wc_rotation
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/hex"
 	"testing"
 )
 
 func TestWCRotationVariables(t *testing.T) {
-	t.Run(`TestCapellaForkVersion`, func(t *testing.T) {
-		actual, _ := hex.DecodeString(`03000000`)
-
-		if bytes.Compare(actual, CapellaForkVersion[:]) != 0 {
-			t.Errorf("CapellaForkVersion is wrong got = %v, want %v", actual, CapellaForkVersion)
-		}
-	})
-
 	t.Run(`TestGenesisForkVersion`, func(t *testing.T) {
-		actual, _ := hex.DecodeString(`00000000`)
+		actual, _ := hex.DecodeString(`20000089`)
 
 		if bytes.Compare(actual, GenesisForkVersion[:]) != 0 {
 			t.Errorf("GenesisForkVersion is wrong got = %v, want %v", actual, GenesisForkVersion)
@@ -33,7 +24,7 @@ func TestWCRotationVariables(t *testing.T) {
 	})
 
 	t.Run(`GenesisValidatorRoot`, func(t *testing.T) {
-		actual, _ := hex.DecodeString(`4b363db94e286120d76eb905340fdd4e54bfe9f06bf33ff6cf5ad27f511bfe95`)
+		actual, _ := hex.DecodeString(`6cfce3b409fac8249fde5ed10db637d39a12f9546ecf10c0ff64c4332c647aa6`)
 
 		if bytes.Compare(actual, GenesisValidatorRoot[:]) != 0 {
 			t.Errorf("GenesisValidatorRoot is wrong got = %v, want %v", actual, GenesisValidatorRoot)
@@ -41,16 +32,10 @@ func TestWCRotationVariables(t *testing.T) {
 	})
 
 	t.Run(`LidoBlsPubKeyBB`, func(t *testing.T) {
-		p, _ := base64.StdEncoding.DecodeString("tnrKcfBLZzA3tUAJt2Dxlh84NuVxQUHIkq/bdewINNzmeE2ccu2K19syjP+P6fE+")
-		actual := hex.EncodeToString(p)
-		expected := `b67aca71f04b673037b54009b760f1961f3836e5714141c892afdb75ec0834dce6784d9c72ed8ad7db328cff8fe9f13e`
+		actual, _ := hex.DecodeString(`8199b7a8c6998aafb30a955794f5d72a454ed1caf51bdbfc3065973153f64eeb64ff07a5b43cb9007cba3e3ec76ed756`)
 
-		if actual != expected {
-			t.Errorf("LidoBlsPubKeyBB is wrong got = %v, want %v", actual, expected)
-		}
-
-		if bytes.Compare(p, LidoBlsPubKeyBB[:]) != 0 {
-			t.Errorf("LidoBlsPubKeyBB is wrong got = %v, want %v", actual, LidoBlsPubKeyBB)
+		if bytes.Compare(actual, LidoBlsPubKeyBB[:]) != 0 {
+			t.Errorf("GenesisValidatorRoot is wrong got = %v, want %v", actual, GenesisValidatorRoot)
 		}
 	})
 
