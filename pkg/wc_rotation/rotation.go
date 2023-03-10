@@ -44,7 +44,7 @@ var (
 func GetSigningRoot(validatorIndex uint64) ([32]byte, error) {
 	domain, computeDomainErr := computeDomain(
 		DomainBlsToExecutionChange,
-		CapellaForkVersion,
+		GenesisForkVersion,
 		GenesisValidatorRoot,
 	)
 

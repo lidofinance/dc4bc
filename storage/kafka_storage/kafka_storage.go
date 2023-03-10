@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net"
 	"strconv"
 	"strings"
@@ -155,8 +156,8 @@ func (ks *KafkaStorage) GetMessages(_ uint64) ([]storage.Message, error) {
 		}
 
 		if err = json.Unmarshal(kafkaMessage.Value, &message); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal a message %s: %v",
-				string(kafkaMessage.Value), err)
+			log.Printf("failed to unmarshal a message %s: %s", string(kafkaMessage.Value), err.Error())
+			continue
 		}
 
 		message.Offset = uint64(kafkaMessage.Offset)
@@ -176,7 +177,7 @@ func (ks *KafkaStorage) IgnoreMessages(messages []string, useOffset bool) error 
 		if useOffset {
 			offset, err := strconv.ParseUint(msg, 10, 64)
 			if err != nil {
-				return fmt.Errorf("failed to parse message offset: %v", err)
+				return fmt.Errorf("failed to parse message offset: %w", err)
 			}
 			ks.offsetIgnoreList[offset] = struct{}{}
 
@@ -208,7 +209,7 @@ func (ks *KafkaStorage) storageToKafkaMessages(messages ...storage.Message) ([]k
 	for i, m := range messages {
 		data, err := json.Marshal(m)
 		if err != nil {
-			return kafkaMessages, fmt.Errorf("failed to marshal a message %v: %v", m, err)
+			return kafkaMessages, fmt.Errorf("failed to marshal a message %v: %w", m, err)
 		}
 		kafkaMessages[i] = kafka.Message{Key: []byte(m.ID), Value: data}
 	}

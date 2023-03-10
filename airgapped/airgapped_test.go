@@ -124,7 +124,7 @@ func createTransport(participants []string) (*Transport, error) {
 func createOperation(opType string, to string, req interface{}) (*client.Operation, error) {
 	reqBz, err := json.Marshal(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %v", err)
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 	op := &client.Operation{
 		ID:            uuid.New().String(),
@@ -160,7 +160,7 @@ func (tr *Transport) initRequest(threshold int) error {
 	for _, n := range tr.nodes {
 		pubKey, err := n.Machine.pubKey.MarshalBinary()
 		if err != nil {
-			return fmt.Errorf("failed to marshal dkg pubkey: %v", err)
+			return fmt.Errorf("failed to marshal dkg pubkey: %w", err)
 		}
 		entry := &responses.SignatureProposalParticipantInvitationEntry{
 			ParticipantId: n.ParticipantID,
@@ -189,7 +189,7 @@ func (tr *Transport) commitsStep(threshold int) error {
 	for _, n := range tr.nodes {
 		pubKey, err := n.Machine.pubKey.MarshalBinary()
 		if err != nil {
-			return fmt.Errorf("%s: failed to marshal pubkey: %v", n.Participant, err)
+			return fmt.Errorf("%s: failed to marshal pubkey: %w", n.Participant, err)
 		}
 		entry := &responses.DKGProposalPubKeysParticipantEntry{
 			ParticipantId: n.ParticipantID,
@@ -335,28 +335,28 @@ func TestAirgappedAllSteps(t *testing.T) {
 
 	tr, err := createTransport(participants)
 	if err != nil {
-		t.Fatalf("failed to create transport: %v", err)
+		t.Fatal(fmt.Errorf("failed to create transport: %w", err))
 	}
 	defer os.RemoveAll(testDir)
 
 	if err := tr.commitsStep(threshold); err != nil {
-		t.Fatalf("failed to do commits step: %v", err)
+		t.Fatal(fmt.Errorf("failed to do commits step: %w", err))
 	}
 
 	if err := tr.dealsStep(); err != nil {
-		t.Fatalf("failed to do deals step: %v", err)
+		t.Fatal(fmt.Errorf("failed to do deals step: %w", err))
 	}
 
 	if err := tr.responsesStep(); err != nil {
-		t.Fatalf("failed to do responses step: %v", err)
+		t.Fatal(fmt.Errorf("failed to do responses step: %w", err))
 	}
 
 	if err := tr.masterKeysStep(); err != nil {
-		t.Fatalf("failed to do master keys step: %v", err)
+		t.Fatal(fmt.Errorf("failed to do master keys step: %w", err))
 	}
 
 	if err := tr.checkReconstructedMasterKeys(); err != nil {
-		t.Fatalf("failed check master keys: %v", err)
+		t.Fatal(fmt.Errorf("failed check master keys: %w", err))
 	}
 
 	msgToSign := []requests.MessageToSign{
@@ -367,7 +367,7 @@ func TestAirgappedAllSteps(t *testing.T) {
 	}
 
 	if err := tr.partialSignsStep(successfulBatchSigningID, msgToSign); err != nil {
-		t.Fatalf("failed to do master keys step: %v", err)
+		t.Fatal(fmt.Errorf("failed to do master keys step: %w", err))
 	}
 
 	fmt.Println("DKG succeeded")
@@ -383,16 +383,16 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 
 	tr, err := createTransport(participants)
 	if err != nil {
-		t.Fatalf("failed to create transport: %v", err)
+		t.Fatal(fmt.Errorf("failed to create transport: %w", err))
 	}
 	defer os.RemoveAll(testDir)
 
 	if err := tr.commitsStep(threshold); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
+		t.Fatal(fmt.Errorf("failed to do init request: %w", err))
 	}
 
 	if err := tr.dealsStep(); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
+		t.Fatal(fmt.Errorf("failed to do init request: %w", err))
 	}
 
 	// At this point something goes wrong and we have to restart the machines.
@@ -407,7 +407,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 
 	newTr, err := createTransport(participants)
 	if err != nil {
-		t.Errorf("failed to create transport: %v", err)
+		t.Fatal(fmt.Errorf("failed to create transport: %w", err))
 	}
 	for i, n := range newTr.nodes {
 		n.deals = tr.nodes[i].deals
@@ -422,15 +422,15 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 	tr = newTr
 
 	if err := tr.responsesStep(); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
+		t.Fatal(fmt.Errorf("failed to do init request: %w", err))
 	}
 
 	if err := tr.masterKeysStep(); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
+		t.Fatal(fmt.Errorf("failed to do init request: %w", err))
 	}
 
 	if err := tr.checkReconstructedMasterKeys(); err != nil {
-		t.Fatalf("failed check master keys: %v", err)
+		t.Fatal(fmt.Errorf("failed check master keys: %w", err))
 	}
 
 	msgToSign := []requests.MessageToSign{
@@ -441,7 +441,7 @@ func TestAirgappedMachine_Replay(t *testing.T) {
 	}
 
 	if err := tr.partialSignsStep(successfulBatchSigningID, msgToSign); err != nil {
-		t.Fatalf("failed to do init request: %v", err)
+		t.Fatal(fmt.Errorf("failed to do init request: %w", err))
 	}
 
 	fmt.Println("DKG succeeded")

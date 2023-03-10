@@ -24,6 +24,7 @@ type State interface {
 
 	SaveOffset(uint64) error
 	LoadOffset() (uint64, error)
+	GetOrError(key string) ([]byte, error)
 }
 
 type LevelDBState struct {
@@ -150,4 +151,18 @@ func MakeCompositeKey(prefix, key string) []byte {
 
 func MakeCompositeKeyString(prefix, key string) string {
 	return fmt.Sprintf("%s_%s", prefix, key)
+}
+
+func (s *LevelDBState) GetOrError(key string) ([]byte, error) {
+	s.Lock()
+	defer s.Unlock()
+	var (
+		value []byte
+		err   error
+	)
+	if value, err = s.stateDb.Get([]byte(key), nil); err != nil {
+		return nil, err
+	}
+
+	return value, nil
 }
