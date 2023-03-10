@@ -43,9 +43,9 @@ class BLSToExecutionChange(Container):
 
 Dc4bc contains itself list of validator indexes embedded in [payload.csv](./pkg/wc_rotation/payloads.csv). Also, dc4bc predefined other values hex formatted and unit tests for them, such as:
 
-* [CapellaForkVersion](https://github.com/ethereum/consensus-specs/blob/dev/specs/capella/fork.md#configuration):
-  * ``0x03000000``
-  * ``[4]byte{3, 0, 0, 0}``
+* [GenesisForkVersion](https://github.com/ethereum/consensus-specs/blob/5337da5dff85cd584c4330b46a881510c1218ca3/specs/phase0/beacon-chain.md#genesis-settings):
+  * ``0x00000000``
+  * ``[4]byte{0, 0, 0, 0}``
 * [DomainBlsToExecutionChange](https://github.com/ethereum/consensus-specs/blob/dev/specs/capella/beacon-chain.md#domain-types): 
     * ``0x0A000000``
     * ``[4]byte{10, 0, 0, 0}``

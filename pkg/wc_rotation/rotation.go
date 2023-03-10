@@ -6,11 +6,6 @@ import (
 )
 
 var (
-	// CapellaForkVersion 0x03000000
-	//
-	// https://github.com/ethereum/consensus-specs/blob/dev/specs/capella/fork.md#configuration
-	CapellaForkVersion = [4]byte{3, 0, 0, 0}
-
 	// GenesisForkVersion 0x00000000
 	//
 	// https://github.com/ethereum/consensus-specs/blob/5337da5dff85cd584c4330b46a881510c1218ca3/specs/phase0/beacon-chain.md#genesis-settings
@@ -44,7 +39,7 @@ var (
 func GetSigningRoot(validatorIndex uint64) ([32]byte, error) {
 	domain, computeDomainErr := computeDomain(
 		DomainBlsToExecutionChange,
-		CapellaForkVersion,
+		GenesisForkVersion,
 		GenesisValidatorRoot,
 	)
 

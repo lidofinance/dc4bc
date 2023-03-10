@@ -6,11 +6,11 @@ while read -r sum _ ; do
   [[ $sum == 0ffd6499f8e2bb31d5321a6ec1ed5c2fcfb22f917a49a2b0c2d8b6fd379a1e7f ]] && echo "Firefox checksum is correct." || echo "[WARN] Incorrect Firefox checksum!"
 done
 
-wget -q --show-progress https://github.com/lidofinance/dc4bc/releases/download/4.0.0/build-linux-amd64.tar
+wget -q --show-progress https://github.com/lidofinance/dc4bc/releases/download/4.1.0/build-linux-amd64.tar
 tar -xvf build-linux-amd64.tar
 shasum ./build/dc4bc_airgapped |
 while read -r sum _ ; do
-  [[ $sum == 6508c7fd3b055d90f0725b188a59ebf7060255b3 ]] && echo "Airgapped checksum is correct." || echo "[WARN] Incorrect Airgapped checksum!"
+  [[ $sum == 594cec4feaee5c909c63c5713b26c0b5346dffe6 ]] && echo "Airgapped checksum is correct." || echo "[WARN] Incorrect Airgapped checksum!"
 done
 
 cp ../qr_reader_bundle/qr-tool.html ./qr-tool.html

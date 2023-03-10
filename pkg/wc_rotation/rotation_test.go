@@ -20,7 +20,7 @@ func TestGetSigningRoot(t *testing.T) {
 			args: args{
 				validatorIndex: 393395,
 			},
-			want:    `5c57b22ed4078f4e4e8ec3188c8c25895154a55c62525488f40b37a3464da6fe`,
+			want:    `23ccffc7767e1b9a54b3e18c986f00d0345825bcab21eae5fe92c849d6cfedb4`,
 			wantErr: false,
 		},
 	}
@@ -36,7 +36,7 @@ func TestGetSigningRoot(t *testing.T) {
 			actual := hex.EncodeToString(got[:])
 
 			if actual != tt.want {
-				t.Errorf("GetSigningRoot() got = %v, want %v", got, tt.want)
+				t.Errorf("GetSigningRoot() got = %v, want %v", actual, tt.want)
 			}
 		})
 	}
