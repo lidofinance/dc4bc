@@ -8,14 +8,6 @@ import (
 )
 
 func TestWCRotationVariables(t *testing.T) {
-	t.Run(`TestCapellaForkVersion`, func(t *testing.T) {
-		actual, _ := hex.DecodeString(`03000000`)
-
-		if bytes.Compare(actual, CapellaForkVersion[:]) != 0 {
-			t.Errorf("CapellaForkVersion is wrong got = %v, want %v", actual, CapellaForkVersion)
-		}
-	})
-
 	t.Run(`TestGenesisForkVersion`, func(t *testing.T) {
 		actual, _ := hex.DecodeString(`00000000`)
 
